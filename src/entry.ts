@@ -5,8 +5,11 @@ import { ensureTaskDir } from "./kody-utils.js"
 import { runPipeline, printStatus } from "./state-machine.js"
 import { runPreflight } from "./preflight.js"
 import { setConfigDir } from "./config.js"
+import { setGhCwd, getIssue, postComment } from "./github-api.js"
 import { logger } from "./logger.js"
 import type { PipelineContext } from "./types.js"
+
+const isCI = !!process.env.GITHUB_ACTIONS
 
 interface CliInput {
   command: "run" | "rerun" | "status"
@@ -15,6 +18,9 @@ interface CliInput {
   fromStage?: string
   dryRun?: boolean
   cwd?: string
+  issueNumber?: number
+  feedback?: string
+  local?: boolean
 }
 
 function getArg(args: string[], flag: string): string | undefined {
@@ -34,8 +40,8 @@ function parseArgs(): CliInput {
 
   if (hasFlag(args, "--help") || hasFlag(args, "-h") || args.length === 0) {
     console.log(`Usage:
-  kody run    --task-id <id> [--task "<description>"] [--cwd <path>] [--dry-run]
-  kody rerun  --task-id <id> --from <stage> [--cwd <path>]
+  kody run    --task-id <id> [--task "<desc>"] [--cwd <path>] [--issue-number <n>] [--feedback "<text>"] [--local] [--dry-run]
+  kody rerun  --task-id <id> --from <stage> [--cwd <path>] [--issue-number <n>]
   kody status --task-id <id> [--cwd <path>]
   kody --help`)
     process.exit(0)
@@ -47,6 +53,9 @@ function parseArgs(): CliInput {
     process.exit(1)
   }
 
+  const issueStr = getArg(args, "--issue-number") ?? process.env.ISSUE_NUMBER
+  const localFlag = hasFlag(args, "--local")
+
   return {
     command,
     taskId: getArg(args, "--task-id") ?? process.env.TASK_ID,
@@ -54,6 +63,9 @@ function parseArgs(): CliInput {
     fromStage: getArg(args, "--from") ?? process.env.FROM_STAGE,
     dryRun: hasFlag(args, "--dry-run") || process.env.DRY_RUN === "true",
     cwd: getArg(args, "--cwd"),
+    issueNumber: issueStr ? parseInt(issueStr, 10) : undefined,
+    feedback: getArg(args, "--feedback") ?? process.env.FEEDBACK,
+    local: localFlag || (!isCI && !hasFlag(args, "--no-local")),
   }
 }
 
@@ -85,6 +97,7 @@ async function main() {
       process.exit(1)
     }
     setConfigDir(projectDir)
+    setGhCwd(projectDir)
     logger.info(`Working directory: ${projectDir}`)
   }
 
@@ -106,11 +119,22 @@ async function main() {
     fs.writeFileSync(path.join(taskDir, "task.md"), input.task)
   }
 
+  // Auto-fetch issue body as task if no task.md and issue-number provided
+  const taskMdPath = path.join(taskDir, "task.md")
+  if (!fs.existsSync(taskMdPath) && input.issueNumber) {
+    logger.info(`Fetching issue #${input.issueNumber} body as task...`)
+    const issue = getIssue(input.issueNumber)
+    if (issue) {
+      const taskContent = `# ${issue.title}\n\n${issue.body ?? ""}`
+      fs.writeFileSync(taskMdPath, taskContent)
+      logger.info(`  Task loaded from issue #${input.issueNumber}: ${issue.title}`)
+    }
+  }
+
   // Verify task.md exists for run
   if (input.command === "run") {
-    const taskMdPath = path.join(taskDir, "task.md")
     if (!fs.existsSync(taskMdPath)) {
-      console.error("No task.md found. Provide --task or ensure .tasks/<id>/task.md exists.")
+      console.error("No task.md found. Provide --task, --issue-number, or ensure .tasks/<id>/task.md exists.")
       process.exit(1)
     }
   }
@@ -139,8 +163,14 @@ async function main() {
       mode: input.command === "rerun" ? "rerun" : "full",
       fromStage: input.fromStage,
       dryRun: input.dryRun,
+      issueNumber: input.issueNumber,
+      feedback: input.feedback,
+      local: input.local,
     },
   }
+
+  logger.info(`Mode: ${ctx.input.mode}${ctx.input.local ? " (local)" : " (CI)"}`)
+  if (ctx.input.issueNumber) logger.info(`Issue: #${ctx.input.issueNumber}`)
 
   // Run pipeline
   const state = await runPipeline(ctx)
@@ -153,11 +183,40 @@ async function main() {
   }
 
   if (state.state === "failed") {
+    // Post failure comment on issue
+    if (ctx.input.issueNumber && !ctx.input.local) {
+      const failedStage = Object.entries(state.stages).find(
+        ([, s]) => s.state === "failed" || s.state === "timeout",
+      )
+      const stageName = failedStage ? failedStage[0] : "unknown"
+      const error = failedStage ? (failedStage[1] as { error?: string }).error ?? "" : ""
+      try {
+        postComment(
+          ctx.input.issueNumber,
+          `❌ Pipeline failed at **${stageName}**${error ? `: ${error.slice(0, 200)}` : ""}`,
+        )
+      } catch {
+        // Best effort
+      }
+    }
     process.exit(1)
   }
 }
 
-main().catch((err) => {
-  console.error(err instanceof Error ? err.message : err)
+main().catch(async (err) => {
+  const msg = err instanceof Error ? err.message : String(err)
+  console.error(msg)
+
+  // Post crash comment if we have issue context
+  const issueStr = process.argv.find((_, i, a) => a[i - 1] === "--issue-number") ?? process.env.ISSUE_NUMBER
+  const isLocal = process.argv.includes("--local") || !process.env.GITHUB_ACTIONS
+  if (issueStr && !isLocal) {
+    try {
+      postComment(parseInt(issueStr, 10), `❌ Pipeline crashed: ${msg.slice(0, 200)}`)
+    } catch {
+      // Best effort
+    }
+  }
+
   process.exit(1)
 })

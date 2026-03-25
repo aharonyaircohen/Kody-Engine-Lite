@@ -13,22 +13,28 @@ const MAX_TASK_CONTEXT_PLAN = 1500
 const MAX_TASK_CONTEXT_SPEC = 2000
 
 export function readPromptFile(stageName: string): string {
-  const promptPath = path.resolve(
-    new URL(".", import.meta.url).pathname,
-    "..",
-    "prompts",
-    `${stageName}.md`,
-  )
-  if (!fs.existsSync(promptPath)) {
-    throw new Error(`Prompt file not found: ${promptPath}`)
+  const scriptDir = new URL(".", import.meta.url).pathname
+
+  // Try multiple resolution paths (dev: src/../prompts, prod: dist/bin/../../prompts)
+  const candidates = [
+    path.resolve(scriptDir, "..", "prompts", `${stageName}.md`),
+    path.resolve(scriptDir, "..", "..", "prompts", `${stageName}.md`),
+  ]
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return fs.readFileSync(candidate, "utf-8")
+    }
   }
-  return fs.readFileSync(promptPath, "utf-8")
+
+  throw new Error(`Prompt file not found: tried ${candidates.join(", ")}`)
 }
 
 export function injectTaskContext(
   prompt: string,
   taskId: string,
   taskDir: string,
+  feedback?: string,
 ): string {
   let context = `## Task Context\n`
   context += `Task ID: ${taskId}\n`
@@ -67,6 +73,10 @@ export function injectTaskContext(
     context += `\n## Plan Summary\n${truncated}${plan.length > MAX_TASK_CONTEXT_PLAN ? "\n..." : ""}\n`
   }
 
+  if (feedback) {
+    context += `\n## Human Feedback\n${feedback}\n`
+  }
+
   return prompt.replace("{{TASK_CONTEXT}}", context)
 }
 
@@ -75,10 +85,11 @@ export function buildFullPrompt(
   taskId: string,
   taskDir: string,
   projectDir: string,
+  feedback?: string,
 ): string {
   const memory = readProjectMemory(projectDir)
   const promptTemplate = readPromptFile(stageName)
-  const prompt = injectTaskContext(promptTemplate, taskId, taskDir)
+  const prompt = injectTaskContext(promptTemplate, taskId, taskDir, feedback)
   return memory ? `${memory}\n---\n\n${prompt}` : prompt
 }
 

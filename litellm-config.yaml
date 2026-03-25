@@ -34,11 +34,11 @@ model_list:
       api_key: os.environ/ANTHROPIC_API_KEY
   - model_name: plan
     litellm_params:
-      model: anthropic/claude-sonnet-4-6
+      model: anthropic/claude-opus-4-6
       api_key: os.environ/ANTHROPIC_API_KEY
   - model_name: build
     litellm_params:
-      model: anthropic/claude-opus-4-6
+      model: anthropic/claude-sonnet-4-6
       api_key: os.environ/ANTHROPIC_API_KEY
   - model_name: autofix
     litellm_params:
@@ -50,7 +50,7 @@ model_list:
       api_key: os.environ/ANTHROPIC_API_KEY
   - model_name: review-fix
     litellm_params:
-      model: anthropic/claude-opus-4-6
+      model: anthropic/claude-sonnet-4-6
       api_key: os.environ/ANTHROPIC_API_KEY
 
   # ── Future stage aliases ──

@@ -52,6 +52,14 @@ export function runPreflight(): void {
       if (major < 18) throw new Error(`Node ${v} < 18`)
       return v
     }),
+    check("gh CLI", () => {
+      const v = execFileSync("gh", ["--version"], {
+        encoding: "utf-8",
+        timeout: 5_000,
+        stdio: ["pipe", "pipe", "pipe"],
+      }).trim().split("\n")[0]
+      return v
+    }),
     check("package.json", () => {
       if (!fs.existsSync("package.json")) throw new Error("not found")
     }),

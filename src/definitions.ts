@@ -12,7 +12,7 @@ export const STAGES: StageDefinition[] = [
   {
     name: "plan",
     type: "agent",
-    modelTier: "mid",
+    modelTier: "strong",
     timeout: 300_000,
     maxRetries: 1,
     outputFile: "plan.md",
@@ -20,7 +20,7 @@ export const STAGES: StageDefinition[] = [
   {
     name: "build",
     type: "agent",
-    modelTier: "strong",
+    modelTier: "mid",
     timeout: 1_200_000,
     maxRetries: 1,
   },
@@ -35,7 +35,7 @@ export const STAGES: StageDefinition[] = [
   {
     name: "review",
     type: "agent",
-    modelTier: "mid",
+    modelTier: "strong",
     timeout: 300_000,
     maxRetries: 1,
     outputFile: "review.md",
@@ -43,7 +43,7 @@ export const STAGES: StageDefinition[] = [
   {
     name: "review-fix",
     type: "agent",
-    modelTier: "strong",
+    modelTier: "mid",
     timeout: 600_000,
     maxRetries: 1,
   },

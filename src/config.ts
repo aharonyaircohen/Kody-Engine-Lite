@@ -12,6 +12,12 @@ export interface KodyConfig {
   }
   git: {
     defaultBranch: string
+    userEmail?: string
+    userName?: string
+  }
+  github: {
+    owner: string
+    repo: string
   }
   paths: {
     taskDir: string
@@ -35,6 +41,10 @@ const DEFAULT_CONFIG: KodyConfig = {
   },
   git: {
     defaultBranch: "dev",
+  },
+  github: {
+    owner: "",
+    repo: "",
   },
   paths: {
     taskDir: ".tasks",
@@ -73,6 +83,7 @@ export function getProjectConfig(): KodyConfig {
       _config = {
         quality: { ...DEFAULT_CONFIG.quality, ...raw.quality },
         git: { ...DEFAULT_CONFIG.git, ...raw.git },
+        github: { ...DEFAULT_CONFIG.github, ...raw.github },
         paths: { ...DEFAULT_CONFIG.paths, ...raw.paths },
         agent: { ...DEFAULT_CONFIG.agent, ...raw.agent },
       }

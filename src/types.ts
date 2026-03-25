@@ -82,5 +82,8 @@ export interface PipelineContext {
     mode: "full" | "rerun" | "status"
     fromStage?: string
     dryRun?: boolean
+    issueNumber?: number
+    feedback?: string
+    local?: boolean
   }
 }
