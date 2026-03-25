@@ -1,0 +1,24 @@
+{
+  "quality": {
+    "typecheck": "pnpm -s tsc --noEmit",
+    "lint": "",
+    "lintFix": "",
+    "format": "",
+    "formatFix": "",
+    "testUnit": "pnpm -s test"
+  },
+  "git": {
+    "defaultBranch": "main"
+  },
+  "paths": {
+    "taskDir": ".tasks"
+  },
+  "agent": {
+    "runner": "claude-code",
+    "modelMap": {
+      "cheap": "haiku",
+      "mid": "sonnet",
+      "strong": "opus"
+    }
+  }
+}

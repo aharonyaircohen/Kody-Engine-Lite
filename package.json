@@ -1,0 +1,21 @@
+{
+  "name": "kody-engine-lite",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Autonomous SDLC pipeline: Kody orchestration + Claude Code + LiteLLM",
+  "type": "module",
+  "scripts": {
+    "kody": "tsx src/entry.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.4",
+    "tsx": "^4.21.0",
+    "typescript": "~5.7.0",
+    "vitest": "^4.1.1"
+  }
+}
