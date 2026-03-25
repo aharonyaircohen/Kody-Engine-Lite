@@ -19,6 +19,8 @@ export interface KodyConfig {
   agent: {
     runner: string
     modelMap: { cheap: string; mid: string; strong: string }
+    litellmUrl?: string
+    usePerStageRouting?: boolean
   }
 }
 

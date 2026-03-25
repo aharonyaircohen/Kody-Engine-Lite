@@ -1,36 +1,71 @@
 model_list:
-  # Cheap tier — fast analysis
+  # ── Tier aliases (used by kody.config.json modelMap) ──
   - model_name: cheap
     litellm_params:
-      model: anthropic/claude-3-5-haiku-20241022
+      model: anthropic/claude-haiku-4-5
       api_key: os.environ/ANTHROPIC_API_KEY
-
   - model_name: cheap
     litellm_params:
       model: openai/gpt-4o-mini
       api_key: os.environ/OPENAI_API_KEY
 
-  # Mid tier — planning
   - model_name: mid
     litellm_params:
-      model: anthropic/claude-sonnet-4-20250514
+      model: anthropic/claude-sonnet-4-6
       api_key: os.environ/ANTHROPIC_API_KEY
-
   - model_name: mid
     litellm_params:
       model: openai/gpt-4o
       api_key: os.environ/OPENAI_API_KEY
 
-  # Strong tier — code generation
   - model_name: strong
     litellm_params:
-      model: anthropic/claude-opus-4-20250514
+      model: anthropic/claude-opus-4-6
       api_key: os.environ/ANTHROPIC_API_KEY
-
   - model_name: strong
     litellm_params:
       model: openai/gpt-4
       api_key: os.environ/OPENAI_API_KEY
 
+  # ── Per-stage aliases (1:1 from opencode.json agent mappings) ──
+  - model_name: taskify
+    litellm_params:
+      model: anthropic/claude-haiku-4-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+  - model_name: plan
+    litellm_params:
+      model: anthropic/claude-sonnet-4-6
+      api_key: os.environ/ANTHROPIC_API_KEY
+  - model_name: build
+    litellm_params:
+      model: anthropic/claude-opus-4-6
+      api_key: os.environ/ANTHROPIC_API_KEY
+  - model_name: autofix
+    litellm_params:
+      model: anthropic/claude-sonnet-4-6
+      api_key: os.environ/ANTHROPIC_API_KEY
+  - model_name: review
+    litellm_params:
+      model: anthropic/claude-opus-4-6
+      api_key: os.environ/ANTHROPIC_API_KEY
+  - model_name: review-fix
+    litellm_params:
+      model: anthropic/claude-opus-4-6
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  # ── Future stage aliases ──
+  - model_name: clarify
+    litellm_params:
+      model: openai/gpt-4o
+      api_key: os.environ/OPENAI_API_KEY
+  - model_name: test-writer
+    litellm_params:
+      model: anthropic/claude-sonnet-4-6
+      api_key: os.environ/ANTHROPIC_API_KEY
+  - model_name: reflect
+    litellm_params:
+      model: anthropic/claude-haiku-4-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+
 general_settings:
-  master_key: sk-litellm-demo-key
+  master_key: os.environ/LITELLM_MASTER_KEY

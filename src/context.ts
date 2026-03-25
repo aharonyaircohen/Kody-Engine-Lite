@@ -1,7 +1,9 @@
 import * as fs from "fs"
 import * as path from "path"
+import { readProjectMemory } from "./memory.js"
+import { getProjectConfig } from "./config.js"
 
-const MODEL_MAP: Record<string, string> = {
+const DEFAULT_MODEL_MAP: Record<string, string> = {
   cheap: "haiku",
   mid: "sonnet",
   strong: "opus",
@@ -68,6 +70,30 @@ export function injectTaskContext(
   return prompt.replace("{{TASK_CONTEXT}}", context)
 }
 
-export function resolveModel(modelTier: string): string {
-  return MODEL_MAP[modelTier] ?? "sonnet"
+export function buildFullPrompt(
+  stageName: string,
+  taskId: string,
+  taskDir: string,
+  projectDir: string,
+): string {
+  const memory = readProjectMemory(projectDir)
+  const promptTemplate = readPromptFile(stageName)
+  const prompt = injectTaskContext(promptTemplate, taskId, taskDir)
+  return memory ? `${memory}\n---\n\n${prompt}` : prompt
+}
+
+export function resolveModel(modelTier: string, stageName?: string): string {
+  const config = getProjectConfig()
+
+  // Per-stage routing: use stage name as LiteLLM alias
+  if (config.agent.usePerStageRouting && stageName) {
+    return stageName
+  }
+
+  // Config model map (may be LiteLLM aliases or direct model names)
+  const mapped = config.agent.modelMap[modelTier as keyof typeof config.agent.modelMap]
+  if (mapped) return mapped
+
+  // Fallback to defaults
+  return DEFAULT_MODEL_MAP[modelTier] ?? "sonnet"
 }
