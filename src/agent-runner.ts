@@ -150,11 +150,11 @@ export function createOpenCodeRunner(): AgentRunner {
       _taskDir: string,
       options?: AgentRunnerOptions,
     ): Promise<AgentResult> {
-      const args = ["run"]
+      const args = ["run", "--agent", "build"]
       if (model) {
         args.push("--model", model)
       }
-      // Pipe prompt via stdin for full agentic tool-use session
+      // Pipe prompt via stdin — --agent build enables full tool permissions
       return runSubprocess(
         "opencode",
         args,
