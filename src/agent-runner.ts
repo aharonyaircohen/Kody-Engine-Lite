@@ -145,15 +145,21 @@ export function createOpenCodeRunner(): AgentRunner {
     async run(
       stageName: string,
       prompt: string,
-      _model: string,
+      model: string,
       timeout: number,
       _taskDir: string,
       options?: AgentRunnerOptions,
     ): Promise<AgentResult> {
+      const args = ["run"]
+      if (model) {
+        args.push("--model", model)
+      }
+      // Pass prompt as positional message arg
+      args.push(prompt)
       return runSubprocess(
         "opencode",
-        ["github", "run", "--agent", stageName],
-        prompt,
+        args,
+        "", // opencode takes message as positional, not stdin
         timeout,
         options,
       )
