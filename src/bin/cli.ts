@@ -387,6 +387,9 @@ ${context}`
       config.agent.modelMap = { cheap: "haiku", mid: "sonnet", strong: "opus" }
     }
 
+    // Deterministic validation: override LLM choices with exact script matches
+    validateQualityCommands(cwd, config, basic.pm)
+
     return {
       config,
       architecture: parsed.architecture ?? "",
@@ -401,6 +404,50 @@ ${context}`
       conventions: "",
     }
   }
+}
+
+function validateQualityCommands(
+  cwd: string,
+  config: Record<string, unknown>,
+  pm: string,
+): void {
+  let scripts: Record<string, string> = {}
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(cwd, "package.json"), "utf-8"))
+    scripts = pkg.scripts ?? {}
+  } catch { return }
+
+  const quality = (config.quality ?? {}) as Record<string, string>
+
+  // Prefer most specific script for each command
+  const overrides: Array<{ key: string; preferred: string[]; }> = [
+    { key: "typecheck", preferred: ["typecheck", "type-check"] },
+    { key: "lint", preferred: ["lint"] },
+    { key: "lintFix", preferred: ["lint:fix", "lint-fix"] },
+    { key: "format", preferred: ["format:check", "format-check", "prettier:check"] },
+    { key: "formatFix", preferred: ["format", "format:fix", "format-fix"] },
+    { key: "testUnit", preferred: ["test:unit", "test-unit", "test:ci"] },
+  ]
+
+  for (const { key, preferred } of overrides) {
+    // Find the best matching script from package.json
+    const match = preferred.find((s) => scripts[s])
+    if (match) {
+      const correct = `${pm} ${match}`
+      if (quality[key] !== correct) {
+        quality[key] = correct
+      }
+    }
+    // If the current value references a script that doesn't exist, clear it
+    if (quality[key]) {
+      const scriptName = quality[key].replace(`${pm} `, "")
+      if (scriptName && !scripts[scriptName] && !scriptName.includes(" ")) {
+        quality[key] = ""
+      }
+    }
+  }
+
+  config.quality = quality
 }
 
 function buildFallbackConfig(
