@@ -152,10 +152,36 @@ kody-engine-lite init --force  # overwrite existing workflow
 Comment on any issue:
 
 ```
-@kody full <task-id>                      # Run full pipeline
-@kody rerun <task-id> --from <stage>      # Resume from stage
+@kody                                     # Run full pipeline (auto-generates task-id)
+@kody full <task-id>                      # Run with specific task-id
+@kody rerun --from <stage>                # Resume latest task from stage
+@kody rerun <task-id> --from <stage>      # Resume specific task
+@kody approve                             # Approve + provide answers to Kody's questions
 @kody status <task-id>                    # Check status
 ```
+
+### Approve Flow (Question Gate)
+
+When Kody encounters unclear requirements or architecture decisions, it pauses and posts questions:
+
+```
+Kody: 🤔 Kody has questions before proceeding:
+      1. Should the search be case-sensitive?
+      2. Which users should have access?
+
+      Reply with @kody approve and your answers in the comment body.
+```
+
+You reply:
+
+```
+@kody approve
+
+1. Yes, case-sensitive
+2. Only admin users
+```
+
+Kody resumes automatically from where it paused, with your answers injected as context.
 
 ## Pipeline Stages
 

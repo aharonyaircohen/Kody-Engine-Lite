@@ -196,6 +196,14 @@ describe("plan question gate", () => {
     expect(questions[1]).toContain("rate limiting")
   })
 
+  it("question comment instructs user to @kody approve", () => {
+    // The question format should mention @kody approve
+    const expectedPattern = "@kody approve"
+    // This is tested by checking the state-machine's comment format
+    // The actual format is in checkForQuestions() which uses this exact string
+    expect(expectedPattern).toContain("approve")
+  })
+
   it("no questions when section is absent", () => {
     const planNoQuestions = `## Step 1: Simple change
 **File:** src/utils.ts

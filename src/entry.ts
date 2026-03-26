@@ -164,10 +164,46 @@ async function main() {
     }
   }
 
-  // Validate rerun has --from
+  // Auto-detect --from for rerun if not provided (find paused stage)
   if (input.command === "rerun" && !input.fromStage) {
-    console.error("--from <stage> is required for rerun")
-    process.exit(1)
+    const statusPath = path.join(taskDir, "status.json")
+    if (fs.existsSync(statusPath)) {
+      try {
+        const status = JSON.parse(fs.readFileSync(statusPath, "utf-8"))
+        // Find the stage that was paused (completed with "paused" error) or first failed/pending after completed
+        const stageNames = ["taskify", "plan", "build", "verify", "review", "review-fix", "ship"]
+        let foundPaused = false
+        for (const name of stageNames) {
+          const s = status.stages[name]
+          if (s?.error?.includes("paused")) {
+            // Resume from the NEXT stage after the paused one
+            const idx = stageNames.indexOf(name)
+            if (idx < stageNames.length - 1) {
+              input.fromStage = stageNames[idx + 1]
+              foundPaused = true
+              logger.info(`Auto-detected resume from: ${input.fromStage} (after paused ${name})`)
+              break
+            }
+          }
+          if (s?.state === "failed" || s?.state === "pending") {
+            input.fromStage = name
+            foundPaused = true
+            logger.info(`Auto-detected resume from: ${input.fromStage}`)
+            break
+          }
+        }
+        if (!foundPaused) {
+          input.fromStage = "taskify"
+          logger.info("No paused/failed stage found, resuming from taskify")
+        }
+      } catch {
+        console.error("--from <stage> is required (could not read status.json)")
+        process.exit(1)
+      }
+    } else {
+      console.error("--from <stage> is required for rerun (no status.json found)")
+      process.exit(1)
+    }
   }
 
   // Create runners

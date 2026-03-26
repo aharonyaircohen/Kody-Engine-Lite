@@ -59,7 +59,7 @@ function checkForQuestions(ctx: PipelineContext, stageName: string): boolean {
       const cleaned = raw.replace(/^```json\s*\n?/m, "").replace(/\n?```\s*$/m, "")
       const taskJson = JSON.parse(cleaned)
       if (taskJson.questions && Array.isArray(taskJson.questions) && taskJson.questions.length > 0) {
-        const body = `🤔 **Kody has questions before proceeding:**\n\n${taskJson.questions.map((q: string, i: number) => `${i + 1}. ${q}`).join("\n")}\n\nPlease answer and then run: \`@kody rerun ${ctx.taskId} --from plan\``
+        const body = `🤔 **Kody has questions before proceeding:**\n\n${taskJson.questions.map((q: string, i: number) => `${i + 1}. ${q}`).join("\n")}\n\nReply with \`@kody approve\` and your answers in the comment body.`
         postComment(ctx.input.issueNumber, body)
         setLifecycleLabel(ctx.input.issueNumber, "waiting")
         return true
@@ -76,7 +76,7 @@ function checkForQuestions(ctx: PipelineContext, stageName: string): boolean {
         const questionsText = questionsMatch[1].trim()
         const questions = questionsText.split("\n").filter((l) => l.startsWith("- ")).map((l) => l.slice(2))
         if (questions.length > 0) {
-          const body = `🏗️ **Kody has architecture questions:**\n\n${questions.map((q, i) => `${i + 1}. ${q}`).join("\n")}\n\nPlease answer and then run: \`@kody rerun ${ctx.taskId} --from build\``
+          const body = `🏗️ **Kody has architecture questions:**\n\n${questions.map((q, i) => `${i + 1}. ${q}`).join("\n")}\n\nReply with \`@kody approve\` and your answers in the comment body.`
           postComment(ctx.input.issueNumber, body)
           setLifecycleLabel(ctx.input.issueNumber, "waiting")
           return true

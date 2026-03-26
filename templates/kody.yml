@@ -103,7 +103,7 @@ jobs:
 
           # Validate mode
           case "$MODE" in
-            full|rerun|status) ;;
+            full|rerun|status|approve) ;;
             *)
               # If first arg isn't a mode, it might be a task-id or nothing
               if [ -n "$MODE" ] && [ "$MODE" != "" ]; then
@@ -119,11 +119,24 @@ jobs:
             TASK_ID="${ISSUE_NUM}-$(date +%y%m%d-%H%M%S)"
           fi
 
+          # For approve mode: extract answer body and convert to rerun
+          if [ "$MODE" = "approve" ]; then
+            # Everything after @kody approve [task-id] is the feedback
+            APPROVE_BODY=$(echo "$BODY" | sed -n '/\(@kody\|\/kody\)\s*approve/,$p' | tail -n +2)
+            FEEDBACK="$APPROVE_BODY"
+            MODE="rerun"
+            # FROM_STAGE will be determined by entry.ts from paused state
+          fi
+
           echo "task_id=$TASK_ID" >> $GITHUB_OUTPUT
           echo "mode=$MODE" >> $GITHUB_OUTPUT
           echo "from_stage=$FROM_STAGE" >> $GITHUB_OUTPUT
           echo "issue_number=$ISSUE_NUM" >> $GITHUB_OUTPUT
-          echo "feedback=$FEEDBACK" >> $GITHUB_OUTPUT
+          {
+            echo "feedback<<KODY_EOF"
+            echo "$FEEDBACK"
+            echo "KODY_EOF"
+          } >> $GITHUB_OUTPUT
           echo "valid=true" >> $GITHUB_OUTPUT
 
   # ─── Orchestrate ─────────────────────────────────────────────────────────────
