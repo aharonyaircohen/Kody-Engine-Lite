@@ -64,14 +64,24 @@ export function ensureFeatureBranch(
   cwd?: string,
 ): string {
   const current = getCurrentBranch(cwd)
+  const branchName = deriveBranchName(issueNumber, title)
 
-  // Already on a feature branch
-  if (!BASE_BRANCHES.includes(current) && current !== "") {
+  // Already on the correct feature branch for this issue
+  if (current === branchName || current.startsWith(`${issueNumber}-`)) {
     logger.info(`  Already on feature branch: ${current}`)
     return current
   }
 
-  const branchName = deriveBranchName(issueNumber, title)
+  // On a different feature branch — switch to default first
+  if (!BASE_BRANCHES.includes(current) && current !== "") {
+    const defaultBranch = getDefaultBranch(cwd)
+    logger.info(`  Switching from ${current} to ${defaultBranch} before creating ${branchName}`)
+    try {
+      git(["checkout", defaultBranch], { cwd })
+    } catch {
+      logger.warn(`  Failed to checkout ${defaultBranch}`)
+    }
+  }
 
   // Fetch origin
   try {
