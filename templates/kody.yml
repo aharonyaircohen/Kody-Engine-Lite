@@ -117,15 +117,24 @@ jobs:
 
           # For approve mode: extract answer body and convert to rerun
           # Must run BEFORE task-id generation so we don't create a new task
+          # approve: extract answers, convert to rerun
           if [ "$MODE" = "approve" ]; then
             APPROVE_BODY=$(echo "$BODY" | sed -n '/\(@kody\|\/kody\)\s*approve/,$p' | tail -n +2)
             FEEDBACK="$APPROVE_BODY"
             MODE="rerun"
-            # Leave TASK_ID empty — entry.ts findLatestTaskForIssue will find the paused task
           fi
 
-          # Auto-generate task-id if not provided (only for non-rerun modes)
-          if [ -z "$TASK_ID" ] && [ "$MODE" != "rerun" ]; then
+          # fix: extract description as feedback, convert to fix command
+          if [ "$MODE" = "fix" ]; then
+            FIX_BODY=$(echo "$BODY" | sed -n '/\(@kody\|\/kody\)\s*fix/,$p' | tail -n +2)
+            if [ -n "$FIX_BODY" ]; then
+              FEEDBACK="$FIX_BODY"
+            fi
+            # Leave TASK_ID empty — entry.ts finds latest task for issue
+          fi
+
+          # Auto-generate task-id if not provided (only for full mode)
+          if [ -z "$TASK_ID" ] && [ "$MODE" = "full" ]; then
             TASK_ID="${ISSUE_NUM}-$(date +%y%m%d-%H%M%S)"
           fi
 

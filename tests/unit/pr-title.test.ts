@@ -142,6 +142,30 @@ describe("approve workflow: task-id handling", () => {
     expect(TASK_ID).toBe("1031-260326-120000")
   })
 
+  it("@kody fix leaves task-id empty for lookup", () => {
+    let MODE = "fix"
+    let TASK_ID = ""
+    const ISSUE_NUM = "1031"
+
+    // fix mode: don't generate task-id
+    if (!TASK_ID && MODE === "full") {
+      TASK_ID = `${ISSUE_NUM}-260326-120000`
+    }
+
+    expect(MODE).toBe("fix")
+    expect(TASK_ID).toBe("") // entry.ts finds latest task
+  })
+
+  it("@kody fix extracts description as feedback", () => {
+    const commentBody = `@kody fix
+Please add proper error handling to the auth middleware
+and make sure it returns 401 instead of 500`
+
+    const fixBody = commentBody.split(/\n/).slice(1).join("\n").trim()
+    expect(fixBody).toContain("error handling")
+    expect(fixBody).toContain("401 instead of 500")
+  })
+
   it("@kody rerun without task-id stays empty", () => {
     let MODE = "rerun"
     let TASK_ID = ""
