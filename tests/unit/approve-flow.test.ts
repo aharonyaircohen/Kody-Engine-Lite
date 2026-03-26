@@ -373,6 +373,72 @@ describe("approve flow: auto-detect fromStage", () => {
   })
 })
 
+describe("paused state detection", () => {
+  it("detects paused state from stages with 'paused' error", () => {
+    const stages = {
+      taskify: { state: "completed", retries: 0, error: "paused: waiting for answers" },
+      plan: { state: "pending", retries: 0 },
+      build: { state: "pending", retries: 0 },
+      verify: { state: "pending", retries: 0 },
+      review: { state: "pending", retries: 0 },
+      "review-fix": { state: "pending", retries: 0 },
+      ship: { state: "pending", retries: 0 },
+    }
+
+    const isPaused = Object.values(stages).some(
+      (s) => typeof s === "object" && s !== null && "error" in s && typeof s.error === "string" && s.error.includes("paused"),
+    )
+    expect(isPaused).toBe(true)
+  })
+
+  it("does not detect paused when no paused error exists", () => {
+    const stages = {
+      taskify: { state: "completed", retries: 0 },
+      plan: { state: "failed", retries: 0, error: "Model unavailable" },
+      build: { state: "pending", retries: 0 },
+      verify: { state: "pending", retries: 0 },
+      review: { state: "pending", retries: 0 },
+      "review-fix": { state: "pending", retries: 0 },
+      ship: { state: "pending", retries: 0 },
+    }
+
+    const isPaused = Object.values(stages).some(
+      (s) => typeof s === "object" && s !== null && "error" in s && typeof s.error === "string" && s.error.includes("paused"),
+    )
+    expect(isPaused).toBe(false)
+  })
+
+  it("paused pipeline has state=failed but is not a real failure", async () => {
+    const { tmpDir, cleanup } = setup()
+    try {
+      const runner = createRunner(["Q1?"])
+      const ctx = createCtx(tmpDir, runner, {
+        local: false,
+        issueNumber: 99,
+      })
+
+      const state = await runPipeline(ctx)
+
+      // State is "failed" (that's how pause is tracked)
+      expect(state.state).toBe("failed")
+
+      // But it's actually paused — detectable by "paused" in error
+      const isPaused = Object.values(state.stages).some(
+        (s) => s.error?.includes("paused"),
+      )
+      expect(isPaused).toBe(true)
+
+      // No stage has state "failed" — taskify is "completed" with paused error
+      const hasRealFailure = Object.values(state.stages).some(
+        (s) => s.state === "failed",
+      )
+      expect(hasRealFailure).toBe(false)
+    } finally {
+      cleanup()
+    }
+  })
+})
+
 describe("workflow parse: approve → rerun conversion", () => {
   it("approve comment body becomes feedback", () => {
     // Simulate the workflow parse logic
