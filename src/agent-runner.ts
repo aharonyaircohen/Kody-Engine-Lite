@@ -1,5 +1,6 @@
 import { spawn, execFileSync } from "child_process"
 import type { AgentRunner, AgentResult, AgentRunnerOptions } from "./types.js"
+import type { KodyConfig } from "./config.js"
 
 const SIGKILL_GRACE_MS = 5000
 const STDERR_TAIL_CHARS = 500
@@ -57,17 +58,67 @@ function waitForProcess(
   })
 }
 
+async function runSubprocess(
+  command: string,
+  args: string[],
+  prompt: string,
+  timeout: number,
+  options?: AgentRunnerOptions,
+): Promise<AgentResult> {
+  const child = spawn(command, args, {
+    cwd: options?.cwd ?? process.cwd(),
+    env: {
+      ...process.env,
+      SKIP_BUILD: "1",
+      SKIP_HOOKS: "1",
+      ...options?.env,
+    },
+    stdio: ["pipe", "pipe", "pipe"],
+  })
+
+  try {
+    await writeStdin(child, prompt)
+  } catch (err) {
+    return {
+      outcome: "failed",
+      error: `Failed to send prompt: ${err instanceof Error ? err.message : String(err)}`,
+    }
+  }
+
+  const { code, stdout, stderr } = await waitForProcess(child, timeout)
+
+  if (code === 0) {
+    return { outcome: "completed", output: stdout }
+  }
+
+  return {
+    outcome: code === null ? "timed_out" : "failed",
+    error: `Exit code ${code}\n${stderr.slice(-STDERR_TAIL_CHARS)}`,
+  }
+}
+
+function checkCommand(command: string, args: string[]): boolean {
+  try {
+    execFileSync(command, args, { timeout: 10_000, stdio: "pipe" })
+    return true
+  } catch {
+    return false
+  }
+}
+
+// ─── Claude Code Runner ──────────────────────────────────────────────────────
+
 export function createClaudeCodeRunner(): AgentRunner {
   return {
     async run(
-      stageName: string,
+      _stageName: string,
       prompt: string,
       model: string,
       timeout: number,
       _taskDir: string,
       options?: AgentRunnerOptions,
     ): Promise<AgentResult> {
-      const child = spawn(
+      return runSubprocess(
         "claude",
         [
           "--print",
@@ -75,46 +126,68 @@ export function createClaudeCodeRunner(): AgentRunner {
           "--dangerously-skip-permissions",
           "--allowedTools", "Bash,Edit,Read,Write,Glob,Grep",
         ],
-        {
-          cwd: options?.cwd ?? process.cwd(),
-          env: {
-            ...process.env,
-            SKIP_BUILD: "1",
-            SKIP_HOOKS: "1",
-            ...options?.env,
-          },
-          stdio: ["pipe", "pipe", "pipe"],
-        },
+        prompt,
+        timeout,
+        options,
       )
-
-      try {
-        await writeStdin(child, prompt)
-      } catch (err) {
-        return {
-          outcome: "failed",
-          error: `Failed to send prompt: ${err instanceof Error ? err.message : String(err)}`,
-        }
-      }
-
-      const { code, stdout, stderr } = await waitForProcess(child, timeout)
-
-      if (code === 0) {
-        return { outcome: "completed", output: stdout }
-      }
-
-      return {
-        outcome: code === null ? "timed_out" : "failed",
-        error: `Exit code ${code}\n${stderr.slice(-STDERR_TAIL_CHARS)}`,
-      }
     },
 
     async healthCheck(): Promise<boolean> {
-      try {
-        execFileSync("claude", ["--version"], { timeout: 10_000, stdio: "pipe" })
-        return true
-      } catch {
-        return false
-      }
+      return checkCommand("claude", ["--version"])
     },
   }
+}
+
+// ─── OpenCode Runner ─────────────────────────────────────────────────────────
+
+export function createOpenCodeRunner(): AgentRunner {
+  return {
+    async run(
+      stageName: string,
+      prompt: string,
+      _model: string,
+      timeout: number,
+      _taskDir: string,
+      options?: AgentRunnerOptions,
+    ): Promise<AgentResult> {
+      return runSubprocess(
+        "opencode",
+        ["github", "run", "--agent", stageName],
+        prompt,
+        timeout,
+        options,
+      )
+    },
+
+    async healthCheck(): Promise<boolean> {
+      return checkCommand("opencode", ["--version"])
+    },
+  }
+}
+
+// ─── Runner Factory ──────────────────────────────────────────────────────────
+
+const RUNNER_FACTORIES: Record<string, () => AgentRunner> = {
+  "claude-code": createClaudeCodeRunner,
+  "opencode": createOpenCodeRunner,
+}
+
+export function createRunners(config: KodyConfig): Record<string, AgentRunner> {
+  // New multi-runner config
+  if (config.agent.runners && Object.keys(config.agent.runners).length > 0) {
+    const runners: Record<string, AgentRunner> = {}
+    for (const [name, runnerConfig] of Object.entries(config.agent.runners)) {
+      const factory = RUNNER_FACTORIES[runnerConfig.type]
+      if (factory) {
+        runners[name] = factory()
+      }
+    }
+    return runners
+  }
+
+  // Legacy single-runner fallback
+  const runnerType = config.agent.runner ?? "claude-code"
+  const factory = RUNNER_FACTORIES[runnerType]
+  const defaultName = config.agent.defaultRunner ?? "claude"
+  return { [defaultName]: factory ? factory() : createClaudeCodeRunner() }
 }

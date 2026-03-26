@@ -77,7 +77,7 @@ export interface PipelineContext {
   taskId: string
   taskDir: string
   projectDir: string
-  runner: AgentRunner
+  runners: Record<string, AgentRunner>
   input: {
     mode: "full" | "rerun" | "status"
     fromStage?: string
@@ -85,5 +85,6 @@ export interface PipelineContext {
     issueNumber?: number
     feedback?: string
     local?: boolean
+    complexity?: "low" | "medium" | "high"
   }
 }

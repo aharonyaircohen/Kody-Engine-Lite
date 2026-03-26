@@ -1,10 +1,10 @@
 import * as fs from "fs"
 import * as path from "path"
-import { createClaudeCodeRunner } from "./agent-runner.js"
+import { createRunners } from "./agent-runner.js"
 import { ensureTaskDir } from "./kody-utils.js"
 import { runPipeline, printStatus } from "./state-machine.js"
 import { runPreflight } from "./preflight.js"
-import { setConfigDir } from "./config.js"
+import { setConfigDir, getProjectConfig } from "./config.js"
 import { setGhCwd, getIssue, postComment } from "./github-api.js"
 import { logger } from "./logger.js"
 import type { PipelineContext } from "./types.js"
@@ -21,6 +21,7 @@ interface CliInput {
   issueNumber?: number
   feedback?: string
   local?: boolean
+  complexity?: "low" | "medium" | "high"
 }
 
 function getArg(args: string[], flag: string): string | undefined {
@@ -40,7 +41,7 @@ function parseArgs(): CliInput {
 
   if (hasFlag(args, "--help") || hasFlag(args, "-h") || args.length === 0) {
     console.log(`Usage:
-  kody run    --task-id <id> [--task "<desc>"] [--cwd <path>] [--issue-number <n>] [--feedback "<text>"] [--local] [--dry-run]
+  kody run    --task-id <id> [--task "<desc>"] [--cwd <path>] [--issue-number <n>] [--complexity low|medium|high] [--feedback "<text>"] [--local] [--dry-run]
   kody rerun  --task-id <id> --from <stage> [--cwd <path>] [--issue-number <n>]
   kody status --task-id <id> [--cwd <path>]
   kody --help`)
@@ -66,6 +67,7 @@ function parseArgs(): CliInput {
     issueNumber: issueStr ? parseInt(issueStr, 10) : undefined,
     feedback: getArg(args, "--feedback") ?? process.env.FEEDBACK,
     local: localFlag || (!isCI && !hasFlag(args, "--no-local")),
+    complexity: (getArg(args, "--complexity") ?? process.env.COMPLEXITY) as "low" | "medium" | "high" | undefined,
   }
 }
 
@@ -145,11 +147,18 @@ async function main() {
     process.exit(1)
   }
 
-  // Create runner
-  const runner = createClaudeCodeRunner()
-  const healthy = await runner.healthCheck()
+  // Create runners
+  const config = getProjectConfig()
+  const runners = createRunners(config)
+  const defaultRunnerName = config.agent.defaultRunner ?? Object.keys(runners)[0] ?? "claude"
+  const defaultRunner = runners[defaultRunnerName]
+  if (!defaultRunner) {
+    console.error(`Default runner "${defaultRunnerName}" not configured`)
+    process.exit(1)
+  }
+  const healthy = await defaultRunner.healthCheck()
   if (!healthy) {
-    console.error("Claude Code CLI not available. Install: npm i -g @anthropic-ai/claude-code")
+    console.error(`Runner "${defaultRunnerName}" health check failed`)
     process.exit(1)
   }
 
@@ -158,7 +167,7 @@ async function main() {
     taskId,
     taskDir,
     projectDir,
-    runner,
+    runners,
     input: {
       mode: input.command === "rerun" ? "rerun" : "full",
       fromStage: input.fromStage,
@@ -166,6 +175,7 @@ async function main() {
       issueNumber: input.issueNumber,
       feedback: input.feedback,
       local: input.local,
+      complexity: input.complexity,
     },
   }
 

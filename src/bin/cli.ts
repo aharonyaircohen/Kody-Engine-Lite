@@ -321,6 +321,9 @@ function initCommand(opts: { force: boolean }) {
       { name: "kody:review", color: "fbca04", description: "Kody is reviewing code" },
       { name: "kody:done", color: "0e8a16", description: "Kody completed successfully" },
       { name: "kody:failed", color: "d93f0b", description: "Kody pipeline failed" },
+      { name: "kody:low", color: "bfdadc", description: "Low complexity — skip plan/review" },
+      { name: "kody:medium", color: "c5def5", description: "Medium complexity — skip review-fix" },
+      { name: "kody:high", color: "d4c5f9", description: "High complexity — full pipeline" },
     ]
 
     console.log("\n── Labels ──")

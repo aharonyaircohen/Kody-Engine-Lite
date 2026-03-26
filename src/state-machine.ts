@@ -28,6 +28,44 @@ import {
 import { runQualityGates } from "./verify-runner.js"
 import { getProjectConfig, FIX_COMMAND_TIMEOUT_MS } from "./config.js"
 import { logger, ciGroup, ciGroupEnd } from "./logger.js"
+import type { AgentRunner } from "./types.js"
+
+// ─── Complexity-Based Stage Filtering ────────────────────────────────────────
+
+const COMPLEXITY_SKIP: Record<string, string[]> = {
+  low: ["plan", "review", "review-fix"],
+  medium: ["review-fix"],
+  high: [],
+}
+
+function filterByComplexity(
+  stages: StageDefinition[],
+  complexity: string,
+): StageDefinition[] {
+  const skip = COMPLEXITY_SKIP[complexity] ?? []
+  return stages.filter((s) => !skip.includes(s.name))
+}
+
+// ─── Per-Stage Runner Selection ──────────────────────────────────────────────
+
+function getRunnerForStage(
+  ctx: PipelineContext,
+  stageName: string,
+): AgentRunner {
+  const config = getProjectConfig()
+  const runnerName =
+    config.agent.stageRunners?.[stageName] ??
+    config.agent.defaultRunner ??
+    Object.keys(ctx.runners)[0] ??
+    "claude"
+  const runner = ctx.runners[runnerName]
+  if (!runner) {
+    throw new Error(
+      `Runner "${runnerName}" not found for stage ${stageName}. Available: ${Object.keys(ctx.runners).join(", ")}`,
+    )
+  }
+  return runner
+}
 
 // ─── State Management ────────────────────────────────────────────────────────
 
@@ -101,7 +139,8 @@ async function executeAgentStage(
     extraEnv.ANTHROPIC_BASE_URL = config.agent.litellmUrl
   }
 
-  const result = await ctx.runner.run(def.name, prompt, model, def.timeout, ctx.taskDir, {
+  const runner = getRunnerForStage(ctx, def.name)
+  const result = await runner.run(def.name, prompt, model, def.timeout, ctx.taskDir, {
     cwd: ctx.projectDir,
     env: extraEnv,
   })
@@ -240,6 +279,10 @@ async function executeReviewWithFix(
   ctx: PipelineContext,
   def: StageDefinition,
 ): Promise<StageResult> {
+  if (ctx.input.dryRun) {
+    return { outcome: "completed", retries: 0 }
+  }
+
   const reviewDef = STAGES.find((s) => s.name === "review")!
   const reviewFixDef = STAGES.find((s) => s.name === "review-fix")!
 
@@ -275,6 +318,11 @@ function executeShipStage(
   _def: StageDefinition,
 ): StageResult {
   const shipPath = path.join(ctx.taskDir, "ship.md")
+
+  if (ctx.input.dryRun) {
+    fs.writeFileSync(shipPath, "# Ship\n\nShip stage skipped — dry run.\n")
+    return { outcome: "completed", outputFile: "ship.md", retries: 0 }
+  }
 
   // Local mode or no issue: skip git push + PR
   if (ctx.input.local && !ctx.input.issueNumber) {
@@ -395,6 +443,10 @@ export async function runPipeline(ctx: PipelineContext): Promise<PipelineStatus>
     }
   }
 
+  // Determine complexity (user override or auto-detect after taskify)
+  let complexity = ctx.input.complexity ?? "high" // default: run all stages
+  let activeStages = filterByComplexity(STAGES, complexity)
+
   for (const def of STAGES) {
     // Handle fromStage skip logic
     if (!startExecution) {
@@ -407,6 +459,14 @@ export async function runPipeline(ctx: PipelineContext): Promise<PipelineStatus>
 
     if (state.stages[def.name].state === "completed") {
       logger.info(`[${def.name}] already completed, skipping`)
+      continue
+    }
+
+    // Skip stages based on complexity
+    if (!activeStages.find((s) => s.name === def.name)) {
+      logger.info(`[${def.name}] skipped (complexity: ${complexity})`)
+      state.stages[def.name] = { state: "completed", retries: 0, outputFile: undefined }
+      writeState(state, ctx.taskDir)
       continue
     }
 
@@ -465,6 +525,27 @@ export async function runPipeline(ctx: PipelineContext): Promise<PipelineStatus>
         outputFile: result.outputFile,
       }
       logger.info(`[${def.name}] ✓ completed`)
+
+      // Auto-detect complexity after taskify
+      if (def.name === "taskify" && !ctx.input.complexity) {
+        try {
+          const taskJsonPath = path.join(ctx.taskDir, "task.json")
+          if (fs.existsSync(taskJsonPath)) {
+            const raw = fs.readFileSync(taskJsonPath, "utf-8")
+            const cleaned = raw.replace(/^```json\s*\n?/m, "").replace(/\n?```\s*$/m, "")
+            const taskJson = JSON.parse(cleaned)
+            if (taskJson.risk_level && COMPLEXITY_SKIP[taskJson.risk_level]) {
+              complexity = taskJson.risk_level
+              activeStages = filterByComplexity(STAGES, complexity)
+              logger.info(`  Complexity auto-detected: ${complexity} (${activeStages.map(s => s.name).join(" → ")})`)
+              // Set complexity label on issue
+              if (ctx.input.issueNumber && !ctx.input.local) {
+                try { setLifecycleLabel(ctx.input.issueNumber, complexity) } catch { /* ignore */ }
+              }
+            }
+          }
+        } catch { /* ignore parse errors */ }
+      }
 
       // Git commit after code-modifying stages
       if (!ctx.input.dryRun && ctx.input.issueNumber) {

@@ -1,6 +1,10 @@
 import * as fs from "fs"
 import * as path from "path"
 
+export interface RunnerConfig {
+  type: "claude-code" | "opencode"
+}
+
 export interface KodyConfig {
   quality: {
     typecheck: string
@@ -23,10 +27,15 @@ export interface KodyConfig {
     taskDir: string
   }
   agent: {
-    runner: string
+    // Legacy single-runner (backward compat)
+    runner?: string
     modelMap: { cheap: string; mid: string; strong: string }
     litellmUrl?: string
     usePerStageRouting?: boolean
+    // Multi-runner
+    defaultRunner?: string
+    runners?: Record<string, RunnerConfig>
+    stageRunners?: Record<string, string>
   }
 }
 
@@ -51,6 +60,7 @@ const DEFAULT_CONFIG: KodyConfig = {
   },
   agent: {
     runner: "claude-code",
+    defaultRunner: "claude",
     modelMap: { cheap: "haiku", mid: "sonnet", strong: "opus" },
   },
 }

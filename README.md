@@ -213,6 +213,59 @@ Memory is prepended to every agent prompt, giving Claude Code project context.
 | `LOG_LEVEL` | No | `debug`, `info`, `warn`, `error` (default: `info`) |
 | `LITELLM_BASE_URL` | No | LiteLLM proxy URL for model routing |
 
+## Multi-Runner Support
+
+Use different agent runners per stage. For example, use OpenCode (MiniMax) for reasoning and Claude Code for code execution:
+
+```json
+{
+  "agent": {
+    "defaultRunner": "claude",
+    "runners": {
+      "claude": { "type": "claude-code" },
+      "opencode": { "type": "opencode" }
+    },
+    "stageRunners": {
+      "taskify": "opencode",
+      "plan": "opencode",
+      "build": "claude",
+      "review": "opencode",
+      "review-fix": "claude",
+      "autofix": "claude"
+    }
+  }
+}
+```
+
+Available runner types:
+- `claude-code` — Claude Code CLI (`claude --print`). Supports tool use (Read, Write, Edit, Bash).
+- `opencode` — OpenCode CLI (`opencode github run`). Supports MiniMax, OpenAI, Anthropic, Gemini.
+
+If no `runners`/`stageRunners` config, defaults to Claude Code for all stages.
+
+## Complexity-Based Stage Skipping
+
+Skip stages based on task complexity to save time and cost:
+
+```bash
+# Simple fix — skip plan and review
+kody-engine-lite run --task-id fix-typo --task "Fix typo in README" --complexity low
+
+# Standard feature — skip review-fix
+kody-engine-lite run --task-id add-feature --task "Add search" --complexity medium
+
+# Complex task — run all stages (default)
+kody-engine-lite run --task-id refactor --task "Refactor auth" --complexity high
+```
+
+| Complexity | Stages | Skipped |
+|-----------|--------|---------|
+| low | taskify → build → verify → ship | plan, review, review-fix |
+| medium | taskify → plan → build → verify → review → ship | review-fix |
+| high | taskify → plan → build → verify → review → review-fix → ship | none |
+
+If `--complexity` is not provided, it's auto-detected from the taskify stage's `risk_level` output. A complexity label (`kody:low`, `kody:medium`, `kody:high`) is set on the issue.
+
 ## LiteLLM (Optional)
 
 For multi-provider model routing with fallback:
