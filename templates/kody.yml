@@ -113,19 +113,20 @@ jobs:
               ;;
           esac
 
-          # Auto-generate task-id if not provided
           ISSUE_NUM="${{ github.event.issue.number }}"
-          if [ -z "$TASK_ID" ]; then
-            TASK_ID="${ISSUE_NUM}-$(date +%y%m%d-%H%M%S)"
-          fi
 
           # For approve mode: extract answer body and convert to rerun
+          # Must run BEFORE task-id generation so we don't create a new task
           if [ "$MODE" = "approve" ]; then
-            # Everything after @kody approve [task-id] is the feedback
             APPROVE_BODY=$(echo "$BODY" | sed -n '/\(@kody\|\/kody\)\s*approve/,$p' | tail -n +2)
             FEEDBACK="$APPROVE_BODY"
             MODE="rerun"
-            # FROM_STAGE will be determined by entry.ts from paused state
+            # Leave TASK_ID empty — entry.ts findLatestTaskForIssue will find the paused task
+          fi
+
+          # Auto-generate task-id if not provided (only for non-rerun modes)
+          if [ -z "$TASK_ID" ] && [ "$MODE" != "rerun" ]; then
+            TASK_ID="${ISSUE_NUM}-$(date +%y%m%d-%H%M%S)"
           fi
 
           echo "task_id=$TASK_ID" >> $GITHUB_OUTPUT
@@ -200,7 +201,8 @@ jobs:
           CMD="run"
           [ "$MODE" = "rerun" ] && CMD="rerun"
           [ "$MODE" = "fix" ] && CMD="fix"
-          ARGS="--task-id $TASK_ID --issue-number $ISSUE_NUMBER"
+          ARGS="--issue-number $ISSUE_NUMBER"
+          [ -n "$TASK_ID" ] && ARGS="$ARGS --task-id $TASK_ID"
           [ -n "$FROM_STAGE" ] && ARGS="$ARGS --from $FROM_STAGE"
           [ -n "$FEEDBACK" ] && ARGS="$ARGS --feedback \"$FEEDBACK\""
           [ "$DRY_RUN" = "true" ] && ARGS="$ARGS --dry-run"

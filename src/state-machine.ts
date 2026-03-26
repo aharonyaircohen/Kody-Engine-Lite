@@ -463,13 +463,35 @@ function executeShipStage(
       }
     }
 
-    // Derive PR title
-    const taskMdPath = path.join(ctx.taskDir, "task.md")
+    // Derive PR title from task.json (preferred) or task.md (fallback)
     let title = "Update"
-    if (fs.existsSync(taskMdPath)) {
-      const content = fs.readFileSync(taskMdPath, "utf-8")
-      const lines = content.split("\n").filter((l) => l.trim() && !l.startsWith("#"))
-      title = (lines[0] ?? "Update").slice(0, 72)
+    const TYPE_PREFIX: Record<string, string> = {
+      feature: "feat",
+      bugfix: "fix",
+      refactor: "refactor",
+      docs: "docs",
+      chore: "chore",
+    }
+
+    const taskJsonPath = path.join(ctx.taskDir, "task.json")
+    if (fs.existsSync(taskJsonPath)) {
+      try {
+        const raw = fs.readFileSync(taskJsonPath, "utf-8")
+        const cleaned = raw.replace(/^```json\s*\n?/m, "").replace(/\n?```\s*$/m, "")
+        const task = JSON.parse(cleaned)
+        const prefix = TYPE_PREFIX[task.task_type] ?? "chore"
+        const taskTitle = task.title ?? "Update"
+        title = `${prefix}: ${taskTitle}`.slice(0, 72)
+      } catch { /* fallback below */ }
+    }
+
+    if (title === "Update") {
+      const taskMdPath = path.join(ctx.taskDir, "task.md")
+      if (fs.existsSync(taskMdPath)) {
+        const content = fs.readFileSync(taskMdPath, "utf-8")
+        const firstLine = content.split("\n").find((l) => l.trim() && !l.startsWith("#") && !l.startsWith("*"))
+        if (firstLine) title = `chore: ${firstLine.trim()}`.slice(0, 72)
+      }
     }
 
     // Build rich PR body
