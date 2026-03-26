@@ -71,6 +71,19 @@ function parseArgs(): CliInput {
   }
 }
 
+function findLatestTaskForIssue(issueNumber: number, projectDir: string): string | null {
+  const tasksDir = path.join(projectDir, ".tasks")
+  if (!fs.existsSync(tasksDir)) return null
+
+  const prefix = `${issueNumber}-`
+  const dirs = fs.readdirSync(tasksDir)
+    .filter((d) => d.startsWith(prefix))
+    .sort()
+    .reverse()
+
+  return dirs[0] ?? null
+}
+
 function generateTaskId(): string {
   const now = new Date()
   const pad = (n: number) => String(n).padStart(2, "0")
@@ -80,18 +93,7 @@ function generateTaskId(): string {
 async function main() {
   const input = parseArgs()
 
-  // Resolve taskId
-  let taskId = input.taskId
-  if (!taskId) {
-    if (input.command === "run" && input.task) {
-      taskId = generateTaskId()
-    } else {
-      console.error("--task-id is required")
-      process.exit(1)
-    }
-  }
-
-  // Resolve working directory
+  // Resolve working directory first (needed for task lookup)
   const projectDir = input.cwd ? path.resolve(input.cwd) : process.cwd()
   if (input.cwd) {
     if (!fs.existsSync(projectDir)) {
@@ -101,6 +103,27 @@ async function main() {
     setConfigDir(projectDir)
     setGhCwd(projectDir)
     logger.info(`Working directory: ${projectDir}`)
+  }
+
+  // Resolve taskId
+  let taskId = input.taskId
+  if (!taskId) {
+    if (input.command === "rerun" && input.issueNumber) {
+      const found = findLatestTaskForIssue(input.issueNumber, projectDir)
+      if (!found) {
+        console.error(`No previous task found for issue #${input.issueNumber}`)
+        process.exit(1)
+      }
+      taskId = found
+      logger.info(`Found latest task for issue #${input.issueNumber}: ${taskId}`)
+    } else if (input.issueNumber) {
+      taskId = `${input.issueNumber}-${generateTaskId()}`
+    } else if (input.command === "run" && input.task) {
+      taskId = generateTaskId()
+    } else {
+      console.error("--task-id is required (or provide --issue-number to auto-generate)")
+      process.exit(1)
+    }
   }
 
   const taskDir = path.join(projectDir, ".tasks", taskId)
@@ -179,8 +202,21 @@ async function main() {
     },
   }
 
+  logger.info(`Task: ${taskId}`)
   logger.info(`Mode: ${ctx.input.mode}${ctx.input.local ? " (local)" : " (CI)"}`)
   if (ctx.input.issueNumber) logger.info(`Issue: #${ctx.input.issueNumber}`)
+
+  // Post task-id comment so user knows the ID for rerun
+  if (ctx.input.issueNumber && !ctx.input.local && ctx.input.mode === "full") {
+    const runUrl = process.env.RUN_URL ?? ""
+    const runLink = runUrl ? ` ([logs](${runUrl}))` : ""
+    try {
+      postComment(
+        ctx.input.issueNumber,
+        `🚀 Kody pipeline started: \`${taskId}\`${runLink}\n\nTo rerun: \`@kody rerun ${taskId} --from <stage>\``,
+      )
+    } catch { /* best effort */ }
+  }
 
   // Run pipeline
   const state = await runPipeline(ctx)

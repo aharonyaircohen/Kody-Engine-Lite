@@ -104,15 +104,27 @@ jobs:
           # Validate mode
           case "$MODE" in
             full|rerun|status) ;;
-            *) MODE="full"; TASK_ID="$MODE" ;;
+            *)
+              # If first arg isn't a mode, it might be a task-id or nothing
+              if [ -n "$MODE" ] && [ "$MODE" != "" ]; then
+                TASK_ID="$MODE"
+              fi
+              MODE="full"
+              ;;
           esac
+
+          # Auto-generate task-id if not provided
+          ISSUE_NUM="${{ github.event.issue.number }}"
+          if [ -z "$TASK_ID" ]; then
+            TASK_ID="${ISSUE_NUM}-$(date +%y%m%d-%H%M%S)"
+          fi
 
           echo "task_id=$TASK_ID" >> $GITHUB_OUTPUT
           echo "mode=$MODE" >> $GITHUB_OUTPUT
           echo "from_stage=$FROM_STAGE" >> $GITHUB_OUTPUT
-          echo "issue_number=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
+          echo "issue_number=$ISSUE_NUM" >> $GITHUB_OUTPUT
           echo "feedback=$FEEDBACK" >> $GITHUB_OUTPUT
-          echo "valid=$([ -n "$TASK_ID" ] && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "valid=true" >> $GITHUB_OUTPUT
 
   # ─── Orchestrate ─────────────────────────────────────────────────────────────
   orchestrate:
