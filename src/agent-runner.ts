@@ -154,12 +154,11 @@ export function createOpenCodeRunner(): AgentRunner {
       if (model) {
         args.push("--model", model)
       }
-      // Pass prompt as positional message arg
-      args.push(prompt)
+      // Pipe prompt via stdin for full agentic tool-use session
       return runSubprocess(
         "opencode",
         args,
-        "", // opencode takes message as positional, not stdin
+        prompt,
         timeout,
         options,
       )
