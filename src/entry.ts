@@ -76,13 +76,31 @@ function findLatestTaskForIssue(issueNumber: number, projectDir: string): string
   const tasksDir = path.join(projectDir, ".tasks")
   if (!fs.existsSync(tasksDir)) return null
 
-  const prefix = `${issueNumber}-`
-  const dirs = fs.readdirSync(tasksDir)
-    .filter((d) => d.startsWith(prefix))
-    .sort()
-    .reverse()
+  const allDirs = fs.readdirSync(tasksDir).sort().reverse()
 
-  return dirs[0] ?? null
+  // Direct match: tasks starting with issue number
+  const prefix = `${issueNumber}-`
+  const direct = allDirs.find((d) => d.startsWith(prefix))
+  if (direct) return direct
+
+  // Fallback for PR comments: extract issue number from current git branch
+  // Branch format: <issueNum>--<slug> (e.g., 1031--security-8x-route)
+  try {
+    const { execFileSync } = require("child_process")
+    const branch = execFileSync("git", ["branch", "--show-current"], {
+      encoding: "utf-8", cwd: projectDir, timeout: 5000, stdio: ["pipe", "pipe", "pipe"],
+    }).trim()
+    const branchIssueMatch = branch.match(/^(\d+)-/)
+    if (branchIssueMatch) {
+      const branchIssueNum = branchIssueMatch[1]
+      const branchPrefix = `${branchIssueNum}-`
+      const fromBranch = allDirs.find((d) => d.startsWith(branchPrefix))
+      if (fromBranch) return fromBranch
+    }
+  } catch { /* ignore */ }
+
+  // Last resort: return the most recent task
+  return allDirs[0] ?? null
 }
 
 function generateTaskId(): string {
