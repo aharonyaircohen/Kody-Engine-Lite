@@ -1,5 +1,9 @@
 # Kody Engine Lite
 
+[![npm version](https://img.shields.io/npm/v/@kody-ade/kody-engine-lite)](https://www.npmjs.com/package/@kody-ade/kody-engine-lite)
+[![CI](https://github.com/kody-ade/kody-engine-lite/actions/workflows/ci.yml/badge.svg)](https://github.com/kody-ade/kody-engine-lite/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Autonomous SDLC pipeline — runs a 7-stage pipeline (taskify → plan → build → verify → review → review-fix → ship) on your codebase using Claude Code as the execution engine.
 
 ## How it works
@@ -399,3 +403,13 @@ pnpm build
 # Publish
 npm publish --access public
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for full dev setup and PR process.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for release history.
+
+## License
+
+[MIT](LICENSE) © Kody ADE

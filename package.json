@@ -10,7 +10,8 @@
   "files": [
     "dist",
     "prompts",
-    "templates"
+    "templates",
+    "LICENSE"
   ],
   "scripts": {
     "kody": "tsx src/entry.ts",
