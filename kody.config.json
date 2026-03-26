@@ -18,14 +18,12 @@
     "taskDir": ".tasks"
   },
   "agent": {
-    "defaultRunner": "opencode",
-    "runners": {
-      "opencode": { "type": "opencode" }
-    },
+    "runner": "claude-code",
+    "defaultRunner": "claude",
     "modelMap": {
-      "cheap": "minimax-coding-plan/MiniMax-M2.7-highspeed",
-      "mid": "minimax-coding-plan/MiniMax-M2.7-highspeed",
-      "strong": "minimax-coding-plan/MiniMax-M2.7-highspeed"
+      "cheap": "haiku",
+      "mid": "sonnet",
+      "strong": "opus"
     }
   }
 }
