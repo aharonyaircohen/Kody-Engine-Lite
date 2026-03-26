@@ -176,6 +176,8 @@ jobs:
 
       - name: Checkout PR branch (for fix/rerun on PRs)
         if: github.event.issue.pull_request && (needs.parse.outputs.mode == 'fix' || needs.parse.outputs.mode == 'rerun')
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
         run: |
           PR_NUM="${{ github.event.issue.number }}"
           PR_BRANCH=$(gh pr view "$PR_NUM" --json headRefName -q '.headRefName')
