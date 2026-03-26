@@ -325,6 +325,11 @@ function initCommand(opts: { force: boolean }) {
       { name: "kody:low", color: "bfdadc", description: "Low complexity — skip plan/review" },
       { name: "kody:medium", color: "c5def5", description: "Medium complexity — skip review-fix" },
       { name: "kody:high", color: "d4c5f9", description: "High complexity — full pipeline" },
+      { name: "kody:feature", color: "0e8a16", description: "New feature" },
+      { name: "kody:bugfix", color: "d93f0b", description: "Bug fix" },
+      { name: "kody:refactor", color: "fbca04", description: "Code refactoring" },
+      { name: "kody:docs", color: "0075ca", description: "Documentation" },
+      { name: "kody:chore", color: "e4e669", description: "Maintenance task" },
     ]
 
     console.log("\n── Labels ──")
