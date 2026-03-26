@@ -1,5 +1,6 @@
 import * as fs from "fs"
 import * as path from "path"
+import { execFileSync } from "child_process"
 import { createRunners } from "./agent-runner.js"
 import { ensureTaskDir } from "./kody-utils.js"
 import { runPipeline, printStatus } from "./state-machine.js"
@@ -91,7 +92,6 @@ function findLatestTaskForIssue(issueNumber: number, projectDir: string): string
   // Fallback for PR comments: extract issue number from current git branch
   // Branch format: <issueNum>--<slug> (e.g., 1031--security-8x-route)
   try {
-    const { execFileSync } = require("child_process")
     const branch = execFileSync("git", ["branch", "--show-current"], {
       encoding: "utf-8", cwd: projectDir, timeout: 5000, stdio: ["pipe", "pipe", "pipe"],
     }).trim()
