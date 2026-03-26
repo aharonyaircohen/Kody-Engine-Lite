@@ -1,401 +1,270 @@
 # Kody Engine Lite
 
-Autonomous SDLC pipeline — runs a 7-stage pipeline (taskify → plan → build → verify → review → review-fix → ship) on your codebase using Claude Code as the execution engine.
+Autonomous SDLC pipeline. Comment `@kody` on a GitHub issue → Kody classifies, plans, builds, tests, reviews, fixes, and ships a PR. Zero human intervention required.
 
 ## How it works
 
 ```
-@kody full <task-id>  (comment on a GitHub issue)
-     ↓
-GitHub Actions workflow triggers
-     ↓
-Kody Engine Lite (npm package)
-     ↓
+@kody  (comment on a GitHub issue)
+  ↓
+GitHub Actions workflow
+  ↓
 7-stage pipeline:
-  1. taskify  — classify the task (haiku)
-  2. plan     — create implementation plan (sonnet)
-  3. build    — implement code changes (opus)
-  4. verify   — run typecheck + tests + lint
-  5. review   — code review (sonnet)
-  6. review-fix — fix review issues (opus)
-  7. ship     — push branch + create PR
-     ↓
-PR created on your repo
+  1. taskify  — classify task, detect complexity, ask questions if unclear
+  2. plan     — TDD implementation plan (opus — deep reasoning)
+  3. build    — implement code changes (sonnet — tool use via Claude Code)
+  4. verify   — typecheck + tests + lint (auto-fix on failure)
+  5. review   — code review with severity levels (opus)
+  6. review-fix — fix Critical/Major findings (sonnet)
+  7. ship     — push branch + create PR with Closes #N
+  ↓
+PR created with What/Scope/Changes description
 ```
 
 ## Quick Start
 
-### 1. Install
-
 ```bash
+# Install
 npm install -g @kody-ade/kody-engine-lite
-```
 
-### 2. Init (run in your project root)
-
-```bash
+# Init (in your project root) — auto-detects everything
 cd your-project
 kody-engine-lite init
+
+# Push and use
+git add .github/workflows/kody.yml kody.config.json .kody/
+git commit -m "chore: add kody engine"
+git push
+
+# Comment on any issue
+@kody
 ```
 
-This will:
-- Copy `.github/workflows/kody.yml` to your repo
-- Create `kody.config.json` (edit this)
-- Create `.kody/memory/architecture.md` (auto-detected)
-- Create `.kody/memory/conventions.md` (seed)
-- Add `.tasks/` to `.gitignore`
-- Run health checks (prerequisites, GitHub auth, secrets)
+### What `init` does
 
-### 3. Configure
+Spawns Claude Code to analyze your project and auto-generates:
+- `.github/workflows/kody.yml` — full CI/CD workflow
+- `kody.config.json` — quality commands auto-detected from `package.json`
+- `.kody/memory/architecture.md` — project-specific tech stack and structure
+- `.kody/memory/conventions.md` — coding patterns, references to existing docs
+- 14 GitHub labels — lifecycle, complexity, and type labels
+- Health checks — CLI tools, GitHub auth, secrets, config validation
 
-Edit `kody.config.json`:
+### GitHub Setup
 
-```json
-{
-  "quality": {
-    "typecheck": "pnpm tsc --noEmit",
-    "lint": "pnpm lint",
-    "lintFix": "pnpm lint:fix",
-    "format": "",
-    "formatFix": "",
-    "testUnit": "pnpm test"
-  },
-  "git": {
-    "defaultBranch": "main"
-  },
-  "github": {
-    "owner": "your-org",
-    "repo": "your-repo"
-  },
-  "paths": {
-    "taskDir": ".tasks"
-  },
-  "agent": {
-    "runner": "claude-code",
-    "modelMap": {
-      "cheap": "haiku",
-      "mid": "sonnet",
-      "strong": "opus"
-    }
-  }
-}
-```
-
-### 4. GitHub Setup
-
-#### Required Secret
-
-Add `ANTHROPIC_API_KEY` to your repo secrets:
-
+**Required secret:**
 ```bash
 gh secret set ANTHROPIC_API_KEY --repo owner/repo
 ```
 
-#### Required Permissions
+**Required permission:**
+Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests"
 
-Go to **Settings → Actions → General → Workflow permissions**:
+## Commands
 
-1. Select **"Read and write permissions"**
-2. Check **"Allow GitHub Actions to create and approve pull requests"**
-3. Save
+### GitHub Comments
 
-Without this, the ship stage cannot create PRs.
+```
+@kody                         Run full pipeline (auto-generates task-id)
+@kody approve                 Answer questions and resume paused pipeline
+@kody fix                     Re-build from build stage (on issues or PRs)
+@kody fix                     Comment body = feedback for the fix
+  fix the auth middleware
+  to return 401 not 500
+@kody rerun                   Resume from failed/paused stage
+@kody rerun --from <stage>    Resume from specific stage
+```
 
-### 5. Push and Use
+### CLI
 
 ```bash
-git add .github/workflows/kody.yml kody.config.json .kody/
-git commit -m "chore: add kody engine"
-git push
-```
-
-Then comment on any issue:
-
-```
-@kody
-```
-
-## CLI Usage
-
-### Run locally
-
-```bash
-# Run against current directory
-kody-engine-lite run --task "Add a sum function to src/math.ts with tests"
-
-# Run against a different project
 kody-engine-lite run --task "Add feature X" --cwd /path/to/project
-
-# Run from a GitHub issue (fetches issue body as task)
-kody-engine-lite run --issue-number 1 --cwd /path/to/project
-
-# Dry run (no agent calls)
-kody-engine-lite run --task "Test" --dry-run
-
-# Resume from a failed/paused stage (auto-detects which stage)
-kody-engine-lite rerun --issue-number 1
-
-# Fix — rerun from build stage (skip taskify/plan)
-kody-engine-lite fix --issue-number 1
-
-# Fix with feedback
-kody-engine-lite fix --issue-number 1 --feedback "Use middleware pattern instead"
-
-# Check pipeline status
-kody-engine-lite status --task-id my-task
+kody-engine-lite run --issue-number 42 --cwd /path/to/project
+kody-engine-lite fix --issue-number 42 --feedback "Use middleware pattern"
+kody-engine-lite rerun --issue-number 42
+kody-engine-lite status --task-id <id>
+kody-engine-lite init [--force]
 ```
-
-### Init a new project
-
-```bash
-cd your-project
-kody-engine-lite init          # setup workflow, config, memory
-kody-engine-lite init --force  # overwrite existing workflow
-```
-
-### GitHub Comment Triggers
-
-Comment on any issue:
-
-```
-@kody                                     # Run full pipeline (auto-generates task-id)
-@kody full <task-id>                      # Run with specific task-id
-@kody rerun                               # Resume latest task (auto-detects stage)
-@kody rerun --from <stage>                # Resume from specific stage
-@kody fix                                 # Re-build from build stage (skip taskify/plan)
-@kody fix --feedback "Use X instead of Y" # Fix with specific guidance
-@kody approve                             # Approve + provide answers to questions
-@kody status <task-id>                    # Check status
-```
-
-### Approve Flow (Question Gate)
-
-When Kody encounters unclear requirements or architecture decisions, it pauses and posts questions:
-
-```
-Kody: 🤔 Kody has questions before proceeding:
-      1. Should the search be case-sensitive?
-      2. Which users should have access?
-
-      Reply with @kody approve and your answers in the comment body.
-```
-
-You reply:
-
-```
-@kody approve
-
-1. Yes, case-sensitive
-2. Only admin users
-```
-
-Kody resumes automatically from where it paused, with your answers injected as context.
 
 ## Pipeline Stages
 
 | Stage | Model | What it does |
 |-------|-------|-------------|
-| taskify | haiku | Classifies task from issue body → `task.json` |
-| plan | opus | Deep reasoning: creates TDD implementation plan → `plan.md` |
-| build | sonnet | Implements code changes (Claude Code tools handle execution) |
-| verify | — | Runs typecheck + tests + lint (from `kody.config.json`) |
-| review | opus | Thorough code review → `review.md` (PASS/FAIL + findings) |
-| review-fix | sonnet | Applies known fixes from review findings |
-| ship | — | Pushes branch + creates PR + comments on issue |
+| taskify | haiku | Classify task → `task.json` (type, scope, risk, questions) |
+| plan | opus | Create TDD plan → `plan.md` (deep reasoning) |
+| build | sonnet | Implement code using Claude Code tools (Read/Write/Edit/Bash) |
+| verify | — | Run typecheck + tests + lint from `kody.config.json` |
+| review | opus | Code review → `review.md` (PASS/FAIL + Critical/Major/Minor) |
+| review-fix | sonnet | Fix Critical and Major findings |
+| ship | — | Push branch, create PR, comment on issue |
+
+## Key Features
+
+### Question Gates
+
+Kody asks before building if something is unclear:
+
+- **Taskify** asks product/requirements questions ("Should search be case-sensitive?")
+- **Plan** asks architecture/technical questions ("Recommend middleware pattern — approve?")
+- Pipeline pauses with `kody:waiting` label
+- Resume with `@kody approve` + your answers in the comment body
+
+### Complexity-Based Stage Skipping
+
+Auto-detected from taskify's risk assessment, or override with `--complexity`:
+
+| Complexity | Runs | Skips |
+|-----------|------|-------|
+| low | taskify → build → verify → ship | plan, review, review-fix |
+| medium | taskify → plan → build → verify → review → ship | review-fix |
+| high | all 7 stages | nothing |
 
 ### Branch Syncing
 
-On every run/rerun/fix, Kody automatically:
-1. Checks out (or creates) the feature branch
-2. Pulls latest from the default branch and merges into the feature branch
-3. If there's a merge conflict, skips the sync and warns
+Every run merges latest from the default branch into the feature branch before building.
 
-This ensures the feature branch is always up-to-date before building.
+### Verify + Autofix Loop
 
-### Automatic Loops
+If verify fails: runs lint-fix → format-fix → autofix agent → retries (up to 2 attempts).
 
-- **Verify + autofix**: If verify fails, runs lint-fix + format-fix + autofix agent, retries up to 2 times
-- **Review + fix**: If review verdict is FAIL, runs review-fix agent then re-reviews
+### Review + Fix Loop
 
-## Memory System
+If review verdict is FAIL: runs review-fix agent → re-reviews.
 
-Kody maintains project memory in `.kody/memory/`:
+### Rich PR Description
 
-- **`architecture.md`** — auto-detected on `init` (framework, language, testing, directory structure)
-- **`conventions.md`** — auto-learned after each successful pipeline run
+```markdown
+## What
+Add authentication middleware to 8 unprotected API routes
 
-Memory is prepended to every agent prompt, giving Claude Code project context.
+## Scope
+- `src/middleware/auth.ts`
+- `src/app/api/cron/route.ts`
 
-## Configuration Reference
+**Type:** bugfix | **Risk:** high
+
+## Changes
+Added auth middleware to all cron routes and copilotkit endpoint.
+
+**Review:** ✅ PASS
+**Verify:** ✅ typecheck + tests + lint passed
+
+<details><summary>📋 Implementation plan</summary>
+...
+</details>
+
+Closes #42
+```
+
+### Labels
+
+`init` creates 14 labels:
+- **Lifecycle:** `kody:planning`, `kody:building`, `kody:review`, `kody:done`, `kody:failed`, `kody:waiting`
+- **Complexity:** `kody:low`, `kody:medium`, `kody:high`
+- **Type:** `kody:feature`, `kody:bugfix`, `kody:refactor`, `kody:docs`, `kody:chore`
+
+### Memory System
+
+`.kody/memory/` files are prepended to every agent prompt:
+- `architecture.md` — auto-generated by `init`
+- `conventions.md` — auto-learned after each successful run
+
+## Using Non-Anthropic Models (LiteLLM)
+
+Claude Code can use **any model** through a LiteLLM proxy. Tested with MiniMax (full tool use: Write, Read, Edit, Bash, Grep).
+
+```bash
+# Start LiteLLM proxy
+docker run -d -p 4000:4000 \
+  -e MINIMAX_API_KEY=your-key \
+  -v config.yaml:/app/config.yaml \
+  ghcr.io/berriai/litellm:main-latest --config /app/config.yaml
+```
+
+```yaml
+# config.yaml
+model_list:
+  - model_name: minimax
+    litellm_params:
+      model: minimax/MiniMax-M2.7-highspeed
+      api_key: os.environ/MINIMAX_API_KEY
+```
+
+```json
+// kody.config.json
+{
+  "agent": {
+    "litellmUrl": "http://localhost:4000",
+    "modelMap": { "cheap": "minimax", "mid": "minimax", "strong": "minimax" }
+  }
+}
+```
+
+LiteLLM translates Anthropic's tool-use protocol to the target provider's format. No code changes needed.
+
+## Configuration
 
 ### `kody.config.json`
 
 | Field | Description | Default |
 |-------|-------------|---------|
 | `quality.typecheck` | Typecheck command | `pnpm -s tsc --noEmit` |
-| `quality.lint` | Lint command | `pnpm -s lint` |
-| `quality.lintFix` | Lint fix command | `pnpm lint:fix` |
-| `quality.format` | Format check command | `""` |
-| `quality.formatFix` | Format fix command | `""` |
-| `quality.testUnit` | Test command | `pnpm -s test` |
+| `quality.lint` | Lint command | `""` |
+| `quality.lintFix` | Auto-fix lint | `""` |
+| `quality.testUnit` | Unit test command | `pnpm -s test` |
 | `git.defaultBranch` | Default branch | `dev` |
-| `github.owner` | GitHub org/user | `""` |
-| `github.repo` | GitHub repo name | `""` |
-| `paths.taskDir` | Task artifacts directory | `.tasks` |
-| `agent.modelMap.cheap` | Model for taskify | `haiku` |
-| `agent.modelMap.mid` | Model for build/review-fix/autofix | `sonnet` |
-| `agent.modelMap.strong` | Model for plan/review (deep reasoning) | `opus` |
+| `github.owner` | GitHub org/user | auto-detected |
+| `github.repo` | Repository name | auto-detected |
+| `agent.modelMap.cheap` | Taskify model | `haiku` |
+| `agent.modelMap.mid` | Build/fix model | `sonnet` |
+| `agent.modelMap.strong` | Plan/review model | `opus` |
+| `agent.litellmUrl` | LiteLLM proxy URL | — |
 
 ### Environment Variables
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `ANTHROPIC_API_KEY` | Yes | Claude API key (set as repo secret) |
+| `ANTHROPIC_API_KEY` | Yes | Claude API key (repo secret) |
 | `GH_TOKEN` | Auto | GitHub token (provided by Actions) |
-| `GH_PAT` | No | Personal access token (preferred over GH_TOKEN) |
-| `LOG_LEVEL` | No | `debug`, `info`, `warn`, `error` (default: `info`) |
-| `LITELLM_BASE_URL` | No | LiteLLM proxy URL for model routing |
-
-## Multi-Runner Support
-
-Use different agent runners per stage. For example, use OpenCode (MiniMax) for reasoning and Claude Code for code execution:
-
-```json
-{
-  "agent": {
-    "defaultRunner": "claude",
-    "runners": {
-      "claude": { "type": "claude-code" },
-      "opencode": { "type": "opencode" }
-    },
-    "stageRunners": {
-      "taskify": "opencode",
-      "plan": "opencode",
-      "build": "claude",
-      "review": "opencode",
-      "review-fix": "claude",
-      "autofix": "claude"
-    }
-  }
-}
-```
-
-Available runner types:
-- `claude-code` — Claude Code CLI (`claude --print`). Supports tool use (Read, Write, Edit, Bash).
-- `opencode` — OpenCode CLI (`opencode github run`). Supports MiniMax, OpenAI, Anthropic, Gemini.
-
-If no `runners`/`stageRunners` config, defaults to Claude Code for all stages.
-
-## Complexity-Based Stage Skipping
-
-Skip stages based on task complexity to save time and cost:
-
-```bash
-# Simple fix — skip plan and review
-kody-engine-lite run --task-id fix-typo --task "Fix typo in README" --complexity low
-
-# Standard feature — skip review-fix
-kody-engine-lite run --task-id add-feature --task "Add search" --complexity medium
-
-# Complex task — run all stages (default)
-kody-engine-lite run --task-id refactor --task "Refactor auth" --complexity high
-```
-
-| Complexity | Stages | Skipped |
-|-----------|--------|---------|
-| low | taskify → build → verify → ship | plan, review, review-fix |
-| medium | taskify → plan → build → verify → review → ship | review-fix |
-| high | taskify → plan → build → verify → review → review-fix → ship | none |
-
-If `--complexity` is not provided, it's auto-detected from the taskify stage's `risk_level` output. A complexity label (`kody:low`, `kody:medium`, `kody:high`) is set on the issue.
-
-## LiteLLM (Optional)
-
-For multi-provider model routing with fallback:
-
-```bash
-pip install litellm[proxy]
-litellm --config litellm-config.yaml --port 4000
-```
-
-Then set in `kody.config.json`:
-
-```json
-{
-  "agent": {
-    "litellmUrl": "http://localhost:4000",
-    "modelMap": { "cheap": "cheap", "mid": "mid", "strong": "strong" }
-  }
-}
-```
-
-## Task Artifacts
-
-Each pipeline run creates artifacts in `.tasks/<task-id>/`:
-
-| File | Created by | Content |
-|------|-----------|---------|
-| `task.md` | entry / issue fetch | Task description |
-| `task.json` | taskify stage | Structured classification |
-| `plan.md` | plan stage | Implementation steps |
-| `verify.md` | verify stage | Quality gate results |
-| `review.md` | review stage | Code review + verdict |
-| `ship.md` | ship stage | PR URL |
-| `status.json` | state machine | Pipeline state (per-stage) |
+| `LOG_LEVEL` | No | `debug`, `info`, `warn`, `error` |
 
 ## Architecture
 
 ```
-@kody-ade/kody-engine-lite (npm package)
-├── dist/bin/cli.js      — CLI entry point
-├── prompts/             — Stage prompt templates
-│   ├── taskify.md
-│   ├── plan.md
-│   ├── build.md
-│   ├── review.md
-│   ├── review-fix.md
-│   └── autofix.md
-└── templates/
-    └── kody.yml         — GitHub Actions workflow template
-```
-
-Source files (in this repo):
-
-```
 src/
-├── entry.ts          — CLI argument parsing, pipeline dispatch
+├── entry.ts          — CLI: run/rerun/fix/status, arg parsing, CI mode
+├── state-machine.ts  — Pipeline loop, stage dispatch, question gates, complexity
+├── agent-runner.ts   — Claude Code subprocess wrapper (thin — spawn, pipe, timeout)
+├── context.ts        — Prompt assembly + memory + task context injection
+├── definitions.ts    — 7-stage pipeline config
 ├── types.ts          — TypeScript interfaces
-├── definitions.ts    — 7-stage pipeline configuration
-├── state-machine.ts  — Pipeline orchestration loop
-├── agent-runner.ts   — Claude Code subprocess wrapper
-├── context.ts        — Prompt assembly + task context injection
-├── memory.ts         — Project memory reader
-├── config.ts         — Config loading (kody.config.json)
-├── logger.ts         — Structured logging
-├── preflight.ts      — Startup checks
-├── validators.ts     — Output validation
+├── config.ts         — kody.config.json loader + constants
+├── git-utils.ts      — Branch, commit, push, sync, diff
+├── github-api.ts     — Issues, labels, PRs, comments via gh CLI
 ├── verify-runner.ts  — Quality gate execution
+├── validators.ts     — Output validation (task.json, plan.md, review.md)
+├── memory.ts         — .kody/memory/ reader
+├── logger.ts         — Structured logging with CI groups
+├── preflight.ts      — Startup health checks
 ├── kody-utils.ts     — Task directory utilities
-├── git-utils.ts      — Git operations
-├── github-api.ts     — GitHub API via gh CLI
-└── bin/cli.ts        — Package CLI (init, run, version)
+└── bin/cli.ts        — Package CLI: init (LLM-powered), run, version
 ```
 
 ## Development
 
 ```bash
-# Install deps
-pnpm install
-
-# Type check
-pnpm typecheck
-
-# Run locally (dev mode)
-pnpm kody run --task-id test --task "Add feature" --cwd /path/to/project
-
-# Build package
-pnpm build
-
-# Publish
-npm publish --access public
+pnpm install          # Install deps
+pnpm typecheck        # Type check
+pnpm test             # 125 tests (16 files)
+pnpm build            # Build npm package
+pnpm kody run ...     # Dev mode (tsx)
+npm publish --access public  # Publish
 ```
+
+## Security
+
+Only GitHub collaborators (COLLABORATOR, MEMBER, OWNER) can trigger `@kody`. External contributors cannot.
+
+## License
+
+MIT
