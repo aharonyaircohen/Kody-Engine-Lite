@@ -229,8 +229,9 @@ async function main() {
         process.exit(1)
       }
     } else {
-      console.error("--from <stage> is required for rerun (no status.json found)")
-      process.exit(1)
+      // No status.json — fall back to full run with feedback preserved
+      logger.info("No status.json found — running full pipeline with feedback")
+      input.command = "run" as "run"
     }
   }
 
