@@ -17,13 +17,25 @@ Required JSON format:
   "title": "Brief title, max 72 characters",
   "description": "Clear description of what the task requires",
   "scope": ["list", "of", "exact/file/paths", "affected"],
-  "risk_level": "low | medium | high"
+  "risk_level": "low | medium | high",
+  "questions": []
 }
 
 Risk level heuristics:
 - low: single file change, no breaking changes, docs, config, isolated scripts, test additions, style changes
 - medium: multiple files, possible side effects, API changes, new dependencies, refactoring existing logic
 - high: core business logic, data migrations, security, authentication, payment processing, database schema changes
+
+Questions rules:
+- ONLY ask product/requirements questions — things you CANNOT determine by reading code
+- Ask about: unclear scope, missing acceptance criteria, ambiguous user behavior, missing edge case decisions
+- Do NOT ask about technical implementation — that is the planner's job
+- Do NOT ask about things you can find by reading the codebase (file structure, frameworks, patterns)
+- If the task is clear and complete, leave questions as an empty array []
+- Maximum 3 questions — only the most important ones
+
+Good questions: "Should the search be case-sensitive?", "Which users should have access?", "Should this work offline?"
+Bad questions: "What framework should I use?", "Where should I put the file?", "What's the project structure?"
 
 Guidelines:
 - scope must contain exact file paths (use Glob to discover them)

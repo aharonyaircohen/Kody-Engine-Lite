@@ -46,6 +46,50 @@ function filterByComplexity(
   return stages.filter((s) => !skip.includes(s.name))
 }
 
+// ─── Question Gate (Clarify / Architecture) ─────────────────────────────────
+
+function checkForQuestions(ctx: PipelineContext, stageName: string): boolean {
+  if (ctx.input.local || !ctx.input.issueNumber) return false
+
+  try {
+    if (stageName === "taskify") {
+      const taskJsonPath = path.join(ctx.taskDir, "task.json")
+      if (!fs.existsSync(taskJsonPath)) return false
+      const raw = fs.readFileSync(taskJsonPath, "utf-8")
+      const cleaned = raw.replace(/^```json\s*\n?/m, "").replace(/\n?```\s*$/m, "")
+      const taskJson = JSON.parse(cleaned)
+      if (taskJson.questions && Array.isArray(taskJson.questions) && taskJson.questions.length > 0) {
+        const body = `🤔 **Kody has questions before proceeding:**\n\n${taskJson.questions.map((q: string, i: number) => `${i + 1}. ${q}`).join("\n")}\n\nPlease answer and then run: \`@kody rerun ${ctx.taskId} --from plan\``
+        postComment(ctx.input.issueNumber, body)
+        setLifecycleLabel(ctx.input.issueNumber, "waiting")
+        return true
+      }
+    }
+
+    if (stageName === "plan") {
+      const planPath = path.join(ctx.taskDir, "plan.md")
+      if (!fs.existsSync(planPath)) return false
+      const plan = fs.readFileSync(planPath, "utf-8")
+      // Extract questions from ## Questions section
+      const questionsMatch = plan.match(/## Questions\s*\n([\s\S]*?)(?=\n## |\n*$)/)
+      if (questionsMatch) {
+        const questionsText = questionsMatch[1].trim()
+        const questions = questionsText.split("\n").filter((l) => l.startsWith("- ")).map((l) => l.slice(2))
+        if (questions.length > 0) {
+          const body = `🏗️ **Kody has architecture questions:**\n\n${questions.map((q, i) => `${i + 1}. ${q}`).join("\n")}\n\nPlease answer and then run: \`@kody rerun ${ctx.taskId} --from build\``
+          postComment(ctx.input.issueNumber, body)
+          setLifecycleLabel(ctx.input.issueNumber, "waiting")
+          return true
+        }
+      }
+    }
+  } catch {
+    // Don't fail pipeline on question parsing errors
+  }
+
+  return false
+}
+
 // ─── Per-Stage Runner Selection ──────────────────────────────────────────────
 
 function getRunnerForStage(
@@ -525,6 +569,22 @@ export async function runPipeline(ctx: PipelineContext): Promise<PipelineStatus>
         outputFile: result.outputFile,
       }
       logger.info(`[${def.name}] ✓ completed`)
+
+      // Check for clarifying questions after taskify or plan
+      if ((def.name === "taskify" || def.name === "plan") && !ctx.input.dryRun) {
+        const paused = checkForQuestions(ctx, def.name)
+        if (paused) {
+          state.state = "failed"
+          state.stages[def.name] = {
+            ...state.stages[def.name],
+            state: "completed",
+            error: "paused: waiting for answers",
+          }
+          writeState(state, ctx.taskDir)
+          logger.info(`  Pipeline paused — questions posted on issue`)
+          return state
+        }
+      }
 
       // Auto-detect complexity after taskify
       if (def.name === "taskify" && !ctx.input.complexity) {
