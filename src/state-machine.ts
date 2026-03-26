@@ -175,10 +175,15 @@ async function executeAgentStage(
   const prompt = buildFullPrompt(def.name, ctx.taskId, ctx.taskDir, ctx.projectDir, ctx.input.feedback)
   const model = resolveModel(def.modelTier, def.name)
 
-  logger.info(`  model=${model} timeout=${def.timeout / 1000}s`)
-
-  // Inject LiteLLM proxy URL if configured
+  // Resolve runner for this stage
   const config = getProjectConfig()
+  const runnerName =
+    config.agent.stageRunners?.[def.name] ??
+    config.agent.defaultRunner ??
+    Object.keys(ctx.runners)[0] ?? "claude"
+
+  logger.info(`  runner=${runnerName} model=${model} timeout=${def.timeout / 1000}s`)
+
   const extraEnv: Record<string, string> = {}
   if (config.agent.litellmUrl) {
     extraEnv.ANTHROPIC_BASE_URL = config.agent.litellmUrl
