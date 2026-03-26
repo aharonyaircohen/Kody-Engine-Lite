@@ -1,0 +1,170 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Kody Engine Lite Configuration",
+  "description": "Configuration for the Kody autonomous SDLC pipeline. See https://github.com/aharonyaircohen/Kody-Engine-Lite",
+  "type": "object",
+  "properties": {
+    "quality": {
+      "type": "object",
+      "description": "Quality gate commands run during the verify stage. Leave empty string to skip.",
+      "properties": {
+        "typecheck": {
+          "type": "string",
+          "description": "TypeScript type checking command (e.g., 'pnpm typecheck', 'pnpm tsc --noEmit')",
+          "default": "pnpm -s tsc --noEmit"
+        },
+        "lint": {
+          "type": "string",
+          "description": "Lint command (e.g., 'pnpm lint'). Empty to skip.",
+          "default": ""
+        },
+        "lintFix": {
+          "type": "string",
+          "description": "Auto-fix lint command, run when verify fails (e.g., 'pnpm lint:fix')",
+          "default": ""
+        },
+        "format": {
+          "type": "string",
+          "description": "Format check command (e.g., 'pnpm format:check'). Empty to skip.",
+          "default": ""
+        },
+        "formatFix": {
+          "type": "string",
+          "description": "Auto-fix format command, run when verify fails (e.g., 'pnpm format')",
+          "default": ""
+        },
+        "testUnit": {
+          "type": "string",
+          "description": "Unit test command. Use test:unit to exclude integration/e2e tests (e.g., 'pnpm test:unit')",
+          "default": "pnpm -s test"
+        }
+      },
+      "additionalProperties": false
+    },
+    "git": {
+      "type": "object",
+      "description": "Git configuration",
+      "properties": {
+        "defaultBranch": {
+          "type": "string",
+          "description": "Default branch for PR base and branch syncing (e.g., 'main', 'dev')",
+          "default": "dev"
+        },
+        "userEmail": {
+          "type": "string",
+          "description": "Git user email for CI commits (optional, defaults to github-actions bot)"
+        },
+        "userName": {
+          "type": "string",
+          "description": "Git user name for CI commits (optional, defaults to github-actions bot)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "github": {
+      "type": "object",
+      "description": "GitHub repository settings. Auto-detected from git remote by init.",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "description": "GitHub organization or username (e.g., 'my-org')"
+        },
+        "repo": {
+          "type": "string",
+          "description": "GitHub repository name (e.g., 'my-repo')"
+        }
+      },
+      "additionalProperties": false
+    },
+    "paths": {
+      "type": "object",
+      "description": "File path configuration",
+      "properties": {
+        "taskDir": {
+          "type": "string",
+          "description": "Directory for pipeline artifacts and state (gitignored)",
+          "default": ".tasks"
+        }
+      },
+      "additionalProperties": false
+    },
+    "agent": {
+      "type": "object",
+      "description": "Agent execution configuration",
+      "properties": {
+        "runner": {
+          "type": "string",
+          "description": "Agent runner type",
+          "enum": ["claude-code"],
+          "default": "claude-code"
+        },
+        "defaultRunner": {
+          "type": "string",
+          "description": "Name of the default runner to use",
+          "default": "claude"
+        },
+        "modelMap": {
+          "type": "object",
+          "description": "Maps model tiers to actual model names. Use LiteLLM aliases when litellmUrl is set.",
+          "properties": {
+            "cheap": {
+              "type": "string",
+              "description": "Fast/cheap model for taskify stage (e.g., 'haiku' or LiteLLM alias)",
+              "default": "haiku"
+            },
+            "mid": {
+              "type": "string",
+              "description": "Mid-tier model for build, review-fix, autofix (e.g., 'sonnet' or LiteLLM alias)",
+              "default": "sonnet"
+            },
+            "strong": {
+              "type": "string",
+              "description": "Strongest model for plan, review — deep reasoning (e.g., 'opus' or LiteLLM alias)",
+              "default": "opus"
+            }
+          },
+          "additionalProperties": false
+        },
+        "litellmUrl": {
+          "type": "string",
+          "description": "LiteLLM proxy URL for using non-Anthropic models (e.g., 'http://localhost:4000'). Sets ANTHROPIC_BASE_URL for Claude Code.",
+          "examples": ["http://localhost:4000"]
+        },
+        "usePerStageRouting": {
+          "type": "boolean",
+          "description": "When true, uses stage name as the LiteLLM model alias instead of modelMap tier",
+          "default": false
+        },
+        "runners": {
+          "type": "object",
+          "description": "Named runner definitions (advanced)",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["claude-code"]
+              }
+            },
+            "required": ["type"]
+          }
+        },
+        "stageRunners": {
+          "type": "object",
+          "description": "Per-stage runner assignment (advanced). Maps stage name to runner name.",
+          "properties": {
+            "taskify": { "type": "string" },
+            "plan": { "type": "string" },
+            "build": { "type": "string" },
+            "autofix": { "type": "string" },
+            "review": { "type": "string" },
+            "review-fix": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

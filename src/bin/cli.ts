@@ -375,6 +375,7 @@ ${context}`
     if (!config.paths) config.paths = {}
     if (!config.agent) config.agent = {}
 
+    config["$schema"] = "https://raw.githubusercontent.com/aharonyaircohen/Kody-Engine-Lite/main/kody.config.schema.json"
     config.git.defaultBranch = config.git.defaultBranch || basic.defaultBranch
     config.github.owner = config.github.owner || basic.owner
     config.github.repo = config.github.repo || basic.repo
@@ -457,6 +458,7 @@ function buildFallbackConfig(
   const find = (...c: string[]) => { for (const s of c) { if (scripts[s]) return `${basic.pm} ${s}` } return "" }
 
   return {
+    "$schema": "https://raw.githubusercontent.com/aharonyaircohen/Kody-Engine-Lite/main/kody.config.schema.json",
     quality: {
       typecheck: find("typecheck", "type-check") || (pkg.devDependencies?.typescript ? `${basic.pm} tsc --noEmit` : ""),
       lint: find("lint"),
