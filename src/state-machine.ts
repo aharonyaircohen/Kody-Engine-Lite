@@ -367,34 +367,36 @@ async function executeReviewWithFix(
 function buildPrBody(ctx: PipelineContext): string {
   const sections: string[] = []
 
-  // Task summary from task.json
+  // What and why — from task.json
   const taskJsonPath = path.join(ctx.taskDir, "task.json")
   if (fs.existsSync(taskJsonPath)) {
     try {
       const raw = fs.readFileSync(taskJsonPath, "utf-8")
       const cleaned = raw.replace(/^```json\s*\n?/m, "").replace(/\n?```\s*$/m, "")
       const task = JSON.parse(cleaned)
-      sections.push(`## Summary`)
-      sections.push(`**Type:** ${task.task_type ?? "unknown"} | **Risk:** ${task.risk_level ?? "unknown"}`)
-      if (task.description) sections.push(`\n${task.description}`)
-      if (task.scope?.length) sections.push(`\n**Scope:** ${task.scope.join(", ")}`)
+      if (task.description) {
+        sections.push(`## What\n\n${task.description}`)
+      }
+      if (task.scope?.length) {
+        sections.push(`\n## Scope\n\n${task.scope.map((s: string) => `- \`${s}\``).join("\n")}`)
+      }
+      sections.push(`\n**Type:** ${task.task_type ?? "unknown"} | **Risk:** ${task.risk_level ?? "unknown"}`)
     } catch { /* ignore */ }
   }
 
-  // Plan summary (first 500 chars)
-  const planPath = path.join(ctx.taskDir, "plan.md")
-  if (fs.existsSync(planPath)) {
-    const plan = fs.readFileSync(planPath, "utf-8").trim()
-    if (plan) {
-      const truncated = plan.length > 500 ? plan.slice(0, 500) + "\n..." : plan
-      sections.push(`\n## Plan\n<details><summary>Implementation plan</summary>\n\n${truncated}\n</details>`)
-    }
-  }
-
-  // Review verdict
+  // Changes — from review.md summary (the reviewer saw what changed)
   const reviewPath = path.join(ctx.taskDir, "review.md")
   if (fs.existsSync(reviewPath)) {
     const review = fs.readFileSync(reviewPath, "utf-8")
+    // Extract Summary section
+    const summaryMatch = review.match(/## Summary\s*\n([\s\S]*?)(?=\n## |\n*$)/)
+    if (summaryMatch) {
+      const summary = summaryMatch[1].trim()
+      if (summary) {
+        sections.push(`\n## Changes\n\n${summary}`)
+      }
+    }
+    // Verdict
     const verdictMatch = review.match(/## Verdict:\s*(PASS|FAIL)/i)
     if (verdictMatch) {
       sections.push(`\n**Review:** ${verdictMatch[1].toUpperCase() === "PASS" ? "✅ PASS" : "❌ FAIL"}`)
@@ -406,6 +408,16 @@ function buildPrBody(ctx: PipelineContext): string {
   if (fs.existsSync(verifyPath)) {
     const verify = fs.readFileSync(verifyPath, "utf-8")
     if (/PASS/i.test(verify)) sections.push(`**Verify:** ✅ typecheck + tests + lint passed`)
+  }
+
+  // Plan — collapsible details
+  const planPath = path.join(ctx.taskDir, "plan.md")
+  if (fs.existsSync(planPath)) {
+    const plan = fs.readFileSync(planPath, "utf-8").trim()
+    if (plan) {
+      const truncated = plan.length > 800 ? plan.slice(0, 800) + "\n..." : plan
+      sections.push(`\n<details><summary>📋 Implementation plan</summary>\n\n${truncated}\n</details>`)
+    }
   }
 
   // Closes issue
