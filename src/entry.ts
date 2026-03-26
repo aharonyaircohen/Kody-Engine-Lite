@@ -76,7 +76,12 @@ function findLatestTaskForIssue(issueNumber: number, projectDir: string): string
   const tasksDir = path.join(projectDir, ".tasks")
   if (!fs.existsSync(tasksDir)) return null
 
-  const allDirs = fs.readdirSync(tasksDir).sort().reverse()
+  // Only consider directories (not files)
+  const allDirs = fs.readdirSync(tasksDir, { withFileTypes: true })
+    .filter((d) => d.isDirectory())
+    .map((d) => d.name)
+    .sort()
+    .reverse()
 
   // Direct match: tasks starting with issue number
   const prefix = `${issueNumber}-`
@@ -99,8 +104,7 @@ function findLatestTaskForIssue(issueNumber: number, projectDir: string): string
     }
   } catch { /* ignore */ }
 
-  // Last resort: return the most recent task
-  return allDirs[0] ?? null
+  return null
 }
 
 function generateTaskId(): string {

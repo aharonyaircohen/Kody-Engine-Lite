@@ -174,6 +174,15 @@ jobs:
           persist-credentials: true
           token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
 
+      - name: Checkout PR branch (for fix/rerun on PRs)
+        if: github.event.issue.pull_request && (needs.parse.outputs.mode == 'fix' || needs.parse.outputs.mode == 'rerun')
+        run: |
+          PR_NUM="${{ github.event.issue.number }}"
+          PR_BRANCH=$(gh pr view "$PR_NUM" --json headRefName -q '.headRefName')
+          echo "Checking out PR branch: $PR_BRANCH"
+          git checkout "$PR_BRANCH"
+          git pull origin "$PR_BRANCH"
+
       - uses: pnpm/action-setup@v4
         with:
           version: latest
