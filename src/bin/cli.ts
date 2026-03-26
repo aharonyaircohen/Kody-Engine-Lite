@@ -205,6 +205,232 @@ function detectArchitecture(cwd: string): string[] {
   return detected
 }
 
+// ─── Smart config detection ─────────────────────────────────────────────────
+
+function detectBasicConfig(cwd: string): { defaultBranch: string; owner: string; repo: string; pm: string; hasOpenCode: boolean } {
+  // Package manager
+  let pm = "pnpm"
+  if (fs.existsSync(path.join(cwd, "yarn.lock"))) pm = "yarn"
+  else if (fs.existsSync(path.join(cwd, "bun.lockb"))) pm = "bun"
+  else if (!fs.existsSync(path.join(cwd, "pnpm-lock.yaml")) && fs.existsSync(path.join(cwd, "package-lock.json"))) pm = "npm"
+
+  // Default branch
+  let defaultBranch = "main"
+  try {
+    const ref = execFileSync("git", ["symbolic-ref", "refs/remotes/origin/HEAD"], {
+      encoding: "utf-8", timeout: 5_000, cwd, stdio: ["pipe", "pipe", "pipe"],
+    }).trim()
+    defaultBranch = ref.replace("refs/remotes/origin/", "")
+  } catch {
+    try {
+      execFileSync("git", ["rev-parse", "--verify", "origin/dev"], {
+        encoding: "utf-8", timeout: 5_000, cwd, stdio: ["pipe", "pipe", "pipe"],
+      })
+      defaultBranch = "dev"
+    } catch { /* keep main */ }
+  }
+
+  // GitHub owner/repo
+  let owner = ""
+  let repo = ""
+  try {
+    const remote = execFileSync("git", ["remote", "get-url", "origin"], {
+      encoding: "utf-8", timeout: 5_000, cwd, stdio: ["pipe", "pipe", "pipe"],
+    }).trim()
+    const match = remote.match(/github\.com[/:]([^/]+)\/([^/.]+)/)
+    if (match) { owner = match[1]; repo = match[2] }
+  } catch { /* ignore */ }
+
+  const hasOpenCode = fs.existsSync(path.join(cwd, "opencode.json"))
+
+  return { defaultBranch, owner, repo, pm, hasOpenCode }
+}
+
+function smartInit(cwd: string): {
+  config: Record<string, unknown>
+  architecture: string
+  conventions: string
+} {
+  const basic = detectBasicConfig(cwd)
+
+  // Gather project context for the LLM
+  let context = ""
+  const readIfExists = (rel: string, maxChars = 3000) => {
+    const p = path.join(cwd, rel)
+    if (fs.existsSync(p)) {
+      const content = fs.readFileSync(p, "utf-8")
+      return content.slice(0, maxChars)
+    }
+    return null
+  }
+
+  const pkgJson = readIfExists("package.json")
+  if (pkgJson) context += `## package.json\n${pkgJson}\n\n`
+
+  const tsconfig = readIfExists("tsconfig.json", 1000)
+  if (tsconfig) context += `## tsconfig.json\n${tsconfig}\n\n`
+
+  const readme = readIfExists("README.md", 2000)
+  if (readme) context += `## README.md (first 2000 chars)\n${readme}\n\n`
+
+  const claudeMd = readIfExists("CLAUDE.md", 3000)
+  if (claudeMd) context += `## CLAUDE.md\n${claudeMd}\n\n`
+
+  // List top-level dirs + src subdirs
+  try {
+    const topDirs = fs.readdirSync(cwd, { withFileTypes: true })
+      .filter(e => e.isDirectory() && !e.name.startsWith(".") && e.name !== "node_modules")
+      .map(e => e.name)
+    context += `## Top-level directories\n${topDirs.join(", ")}\n\n`
+
+    const srcDir = path.join(cwd, "src")
+    if (fs.existsSync(srcDir)) {
+      const srcDirs = fs.readdirSync(srcDir, { withFileTypes: true })
+        .filter(e => e.isDirectory()).map(e => e.name)
+      context += `## src/ subdirectories\n${srcDirs.join(", ")}\n\n`
+    }
+  } catch { /* ignore */ }
+
+  // Check for existing config files
+  const existingFiles: string[] = []
+  for (const f of [".env.example", "CLAUDE.md", ".ai-docs", "opencode.json", "vitest.config.ts", "vitest.config.mts", "jest.config.ts", "playwright.config.ts", ".eslintrc.js", "eslint.config.mjs", ".prettierrc"]) {
+    if (fs.existsSync(path.join(cwd, f))) existingFiles.push(f)
+  }
+  if (existingFiles.length) context += `## Config files present\n${existingFiles.join(", ")}\n\n`
+
+  context += `## Detected: package manager=${basic.pm}, default branch=${basic.defaultBranch}, github=${basic.owner}/${basic.repo}, opencode=${basic.hasOpenCode}\n`
+
+  // Build prompt
+  const prompt = `You are analyzing a project to configure Kody (an autonomous SDLC pipeline).
+
+Given this project context, output ONLY a JSON object with EXACTLY this structure:
+
+{
+  "config": {
+    "quality": {
+      "typecheck": "${basic.pm} <script or command>",
+      "lint": "${basic.pm} <script or command>",
+      "lintFix": "${basic.pm} <script or command>",
+      "format": "${basic.pm} <script or command>",
+      "formatFix": "${basic.pm} <script or command>",
+      "testUnit": "${basic.pm} <script or command>"
+    },
+    "git": { "defaultBranch": "${basic.defaultBranch}" },
+    "github": { "owner": "${basic.owner}", "repo": "${basic.repo}" },
+    "paths": { "taskDir": ".tasks" },
+    "agent": {
+      "runner": "${basic.hasOpenCode ? "opencode" : "claude-code"}",
+      "defaultRunner": "${basic.hasOpenCode ? "opencode" : "claude"}",
+      "modelMap": { "cheap": "haiku", "mid": "sonnet", "strong": "opus" }
+    }
+  },
+  "architecture": "# Architecture\\n\\n<markdown content>",
+  "conventions": "# Conventions\\n\\n<markdown content>"
+}
+
+CRITICAL rules for config.quality:
+- Every command MUST start with "${basic.pm}" (e.g., "${basic.pm} typecheck", "${basic.pm} lint")
+- Look at the package.json "scripts" section to find the correct script names
+- testUnit must run ONLY unit tests — exclude integration and e2e tests. If there's a "test:unit" script use it. Otherwise use "test" but add exclude flags for int/e2e.
+- If a script doesn't exist and can't be inferred, set the value to ""
+- Do NOT invent commands that don't exist in package.json scripts
+
+Rules for architecture (markdown string):
+- Be specific about THIS project
+- Include: framework, language, database, testing, key directories, data flow
+- Reference CLAUDE.md and .ai-docs/ if they exist
+- Keep under 50 lines
+
+Rules for conventions (markdown string):
+- Extract actual patterns from the project
+- If CLAUDE.md exists, reference it
+- If .ai-docs/ exists, reference it
+- Keep under 30 lines
+
+Output ONLY valid JSON. No markdown fences. No explanation before or after.
+
+${context}`
+
+  console.log("  ⏳ Analyzing project with Claude Code...")
+
+  try {
+    const output = execFileSync("claude", [
+      "--print",
+      "--model", "haiku",
+      "--dangerously-skip-permissions",
+      prompt,
+    ], {
+      encoding: "utf-8",
+      timeout: 120_000,
+      cwd,
+      stdio: ["pipe", "pipe", "pipe"],
+    }).trim()
+
+    // Parse JSON from output (strip markdown fences if present)
+    const cleaned = output.replace(/^```json\s*\n?/m, "").replace(/\n?```\s*$/m, "")
+    const parsed = JSON.parse(cleaned)
+
+    // Merge with basic detected values (LLM might miss git/github)
+    const config = parsed.config ?? {}
+    if (!config.git) config.git = {}
+    if (!config.github) config.github = {}
+    if (!config.paths) config.paths = {}
+    if (!config.agent) config.agent = {}
+
+    config.git.defaultBranch = config.git.defaultBranch || basic.defaultBranch
+    config.github.owner = config.github.owner || basic.owner
+    config.github.repo = config.github.repo || basic.repo
+    config.paths.taskDir = config.paths.taskDir || ".tasks"
+    config.agent.runner = config.agent.runner || (basic.hasOpenCode ? "opencode" : "claude-code")
+    config.agent.defaultRunner = config.agent.defaultRunner || (basic.hasOpenCode ? "opencode" : "claude")
+    if (!config.agent.modelMap) {
+      config.agent.modelMap = { cheap: "haiku", mid: "sonnet", strong: "opus" }
+    }
+
+    return {
+      config,
+      architecture: parsed.architecture ?? "",
+      conventions: parsed.conventions ?? "",
+    }
+  } catch (err) {
+    console.log("  ⚠ Smart detection failed, falling back to basic detection")
+    // Fallback to basic heuristic config
+    return {
+      config: buildFallbackConfig(cwd, basic),
+      architecture: "",
+      conventions: "",
+    }
+  }
+}
+
+function buildFallbackConfig(
+  cwd: string,
+  basic: { defaultBranch: string; owner: string; repo: string; pm: string; hasOpenCode: boolean },
+): Record<string, unknown> {
+  const pkg = (() => { try { return JSON.parse(fs.readFileSync(path.join(cwd, "package.json"), "utf-8")) } catch { return {} } })()
+  const scripts = (pkg.scripts ?? {}) as Record<string, string>
+  const find = (...c: string[]) => { for (const s of c) { if (scripts[s]) return `${basic.pm} ${s}` } return "" }
+
+  return {
+    quality: {
+      typecheck: find("typecheck", "type-check") || (pkg.devDependencies?.typescript ? `${basic.pm} tsc --noEmit` : ""),
+      lint: find("lint"),
+      lintFix: find("lint:fix", "lint-fix"),
+      format: find("format:check"),
+      formatFix: find("format", "format:fix"),
+      testUnit: find("test:unit", "test", "test:ci"),
+    },
+    git: { defaultBranch: basic.defaultBranch },
+    github: { owner: basic.owner, repo: basic.repo },
+    paths: { taskDir: ".tasks" },
+    agent: {
+      runner: basic.hasOpenCode ? "opencode" : "claude-code",
+      defaultRunner: basic.hasOpenCode ? "opencode" : "claude",
+      modelMap: { cheap: "haiku", mid: "sonnet", strong: "opus" },
+    },
+  }
+}
+
 // ─── init command ────────────────────────────────────────────────────────────
 
 function initCommand(opts: { force: boolean }) {
@@ -231,28 +457,13 @@ function initCommand(opts: { force: boolean }) {
     console.log("  ✓ .github/workflows/kody.yml")
   }
 
-  // Config
+  // Config — smart detection via LLM
   const configDest = path.join(cwd, "kody.config.json")
-  if (!fs.existsSync(configDest)) {
-    const defaultConfig = {
-      quality: {
-        typecheck: "pnpm tsc --noEmit",
-        lint: "",
-        lintFix: "",
-        format: "",
-        formatFix: "",
-        testUnit: "pnpm test",
-      },
-      git: { defaultBranch: "main" },
-      github: { owner: "", repo: "" },
-      paths: { taskDir: ".tasks" },
-      agent: {
-        runner: "claude-code",
-        modelMap: { cheap: "haiku", mid: "sonnet", strong: "opus" },
-      },
-    }
-    fs.writeFileSync(configDest, JSON.stringify(defaultConfig, null, 2) + "\n")
-    console.log("  ✓ kody.config.json (created — edit github.owner and github.repo)")
+  let smartResult: { config: Record<string, unknown>; architecture: string; conventions: string } | null = null
+  if (!fs.existsSync(configDest) || opts.force) {
+    smartResult = smartInit(cwd)
+    fs.writeFileSync(configDest, JSON.stringify(smartResult.config, null, 2) + "\n")
+    console.log("  ✓ kody.config.json (auto-configured)")
   } else {
     console.log("  ○ kody.config.json (exists)")
   }
@@ -400,32 +611,37 @@ function initCommand(opts: { force: boolean }) {
   }
 
   // ── Step 5: Architecture detection ──
-  console.log("\n── Architecture Detection ──")
+  console.log("\n── Project Memory ──")
   const memoryDir = path.join(cwd, ".kody", "memory")
+  fs.mkdirSync(memoryDir, { recursive: true })
   const archPath = path.join(memoryDir, "architecture.md")
+  const conventionsPath = path.join(memoryDir, "conventions.md")
 
-  if (fs.existsSync(archPath)) {
-    console.log("  ○ .kody/memory/architecture.md (exists, not overwriting)")
+  if (fs.existsSync(archPath) && !opts.force) {
+    console.log("  ○ .kody/memory/architecture.md (exists, use --force to regenerate)")
+  } else if (smartResult?.architecture) {
+    fs.writeFileSync(archPath, smartResult.architecture)
+    const lineCount = smartResult.architecture.split("\n").length
+    console.log(`  ✓ .kody/memory/architecture.md (${lineCount} lines, LLM-generated)`)
   } else {
+    // Fallback to basic detection
     const archItems = detectArchitecture(cwd)
     if (archItems.length > 0) {
-      fs.mkdirSync(memoryDir, { recursive: true })
       const timestamp = new Date().toISOString().slice(0, 10)
-      const content = `# Architecture (auto-detected ${timestamp})\n\n## Overview\n${archItems.join("\n")}\n`
-      fs.writeFileSync(archPath, content)
-      console.log(`  ✓ .kody/memory/architecture.md (${archItems.length} items detected)`)
-      for (const item of archItems) {
-        console.log(`    ${item}`)
-      }
+      fs.writeFileSync(archPath, `# Architecture (auto-detected ${timestamp})\n\n## Overview\n${archItems.join("\n")}\n`)
+      console.log(`  ✓ .kody/memory/architecture.md (${archItems.length} items, basic detection)`)
     } else {
       console.log("  ○ No architecture detected")
     }
   }
 
-  // Create conventions.md seed if doesn't exist
-  const conventionsPath = path.join(memoryDir, "conventions.md")
-  if (!fs.existsSync(conventionsPath)) {
-    fs.mkdirSync(memoryDir, { recursive: true })
+  if (fs.existsSync(conventionsPath) && !opts.force) {
+    console.log("  ○ .kody/memory/conventions.md (exists, use --force to regenerate)")
+  } else if (smartResult?.conventions) {
+    fs.writeFileSync(conventionsPath, smartResult.conventions)
+    const lineCount = smartResult.conventions.split("\n").length
+    console.log(`  ✓ .kody/memory/conventions.md (${lineCount} lines, LLM-generated)`)
+  } else {
     fs.writeFileSync(conventionsPath, "# Conventions\n\n<!-- Auto-learned conventions will be appended here -->\n")
     console.log("  ✓ .kody/memory/conventions.md (seed)")
   }
