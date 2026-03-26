@@ -201,21 +201,6 @@ jobs:
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code
 
-      - name: Start LiteLLM proxy (if litellm-config.yaml exists)
-        if: hashFiles('litellm-config.yaml') != ''
-        env:
-          MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: |
-          pip install "litellm[proxy]" -q
-          nohup litellm --config litellm-config.yaml --port 4000 &
-          echo "Waiting for LiteLLM proxy..."
-          for i in $(seq 1 30); do
-            curl -s http://localhost:4000/health > /dev/null 2>&1 && echo "LiteLLM ready" && break
-            sleep 2
-          done
-
       - name: Configure git
         run: |
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
