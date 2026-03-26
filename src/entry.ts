@@ -271,6 +271,16 @@ async function main() {
   }
 
   if (state.state === "failed") {
+    // Check if this is a "paused" state (questions posted) — not a real failure
+    const isPaused = Object.values(state.stages).some(
+      (s) => typeof s === "object" && s !== null && "error" in s && typeof (s as { error?: string }).error === "string" && (s as { error: string }).error.includes("paused"),
+    )
+
+    if (isPaused) {
+      // Pipeline paused for questions — not a failure, exit cleanly
+      process.exit(0)
+    }
+
     // Post failure comment on issue
     if (ctx.input.issueNumber && !ctx.input.local) {
       const failedStage = Object.entries(state.stages).find(
