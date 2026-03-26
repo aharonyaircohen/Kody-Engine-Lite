@@ -64,19 +64,19 @@ describe("config", () => {
       path.join(tmpDir, "kody.config.json"),
       JSON.stringify({
         agent: {
-          defaultRunner: "opencode",
+          defaultRunner: "claude",
           runners: {
             claude: { type: "claude-code" },
-            opencode: { type: "opencode" },
+            backup: { type: "claude-code" },
           },
-          stageRunners: { plan: "opencode", build: "claude" },
+          stageRunners: { plan: "backup", build: "claude" },
         },
       }),
     )
     setConfigDir(tmpDir)
     const config = getProjectConfig()
-    expect(config.agent.defaultRunner).toBe("opencode")
+    expect(config.agent.defaultRunner).toBe("claude")
     expect(config.agent.runners?.claude.type).toBe("claude-code")
-    expect(config.agent.stageRunners?.plan).toBe("opencode")
+    expect(config.agent.stageRunners?.plan).toBe("backup")
   })
 })

@@ -2,7 +2,7 @@ import * as fs from "fs"
 import * as path from "path"
 
 export interface RunnerConfig {
-  type: "claude-code" | "opencode"
+  type: "claude-code"
 }
 
 export interface KodyConfig {

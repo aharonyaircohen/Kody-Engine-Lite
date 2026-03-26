@@ -207,7 +207,7 @@ function detectArchitecture(cwd: string): string[] {
 
 // ─── Smart config detection ─────────────────────────────────────────────────
 
-function detectBasicConfig(cwd: string): { defaultBranch: string; owner: string; repo: string; pm: string; hasOpenCode: boolean } {
+function detectBasicConfig(cwd: string): { defaultBranch: string; owner: string; repo: string; pm: string } {
   // Package manager
   let pm = "pnpm"
   if (fs.existsSync(path.join(cwd, "yarn.lock"))) pm = "yarn"
@@ -241,9 +241,7 @@ function detectBasicConfig(cwd: string): { defaultBranch: string; owner: string;
     if (match) { owner = match[1]; repo = match[2] }
   } catch { /* ignore */ }
 
-  const hasOpenCode = fs.existsSync(path.join(cwd, "opencode.json"))
-
-  return { defaultBranch, owner, repo, pm, hasOpenCode }
+  return { defaultBranch, owner, repo, pm }
 }
 
 function smartInit(cwd: string): {
@@ -293,12 +291,12 @@ function smartInit(cwd: string): {
 
   // Check for existing config files
   const existingFiles: string[] = []
-  for (const f of [".env.example", "CLAUDE.md", ".ai-docs", "opencode.json", "vitest.config.ts", "vitest.config.mts", "jest.config.ts", "playwright.config.ts", ".eslintrc.js", "eslint.config.mjs", ".prettierrc"]) {
+  for (const f of [".env.example", "CLAUDE.md", ".ai-docs", "vitest.config.ts", "vitest.config.mts", "jest.config.ts", "playwright.config.ts", ".eslintrc.js", "eslint.config.mjs", ".prettierrc"]) {
     if (fs.existsSync(path.join(cwd, f))) existingFiles.push(f)
   }
   if (existingFiles.length) context += `## Config files present\n${existingFiles.join(", ")}\n\n`
 
-  context += `## Detected: package manager=${basic.pm}, default branch=${basic.defaultBranch}, github=${basic.owner}/${basic.repo}, opencode=${basic.hasOpenCode}\n`
+  context += `## Detected: package manager=${basic.pm}, default branch=${basic.defaultBranch}, github=${basic.owner}/${basic.repo}\n`
 
   // Build prompt
   const prompt = `You are analyzing a project to configure Kody (an autonomous SDLC pipeline).
@@ -319,8 +317,8 @@ Given this project context, output ONLY a JSON object with EXACTLY this structur
     "github": { "owner": "${basic.owner}", "repo": "${basic.repo}" },
     "paths": { "taskDir": ".tasks" },
     "agent": {
-      "runner": "${basic.hasOpenCode ? "opencode" : "claude-code"}",
-      "defaultRunner": "${basic.hasOpenCode ? "opencode" : "claude"}",
+      "runner": "${"claude-code"}",
+      "defaultRunner": "${"claude"}",
       "modelMap": { "cheap": "haiku", "mid": "sonnet", "strong": "opus" }
     }
   },
@@ -381,8 +379,8 @@ ${context}`
     config.github.owner = config.github.owner || basic.owner
     config.github.repo = config.github.repo || basic.repo
     config.paths.taskDir = config.paths.taskDir || ".tasks"
-    config.agent.runner = config.agent.runner || (basic.hasOpenCode ? "opencode" : "claude-code")
-    config.agent.defaultRunner = config.agent.defaultRunner || (basic.hasOpenCode ? "opencode" : "claude")
+    config.agent.runner = config.agent.runner || ("claude-code")
+    config.agent.defaultRunner = config.agent.defaultRunner || ("claude")
     if (!config.agent.modelMap) {
       config.agent.modelMap = { cheap: "haiku", mid: "sonnet", strong: "opus" }
     }
@@ -452,7 +450,7 @@ function validateQualityCommands(
 
 function buildFallbackConfig(
   cwd: string,
-  basic: { defaultBranch: string; owner: string; repo: string; pm: string; hasOpenCode: boolean },
+  basic: { defaultBranch: string; owner: string; repo: string; pm: string },
 ): Record<string, unknown> {
   const pkg = (() => { try { return JSON.parse(fs.readFileSync(path.join(cwd, "package.json"), "utf-8")) } catch { return {} } })()
   const scripts = (pkg.scripts ?? {}) as Record<string, string>
@@ -471,8 +469,8 @@ function buildFallbackConfig(
     github: { owner: basic.owner, repo: basic.repo },
     paths: { taskDir: ".tasks" },
     agent: {
-      runner: basic.hasOpenCode ? "opencode" : "claude-code",
-      defaultRunner: basic.hasOpenCode ? "opencode" : "claude",
+      runner: "claude-code",
+      defaultRunner: "claude",
       modelMap: { cheap: "haiku", mid: "sonnet", strong: "opus" },
     },
   }

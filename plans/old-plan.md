@@ -1,8 +1,62 @@
-# Kody-Engine-Lite v2 — Full SDLC Implementation Plan
+# Current Task: Multi-Runner Support + Complete Test Coverage
 
-## Context
+## Part 1: Per-stage runner switching
 
-Rebuild Kody-Engine-Lite as a **full autonomous SDLC system** matching Kody-Engine's capabilities. Replace both OpenCode (agent CLI) and MiniMax/OpenAI direct provider coupling with **Claude Code** (agent execution) + **LiteLLM** (model routing). Every model reference — from opencode.json's 21 agent definitions and the GitHub Actions workflow — is consolidated into a single LiteLLM config.
+Add ability to use different agent runners (Claude Code, OpenCode, etc.) per pipeline stage via config.
+
+### Config shape (`kody.config.json`):
+```json
+{
+  "agent": {
+    "defaultRunner": "claude",
+    "runners": {
+      "claude": { "type": "claude-code" },
+      "opencode": { "type": "opencode" }
+    },
+    "stageRunners": {
+      "taskify": "opencode",
+      "plan": "opencode",
+      "build": "claude",
+      "review": "opencode",
+      "review-fix": "claude",
+      "autofix": "claude"
+    }
+  }
+}
+```
+
+### Files to modify:
+- `src/config.ts` — update KodyConfig.agent with runners, stageRunners, defaultRunner
+- `src/types.ts` — PipelineContext.runners: Record<string, AgentRunner> (replaces single runner)
+- `src/agent-runner.ts` — add createOpenCodeRunner(), add createRunners(config) factory
+- `src/state-machine.ts` — resolve runner per stage from config
+- `src/entry.ts` — create runners map, pass to context
+- `README.md` — document multi-runner config
+
+### Backward compatible:
+If no `runners`/`stageRunners` in config, falls back to single `runner: "claude-code"` behavior.
+
+## Part 2: Complete test coverage
+
+Unit tests for every module + integration test for pipeline flow.
+
+### Test files:
+- `tests/unit/config.test.ts`
+- `tests/unit/context.test.ts`
+- `tests/unit/validators.test.ts`
+- `tests/unit/memory.test.ts`
+- `tests/unit/kody-utils.test.ts`
+- `tests/unit/definitions.test.ts`
+- `tests/unit/agent-runner.test.ts`
+- `tests/unit/state-machine.test.ts`
+- `tests/unit/logger.test.ts`
+- `tests/int/pipeline.test.ts`
+
+## Verification
+```bash
+pnpm typecheck
+pnpm test
+```
 
 **Architecture:**
 ```

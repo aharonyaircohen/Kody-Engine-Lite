@@ -138,43 +138,10 @@ export function createClaudeCodeRunner(): AgentRunner {
   }
 }
 
-// ─── OpenCode Runner ─────────────────────────────────────────────────────────
-
-export function createOpenCodeRunner(): AgentRunner {
-  return {
-    async run(
-      stageName: string,
-      prompt: string,
-      model: string,
-      timeout: number,
-      _taskDir: string,
-      options?: AgentRunnerOptions,
-    ): Promise<AgentResult> {
-      const args = ["run", "--agent", "build"]
-      if (model) {
-        args.push("--model", model)
-      }
-      // Pipe prompt via stdin — --agent build enables full tool permissions
-      return runSubprocess(
-        "opencode",
-        args,
-        prompt,
-        timeout,
-        options,
-      )
-    },
-
-    async healthCheck(): Promise<boolean> {
-      return checkCommand("opencode", ["--version"])
-    },
-  }
-}
-
 // ─── Runner Factory ──────────────────────────────────────────────────────────
 
 const RUNNER_FACTORIES: Record<string, () => AgentRunner> = {
   "claude-code": createClaudeCodeRunner,
-  "opencode": createOpenCodeRunner,
 }
 
 export function createRunners(config: KodyConfig): Record<string, AgentRunner> {
