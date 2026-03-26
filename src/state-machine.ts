@@ -31,6 +31,7 @@ import { runQualityGates } from "./verify-runner.js"
 import { getProjectConfig, FIX_COMMAND_TIMEOUT_MS } from "./config.js"
 import { logger, ciGroup, ciGroupEnd } from "./logger.js"
 import type { AgentRunner } from "./types.js"
+import { diagnoseFailure, getModifiedFiles } from "./observer.js"
 
 // ─── Complexity-Based Stage Filtering ────────────────────────────────────────
 
@@ -286,9 +287,47 @@ async function executeVerifyWithAutofix(
     }
 
     if (attempt < maxAttempts) {
-      logger.info(`  verification failed, running fixes...`)
-      const config = getProjectConfig()
+      // Read verify errors for diagnosis
+      const verifyPath = path.join(ctx.taskDir, "verify.md")
+      const errorOutput = fs.existsSync(verifyPath) ? fs.readFileSync(verifyPath, "utf-8") : "Unknown error"
 
+      // AI diagnosis — classify the failure
+      const modifiedFiles = getModifiedFiles(ctx.projectDir)
+      const defaultRunner = getRunnerForStage(ctx, "taskify") // use cheap model
+      const diagnosis = await diagnoseFailure(
+        "verify",
+        errorOutput,
+        modifiedFiles,
+        defaultRunner,
+        resolveModel("cheap"),
+      )
+
+      if (diagnosis.classification === "infrastructure") {
+        logger.warn(`  Infrastructure issue: ${diagnosis.reason}`)
+        if (ctx.input.issueNumber && !ctx.input.local) {
+          try {
+            postComment(ctx.input.issueNumber, `⚠️ **Infrastructure issue detected:** ${diagnosis.reason}\n\n${diagnosis.resolution}`)
+          } catch { /* ignore */ }
+        }
+        // Continue pipeline — don't waste autofix attempts on infra issues
+        return { outcome: "completed", retries: attempt, error: `Skipped: ${diagnosis.reason}` }
+      }
+
+      if (diagnosis.classification === "pre-existing") {
+        logger.warn(`  Pre-existing issue: ${diagnosis.reason}`)
+        // Continue pipeline — not our fault
+        return { outcome: "completed", retries: attempt, error: `Skipped: ${diagnosis.reason}` }
+      }
+
+      if (diagnosis.classification === "abort") {
+        logger.error(`  Unrecoverable: ${diagnosis.reason}`)
+        return { outcome: "failed", retries: attempt, error: diagnosis.reason }
+      }
+
+      // fixable or retry — proceed with autofix
+      logger.info(`  Diagnosis: ${diagnosis.classification} — ${diagnosis.reason}`)
+
+      const config = getProjectConfig()
       const runFix = (cmd: string) => {
         if (!cmd) return
         const parts = cmd.split(/\s+/)
@@ -306,7 +345,11 @@ async function executeVerifyWithAutofix(
       runFix(config.quality.formatFix)
 
       if (def.retryWithAgent) {
-        logger.info(`  running ${def.retryWithAgent} agent...`)
+        // Pass diagnosis resolution as guidance to the autofix agent
+        const originalFeedback = ctx.input.feedback
+        ctx.input.feedback = `${diagnosis.resolution}\n\n${originalFeedback ?? ""}`
+
+        logger.info(`  running ${def.retryWithAgent} agent with diagnosis guidance...`)
         await executeAgentStage(ctx, {
           ...def,
           name: def.retryWithAgent as StageName,
@@ -315,6 +358,8 @@ async function executeVerifyWithAutofix(
           timeout: 300_000,
           outputFile: undefined,
         })
+
+        ctx.input.feedback = originalFeedback
       }
     }
   }
