@@ -1,13 +1,20 @@
 # Conventions
 
-## Formatting
-<!-- Auto-learned conventions will be appended here -->
+## Code
+- **TypeScript strict mode**: Full type safety, no implicit any
+- **ES2022 modules**: Top-level await, import.meta
+- **Immutability**: Spread operators for state updates
+- **Error handling**: Try-catch with detailed logging
 
-## Testing
-<!-- Auto-learned testing patterns will be appended here -->
+## Git & Testing
+- **Commits**: Conventional format (feat, fix, refactor, docs, test, chore)
+- **Tests**: Vitest unit tests, aim for high coverage
+- **Type checking**: Required before commit (tsc --noEmit)
 
-## Imports
-<!-- Auto-learned import patterns will be appended here -->
+## Project Organization
+- **src/**: Source TypeScript
+- **dist/**: Published npm package
+- **prompts/**: Claude instructions per stage
+- **.tasks/**: Ephemeral state (ignored in git)
 
-## Patterns
-<!-- Auto-learned code patterns will be appended here -->
+Refer to ONBOARDING.md for full architecture, design decisions, and pipeline internals.

@@ -1,24 +1,31 @@
 {
   "quality": {
-    "typecheck": "pnpm -s tsc --noEmit",
+    "typecheck": "pnpm typecheck",
     "lint": "",
     "lintFix": "",
     "format": "",
     "formatFix": "",
-    "testUnit": "pnpm -s test"
+    "testUnit": "pnpm test"
   },
   "git": {
     "defaultBranch": "main"
+  },
+  "github": {
+    "owner": "aharonyaircohen",
+    "repo": "Kody-Engine-Lite"
   },
   "paths": {
     "taskDir": ".tasks"
   },
   "agent": {
-    "runner": "claude-code",
+    "defaultRunner": "opencode",
+    "runners": {
+      "opencode": { "type": "opencode" }
+    },
     "modelMap": {
-      "cheap": "haiku",
-      "mid": "sonnet",
-      "strong": "opus"
+      "cheap": "minimax-coding-plan/MiniMax-M2.7-highspeed",
+      "mid": "minimax-coding-plan/MiniMax-M2.7-highspeed",
+      "strong": "minimax-coding-plan/MiniMax-M2.7-highspeed"
     }
   }
 }

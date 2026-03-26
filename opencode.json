@@ -1,0 +1,10 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "minimax": {
+      "options": {
+        "apiKey": "${MINIMAX_API_KEY}"
+      }
+    }
+  }
+}
