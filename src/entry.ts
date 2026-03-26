@@ -12,7 +12,7 @@ import type { PipelineContext } from "./types.js"
 const isCI = !!process.env.GITHUB_ACTIONS
 
 interface CliInput {
-  command: "run" | "rerun" | "status"
+  command: "run" | "rerun" | "fix" | "status"
   taskId?: string
   task?: string
   fromStage?: string
@@ -43,13 +43,14 @@ function parseArgs(): CliInput {
     console.log(`Usage:
   kody run    --task-id <id> [--task "<desc>"] [--cwd <path>] [--issue-number <n>] [--complexity low|medium|high] [--feedback "<text>"] [--local] [--dry-run]
   kody rerun  --task-id <id> --from <stage> [--cwd <path>] [--issue-number <n>]
+  kody fix    --task-id <id> [--cwd <path>] [--issue-number <n>] [--feedback "<text>"]
   kody status --task-id <id> [--cwd <path>]
   kody --help`)
     process.exit(0)
   }
 
-  const command = args[0] as "run" | "rerun" | "status"
-  if (!["run", "rerun", "status"].includes(command)) {
+  const command = args[0] as "run" | "rerun" | "fix" | "status"
+  if (!["run", "rerun", "fix", "status"].includes(command)) {
     console.error(`Unknown command: ${command}`)
     process.exit(1)
   }
@@ -108,7 +109,7 @@ async function main() {
   // Resolve taskId
   let taskId = input.taskId
   if (!taskId) {
-    if (input.command === "rerun" && input.issueNumber) {
+    if ((input.command === "rerun" || input.command === "fix") && input.issueNumber) {
       const found = findLatestTaskForIssue(input.issueNumber, projectDir)
       if (!found) {
         console.error(`No previous task found for issue #${input.issueNumber}`)
@@ -162,6 +163,11 @@ async function main() {
       console.error("No task.md found. Provide --task, --issue-number, or ensure .tasks/<id>/task.md exists.")
       process.exit(1)
     }
+  }
+
+  // Fix command defaults to --from build
+  if (input.command === "fix" && !input.fromStage) {
+    input.fromStage = "build"
   }
 
   // Auto-detect --from for rerun if not provided (find paused stage)
@@ -228,7 +234,7 @@ async function main() {
     projectDir,
     runners,
     input: {
-      mode: input.command === "rerun" ? "rerun" : "full",
+      mode: (input.command === "rerun" || input.command === "fix") ? "rerun" : "full",
       fromStage: input.fromStage,
       dryRun: input.dryRun,
       issueNumber: input.issueNumber,

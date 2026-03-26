@@ -103,7 +103,7 @@ jobs:
 
           # Validate mode
           case "$MODE" in
-            full|rerun|status|approve) ;;
+            full|rerun|fix|status|approve) ;;
             *)
               # If first arg isn't a mode, it might be a task-id or nothing
               if [ -n "$MODE" ] && [ "$MODE" != "" ]; then
@@ -196,7 +196,15 @@ jobs:
           FEEDBACK: ${{ github.event.inputs.feedback || needs.parse.outputs.feedback }}
           DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: kody-engine-lite run --task-id "$TASK_ID" --issue-number "$ISSUE_NUMBER"
+        run: |
+          CMD="run"
+          [ "$MODE" = "rerun" ] && CMD="rerun"
+          [ "$MODE" = "fix" ] && CMD="fix"
+          ARGS="--task-id $TASK_ID --issue-number $ISSUE_NUMBER"
+          [ -n "$FROM_STAGE" ] && ARGS="$ARGS --from $FROM_STAGE"
+          [ -n "$FEEDBACK" ] && ARGS="$ARGS --feedback \"$FEEDBACK\""
+          [ "$DRY_RUN" = "true" ] && ARGS="$ARGS --dry-run"
+          kody-engine-lite $CMD $ARGS
 
       - name: Pipeline summary
         if: always()

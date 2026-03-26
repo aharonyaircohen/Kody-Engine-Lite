@@ -15,6 +15,7 @@ import { buildFullPrompt, resolveModel } from "./context.js"
 import { validateTaskJson, validatePlanMd, validateReviewMd } from "./validators.js"
 import {
   ensureFeatureBranch,
+  syncWithDefault,
   commitAll,
   pushBranch,
   getCurrentBranch,
@@ -541,8 +542,10 @@ export async function runPipeline(ctx: PipelineContext): Promise<PipelineStatus>
         ? fs.readFileSync(taskMdPath, "utf-8").split("\n")[0].slice(0, 50)
         : ctx.taskId
       ensureFeatureBranch(ctx.input.issueNumber, title, ctx.projectDir)
+      // Sync feature branch with latest default branch
+      syncWithDefault(ctx.projectDir)
     } catch (err) {
-      logger.warn(`  Failed to create feature branch: ${err}`)
+      logger.warn(`  Failed to create/sync feature branch: ${err}`)
     }
   }
 

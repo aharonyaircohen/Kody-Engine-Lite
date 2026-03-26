@@ -113,6 +113,31 @@ export function ensureFeatureBranch(
   return branchName
 }
 
+export function syncWithDefault(cwd?: string): void {
+  const defaultBranch = getDefaultBranch(cwd)
+  const current = getCurrentBranch(cwd)
+
+  if (current === defaultBranch) return // already on default, no merge needed
+
+  // Fetch latest
+  try {
+    git(["fetch", "origin", defaultBranch], { cwd, timeout: 30_000 })
+  } catch {
+    logger.warn("  Failed to fetch latest from origin")
+    return
+  }
+
+  // Merge default into feature branch
+  try {
+    git(["merge", `origin/${defaultBranch}`, "--no-edit"], { cwd, timeout: 30_000 })
+    logger.info(`  Synced with origin/${defaultBranch}`)
+  } catch {
+    // Merge conflict — abort and warn
+    try { git(["merge", "--abort"], { cwd }) } catch { /* ignore */ }
+    logger.warn(`  Merge conflict with origin/${defaultBranch} — skipping sync`)
+  }
+}
+
 export function commitAll(
   message: string,
   cwd?: string,

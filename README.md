@@ -112,7 +112,7 @@ git push
 Then comment on any issue:
 
 ```
-@kody full my-task-id
+@kody
 ```
 
 ## CLI Usage
@@ -121,19 +121,25 @@ Then comment on any issue:
 
 ```bash
 # Run against current directory
-kody-engine-lite run --task-id my-task --task "Add a sum function to src/math.ts with tests"
+kody-engine-lite run --task "Add a sum function to src/math.ts with tests"
 
 # Run against a different project
-kody-engine-lite run --task-id my-task --task "Add feature X" --cwd /path/to/project
+kody-engine-lite run --task "Add feature X" --cwd /path/to/project
 
 # Run from a GitHub issue (fetches issue body as task)
-kody-engine-lite run --task-id my-task --issue-number 1 --cwd /path/to/project
+kody-engine-lite run --issue-number 1 --cwd /path/to/project
 
 # Dry run (no agent calls)
-kody-engine-lite run --task-id my-task --task "Test" --dry-run
+kody-engine-lite run --task "Test" --dry-run
 
-# Resume from a failed stage
-kody-engine-lite rerun --task-id my-task --from review
+# Resume from a failed/paused stage (auto-detects which stage)
+kody-engine-lite rerun --issue-number 1
+
+# Fix — rerun from build stage (skip taskify/plan)
+kody-engine-lite fix --issue-number 1
+
+# Fix with feedback
+kody-engine-lite fix --issue-number 1 --feedback "Use middleware pattern instead"
 
 # Check pipeline status
 kody-engine-lite status --task-id my-task
@@ -154,9 +160,11 @@ Comment on any issue:
 ```
 @kody                                     # Run full pipeline (auto-generates task-id)
 @kody full <task-id>                      # Run with specific task-id
-@kody rerun --from <stage>                # Resume latest task from stage
-@kody rerun <task-id> --from <stage>      # Resume specific task
-@kody approve                             # Approve + provide answers to Kody's questions
+@kody rerun                               # Resume latest task (auto-detects stage)
+@kody rerun --from <stage>                # Resume from specific stage
+@kody fix                                 # Re-build from build stage (skip taskify/plan)
+@kody fix --feedback "Use X instead of Y" # Fix with specific guidance
+@kody approve                             # Approve + provide answers to questions
 @kody status <task-id>                    # Check status
 ```
 
@@ -194,6 +202,15 @@ Kody resumes automatically from where it paused, with your answers injected as c
 | review | opus | Thorough code review → `review.md` (PASS/FAIL + findings) |
 | review-fix | sonnet | Applies known fixes from review findings |
 | ship | — | Pushes branch + creates PR + comments on issue |
+
+### Branch Syncing
+
+On every run/rerun/fix, Kody automatically:
+1. Checks out (or creates) the feature branch
+2. Pulls latest from the default branch and merges into the feature branch
+3. If there's a merge conflict, skips the sync and warns
+
+This ensures the feature branch is always up-to-date before building.
 
 ### Automatic Loops
 
