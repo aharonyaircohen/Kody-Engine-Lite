@@ -1,5 +1,19 @@
 # Features
 
+## Shared Sessions
+
+Stages in the same group share a Claude Code session via `--session-id` and `--resume`. This eliminates cold-start codebase re-exploration — the plan agent already knows what taskify discovered, the autofix agent already knows what build wrote.
+
+| Group | Stages | Why |
+|-------|--------|-----|
+| **explore** | taskify → plan | Plan builds on taskify's codebase exploration |
+| **build** | build → autofix → review-fix | Autofix and review-fix need implementation context |
+| **review** | review (alone) | Fresh perspective on the code, no build bias |
+
+Sessions are persisted in `status.json` so reruns resume the same conversation.
+
+Additionally, each stage appends a structured summary to `context.md` — providing cross-session context. The review agent (fresh session) still knows what build decided because it reads context.md.
+
 ## Risk Gate
 
 When Kody detects a **HIGH-risk** task (auth, security, data migrations, database schema), it pauses after the plan stage and posts the implementation plan on the issue:
@@ -24,24 +38,6 @@ The pipeline resumes only after `@kody approve`. This ensures security-critical 
 - Medium/low complexity tasks
 - Runs without an issue number
 - Dry runs
-
-## Accumulated Context
-
-Each pipeline stage runs in a fresh Claude Code process (full context window), but shares knowledge with subsequent stages through an accumulated `context.md` file.
-
-After each stage completes, a summary of its output (up to 500 chars) is appended to `.tasks/<id>/context.md`. The next stage reads this file and receives it as "Previous Stage Context" in its prompt.
-
-**Why this matters for complex tasks:**
-
-Single-agent tools (Copilot, Cursor, Cline) run one long conversation. On a simple utility function, that's fine. On a complex feature (auth system, CRUD with UI, API client with interceptors), the conversation exceeds 100K+ tokens and the agent:
-- Forgets early decisions
-- Contradicts its own plan
-- Loses track of which files it modified
-- Produces increasingly degraded output
-
-Kody's pipeline gives each stage a fresh 200K token window with ~3-5K tokens of curated context from previous stages. The build agent knows what taskify classified and what the plan decided — without carrying 50K tokens of taskify's file exploration conversation.
-
-**Real example:** The auth system run (#29) — 7 stages with 3 autofix retries, 7 stages, JWT + sessions + middleware + RBAC + 6 UI pages + tests. The review agent received context from taskify (HIGH risk, auth system), plan (middleware pattern, TDD order), and build (implemented JWT, hit async type issues). It reviewed with full awareness of the reasoning chain, in a fresh context window.
 
 ## Question Gates
 
@@ -127,11 +123,11 @@ verify fail
   → AI diagnosis (fixable/infrastructure/pre-existing/abort)
   → run lintFix command
   → run formatFix command
-  → spawn autofix agent with diagnosis guidance
+  → spawn autofix agent (resumes build session) with diagnosis guidance
   → retry verify (up to 2 attempts)
 ```
 
-The autofix agent has the diagnosis resolution injected into its prompt, so it knows exactly what to fix.
+The autofix agent resumes the build session, so it already knows the codebase and what was implemented.
 
 ## Rich PR Descriptions
 

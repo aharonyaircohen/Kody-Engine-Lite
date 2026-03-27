@@ -23,6 +23,7 @@
 | **Runs where** | CI (GitHub Actions) | GitHub Cloud |
 | **Autonomous** | Fully — fire and forget | Interactive — requires guidance |
 | **Pipeline** | 7 structured stages with artifacts | Plan → implement |
+| **Sessions** | Shared within stage groups (no cold starts) | Single conversation |
 | **Quality gates** | typecheck + tests + lint + AI diagnosis | Basic validation |
 | **Risk gate** | Pauses HIGH-risk for approval | No |
 | **Failure handling** | 5-way AI diagnosis + targeted autofix | Basic retry |
@@ -89,43 +90,41 @@
 
 ## Why Pipelines Handle Complex Tasks Better Than Single Agents
 
-Single-agent tools (Copilot Workspace, Cursor Agent, Cline) run one conversation per task. For simple tasks (add a utility function, fix a typo), this works fine. For complex tasks (auth system, CRUD feature, API client with interceptors), it breaks down:
+Single-agent tools run one conversation per task. For simple tasks, that's fine. For complex multi-file features, it breaks down:
 
 | Problem | Single Agent | Kody Pipeline |
 |---------|-------------|---------------|
-| **Context overflow** | 100K+ tokens of conversation, agent forgets early decisions | Each stage gets fresh 200K window + 3-5K curated context |
-| **Error cascading** | Agent writes broken code, tries to fix it, makes it worse | Quality gate catches errors between stages, AI diagnoses before retry |
-| **No checkpoint** | If it fails at minute 15, start over from scratch | Rerun from any stage — build took 20 min? Rerun from verify |
-| **No oversight** | All-or-nothing: either autonomous or needs constant approval | Risk gate pauses only HIGH-risk tasks at the plan stage |
-| **Degraded quality** | Review quality drops when done in same bloated context | Fresh process for review with curated context = better reviews |
+| **Context management** | One long conversation that accumulates over time | Shared sessions within groups + context.md across groups |
+| **Error cascading** | Agent writes broken code, tries to fix it in the same context | Quality gate catches errors between stages, AI diagnoses before retry |
+| **No checkpoint** | If it fails midway, start over | Rerun from any stage — keep what worked |
+| **No oversight** | Either fully autonomous or needs constant approval | Risk gate pauses only HIGH-risk tasks at the plan stage |
+| **Review quality** | Self-reviewing in the same context introduces bias | Fresh session for review — clean perspective on the code |
 
-### Real-World Proof: Auth System (#29)
+### Real-World Example: Auth System (#29)
 
 A full authentication system built end-to-end with MiniMax via LiteLLM:
 
-- **Scope:** JWT service, session store, user store with lockout, auth middleware, role guard, 5 API routes, 3 UI pages, auth context, 4 shared components, comprehensive tests
+- **Scope:** JWT service, session store, user store with lockout, auth middleware, role guard, 5 API routes, 3 UI pages, auth context, shared components, tests
 - **Complexity:** HIGH (auto-detected), all 7 stages ran
-- **Duration:** all 7 stages with 3 autofix retries
+- **Sessions:** explore (taskify+plan), build (build+autofix), review (fresh)
 - **Verify:** Failed twice (lint errors in React code), AI diagnosed as "fixable", autofix agent fixed both times, passed on attempt 3
 - **Review:** PASS with minor findings, review-fix applied
 - **Result:** PR created with working code, tests passing
 
-No single-agent tool ships this reliably — they lose track of the session store's interface by the time they're writing the auth context component.
-
 ## Kody's Unique Advantages
 
-1. **Handles complex tasks.** Auth systems, CRUD features, API clients — tasks that overwhelm single-agent tools. Structured stages + accumulated context + quality gates keep the pipeline on track through 20+ minute builds.
+1. **Shared sessions, not bloated context.** Stages in the same group share a Claude Code session (no cold starts). Different groups get fresh sessions (no context pollution). Plus context.md carries structured summaries across all stages.
 
-2. **Accumulated context, not bloated context.** Each stage gets a fresh context window with curated summaries from previous stages. The review agent knows what the build agent decided, without carrying 100K tokens of file exploration.
+2. **Handles complex tasks.** Auth systems, CRUD features, API clients — tasks where single-agent tools lose track. Structured stages + shared sessions + quality gates keep the pipeline on track.
 
-3. **AI failure diagnosis.** When tests fail, Kody classifies the error (fixable vs infrastructure vs pre-existing) before deciding whether to retry, skip, or abort. No wasted autofix cycles on flaky tests.
+3. **AI failure diagnosis.** When tests fail, Kody classifies the error (fixable vs infrastructure vs pre-existing) before deciding whether to retry, skip, or abort.
 
-4. **Risk gate.** HIGH-risk tasks pause for human approval after the plan is generated — before any code is written. No other tool does this.
+4. **Risk gate.** HIGH-risk tasks pause for human approval after the plan — before any code is written.
 
-5. **Self-improving memory.** Each successful run extracts coding conventions and stores them for future runs. The pipeline gets better at your specific project over time.
+5. **Self-improving memory.** Each successful run extracts coding conventions for future runs.
 
-6. **Model agnostic.** Route through LiteLLM to use any model. Test with a cheap model, ship with a strong one. Switch providers without changing a line of code.
+6. **Model agnostic.** Route through LiteLLM to use any model. Switch providers without changing code.
 
 7. **Runs in CI.** No IDE required, no cloud VM, no subscription. Just GitHub Actions and your API key.
 
-8. **Rerun from any stage.** If review-fix fails, rerun from review-fix. Don't redo the 20-minute build. Each stage's artifacts and state are persisted.
+8. **Rerun from any stage.** If review-fix fails, rerun from review-fix. Don't redo the 20-minute build.

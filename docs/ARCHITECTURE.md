@@ -92,8 +92,8 @@ GitHub Actions (kody.yml)
           ├─ Create feature branch: 42--issue-title
           ├─ Sync with default branch
           │
-          ├─ [taskify] ──────────────────────────────────────
-          │   agent-runner spawns: claude --print --model haiku
+          ├─ [taskify] ── session: explore (new) ────────────
+          │   claude --print --session-id <uuid> --model <cheap tier>
           │   Prompt: taskify.md + memory + task.md
           │   Output: task.json (type, scope, risk_level, questions)
           │   → appends summary to context.md
@@ -102,16 +102,17 @@ GitHub Actions (kody.yml)
           │     → complexity detection (low/medium/high)
           │     → set label: kody:high + kody:feature
           │
-          ├─ [plan] ─────────────────────────────────────────
-          │   agent-runner spawns: claude --print --model opus
+          ├─ [plan] ── session: explore (resume) ───────────
+          │   claude --print --resume <uuid> --model <strong tier>
           │   Prompt: plan.md + memory + task.md + task.json + context.md
+          │   (agent already knows codebase from taskify session)
           │   Output: plan.md (TDD implementation plan)
           │   → appends summary to context.md
           │   Post-hooks:
           │     → risk gate (HIGH → pause, post plan, wait for approve)
           │
-          ├─ [build] ────────────────────────────────────────
-          │   agent-runner spawns: claude --print --model sonnet
+          ├─ [build] ── session: build (new) ───────────────
+          │   claude --print --session-id <uuid> --model <mid tier>
           │   Prompt: build.md + memory + task.md + task.json + plan.md + context.md
           │   Claude Code uses tools: Read, Write, Edit, Bash, Grep, Glob
           │   → appends summary to context.md
@@ -132,15 +133,17 @@ GitHub Actions (kody.yml)
           │       abort → stop pipeline
           │     → retry up to 2 more times
           │
-          ├─ [review] ───────────────────────────────────────
-          │   agent-runner spawns: claude --print --model opus
-          │   Prompt: review.md + memory + git diff
+          ├─ [review] ── session: review (new) ──────────────
+          │   claude --print --session-id <uuid> --model <strong tier>
+          │   (fresh session — no build bias)
+          │   Prompt: review.md + memory + git diff + context.md
           │   Output: review.md (Verdict: PASS/FAIL + findings)
           │   If FAIL with Critical/Major → proceed to review-fix
           │   Set label: kody:review
           │
-          ├─ [review-fix] ───────────────────────────────────
-          │   agent-runner spawns: claude --print --model sonnet
+          ├─ [review-fix] ── session: build (resume) ────────
+          │   claude --print --resume <build-uuid> --model <mid tier>
+          │   (resumes build session — knows implementation context)
           │   Prompt: review-fix.md + memory + review.md findings
           │   Post-hooks:
           │     → git commit: "fix(42-260327-102254): address review"
@@ -245,7 +248,7 @@ executeVerifyWithAutofix(ctx, def)
   └─ Loop back to verify
 ```
 
-The observer sends errors + modified files to a cheap model (haiku) which classifies the failure and suggests a fix. That suggestion is injected into the autofix agent's prompt.
+The observer sends errors + modified files to the cheap tier model which classifies the failure and suggests a fix. That suggestion is injected into the autofix agent's prompt.
 
 ## Agent Runner
 
@@ -256,12 +259,15 @@ spawn("claude", [
   "--print",
   "--model", model,
   "--dangerously-skip-permissions",
-  "--allowedTools", "Bash,Edit,Read,Write,Glob,Grep"
+  "--allowedTools", "Bash,Edit,Read,Write,Glob,Grep",
+  "--session-id", uuid,    // first stage in group: create
+  // OR
+  "--resume", uuid,        // subsequent stages: resume
 ])
 ```
 
 Flow:
-1. Spawn Claude Code process
+1. Spawn Claude Code process (with session flags)
 2. Pipe assembled prompt via stdin
 3. Collect stdout (agent output) and stderr (errors)
 4. On timeout: SIGTERM → wait 5s → SIGKILL
@@ -381,6 +387,11 @@ kody.yml
 {
   "taskId": "42-260327-102254",
   "state": "running",
+  "sessions": {
+    "explore": "a1b2c3d4-...",
+    "build": "e5f6g7h8-...",
+    "review": "i9j0k1l2-..."
+  },
   "stages": {
     "taskify": { "state": "completed", "retries": 0, "completedAt": "..." },
     "plan": { "state": "completed", "retries": 0, "completedAt": "..." },
@@ -416,6 +427,7 @@ interface PipelineContext {
   taskDir: string          // .tasks/<task-id>/
   projectDir: string       // repo root
   runners: Record<string, AgentRunner>
+  sessions?: Record<string, string>  // group → session UUID
   input: {
     mode: "full" | "rerun"
     fromStage?: string
@@ -454,7 +466,7 @@ pnpm install
 
 ```bash
 pnpm typecheck              # TypeScript type check
-pnpm test                   # 232 tests across 26 files
+pnpm test                   # 240 tests across 27 files
 pnpm build                  # Build npm package (tsup → dist/bin/cli.js)
 pnpm kody run ...           # Dev mode (tsx — runs from source)
 npm publish --access public # Publish to npm
@@ -475,7 +487,8 @@ npm publish --access public # Publish to npm
 | Config/context/memory | 3 | ~20 |
 | Agent runner | 1 | ~10 |
 | Other (definitions, logger, utils) | 12 | ~94 |
-| **Total** | **26** | **232** |
+| Sessions | 1 | 5 |
+| **Total** | **27** | **240** |
 
 ### Build
 
