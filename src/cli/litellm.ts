@@ -53,12 +53,29 @@ export async function tryStartLitellm(
     args = ["-m", "litellm", "--config", configPath, "--port", port]
   }
 
+  // Load API key env vars from project .env (only *_API_KEY patterns)
+  const dotenvPath = path.join(projectDir, ".env")
+  const dotenvVars: Record<string, string> = {}
+  if (fs.existsSync(dotenvPath)) {
+    for (const line of fs.readFileSync(dotenvPath, "utf-8").split("\n")) {
+      const match = line.match(/^([A-Z_][A-Z0-9_]*_API_KEY)=(.*)$/)
+      if (match) dotenvVars[match[1]] = match[2]
+    }
+    if (Object.keys(dotenvVars).length > 0) {
+      logger.info(`  Loaded API keys: ${Object.keys(dotenvVars).join(", ")}`)
+    }
+  }
+
   const { spawn } = await import("child_process")
   const child = spawn(cmd, args, {
     stdio: ["ignore", "pipe", "pipe"],
     detached: true,
-    env: process.env as Record<string, string>,
+    env: { ...process.env, ...dotenvVars } as Record<string, string>,
   })
+
+  // Capture stderr for debugging
+  let proxyStderr = ""
+  child.stderr?.on("data", (chunk: Buffer) => { proxyStderr += chunk.toString() })
 
   // Wait for health
   for (let i = 0; i < 30; i++) {
@@ -69,6 +86,9 @@ export async function tryStartLitellm(
     }
   }
 
+  if (proxyStderr) {
+    logger.warn(`LiteLLM stderr: ${proxyStderr.slice(-1000)}`)
+  }
   logger.warn("LiteLLM proxy failed to start within 60s")
   child.kill()
   return null

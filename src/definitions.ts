@@ -5,7 +5,7 @@ export const STAGES: StageDefinition[] = [
     name: "taskify",
     type: "agent",
     modelTier: "cheap",
-    timeout: 180_000,
+    timeout: 300_000,
     maxRetries: 1,
     outputFile: "task.json",
   },
