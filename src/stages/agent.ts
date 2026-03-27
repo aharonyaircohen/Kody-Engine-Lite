@@ -7,7 +7,7 @@ import type {
   PipelineContext,
 } from "../types.js"
 import { buildFullPrompt, resolveModel } from "../context.js"
-import { validateTaskJson, validatePlanMd, validateReviewMd } from "../validators.js"
+import { validateTaskJson, validatePlanMd, validateReviewMd, stripFences } from "../validators.js"
 import { getProjectConfig } from "../config.js"
 import { getRunnerForStage } from "../pipeline/runner-selection.js"
 import { logger } from "../logger.js"
@@ -90,7 +90,27 @@ export async function executeAgentStage(
       const content = fs.readFileSync(outputPath, "utf-8")
       const validation = validateStageOutput(def.name, content)
       if (!validation.valid) {
-        logger.warn(`  validation warning: ${validation.error}`)
+        // Taskify must produce valid JSON — retry once with stricter prompt
+        if (def.name === "taskify") {
+          logger.warn(`  taskify output invalid (${validation.error}), retrying...`)
+          const retryPrompt = prompt + "\n\nIMPORTANT: Your previous output was not valid JSON. Output ONLY the raw JSON object. No markdown, no fences, no explanation."
+          const retryResult = await runner.run(def.name, retryPrompt, model, def.timeout, ctx.taskDir, {
+            cwd: ctx.projectDir,
+            env: extraEnv,
+          })
+          if (retryResult.outcome === "completed" && retryResult.output) {
+            const stripped = stripFences(retryResult.output)
+            const retryValidation = validateTaskJson(stripped)
+            if (retryValidation.valid) {
+              fs.writeFileSync(outputPath, retryResult.output)
+              logger.info(`  taskify retry produced valid JSON`)
+            } else {
+              logger.warn(`  taskify retry still invalid: ${retryValidation.error}`)
+            }
+          }
+        } else {
+          logger.warn(`  validation warning: ${validation.error}`)
+        }
       }
     }
   }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { validateTaskJson, validatePlanMd, validateReviewMd } from "../../src/validators.js"
+import { validateTaskJson, validatePlanMd, validateReviewMd, stripFences } from "../../src/validators.js"
 
 describe("validateTaskJson", () => {
   it("passes with all 5 required fields", () => {
@@ -29,6 +29,36 @@ describe("validateTaskJson", () => {
   it("fails with empty string", () => {
     const result = validateTaskJson("")
     expect(result.valid).toBe(false)
+  })
+
+  it("passes with JSON wrapped in markdown fences", () => {
+    const content = '```json\n{"task_type":"feature","title":"X","description":"Y","scope":[],"risk_level":"low"}\n```'
+    expect(validateTaskJson(content)).toEqual({ valid: true })
+  })
+
+  it("passes with JSON wrapped in fences and trailing whitespace", () => {
+    const content = '```json\n{"task_type":"feature","title":"X","description":"Y","scope":[],"risk_level":"low"}\n```  '
+    expect(validateTaskJson(content)).toEqual({ valid: true })
+  })
+
+  it("fails with non-JSON markdown content", () => {
+    const result = validateTaskJson("## Task Complete\nThe task is done.")
+    expect(result.valid).toBe(false)
+    expect(result.error).toMatch(/Invalid JSON/)
+  })
+})
+
+describe("stripFences", () => {
+  it("strips json fences", () => {
+    expect(stripFences('```json\n{"a":1}\n```')).toBe('{"a":1}')
+  })
+
+  it("returns plain JSON unchanged", () => {
+    expect(stripFences('{"a":1}')).toBe('{"a":1}')
+  })
+
+  it("handles fences with trailing whitespace", () => {
+    expect(stripFences('```json\n{"a":1}\n```  ')).toBe('{"a":1}')
   })
 })
 

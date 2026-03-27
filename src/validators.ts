@@ -11,9 +11,13 @@ const REQUIRED_TASK_FIELDS = [
   "risk_level",
 ]
 
+export function stripFences(content: string): string {
+  return content.replace(/^```json\s*\n?/m, "").replace(/\n?```\s*$/m, "")
+}
+
 export function validateTaskJson(content: string): ValidationResult {
   try {
-    const parsed = JSON.parse(content)
+    const parsed = JSON.parse(stripFences(content))
     for (const field of REQUIRED_TASK_FIELDS) {
       if (!(field in parsed)) {
         return { valid: false, error: `Missing field: ${field}` }
