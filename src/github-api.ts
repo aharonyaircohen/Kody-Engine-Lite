@@ -46,6 +46,15 @@ export function getIssue(
   }
 }
 
+export function getIssueLabels(issueNumber: number): string[] {
+  try {
+    const output = gh(["issue", "view", String(issueNumber), "--json", "labels", "--jq", ".labels[].name"])
+    return output.split("\n").filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
 export function setLabel(issueNumber: number, label: string): void {
   try {
     gh(["issue", "edit", String(issueNumber), "--add-label", label])

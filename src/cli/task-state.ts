@@ -2,6 +2,7 @@ import * as fs from "fs"
 import * as path from "path"
 
 import { findLatestTaskForIssue, generateTaskId } from "./task-resolution.js"
+import { getIssueLabels } from "../github-api.js"
 
 const STAGE_ORDER = ["taskify", "plan", "build", "verify", "review", "review-fix", "ship"]
 
@@ -61,18 +62,26 @@ export function resolveForIssue(
   issueNumber: number,
   projectDir: string,
 ): TaskAction {
+  // First: check local task state (works locally and when .tasks/ persists)
   const existingTaskId = findLatestTaskForIssue(issueNumber, projectDir)
-  if (!existingTaskId) {
-    return resolveTaskAction(issueNumber, null, null)
+  if (existingTaskId) {
+    const statusPath = path.join(projectDir, ".tasks", existingTaskId, "status.json")
+    let existingState: TaskState | null = null
+    if (fs.existsSync(statusPath)) {
+      try {
+        existingState = JSON.parse(fs.readFileSync(statusPath, "utf-8"))
+      } catch { /* ignore */ }
+    }
+    return resolveTaskAction(issueNumber, existingTaskId, existingState)
   }
 
-  const statusPath = path.join(projectDir, ".tasks", existingTaskId, "status.json")
-  let existingState: TaskState | null = null
-  if (fs.existsSync(statusPath)) {
-    try {
-      existingState = JSON.parse(fs.readFileSync(statusPath, "utf-8"))
-    } catch { /* ignore */ }
-  }
+  // Second: check GitHub labels (works in CI where .tasks/ doesn't persist)
+  try {
+    const labels = getIssueLabels(issueNumber)
+    if (labels.includes("kody:done")) {
+      return { action: "already-completed", taskId: `${issueNumber}-unknown` }
+    }
+  } catch { /* ignore — gh may not be available */ }
 
-  return resolveTaskAction(issueNumber, existingTaskId, existingState)
+  return resolveTaskAction(issueNumber, null, null)
 }
