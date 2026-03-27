@@ -11,7 +11,8 @@ import type { PipelineContext } from "./types.js"
 // Extracted modules
 import { parseArgs } from "./cli/args.js"
 import { checkLitellmHealth, tryStartLitellm } from "./cli/litellm.js"
-import { findLatestTaskForIssue, generateTaskId } from "./cli/task-resolution.js"
+import { generateTaskId } from "./cli/task-resolution.js"
+import { resolveForIssue } from "./cli/task-state.js"
 
 
 async function main() {
@@ -29,19 +30,39 @@ async function main() {
     logger.info(`Working directory: ${projectDir}`)
   }
 
-  // Resolve taskId
+  // Resolve task via state machine
   let taskId = input.taskId
   if (!taskId) {
-    if ((input.command === "rerun" || input.command === "fix") && input.issueNumber) {
-      const found = findLatestTaskForIssue(input.issueNumber, projectDir)
-      if (!found) {
-        console.error(`No previous task found for issue #${input.issueNumber}`)
-        process.exit(1)
+    if (input.issueNumber) {
+      const taskAction = resolveForIssue(input.issueNumber, projectDir)
+      logger.info(`Task action: ${taskAction.action}`)
+
+      if (taskAction.action === "already-completed") {
+        logger.info(`Issue #${input.issueNumber} already completed (task ${taskAction.taskId})`)
+        if (!input.local) {
+          try {
+            postComment(input.issueNumber, `✅ Issue #${input.issueNumber} already completed (task \`${taskAction.taskId}\`)`)
+          } catch { /* best effort */ }
+        }
+        process.exit(0)
       }
-      taskId = found
-      logger.info(`Found latest task for issue #${input.issueNumber}: ${taskId}`)
-    } else if (input.issueNumber) {
-      taskId = `${input.issueNumber}-${generateTaskId()}`
+
+      if (taskAction.action === "already-running") {
+        logger.info(`Issue #${input.issueNumber} already running (task ${taskAction.taskId})`)
+        if (!input.local) {
+          try {
+            postComment(input.issueNumber, `⏳ Pipeline already running for issue #${input.issueNumber} (task \`${taskAction.taskId}\`)`)
+          } catch { /* best effort */ }
+        }
+        process.exit(0)
+      }
+
+      taskId = taskAction.taskId
+      if (taskAction.action === "resume") {
+        input.fromStage = taskAction.fromStage
+        input.command = "rerun" as "rerun"
+        logger.info(`Resuming task ${taskId} from ${taskAction.fromStage}`)
+      }
     } else if (input.command === "run" && input.task) {
       taskId = generateTaskId()
     } else {
@@ -80,58 +101,15 @@ async function main() {
     }
   }
 
-  // Verify task.md exists for run
-  if (input.command === "run") {
-    if (!fs.existsSync(taskMdPath)) {
-      console.error("No task.md found. Provide --task, --issue-number, or ensure .tasks/<id>/task.md exists.")
-      process.exit(1)
-    }
+  // Verify task.md exists
+  if (!fs.existsSync(taskMdPath)) {
+    console.error("No task.md found. Provide --task, --issue-number, or ensure .tasks/<id>/task.md exists.")
+    process.exit(1)
   }
 
   // Fix command defaults to --from build
   if (input.command === "fix" && !input.fromStage) {
     input.fromStage = "build"
-  }
-
-  // Auto-detect --from for rerun if not provided (find paused stage)
-  if (input.command === "rerun" && !input.fromStage) {
-    const statusPath = path.join(taskDir, "status.json")
-    if (fs.existsSync(statusPath)) {
-      try {
-        const status = JSON.parse(fs.readFileSync(statusPath, "utf-8"))
-        const stageNames = ["taskify", "plan", "build", "verify", "review", "review-fix", "ship"]
-        let foundPaused = false
-        for (const name of stageNames) {
-          const s = status.stages[name]
-          if (s?.error?.includes("paused")) {
-            const idx = stageNames.indexOf(name)
-            if (idx < stageNames.length - 1) {
-              input.fromStage = stageNames[idx + 1]
-              foundPaused = true
-              logger.info(`Auto-detected resume from: ${input.fromStage} (after paused ${name})`)
-              break
-            }
-          }
-          if (s?.state === "failed" || s?.state === "pending") {
-            input.fromStage = name
-            foundPaused = true
-            logger.info(`Auto-detected resume from: ${input.fromStage}`)
-            break
-          }
-        }
-        if (!foundPaused) {
-          input.fromStage = "taskify"
-          logger.info("No paused/failed stage found, resuming from taskify")
-        }
-      } catch {
-        console.error("--from <stage> is required (could not read status.json)")
-        process.exit(1)
-      }
-    } else {
-      // No status.json — fall back to full run with feedback preserved
-      logger.info("No status.json found — running full pipeline with feedback")
-      input.command = "run" as "run"
-    }
   }
 
   // Start LiteLLM proxy if configured and not running
