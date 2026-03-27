@@ -2,28 +2,93 @@
 
 **Issue → PR in one command.** Comment `@kody` on a GitHub issue and Kody autonomously classifies, plans, builds, tests, reviews, fixes, and ships a pull request.
 
+Kody is a 7-stage autonomous SDLC pipeline that runs in GitHub Actions. It uses Claude Code (or any LLM via LiteLLM) to turn issues into production-ready PRs — with quality gates, AI-powered failure diagnosis, risk-based human approval, and self-improving memory.
+
+## Pipeline
+
 ```
-@kody  →  taskify → plan → build → verify → review → fix → ship  →  PR created
+                        ┌─────────────────────────────────────────────────────────┐
+                        │                    @kody on issue                        │
+                        └────────────────────────┬────────────────────────────────┘
+                                                 │
+                        ┌────────────────────────▼────────────────────────────────┐
+                        │  ① TASKIFY                                              │
+                        │  Classify task, detect complexity, ask questions         │
+                        │  Model: haiku │ Output: task.json                       │
+                        └────────────────────────┬────────────────────────────────┘
+                                                 │
+                                    ┌────────────▼────────────┐
+                                    │  LOW?  skip to ④        │
+                                    │  MEDIUM?  continue      │
+                                    │  HIGH?  continue        │
+                                    └────────────┬────────────┘
+                                                 │
+                        ┌────────────────────────▼────────────────────────────────┐
+                        │  ② PLAN                                                 │
+                        │  TDD implementation plan (deep reasoning)               │
+                        │  Model: opus │ Output: plan.md                          │
+                        └────────────────────────┬────────────────────────────────┘
+                                                 │
+                                    ┌────────────▼────────────┐
+                                    │  HIGH risk?             │
+                                    │  🛑 Pause for approval  │──── @kody approve
+                                    └────────────┬────────────┘
+                                                 │
+                        ┌────────────────────────▼────────────────────────────────┐
+                        │  ③ BUILD                                                │
+                        │  Implement code via Claude Code tools                   │
+                        │  Model: sonnet │ Output: code changes + git commit      │
+                        └────────────────────────┬────────────────────────────────┘
+                                                 │
+                        ┌────────────────────────▼────────────────────────────────┐
+                        │  ④ VERIFY                                               │
+                        │  typecheck + tests + lint                               │
+                        │  ┌──────────────────────────────────────────────┐       │
+                        │  │  Fail? → AI diagnosis → autofix → retry ×2  │       │
+                        │  └──────────────────────────────────────────────┘       │
+                        └────────────────────────┬────────────────────────────────┘
+                                                 │
+                        ┌────────────────────────▼────────────────────────────────┐
+                        │  ⑤ REVIEW                                               │
+                        │  Code review: PASS/FAIL + Critical/Major/Minor          │
+                        │  Model: opus │ Output: review.md                        │
+                        └────────────────────────┬────────────────────────────────┘
+                                                 │
+                        ┌────────────────────────▼────────────────────────────────┐
+                        │  ⑥ REVIEW-FIX                                           │
+                        │  Fix Critical and Major findings                        │
+                        │  Model: sonnet │ Output: code changes + git commit      │
+                        └────────────────────────┬────────────────────────────────┘
+                                                 │
+                        ┌────────────────────────▼────────────────────────────────┐
+                        │  ⑦ SHIP                                                 │
+                        │  Push branch + create PR with Closes #N                 │
+                        │  Output: ship.md + PR link                              │
+                        └────────────────────────┬────────────────────────────────┘
+                                                 │
+                        ┌────────────────────────▼────────────────────────────────┐
+                        │                ✅ PR created & ready for review          │
+                        └─────────────────────────────────────────────────────────┘
 ```
 
-Kody is a 7-stage autonomous SDLC pipeline that runs in GitHub Actions. It uses Claude Code (or any LLM via LiteLLM) to turn issues into production-ready PRs — with quality gates, AI-powered failure diagnosis, risk-based human approval, and self-improving memory.
+Each stage runs in a **fresh context window** with **accumulated context** from previous stages — so complex tasks (auth systems, CRUD features, API clients) don't lose track of earlier decisions.
+
+[Pipeline details →](docs/PIPELINE.md)
 
 ## Why Kody?
 
 Most AI coding tools are **autocomplete** (Copilot) or **chat-based** (Cursor, Cline). You still drive. Kody is different: it's an **autonomous pipeline** that takes an issue and delivers a tested, reviewed PR — even for complex, multi-file features that single-agent tools choke on.
-
-Single agents hit context limits on large tasks. Kody splits work into focused stages — each with a fresh context window but access to curated context from previous stages. A 27-minute auth system build (JWT, sessions, middleware, RBAC, 7 stages, 3 autofix retries) completes end-to-end without losing track.
 
 | | Kody | Copilot Workspace | Devin | Cursor Agent |
 |---|---|---|---|---|
 | **Runs in CI** | GitHub Actions | GitHub Cloud | Devin Cloud | Local IDE |
 | **Fire and forget** | Comment `@kody`, walk away | Must interact | Must interact | Must be open |
 | **Quality gates** | typecheck + tests + lint + AI diagnosis + auto-retry | Basic | Runs tests | Runs tests |
-| **Risk gate** | Pauses HIGH-risk tasks for human approval | No | No | No |
+| **Risk gate** | Pauses HIGH-risk for human approval | No | No | No |
 | **Model flexible** | Any LLM via LiteLLM | GitHub models only | Proprietary | Cursor models |
 | **Open source** | MIT | Proprietary | Proprietary | Proprietary |
-| **Accumulated context** | Curated context flows between stages | Single conversation | Single agent | Single agent |
-| **Complex tasks** | 27-min auth system with 7 stages + autofix | Struggles with large scope | Better | Struggles with large scope |
+| **Accumulated context** | Curated context flows between stages | Single bloated conversation | Single agent | Single agent |
+| **Complex tasks** | Full auth system: 7 stages + 3 autofix retries | Struggles with large scope | Better | Struggles with large scope |
 | **Cost** | Your API costs only | $10-39/month | $20-500/month | Subscription |
 
 [Full comparison →](docs/COMPARISON.md)
@@ -49,27 +114,6 @@ kody-engine-lite init
 `init` spawns Claude Code to analyze your project and generates: workflow file, config with auto-detected quality commands, project memory (architecture + conventions), 14 GitHub labels — then commits and pushes everything.
 
 **Prerequisites:** Node.js >= 22, [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code), [GitHub CLI](https://cli.github.com/), git
-
-## Pipeline
-
-```
-@kody on issue
-  ↓
-1. taskify   — classify task, detect complexity, ask questions     → task.json
-2. plan      — TDD implementation plan (deep reasoning)           → plan.md
-   ↓ HIGH risk? pause for human approval
-3. build     — implement code via Claude Code tools                → code changes
-4. verify    — typecheck + tests + lint (AI diagnosis + autofix)   → verify.md
-5. review    — code review: PASS/FAIL + Critical/Major/Minor      → review.md
-6. review-fix — fix Critical and Major findings                    → code changes
-7. ship      — push branch + create PR with Closes #N             → ship.md
-  ↓
-PR created
-```
-
-Complexity auto-detected: **low** skips plan/review (4 stages), **medium** skips review-fix (6 stages), **high** runs all 7.
-
-[Pipeline details →](docs/PIPELINE.md)
 
 ## Commands
 
@@ -98,16 +142,16 @@ kody-engine-lite init [--force]
 - **Risk Gate** — HIGH-risk tasks pause for human plan approval before building ([details](docs/FEATURES.md#risk-gate))
 - **AI Failure Diagnosis** — classifies errors as fixable/infrastructure/pre-existing/abort before retry ([details](docs/FEATURES.md#ai-powered-failure-diagnosis))
 - **Question Gates** — asks product/architecture questions when the task is unclear ([details](docs/FEATURES.md#question-gates))
+- **Accumulated Context** — each stage passes curated context to the next — fresh window, shared knowledge ([details](docs/FEATURES.md#accumulated-context))
 - **Retrospective** — analyzes each run, identifies patterns, suggests improvements ([details](docs/FEATURES.md#retrospective-system))
 - **Auto-Learning** — extracts coding conventions from each successful run ([details](docs/FEATURES.md#auto-learning-memory))
-- **Accumulated Context** — each stage passes curated context to the next — fresh window, shared knowledge ([details](docs/FEATURES.md#accumulated-context))
 - **Any LLM** — route through LiteLLM to use MiniMax, GPT, Gemini, local models ([setup guide](docs/LITELLM.md))
 
 ## Documentation
 
 | Doc | What's in it |
 |-----|-------------|
-| [Pipeline](docs/PIPELINE.md) | Stage details, complexity skipping, artifacts, state machine |
+| [Pipeline](docs/PIPELINE.md) | Stage details, complexity skipping, accumulated context, artifacts |
 | [Features](docs/FEATURES.md) | Risk gate, diagnosis, retrospective, auto-learn, labels |
 | [LiteLLM](docs/LITELLM.md) | Non-Anthropic model setup, auto-start, tested providers |
 | [Configuration](docs/CONFIGURATION.md) | Full config reference, env vars, workflow setup |

@@ -41,7 +41,7 @@ Single-agent tools (Copilot, Cursor, Cline) run one long conversation. On a simp
 
 Kody's pipeline gives each stage a fresh 200K token window with ~3-5K tokens of curated context from previous stages. The build agent knows what taskify classified and what the plan decided — without carrying 50K tokens of taskify's file exploration conversation.
 
-**Real example:** The auth system run (#29) — 27 minutes, 7 stages, JWT + sessions + middleware + RBAC + 6 UI pages + tests. The review agent received context from taskify (HIGH risk, auth system), plan (middleware pattern, TDD order), and build (implemented JWT, hit async type issues). It reviewed with full awareness of the reasoning chain, in a fresh context window.
+**Real example:** The auth system run (#29) — 7 stages with 3 autofix retries, 7 stages, JWT + sessions + middleware + RBAC + 6 UI pages + tests. The review agent received context from taskify (HIGH risk, auth system), plan (middleware pattern, TDD order), and build (implemented JWT, hit async type issues). It reviewed with full awareness of the reasoning chain, in a fresh context window.
 
 ## Question Gates
 

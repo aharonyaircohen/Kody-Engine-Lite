@@ -105,7 +105,7 @@ A full authentication system built end-to-end with MiniMax via LiteLLM:
 
 - **Scope:** JWT service, session store, user store with lockout, auth middleware, role guard, 5 API routes, 3 UI pages, auth context, 4 shared components, comprehensive tests
 - **Complexity:** HIGH (auto-detected), all 7 stages ran
-- **Duration:** 27 minutes
+- **Duration:** all 7 stages with 3 autofix retries
 - **Verify:** Failed twice (lint errors in React code), AI diagnosed as "fixable", autofix agent fixed both times, passed on attempt 3
 - **Review:** PASS with minor findings, review-fix applied
 - **Result:** PR created with working code, tests passing
