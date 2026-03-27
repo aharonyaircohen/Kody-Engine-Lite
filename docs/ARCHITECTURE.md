@@ -96,6 +96,7 @@ GitHub Actions (kody.yml)
           │   agent-runner spawns: claude --print --model haiku
           │   Prompt: taskify.md + memory + task.md
           │   Output: task.json (type, scope, risk_level, questions)
+          │   → appends summary to context.md
           │   Post-hooks:
           │     → question gate (pause if questions)
           │     → complexity detection (low/medium/high)
@@ -103,15 +104,17 @@ GitHub Actions (kody.yml)
           │
           ├─ [plan] ─────────────────────────────────────────
           │   agent-runner spawns: claude --print --model opus
-          │   Prompt: plan.md + memory + task.md + task.json
+          │   Prompt: plan.md + memory + task.md + task.json + context.md
           │   Output: plan.md (TDD implementation plan)
+          │   → appends summary to context.md
           │   Post-hooks:
           │     → risk gate (HIGH → pause, post plan, wait for approve)
           │
           ├─ [build] ────────────────────────────────────────
           │   agent-runner spawns: claude --print --model sonnet
-          │   Prompt: build.md + memory + task.md + task.json + plan.md
+          │   Prompt: build.md + memory + task.md + task.json + plan.md + context.md
           │   Claude Code uses tools: Read, Write, Edit, Bash, Grep, Glob
+          │   → appends summary to context.md
           │   Post-hooks:
           │     → git commit: "feat(42-260327-102254): implement task"
           │     → set label: kody:building
@@ -287,11 +290,15 @@ Each agent stage gets a prompt built by `context.ts`:
 │  task.md (issue body)                   │
 │  task.json (classification)             │
 │  plan.md (implementation plan)          │
+│  context.md (accumulated from prev stages) │
 │  feedback (human answers)               │
 └─────────────────────────────────────────┘
 ```
 
-Context is truncated to prevent token overflow: plan.md capped at 1500 chars, task context at 2000 chars.
+Truncation limits prevent token overflow:
+- plan.md: 1500 chars
+- spec.md: 2000 chars
+- context.md: 4000 chars (from end, so recent stages take priority)
 
 ## Memory System
 

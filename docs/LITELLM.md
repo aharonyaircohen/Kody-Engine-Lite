@@ -101,6 +101,23 @@ The auto-start loads **only** `*_API_KEY` patterns from `.env` to avoid poisonin
 
 LiteLLM supports [100+ providers](https://docs.litellm.ai/docs/providers). Any model with tool-use support should work.
 
+## Common Gotchas
+
+**Model names must be Anthropic IDs.** Claude Code validates `--model` client-side. You can't pass `minimax-test` or `gpt-4o` — Claude Code will reject it silently (exit code 1, no stderr). Always use Anthropic model IDs (`claude-haiku-4-5-20251001`, etc.) in your litellm-config.yaml `model_name` fields. LiteLLM intercepts the API call and routes it.
+
+**Don't use `modelMap` with LiteLLM.** If you set `modelMap: { cheap: "minimax-test" }` in kody.config.json, Kody passes `--model minimax-test` to Claude Code, which rejects it. Remove modelMap entirely — the defaults (`haiku`/`sonnet`/`opus`) work with LiteLLM routing.
+
+**CI pip install needs a venv.** `sudo pip install` fails on Ubuntu runners due to system package conflicts (`typing_extensions`). User-level `pip install` puts the binary in `~/.local/bin` which isn't on PATH. The venv + symlink pattern is the most reliable:
+
+```yaml
+- run: |
+    python3 -m venv /tmp/litellm-venv
+    /tmp/litellm-venv/bin/pip install 'litellm[proxy]'
+    sudo ln -sf /tmp/litellm-venv/bin/litellm /usr/local/bin/litellm
+```
+
+**`.env` API keys are loaded automatically.** The auto-start reads `*_API_KEY` patterns from your project's `.env` file and injects them into the litellm process. But it only loads `*_API_KEY` patterns — not `DATABASE_URL` or other vars (which would trigger Prisma setup in LiteLLM and crash).
+
 ## Troubleshooting
 
 **"litellm not installed"**

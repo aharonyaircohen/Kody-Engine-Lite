@@ -10,7 +10,9 @@ Kody is a 7-stage autonomous SDLC pipeline that runs in GitHub Actions. It uses 
 
 ## Why Kody?
 
-Most AI coding tools are **autocomplete** (Copilot) or **chat-based** (Cursor, Cline). You still drive. Kody is different: it's an **autonomous pipeline** that takes an issue and delivers a tested, reviewed PR.
+Most AI coding tools are **autocomplete** (Copilot) or **chat-based** (Cursor, Cline). You still drive. Kody is different: it's an **autonomous pipeline** that takes an issue and delivers a tested, reviewed PR — even for complex, multi-file features that single-agent tools choke on.
+
+Single agents hit context limits on large tasks. Kody splits work into focused stages — each with a fresh context window but access to curated context from previous stages. A 27-minute auth system build (JWT, sessions, middleware, RBAC, 7 stages, 3 autofix retries) completes end-to-end without losing track.
 
 | | Kody | Copilot Workspace | Devin | Cursor Agent |
 |---|---|---|---|---|
@@ -20,6 +22,8 @@ Most AI coding tools are **autocomplete** (Copilot) or **chat-based** (Cursor, C
 | **Risk gate** | Pauses HIGH-risk tasks for human approval | No | No | No |
 | **Model flexible** | Any LLM via LiteLLM | GitHub models only | Proprietary | Cursor models |
 | **Open source** | MIT | Proprietary | Proprietary | Proprietary |
+| **Accumulated context** | Curated context flows between stages | Single conversation | Single agent | Single agent |
+| **Complex tasks** | 27-min auth system with 7 stages + autofix | Struggles with large scope | Better | Struggles with large scope |
 | **Cost** | Your API costs only | $10-39/month | $20-500/month | Subscription |
 
 [Full comparison →](docs/COMPARISON.md)
@@ -101,6 +105,7 @@ kody-engine-lite init [--force]
 - **Question Gates** — asks product/architecture questions when the task is unclear ([details](docs/FEATURES.md#question-gates))
 - **Retrospective** — analyzes each run, identifies patterns, suggests improvements ([details](docs/FEATURES.md#retrospective-system))
 - **Auto-Learning** — extracts coding conventions from each successful run ([details](docs/FEATURES.md#auto-learning-memory))
+- **Accumulated Context** — each stage passes curated context to the next — fresh window, shared knowledge ([details](docs/FEATURES.md#accumulated-context))
 - **Any LLM** — route through LiteLLM to use MiniMax, GPT, Gemini, local models ([setup guide](docs/LITELLM.md))
 
 ## Documentation

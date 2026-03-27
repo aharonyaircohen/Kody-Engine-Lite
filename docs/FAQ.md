@@ -17,6 +17,12 @@ Yes. Use `--cwd` to point to the specific package directory. Each package can ha
 **Q: What does `init` do exactly?**
 Spawns Claude Code to analyze your project, then generates: workflow file, config with auto-detected quality commands, project memory (architecture + conventions), and 14 GitHub labels. See [Configuration](CONFIGURATION.md).
 
+**Q: Can Kody handle complex features (auth systems, CRUD, multi-file)?**
+Yes. The pipeline is designed for complex tasks. A full auth system (JWT, sessions, middleware, RBAC, UI pages, tests) completed in 27 minutes with 7 stages and 3 autofix retries. Each stage gets a fresh context window with accumulated context from previous stages, so it doesn't lose track of earlier decisions like single-agent tools do.
+
+**Q: How does context flow between stages?**
+Each stage appends a summary to `.tasks/<id>/context.md` after completion. The next stage reads this file as "Previous Stage Context." This gives later stages awareness of what earlier stages explored, decided, and struggled with — without sharing a single bloated context window. Context is capped at 4000 characters from the end.
+
 ## Pipeline
 
 **Q: What if the pipeline fails?**

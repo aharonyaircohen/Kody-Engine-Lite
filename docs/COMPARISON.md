@@ -87,16 +87,45 @@
 
 **Choose Kody** for a production SDLC pipeline with structured stages, quality gates, and GitHub-native workflow.
 
+## Why Pipelines Handle Complex Tasks Better Than Single Agents
+
+Single-agent tools (Copilot Workspace, Cursor Agent, Cline) run one conversation per task. For simple tasks (add a utility function, fix a typo), this works fine. For complex tasks (auth system, CRUD feature, API client with interceptors), it breaks down:
+
+| Problem | Single Agent | Kody Pipeline |
+|---------|-------------|---------------|
+| **Context overflow** | 100K+ tokens of conversation, agent forgets early decisions | Each stage gets fresh 200K window + 3-5K curated context |
+| **Error cascading** | Agent writes broken code, tries to fix it, makes it worse | Quality gate catches errors between stages, AI diagnoses before retry |
+| **No checkpoint** | If it fails at minute 15, start over from scratch | Rerun from any stage — build took 20 min? Rerun from verify |
+| **No oversight** | All-or-nothing: either autonomous or needs constant approval | Risk gate pauses only HIGH-risk tasks at the plan stage |
+| **Degraded quality** | Review quality drops when done in same bloated context | Fresh process for review with curated context = better reviews |
+
+### Real-World Proof: Auth System (#29)
+
+A full authentication system built end-to-end with MiniMax via LiteLLM:
+
+- **Scope:** JWT service, session store, user store with lockout, auth middleware, role guard, 5 API routes, 3 UI pages, auth context, 4 shared components, comprehensive tests
+- **Complexity:** HIGH (auto-detected), all 7 stages ran
+- **Duration:** 27 minutes
+- **Verify:** Failed twice (lint errors in React code), AI diagnosed as "fixable", autofix agent fixed both times, passed on attempt 3
+- **Review:** PASS with minor findings, review-fix applied
+- **Result:** PR created with working code, tests passing
+
+No single-agent tool ships this reliably — they lose track of the session store's interface by the time they're writing the auth context component.
+
 ## Kody's Unique Advantages
 
-1. **Structured pipeline, not just an agent.** 7 stages with artifacts at each step. You can inspect, rerun from any stage, and understand exactly what happened.
+1. **Handles complex tasks.** Auth systems, CRUD features, API clients — tasks that overwhelm single-agent tools. Structured stages + accumulated context + quality gates keep the pipeline on track through 20+ minute builds.
 
-2. **AI failure diagnosis.** When tests fail, Kody classifies the error (fixable vs infrastructure vs pre-existing) before deciding whether to retry, skip, or abort. No wasted autofix cycles on flaky tests.
+2. **Accumulated context, not bloated context.** Each stage gets a fresh context window with curated summaries from previous stages. The review agent knows what the build agent decided, without carrying 100K tokens of file exploration.
 
-3. **Risk gate.** HIGH-risk tasks pause for human approval after the plan is generated — before any code is written. No other tool does this.
+3. **AI failure diagnosis.** When tests fail, Kody classifies the error (fixable vs infrastructure vs pre-existing) before deciding whether to retry, skip, or abort. No wasted autofix cycles on flaky tests.
 
-4. **Self-improving memory.** Each successful run extracts coding conventions and stores them for future runs. The pipeline gets better at your specific project over time.
+4. **Risk gate.** HIGH-risk tasks pause for human approval after the plan is generated — before any code is written. No other tool does this.
 
-5. **Model agnostic.** Route through LiteLLM to use any model. Test with a cheap model, ship with a strong one. Switch providers without changing a line of code.
+5. **Self-improving memory.** Each successful run extracts coding conventions and stores them for future runs. The pipeline gets better at your specific project over time.
 
-6. **Runs in CI.** No IDE required, no cloud VM, no subscription. Just GitHub Actions and your API key.
+6. **Model agnostic.** Route through LiteLLM to use any model. Test with a cheap model, ship with a strong one. Switch providers without changing a line of code.
+
+7. **Runs in CI.** No IDE required, no cloud VM, no subscription. Just GitHub Actions and your API key.
+
+8. **Rerun from any stage.** If review-fix fails, rerun from review-fix. Don't redo the 20-minute build. Each stage's artifacts and state are persisted.

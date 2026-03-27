@@ -105,6 +105,23 @@ Auto-detected from taskify's `risk_level`, or override with `--complexity`:
 | **medium** | taskify → plan → build → verify → review → ship | review-fix |
 | **high** | all 7 stages | none |
 
+## Accumulated Context
+
+Each stage spawns a fresh Claude Code process with a full context window. But stages aren't isolated — they share knowledge through `context.md`:
+
+```
+taskify completes → appends to context.md: "Classified as HIGH, scope: 12 files, auth system"
+plan reads context.md → appends: "Decided middleware pattern, TDD order, 8 steps"
+build reads context.md → appends: "Implemented JWT service, hit async type issue, resolved by..."
+verify reads context.md → autofix agent knows what build struggled with
+review reads context.md → full history of decisions and trade-offs
+review-fix reads context.md → knows the complete reasoning chain
+```
+
+This solves the core problem with single-agent tools: on complex tasks (20+ min), the agent's context window fills up and it loses track of earlier decisions. Kody gives each stage a fresh 200K token window with ~3-5K tokens of curated prior context.
+
+Context is capped at 4000 characters (from the end) to prevent bloat. Each stage appends up to 500 characters of its output summary.
+
 ## Task Artifacts
 
 Each run creates artifacts in `.tasks/<task-id>/`:
@@ -114,6 +131,7 @@ Each run creates artifacts in `.tasks/<task-id>/`:
 ├── task.md        # Issue body (input)
 ├── task.json      # Structured classification
 ├── plan.md        # Implementation plan
+├── context.md     # Accumulated context from all stages
 ├── verify.md      # Quality gate results
 ├── review.md      # Code review with verdict
 ├── ship.md        # PR URL and status

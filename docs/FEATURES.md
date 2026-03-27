@@ -25,6 +25,24 @@ The pipeline resumes only after `@kody approve`. This ensures security-critical 
 - Runs without an issue number
 - Dry runs
 
+## Accumulated Context
+
+Each pipeline stage runs in a fresh Claude Code process (full context window), but shares knowledge with subsequent stages through an accumulated `context.md` file.
+
+After each stage completes, a summary of its output (up to 500 chars) is appended to `.tasks/<id>/context.md`. The next stage reads this file and receives it as "Previous Stage Context" in its prompt.
+
+**Why this matters for complex tasks:**
+
+Single-agent tools (Copilot, Cursor, Cline) run one long conversation. On a simple utility function, that's fine. On a complex feature (auth system, CRUD with UI, API client with interceptors), the conversation exceeds 100K+ tokens and the agent:
+- Forgets early decisions
+- Contradicts its own plan
+- Loses track of which files it modified
+- Produces increasingly degraded output
+
+Kody's pipeline gives each stage a fresh 200K token window with ~3-5K tokens of curated context from previous stages. The build agent knows what taskify classified and what the plan decided — without carrying 50K tokens of taskify's file exploration conversation.
+
+**Real example:** The auth system run (#29) — 27 minutes, 7 stages, JWT + sessions + middleware + RBAC + 6 UI pages + tests. The review agent received context from taskify (HIGH risk, auth system), plan (middleware pattern, TDD order), and build (implemented JWT, hit async type issues). It reviewed with full awareness of the reasoning chain, in a fresh context window.
+
 ## Question Gates
 
 Kody asks before building if something is unclear:
