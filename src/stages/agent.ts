@@ -115,5 +115,25 @@ export async function executeAgentStage(
     }
   }
 
+  // Append stage summary to accumulated context
+  appendStageContext(ctx.taskDir, def.name, result.output)
+
   return { outcome: "completed", outputFile: def.outputFile, retries: 0 }
+}
+
+function appendStageContext(taskDir: string, stageName: string, output?: string): void {
+  const contextPath = path.join(taskDir, "context.md")
+  const timestamp = new Date().toISOString().slice(0, 19)
+
+  // Extract a summary from the output (first 500 chars, or note that it was tool-use only)
+  let summary: string
+  if (output && output.trim()) {
+    summary = output.slice(0, 500)
+    if (output.length > 500) summary += "\n...(truncated)"
+  } else {
+    summary = "(stage completed via tool use — no text output)"
+  }
+
+  const entry = `\n### ${stageName} (${timestamp})\n${summary}\n`
+  fs.appendFileSync(contextPath, entry)
 }

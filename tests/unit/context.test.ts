@@ -57,6 +57,26 @@ describe("injectTaskContext", () => {
     const result = injectTaskContext("{{TASK_CONTEXT}}", "test-6", tmpDir)
     expect(result).not.toContain("Human Feedback")
   })
+
+  it("includes accumulated context from context.md", () => {
+    fs.writeFileSync(path.join(tmpDir, "context.md"), "### taskify (2026-03-27)\nClassified as LOW risk, scope: src/utils/retry.ts\n")
+    const result = injectTaskContext("{{TASK_CONTEXT}}", "test-ctx", tmpDir)
+    expect(result).toContain("Previous Stage Context")
+    expect(result).toContain("Classified as LOW risk")
+  })
+
+  it("excludes accumulated context when context.md missing", () => {
+    const result = injectTaskContext("{{TASK_CONTEXT}}", "test-ctx", tmpDir)
+    expect(result).not.toContain("Previous Stage Context")
+  })
+
+  it("truncates accumulated context to 4000 chars", () => {
+    const longContext = "x".repeat(6000)
+    fs.writeFileSync(path.join(tmpDir, "context.md"), longContext)
+    const result = injectTaskContext("{{TASK_CONTEXT}}", "test-ctx", tmpDir)
+    expect(result).toContain("(earlier context truncated)")
+    expect(result).not.toContain("x".repeat(5000))
+  })
 })
 
 describe("resolveModel", () => {

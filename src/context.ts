@@ -11,6 +11,7 @@ const DEFAULT_MODEL_MAP: Record<string, string> = {
 
 const MAX_TASK_CONTEXT_PLAN = 1500
 const MAX_TASK_CONTEXT_SPEC = 2000
+const MAX_ACCUMULATED_CONTEXT = 4000
 
 export function readPromptFile(stageName: string): string {
   const scriptDir = new URL(".", import.meta.url).pathname
@@ -71,6 +72,15 @@ export function injectTaskContext(
     const plan = fs.readFileSync(planPath, "utf-8")
     const truncated = plan.slice(0, MAX_TASK_CONTEXT_PLAN)
     context += `\n## Plan Summary\n${truncated}${plan.length > MAX_TASK_CONTEXT_PLAN ? "\n..." : ""}\n`
+  }
+
+  // Accumulated context from previous stages
+  const contextMdPath = path.join(taskDir, "context.md")
+  if (fs.existsSync(contextMdPath)) {
+    const accumulated = fs.readFileSync(contextMdPath, "utf-8")
+    const truncated = accumulated.slice(-MAX_ACCUMULATED_CONTEXT)
+    const prefix = accumulated.length > MAX_ACCUMULATED_CONTEXT ? "...(earlier context truncated)\n" : ""
+    context += `\n## Previous Stage Context\n${prefix}${truncated}\n`
   }
 
   if (feedback) {
