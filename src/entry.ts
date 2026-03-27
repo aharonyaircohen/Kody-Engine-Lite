@@ -240,6 +240,10 @@ async function main() {
     }
     process.exit(1)
   }
+
+  // Explicitly exit on success — the detached LiteLLM process keeps the event loop alive
+  cleanupLitellm()
+  process.exit(0)
 }
 
 main().catch(async (err) => {
