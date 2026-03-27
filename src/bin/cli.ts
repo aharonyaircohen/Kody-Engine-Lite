@@ -693,6 +693,37 @@ function initCommand(opts: { force: boolean }) {
     console.log("  ✓ .kody/memory/conventions.md (seed)")
   }
 
+  // ── Step 6: Commit and push generated files ──
+  console.log("\n── Git ──")
+  const filesToCommit = [
+    ".github/workflows/kody.yml",
+    "kody.config.json",
+    ".kody/memory/architecture.md",
+    ".kody/memory/conventions.md",
+  ].filter((f) => fs.existsSync(path.join(cwd, f)))
+
+  if (filesToCommit.length > 0) {
+    try {
+      execFileSync("git", ["add", ...filesToCommit], { cwd, stdio: "pipe" })
+      // Check if there are staged changes
+      const staged = execFileSync("git", ["diff", "--cached", "--name-only"], { cwd, encoding: "utf-8" }).trim()
+      if (staged) {
+        execFileSync("git", ["commit", "--no-gpg-sign", "-m", "chore: add kody engine"], { cwd, stdio: "pipe" })
+        console.log(`  ✓ Committed: ${filesToCommit.join(", ")}`)
+        try {
+          execFileSync("git", ["push"], { cwd, stdio: "pipe", timeout: 30_000 })
+          console.log("  ✓ Pushed to origin")
+        } catch {
+          console.log("  ○ Push failed — run 'git push' manually")
+        }
+      } else {
+        console.log("  ○ No new changes to commit")
+      }
+    } catch (err) {
+      console.log(`  ○ Git commit skipped: ${err instanceof Error ? err.message : err}`)
+    }
+  }
+
   // ── Summary ──
   const allChecks = [...checks, ghAuth, ghRepo]
   const failed = allChecks.filter((c) => !c.ok)
@@ -700,7 +731,7 @@ function initCommand(opts: { force: boolean }) {
   console.log("\n── Summary ──")
   if (failed.length === 0) {
     console.log("  ✓ All checks passed! Ready to use.")
-    console.log("\n  Next: Comment '@kody full <task-id>' on a GitHub issue")
+    console.log("\n  Next: Comment '@kody' on a GitHub issue")
   } else {
     console.log(`  ⚠ ${failed.length} issue(s) to fix:`)
     for (const c of failed) {

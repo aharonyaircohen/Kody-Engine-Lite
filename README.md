@@ -34,24 +34,19 @@ Single agents hit context limits on large tasks. Kody splits work into focused s
 # 1. Install
 npm install -g @kody-ade/kody-engine-lite
 
-# 2. Initialize (auto-detects everything)
-cd your-project
-kody-engine-lite init
-
-# 3. Set up GitHub
+# 2. Set up GitHub secret
 gh secret set ANTHROPIC_API_KEY --repo owner/repo
 # Settings → Actions → "Allow GitHub Actions to create and approve pull requests"
 
-# 4. Push
-git add .github/workflows/kody.yml kody.config.json .kody/
-git commit -m "chore: add kody engine"
-git push
+# 3. Initialize (auto-detects, commits, and pushes)
+cd your-project
+kody-engine-lite init
 
-# 5. Comment on any issue
+# 4. Comment on any issue
 @kody
 ```
 
-`init` spawns Claude Code to analyze your project and generates: workflow file, config with auto-detected quality commands, project memory (architecture + conventions), and 14 GitHub labels.
+`init` spawns Claude Code to analyze your project and generates: workflow file, config with auto-detected quality commands, project memory (architecture + conventions), 14 GitHub labels — then commits and pushes everything.
 
 **Prerequisites:** Node.js >= 22, [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code), [GitHub CLI](https://cli.github.com/), git
 
