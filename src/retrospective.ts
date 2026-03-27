@@ -8,6 +8,7 @@ import type {
 } from "./types.js"
 import { STAGES } from "./definitions.js"
 import { resolveModel } from "./context.js"
+import { getProjectConfig } from "./config.js"
 import { getRunnerForStage } from "./pipeline/runner-selection.js"
 import { logger } from "./logger.js"
 
@@ -203,7 +204,15 @@ export async function runRetrospective(
 
     const runner = getRunnerForStage(ctx, "taskify")
     const model = resolveModel("cheap")
-    const result = await runner.run("retrospective", prompt, model, 30_000, "")
+    const config = getProjectConfig()
+    const extraEnv: Record<string, string> = {}
+    if (config.agent.litellmUrl) {
+      extraEnv.ANTHROPIC_BASE_URL = config.agent.litellmUrl
+    }
+    const result = await runner.run("retrospective", prompt, model, 30_000, "", {
+      cwd: ctx.projectDir,
+      env: extraEnv,
+    })
 
     let observation = "Retrospective analysis unavailable"
     let patternMatch: string | null = null

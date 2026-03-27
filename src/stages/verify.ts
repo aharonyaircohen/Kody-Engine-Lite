@@ -40,12 +40,18 @@ export async function executeVerifyWithAutofix(
       // AI diagnosis — classify the failure
       const modifiedFiles = getModifiedFiles(ctx.projectDir)
       const defaultRunner = getRunnerForStage(ctx, "taskify") // use cheap model
+      const diagConfig = getProjectConfig()
+      const diagEnv: Record<string, string> = {}
+      if (diagConfig.agent.litellmUrl) {
+        diagEnv.ANTHROPIC_BASE_URL = diagConfig.agent.litellmUrl
+      }
       const diagnosis = await diagnoseFailure(
         "verify",
         errorOutput,
         modifiedFiles,
         defaultRunner,
         resolveModel("cheap"),
+        { cwd: ctx.projectDir, env: diagEnv },
       )
 
       if (diagnosis.classification === "infrastructure") {

@@ -41,6 +41,7 @@ export async function diagnoseFailure(
   modifiedFiles: string[],
   runner: AgentRunner,
   model: string,
+  options?: { cwd?: string; env?: Record<string, string> },
 ): Promise<DiagnosisResult> {
   const context = [
     `Stage: ${stageName}`,
@@ -62,6 +63,7 @@ export async function diagnoseFailure(
       model,
       30_000, // 30s timeout — this should be fast
       "",
+      options,
     )
 
     if (result.outcome === "completed" && result.output) {
