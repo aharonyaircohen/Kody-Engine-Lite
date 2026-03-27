@@ -440,6 +440,31 @@ describe("paused state detection", () => {
   })
 })
 
+describe("workflow parse: --from flag not treated as task ID", () => {
+  function parseTaskId(kodyArgs: string): string {
+    const rawTaskId = kodyArgs.split(/\s+/)[1] ?? ""
+    // Mirror the fix: don't treat flags as task IDs
+    if (rawTaskId.startsWith("--")) return ""
+    return rawTaskId
+  }
+
+  it("@kody rerun --from build: task ID is empty, not '--from'", () => {
+    expect(parseTaskId("rerun --from build")).toBe("")
+  })
+
+  it("@kody rerun 37-260327 --from build: task ID is extracted correctly", () => {
+    expect(parseTaskId("rerun 37-260327 --from build")).toBe("37-260327")
+  })
+
+  it("@kody rerun --feedback \"text\": task ID is empty", () => {
+    expect(parseTaskId("rerun --feedback \"some text\"")).toBe("")
+  })
+
+  it("@kody rerun: no task ID when no second arg", () => {
+    expect(parseTaskId("rerun")).toBe("")
+  })
+})
+
 describe("workflow parse: approve → rerun conversion", () => {
   it("approve comment body becomes feedback", () => {
     // Simulate the workflow parse logic

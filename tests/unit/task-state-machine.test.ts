@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest"
-import { resolveTaskAction } from "../../src/cli/task-state.js"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
+import { resolveTaskAction, resolveForIssue } from "../../src/cli/task-state.js"
 
 /**
  * Tests for the state machine approach to task resolution.
@@ -124,5 +124,51 @@ describe("resolveTaskAction", () => {
     const result = resolveTaskAction(37, "37-260327-100000", state)
     expect(result.taskId).toBe("37-260327-100000")
     expect(result.taskId).not.toContain("120000") // not the generated one
+  })
+})
+
+vi.mock("../../src/cli/task-resolution.js", () => ({
+  findLatestTaskForIssue: vi.fn(() => null),
+  generateTaskId: vi.fn(() => "260327-200000"),
+}))
+vi.mock("../../src/github-api.js", () => ({
+  getIssueLabels: vi.fn(() => []),
+}))
+
+import { findLatestTaskForIssue } from "../../src/cli/task-resolution.js"
+import { getIssueLabels } from "../../src/github-api.js"
+
+describe("resolveForIssue — CI label fallback", () => {
+  beforeEach(() => {
+    vi.mocked(findLatestTaskForIssue).mockReturnValue(null)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it("resumes from build when kody:waiting label exists (question gate loop fix)", () => {
+    vi.mocked(getIssueLabels).mockReturnValue(["kody:waiting"])
+
+    const result = resolveForIssue(60, "/tmp/fake-project")
+    expect(result.action).toBe("resume")
+    if (result.action === "resume") {
+      expect(result.fromStage).toBe("build")
+      expect(result.taskId).toMatch(/^60-/)
+    }
+  })
+
+  it("returns already-completed for kody:done (takes priority over kody:waiting)", () => {
+    vi.mocked(getIssueLabels).mockReturnValue(["kody:done", "kody:waiting"])
+
+    const result = resolveForIssue(60, "/tmp/fake-project")
+    expect(result.action).toBe("already-completed")
+  })
+
+  it("starts fresh when no relevant labels exist", () => {
+    vi.mocked(getIssueLabels).mockReturnValue(["bug", "enhancement"])
+
+    const result = resolveForIssue(60, "/tmp/fake-project")
+    expect(result.action).toBe("start-fresh")
   })
 })

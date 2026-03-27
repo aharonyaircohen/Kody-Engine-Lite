@@ -81,6 +81,11 @@ export function resolveForIssue(
     if (labels.includes("kody:done")) {
       return { action: "already-completed", taskId: `${issueNumber}-unknown` }
     }
+    if (labels.includes("kody:waiting")) {
+      // Pipeline was paused for questions/approval — resume from build
+      // (skip taskify+plan which generate questions and would loop)
+      return { action: "resume", taskId: `${issueNumber}-${generateTaskId()}`, fromStage: "build" }
+    }
   } catch { /* ignore — gh may not be available */ }
 
   return resolveTaskAction(issueNumber, null, null)

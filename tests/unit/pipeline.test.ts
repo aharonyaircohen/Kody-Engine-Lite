@@ -134,6 +134,73 @@ describe("state-machine", () => {
   })
 })
 
+describe("complexity detection ordering", () => {
+  let tmpDir: string
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kody-order-test-"))
+    fs.writeFileSync(
+      path.join(tmpDir, "kody.config.json"),
+      JSON.stringify({
+        quality: { typecheck: "true", lint: "", lintFix: "", format: "", formatFix: "", testUnit: "true" },
+        agent: { defaultRunner: "claude" },
+      }),
+    )
+    setConfigDir(tmpDir)
+  })
+
+  afterEach(() => {
+    resetProjectConfig()
+    fs.rmSync(tmpDir, { recursive: true, force: true })
+  })
+
+  it("detects HIGH complexity even when taskify has questions", async () => {
+    // Taskify returns HIGH risk + questions — complexity should still be read
+    const runner: AgentRunner = {
+      async run(stageName: string): Promise<AgentResult> {
+        if (stageName === "taskify") {
+          return {
+            outcome: "completed",
+            output: JSON.stringify({
+              task_type: "feature",
+              title: "Auth rewrite",
+              description: "Rewrite auth middleware",
+              scope: ["src/auth.ts"],
+              risk_level: "high",
+              questions: ["Should we support OAuth2?"],
+            }),
+          }
+        }
+        return { outcome: "completed", output: "Done" }
+      },
+      async healthCheck() { return true },
+    }
+
+    const taskDir = path.join(tmpDir, ".tasks", "order-test")
+    fs.mkdirSync(taskDir, { recursive: true })
+    fs.writeFileSync(path.join(taskDir, "task.md"), "Auth rewrite task")
+
+    const ctx: PipelineContext = {
+      taskId: "order-test",
+      taskDir,
+      projectDir: tmpDir,
+      runners: { claude: runner },
+      input: { mode: "full", local: false, issueNumber: 99 },
+    }
+
+    const state = await runPipeline(ctx)
+
+    // Pipeline should pause for questions
+    expect(state.state).toBe("failed")
+    expect(state.stages.taskify.error).toContain("paused")
+
+    // But complexity label should have been set before the pause
+    // Verify task.json was written with risk_level (complexity was read)
+    const taskJson = JSON.parse(fs.readFileSync(path.join(taskDir, "task.json"), "utf-8"))
+    expect(taskJson.risk_level).toBe("high")
+  })
+})
+
 describe("complexity filtering", () => {
   let tmpDir: string
 

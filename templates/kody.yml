@@ -97,7 +97,12 @@ jobs:
           # Extract: @kody [mode] [task-id] [--from stage]
           KODY_ARGS=$(echo "$BODY" | grep -oP '(?:@kody|/kody)\s+\K.*' || echo "")
           MODE=$(echo "$KODY_ARGS" | awk '{print $1}')
-          TASK_ID=$(echo "$KODY_ARGS" | awk '{print $2}')
+          RAW_TASK_ID=$(echo "$KODY_ARGS" | awk '{print $2}')
+          # Don't treat flags (--from, --feedback) as task IDs
+          case "$RAW_TASK_ID" in
+            --*) TASK_ID="" ;;
+            *)   TASK_ID="$RAW_TASK_ID" ;;
+          esac
           FROM_STAGE=$(echo "$KODY_ARGS" | grep -oP '(?<=--from )\S+' || echo "")
           FEEDBACK=$(echo "$KODY_ARGS" | grep -oP '(?<=--feedback ")[^"]*' || echo "")
 

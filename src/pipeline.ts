@@ -170,14 +170,17 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
       }
       logger.info(`[${def.name}] ✓ completed`)
 
-      const paused = checkQuestionsAfterStage(ctx, def, state)
-      if (paused) return paused
-
+      // Detect complexity BEFORE checking questions — otherwise question
+      // gate pauses the pipeline before risk_level is ever read from task.json,
+      // preventing the risk gate from firing on HIGH-complexity tasks.
       const detected = autoDetectComplexity(ctx, def)
       if (detected) {
         complexity = detected.complexity
         activeStages = detected.activeStages
       }
+
+      const paused = checkQuestionsAfterStage(ctx, def, state)
+      if (paused) return paused
 
       const gated = checkRiskGate(ctx, def, state, complexity)
       if (gated) return gated
