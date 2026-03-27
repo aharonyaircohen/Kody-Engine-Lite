@@ -3,7 +3,7 @@ import * as fs from "fs"
 import * as path from "path"
 import * as os from "os"
 import type { AgentRunner, AgentResult, PipelineContext } from "../../src/types.js"
-import { runPipeline } from "../../src/state-machine.js"
+import { runPipeline } from "../../src/pipeline.js"
 import { resetProjectConfig, setConfigDir } from "../../src/config.js"
 
 function createMockRunner(): AgentRunner {

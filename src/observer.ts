@@ -85,8 +85,8 @@ export async function diagnoseFailure(
         }
       }
     }
-  } catch {
-    // Diagnosis failed — fall back to fixable
+  } catch (err) {
+    logger.warn(`  Diagnosis error: ${err instanceof Error ? err.message : err}`)
   }
 
   // Default: assume fixable (safest — will attempt autofix)

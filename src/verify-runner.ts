@@ -2,10 +2,52 @@ import { execFileSync } from "child_process"
 import { getProjectConfig, VERIFY_COMMAND_TIMEOUT_MS } from "./config.js"
 import { logger } from "./logger.js"
 
+interface ExecError {
+  stdout?: string
+  stderr?: string
+  killed?: boolean
+}
+
+function isExecError(err: unknown): err is ExecError {
+  return typeof err === "object" && err !== null
+}
+
 export interface VerifyResult {
   pass: boolean
   errors: string[]
   summary: string[]
+}
+
+/**
+ * Parse a command string into [executable, ...args], respecting quoted arguments.
+ * e.g., 'pnpm -s "test:unit"' → ["pnpm", "-s", "test:unit"]
+ */
+export function parseCommand(cmd: string): string[] {
+  const parts: string[] = []
+  let current = ""
+  let inQuote: string | null = null
+
+  for (const ch of cmd) {
+    if (inQuote) {
+      if (ch === inQuote) {
+        inQuote = null
+      } else {
+        current += ch
+      }
+    } else if (ch === '"' || ch === "'") {
+      inQuote = ch
+    } else if (/\s/.test(ch)) {
+      if (current) {
+        parts.push(current)
+        current = ""
+      }
+    } else {
+      current += ch
+    }
+  }
+  if (current) parts.push(current)
+  if (inQuote) logger.warn(`Unclosed quote in command: ${cmd}`)
+  return parts
 }
 
 function runCommand(
@@ -13,7 +55,10 @@ function runCommand(
   cwd: string,
   timeout: number,
 ): { success: boolean; output: string; timedOut: boolean } {
-  const parts = cmd.split(/\s+/)
+  const parts = parseCommand(cmd)
+  if (parts.length === 0) {
+    return { success: true, output: "", timedOut: false }
+  }
   try {
     const output = execFileSync(parts[0], parts.slice(1), {
       cwd,
@@ -24,9 +69,10 @@ function runCommand(
     })
     return { success: true, output: output ?? "", timedOut: false }
   } catch (err: unknown) {
-    const e = err as { stdout?: string; stderr?: string; killed?: boolean }
-    const output = `${e.stdout ?? ""}${e.stderr ?? ""}`
-    return { success: false, output, timedOut: !!e.killed }
+    const stdout = isExecError(err) ? err.stdout ?? "" : ""
+    const stderr = isExecError(err) ? err.stderr ?? "" : ""
+    const killed = isExecError(err) ? !!err.killed : false
+    return { success: false, output: `${stdout}${stderr}`, timedOut: killed }
   }
 }
 

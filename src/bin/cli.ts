@@ -69,7 +69,7 @@ function checkGhAuth(cwd: string): CheckResult {
     const account = output.match(/Logged in to .* account (\S+)/)?.[1]
     return { name: "gh auth", ok: true, detail: account ?? "authenticated" }
   } catch (err) {
-    const stderr = (err as { stderr?: string }).stderr ?? ""
+    const stderr = (err instanceof Error && "stderr" in err) ? String((err as Record<string, unknown>).stderr ?? "") : ""
     if (stderr.includes("not logged")) {
       return { name: "gh auth", ok: false, fix: "Run: gh auth login" }
     }

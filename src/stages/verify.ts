@@ -1,0 +1,120 @@
+import * as fs from "fs"
+import * as path from "path"
+import { execFileSync } from "child_process"
+
+import type {
+  StageName,
+  StageDefinition,
+  StageResult,
+  PipelineContext,
+} from "../types.js"
+import { resolveModel } from "../context.js"
+import { getProjectConfig, FIX_COMMAND_TIMEOUT_MS } from "../config.js"
+import { parseCommand } from "../verify-runner.js"
+import { getRunnerForStage } from "../pipeline/runner-selection.js"
+import { postComment } from "../github-api.js"
+import { diagnoseFailure, getModifiedFiles } from "../observer.js"
+import { logger } from "../logger.js"
+import { executeAgentStage } from "./agent.js"
+import { executeGateStage } from "./gate.js"
+
+export async function executeVerifyWithAutofix(
+  ctx: PipelineContext,
+  def: StageDefinition,
+): Promise<StageResult> {
+  const maxAttempts = def.maxRetries ?? 2
+
+  for (let attempt = 0; attempt <= maxAttempts; attempt++) {
+    logger.info(`  verification attempt ${attempt + 1}/${maxAttempts + 1}`)
+
+    const gateResult = executeGateStage(ctx, def)
+    if (gateResult.outcome === "completed") {
+      return { ...gateResult, retries: attempt }
+    }
+
+    if (attempt < maxAttempts) {
+      // Read verify errors for diagnosis
+      const verifyPath = path.join(ctx.taskDir, "verify.md")
+      const errorOutput = fs.existsSync(verifyPath) ? fs.readFileSync(verifyPath, "utf-8") : "Unknown error"
+
+      // AI diagnosis — classify the failure
+      const modifiedFiles = getModifiedFiles(ctx.projectDir)
+      const defaultRunner = getRunnerForStage(ctx, "taskify") // use cheap model
+      const diagnosis = await diagnoseFailure(
+        "verify",
+        errorOutput,
+        modifiedFiles,
+        defaultRunner,
+        resolveModel("cheap"),
+      )
+
+      if (diagnosis.classification === "infrastructure") {
+        logger.warn(`  Infrastructure issue: ${diagnosis.reason}`)
+        if (ctx.input.issueNumber && !ctx.input.local) {
+          try {
+            postComment(ctx.input.issueNumber, `⚠️ **Infrastructure issue detected:** ${diagnosis.reason}\n\n${diagnosis.resolution}`)
+          } catch { /* fire-and-forget */ }
+        }
+        return { outcome: "completed", retries: attempt, error: `Skipped: ${diagnosis.reason}` }
+      }
+
+      if (diagnosis.classification === "pre-existing") {
+        logger.warn(`  Pre-existing issue: ${diagnosis.reason}`)
+        return { outcome: "completed", retries: attempt, error: `Skipped: ${diagnosis.reason}` }
+      }
+
+      if (diagnosis.classification === "abort") {
+        logger.error(`  Unrecoverable: ${diagnosis.reason}`)
+        return { outcome: "failed", retries: attempt, error: diagnosis.reason }
+      }
+
+      // fixable or retry — proceed with autofix
+      logger.info(`  Diagnosis: ${diagnosis.classification} — ${diagnosis.reason}`)
+
+      const config = getProjectConfig()
+      const runFix = (cmd: string) => {
+        if (!cmd) return
+        const parts = parseCommand(cmd)
+        if (parts.length === 0) return
+        try {
+          execFileSync(parts[0], parts.slice(1), {
+            stdio: "pipe",
+            timeout: FIX_COMMAND_TIMEOUT_MS,
+          })
+        } catch {
+          // Silently ignore fix failures
+        }
+      }
+
+      runFix(config.quality.lintFix)
+      runFix(config.quality.formatFix)
+
+      if (def.retryWithAgent) {
+        // Create new context with diagnosis guidance — don't mutate original
+        const autofixCtx: PipelineContext = {
+          ...ctx,
+          input: {
+            ...ctx.input,
+            feedback: `${diagnosis.resolution}\n\n${ctx.input.feedback ?? ""}`.trim(),
+          },
+        }
+
+        logger.info(`  running ${def.retryWithAgent} agent with diagnosis guidance...`)
+        await executeAgentStage(autofixCtx, {
+          ...def,
+          name: def.retryWithAgent as StageName,
+          type: "agent",
+          modelTier: "mid",
+          timeout: 300_000,
+          outputFile: undefined,
+        })
+      }
+    }
+  }
+
+  return {
+    outcome: "failed",
+    retries: maxAttempts,
+    error: "Verification failed after autofix attempts",
+  }
+}

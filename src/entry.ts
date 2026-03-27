@@ -1,188 +1,18 @@
 import * as fs from "fs"
 import * as path from "path"
-import { execFileSync } from "child_process"
 import { createRunners } from "./agent-runner.js"
-import { ensureTaskDir } from "./kody-utils.js"
-import { runPipeline, printStatus } from "./state-machine.js"
+import { runPipeline, printStatus } from "./pipeline.js"
 import { runPreflight } from "./preflight.js"
 import { setConfigDir, getProjectConfig } from "./config.js"
 import { setGhCwd, getIssue, postComment } from "./github-api.js"
 import { logger } from "./logger.js"
 import type { PipelineContext } from "./types.js"
 
-const isCI = !!process.env.GITHUB_ACTIONS
+// Extracted modules
+import { parseArgs } from "./cli/args.js"
+import { checkLitellmHealth, tryStartLitellm } from "./cli/litellm.js"
+import { findLatestTaskForIssue, generateTaskId } from "./cli/task-resolution.js"
 
-interface CliInput {
-  command: "run" | "rerun" | "fix" | "status"
-  taskId?: string
-  task?: string
-  fromStage?: string
-  dryRun?: boolean
-  cwd?: string
-  issueNumber?: number
-  feedback?: string
-  local?: boolean
-  complexity?: "low" | "medium" | "high"
-}
-
-function getArg(args: string[], flag: string): string | undefined {
-  const idx = args.indexOf(flag)
-  if (idx !== -1 && args[idx + 1] && !args[idx + 1].startsWith("--")) {
-    return args[idx + 1]
-  }
-  return undefined
-}
-
-function hasFlag(args: string[], flag: string): boolean {
-  return args.includes(flag)
-}
-
-function parseArgs(): CliInput {
-  const args = process.argv.slice(2)
-
-  if (hasFlag(args, "--help") || hasFlag(args, "-h") || args.length === 0) {
-    console.log(`Usage:
-  kody run    --task-id <id> [--task "<desc>"] [--cwd <path>] [--issue-number <n>] [--complexity low|medium|high] [--feedback "<text>"] [--local] [--dry-run]
-  kody rerun  --task-id <id> --from <stage> [--cwd <path>] [--issue-number <n>]
-  kody fix    --task-id <id> [--cwd <path>] [--issue-number <n>] [--feedback "<text>"]
-  kody status --task-id <id> [--cwd <path>]
-  kody --help`)
-    process.exit(0)
-  }
-
-  const command = args[0] as "run" | "rerun" | "fix" | "status"
-  if (!["run", "rerun", "fix", "status"].includes(command)) {
-    console.error(`Unknown command: ${command}`)
-    process.exit(1)
-  }
-
-  const issueStr = getArg(args, "--issue-number") ?? process.env.ISSUE_NUMBER
-  const localFlag = hasFlag(args, "--local")
-
-  return {
-    command,
-    taskId: getArg(args, "--task-id") ?? process.env.TASK_ID,
-    task: getArg(args, "--task"),
-    fromStage: getArg(args, "--from") ?? process.env.FROM_STAGE,
-    dryRun: hasFlag(args, "--dry-run") || process.env.DRY_RUN === "true",
-    cwd: getArg(args, "--cwd"),
-    issueNumber: issueStr ? parseInt(issueStr, 10) : undefined,
-    feedback: getArg(args, "--feedback") ?? process.env.FEEDBACK,
-    local: localFlag || (!isCI && !hasFlag(args, "--no-local")),
-    complexity: (getArg(args, "--complexity") ?? process.env.COMPLEXITY) as "low" | "medium" | "high" | undefined,
-  }
-}
-
-async function checkLitellmHealth(url: string): Promise<boolean> {
-  try {
-    const response = await fetch(`${url}/health`, { signal: AbortSignal.timeout(3000) })
-    return response.ok
-  } catch {
-    return false
-  }
-}
-
-async function tryStartLitellm(
-  url: string,
-  projectDir: string,
-): Promise<ReturnType<typeof import("child_process").spawn> | null> {
-  const configPath = path.join(projectDir, "litellm-config.yaml")
-  if (!fs.existsSync(configPath)) {
-    logger.warn("litellm-config.yaml not found — cannot start proxy")
-    return null
-  }
-
-  // Extract port from URL
-  const portMatch = url.match(/:(\d+)/)
-  const port = portMatch ? portMatch[1] : "4000"
-
-  // Check if litellm is installed
-  try {
-    execFileSync("litellm", ["--version"], { timeout: 5000, stdio: "pipe" })
-  } catch {
-    // Try python -m litellm
-    try {
-      execFileSync("python3", ["-m", "litellm", "--version"], { timeout: 5000, stdio: "pipe" })
-    } catch {
-      logger.warn("litellm not installed (pip install 'litellm[proxy]')")
-      return null
-    }
-  }
-
-  logger.info(`Starting LiteLLM proxy on port ${port}...`)
-
-  // Determine command
-  let cmd: string
-  let args: string[]
-  try {
-    execFileSync("litellm", ["--version"], { timeout: 5000, stdio: "pipe" })
-    cmd = "litellm"
-    args = ["--config", configPath, "--port", port]
-  } catch {
-    cmd = "python3"
-    args = ["-m", "litellm", "--config", configPath, "--port", port]
-  }
-
-  const { spawn } = await import("child_process")
-  const child = spawn(cmd, args, {
-    stdio: ["ignore", "pipe", "pipe"],
-    detached: true,
-    env: process.env as Record<string, string>,
-  })
-
-  // Wait for health
-  for (let i = 0; i < 30; i++) {
-    await new Promise((r) => setTimeout(r, 2000))
-    if (await checkLitellmHealth(url)) {
-      logger.info(`LiteLLM proxy ready at ${url}`)
-      return child
-    }
-  }
-
-  logger.warn("LiteLLM proxy failed to start within 60s")
-  child.kill()
-  return null
-}
-
-function findLatestTaskForIssue(issueNumber: number, projectDir: string): string | null {
-  const tasksDir = path.join(projectDir, ".tasks")
-  if (!fs.existsSync(tasksDir)) return null
-
-  // Only consider directories (not files)
-  const allDirs = fs.readdirSync(tasksDir, { withFileTypes: true })
-    .filter((d) => d.isDirectory())
-    .map((d) => d.name)
-    .sort()
-    .reverse()
-
-  // Direct match: tasks starting with issue number
-  const prefix = `${issueNumber}-`
-  const direct = allDirs.find((d) => d.startsWith(prefix))
-  if (direct) return direct
-
-  // Fallback for PR comments: extract issue number from current git branch
-  // Branch format: <issueNum>--<slug> (e.g., 1031--security-8x-route)
-  try {
-    const branch = execFileSync("git", ["branch", "--show-current"], {
-      encoding: "utf-8", cwd: projectDir, timeout: 5000, stdio: ["pipe", "pipe", "pipe"],
-    }).trim()
-    const branchIssueMatch = branch.match(/^(\d+)-/)
-    if (branchIssueMatch) {
-      const branchIssueNum = branchIssueMatch[1]
-      const branchPrefix = `${branchIssueNum}-`
-      const fromBranch = allDirs.find((d) => d.startsWith(branchPrefix))
-      if (fromBranch) return fromBranch
-    }
-  } catch { /* ignore */ }
-
-  return null
-}
-
-function generateTaskId(): string {
-  const now = new Date()
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `${String(now.getFullYear()).slice(2)}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
-}
 
 async function main() {
   const input = parseArgs()
@@ -269,13 +99,11 @@ async function main() {
     if (fs.existsSync(statusPath)) {
       try {
         const status = JSON.parse(fs.readFileSync(statusPath, "utf-8"))
-        // Find the stage that was paused (completed with "paused" error) or first failed/pending after completed
         const stageNames = ["taskify", "plan", "build", "verify", "review", "review-fix", "ship"]
         let foundPaused = false
         for (const name of stageNames) {
           const s = status.stages[name]
           if (s?.error?.includes("paused")) {
-            // Resume from the NEXT stage after the paused one
             const idx = stageNames.indexOf(name)
             if (idx < stageNames.length - 1) {
               input.fromStage = stageNames[idx + 1]
@@ -311,6 +139,8 @@ async function main() {
   let litellmProcess: { kill: () => void } | null = null
   const cleanupLitellm = () => { if (litellmProcess) { litellmProcess.kill(); litellmProcess = null } }
   process.on("exit", cleanupLitellm)
+  process.on("SIGINT", () => { cleanupLitellm(); process.exit(130) })
+  process.on("SIGTERM", () => { cleanupLitellm(); process.exit(143) })
 
   if (config.agent.litellmUrl) {
     const proxyRunning = await checkLitellmHealth(config.agent.litellmUrl)
@@ -385,11 +215,10 @@ async function main() {
   if (state.state === "failed") {
     // Check if this is a "paused" state (questions posted) — not a real failure
     const isPaused = Object.values(state.stages).some(
-      (s) => typeof s === "object" && s !== null && "error" in s && typeof (s as { error?: string }).error === "string" && (s as { error: string }).error.includes("paused"),
+      (s) => s.error?.includes("paused") ?? false,
     )
 
     if (isPaused) {
-      // Pipeline paused for questions — not a failure, exit cleanly
       process.exit(0)
     }
 
@@ -399,7 +228,7 @@ async function main() {
         ([, s]) => s.state === "failed" || s.state === "timeout",
       )
       const stageName = failedStage ? failedStage[0] : "unknown"
-      const error = failedStage ? (failedStage[1] as { error?: string }).error ?? "" : ""
+      const error = failedStage ? failedStage[1].error ?? "" : ""
       try {
         postComment(
           ctx.input.issueNumber,

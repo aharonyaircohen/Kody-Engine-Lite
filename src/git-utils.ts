@@ -79,7 +79,8 @@ export function ensureFeatureBranch(
     try {
       git(["checkout", defaultBranch], { cwd })
     } catch {
-      logger.warn(`  Failed to checkout ${defaultBranch}`)
+      logger.warn(`  Failed to checkout ${defaultBranch}, aborting branch creation`)
+      return current
     }
   }
 
@@ -158,7 +159,7 @@ export function commitAll(
     return { success: false, hash: "", message: "No changes to commit" }
   }
 
-  git(["add", "-A"], { cwd })
+  git(["add", "."], { cwd })
   git(["commit", "--no-gpg-sign", "-m", message], { cwd })
   const hash = git(["rev-parse", "HEAD"], { cwd }).slice(0, 7)
 

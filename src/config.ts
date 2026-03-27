@@ -1,5 +1,6 @@
 import * as fs from "fs"
 import * as path from "path"
+import { logger } from "./logger.js"
 
 export interface RunnerConfig {
   type: "claude-code"
@@ -98,6 +99,7 @@ export function getProjectConfig(): KodyConfig {
         agent: { ...DEFAULT_CONFIG.agent, ...raw.agent },
       }
     } catch {
+      logger.warn("kody.config.json is invalid JSON — using defaults")
       _config = { ...DEFAULT_CONFIG }
     }
   } else {

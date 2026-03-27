@@ -1,0 +1,124 @@
+import * as fs from "fs"
+import * as path from "path"
+
+import type {
+  StageName,
+  StageDefinition,
+  PipelineStatus,
+  PipelineContext,
+} from "../types.js"
+import { STAGES } from "../definitions.js"
+import { setLifecycleLabel, setLabel, postComment } from "../github-api.js"
+import { commitAll } from "../git-utils.js"
+import { checkForQuestions } from "./questions.js"
+import { filterByComplexity, isValidComplexity } from "./complexity.js"
+import { writeState } from "./state.js"
+import { logger } from "../logger.js"
+
+// ─── Pre-stage ──────────────────────────────────────────────────────────────
+
+export function applyPreStageLabel(ctx: PipelineContext, def: StageDefinition): void {
+  if (!ctx.input.issueNumber || ctx.input.local) return
+  if (def.name === "build") setLifecycleLabel(ctx.input.issueNumber, "building")
+  if (def.name === "review") setLifecycleLabel(ctx.input.issueNumber, "review")
+}
+
+// ─── Post-stage (success) ───────────────────────────────────────────────────
+
+/**
+ * Check for clarifying questions after taskify/plan.
+ * Returns the paused PipelineStatus if pipeline should stop, null to continue.
+ */
+export function checkQuestionsAfterStage(
+  ctx: PipelineContext,
+  def: StageDefinition,
+  state: PipelineStatus,
+): PipelineStatus | null {
+  if (def.name !== "taskify" && def.name !== "plan") return null
+  if (ctx.input.dryRun) return null
+
+  const paused = checkForQuestions(ctx, def.name)
+  if (!paused) return null
+
+  state.state = "failed"
+  state.stages[def.name] = {
+    ...state.stages[def.name],
+    state: "completed",
+    error: "paused: waiting for answers",
+  }
+  writeState(state, ctx.taskDir)
+  logger.info(`  Pipeline paused — questions posted on issue`)
+  return state
+}
+
+/**
+ * Auto-detect complexity from task.json after taskify.
+ * Returns new complexity + activeStages if detected, null otherwise.
+ */
+export function autoDetectComplexity(
+  ctx: PipelineContext,
+  def: StageDefinition,
+): { complexity: "low" | "medium" | "high"; activeStages: StageDefinition[] } | null {
+  if (def.name !== "taskify") return null
+  if (ctx.input.complexity) return null
+
+  try {
+    const taskJsonPath = path.join(ctx.taskDir, "task.json")
+    if (!fs.existsSync(taskJsonPath)) return null
+
+    const raw = fs.readFileSync(taskJsonPath, "utf-8")
+    const cleaned = raw.replace(/^```json\s*\n?/m, "").replace(/\n?```\s*$/m, "")
+    const taskJson = JSON.parse(cleaned)
+
+    if (!taskJson.risk_level || !isValidComplexity(taskJson.risk_level)) return null
+
+    const complexity = taskJson.risk_level as "low" | "medium" | "high"
+    const activeStages = filterByComplexity(STAGES, complexity)
+    logger.info(`  Complexity auto-detected: ${complexity} (${activeStages.map(s => s.name).join(" → ")})`)
+
+    if (ctx.input.issueNumber && !ctx.input.local) {
+      try { setLifecycleLabel(ctx.input.issueNumber, complexity) } catch { /* ignore */ }
+      if (taskJson.task_type) {
+        try { setLabel(ctx.input.issueNumber, `kody:${taskJson.task_type}`) } catch { /* ignore */ }
+      }
+    }
+
+    return { complexity, activeStages }
+  } catch {
+    return null
+  }
+}
+
+export function commitAfterStage(ctx: PipelineContext, def: StageDefinition): void {
+  if (ctx.input.dryRun || !ctx.input.issueNumber) return
+
+  if (def.name === "build") {
+    try { commitAll(`feat(${ctx.taskId}): implement task`, ctx.projectDir) } catch { /* ignore */ }
+  }
+  if (def.name === "review-fix") {
+    try { commitAll(`fix(${ctx.taskId}): address review`, ctx.projectDir) } catch { /* ignore */ }
+  }
+}
+
+// ─── Skip logic ─────────────────────────────────────────────────────────────
+
+export function postSkippedStagesComment(
+  ctx: PipelineContext,
+  complexity: string,
+  activeStages: StageDefinition[],
+): void {
+  if (!ctx.input.issueNumber || ctx.input.local || ctx.input.dryRun) return
+
+  const skipped = STAGES
+    .filter(s => !activeStages.find(a => a.name === s.name))
+    .map(s => s.name)
+
+  if (skipped.length === 0) return
+
+  try {
+    postComment(
+      ctx.input.issueNumber,
+      `⚡ **Complexity: ${complexity}** — skipping ${skipped.join(", ")} (not needed for ${complexity}-risk tasks)`,
+    )
+  } catch { /* ignore */ }
+}
