@@ -91,9 +91,10 @@ async function runSubprocess(
     return { outcome: "completed", output: stdout }
   }
 
+  const errDetail = stderr.slice(-STDERR_TAIL_CHARS) || stdout.slice(-STDERR_TAIL_CHARS)
   return {
     outcome: code === null ? "timed_out" : "failed",
-    error: `Exit code ${code}\n${stderr.slice(-STDERR_TAIL_CHARS)}`,
+    error: `Exit code ${code}\n${errDetail}`,
   }
 }
 
