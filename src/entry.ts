@@ -136,6 +136,13 @@ async function main() {
     } else {
       logger.info(`LiteLLM proxy already running at ${config.agent.litellmUrl}`)
     }
+
+    // Set ANTHROPIC_BASE_URL at process level so ALL Claude Code invocations
+    // (including internal auth/validation calls) route through the proxy
+    if (config.agent.litellmUrl) {
+      process.env.ANTHROPIC_BASE_URL = config.agent.litellmUrl
+      logger.info(`ANTHROPIC_BASE_URL set to ${config.agent.litellmUrl}`)
+    }
   }
 
   // Create runners
