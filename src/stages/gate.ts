@@ -36,6 +36,12 @@ export function executeGateStage(
       lines.push(`- ${s}\n`)
     }
   }
+  if (verifyResult.rawOutputs.length > 0) {
+    lines.push(`\n## Raw Output\n`)
+    for (const { name, output } of verifyResult.rawOutputs) {
+      lines.push(`### ${name}\n\`\`\`\n${output}\n\`\`\`\n`)
+    }
+  }
 
   fs.writeFileSync(path.join(ctx.taskDir, "verify.md"), lines.join(""))
 

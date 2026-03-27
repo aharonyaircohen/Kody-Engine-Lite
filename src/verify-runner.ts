@@ -16,6 +16,7 @@ export interface VerifyResult {
   pass: boolean
   errors: string[]
   summary: string[]
+  rawOutputs: Array<{ name: string; output: string }>
 }
 
 /**
@@ -100,6 +101,7 @@ export function runQualityGates(
   const cwd = projectRoot ?? process.cwd()
   const allErrors: string[] = []
   const allSummary: string[] = []
+  const rawOutputs: Array<{ name: string; output: string }> = []
   let allPass = true
 
   const commands: Array<{ name: string; cmd: string }> = [
@@ -127,10 +129,11 @@ export function runQualityGates(
       allPass = false
       const errors = parseErrors(result.output)
       allErrors.push(...errors.map((e) => `[${name}] ${e}`))
+      rawOutputs.push({ name, output: result.output.slice(-3000) })
     }
 
     allSummary.push(...extractSummary(result.output, name))
   }
 
-  return { pass: allPass, errors: allErrors, summary: allSummary }
+  return { pass: allPass, errors: allErrors, summary: allSummary, rawOutputs }
 }
