@@ -118,18 +118,22 @@ export function createClaudeCodeRunner(): AgentRunner {
       _taskDir: string,
       options?: AgentRunnerOptions,
     ): Promise<AgentResult> {
-      return runSubprocess(
-        "claude",
-        [
-          "--print",
-          "--model", model,
-          "--dangerously-skip-permissions",
-          "--allowedTools", "Bash,Edit,Read,Write,Glob,Grep",
-        ],
-        prompt,
-        timeout,
-        options,
-      )
+      const args = [
+        "--print",
+        "--model", model,
+        "--dangerously-skip-permissions",
+        "--allowedTools", "Bash,Edit,Read,Write,Glob,Grep",
+      ]
+
+      if (options?.sessionId) {
+        if (options.resumeSession) {
+          args.push("--resume", options.sessionId)
+        } else {
+          args.push("--session-id", options.sessionId)
+        }
+      }
+
+      return runSubprocess("claude", args, prompt, timeout, options)
     },
 
     async healthCheck(): Promise<boolean> {

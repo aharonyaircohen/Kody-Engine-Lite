@@ -2,6 +2,7 @@ import * as fs from "fs"
 import * as path from "path"
 
 import type {
+  StageName,
   StageDefinition,
   StageResult,
   PipelineContext,
@@ -11,6 +12,37 @@ import { validateTaskJson, validatePlanMd, validateReviewMd, stripFences } from 
 import { getProjectConfig } from "../config.js"
 import { getRunnerForStage } from "../pipeline/runner-selection.js"
 import { logger } from "../logger.js"
+
+// ─── Session Groups ─────────────────────────────────────────────────────────
+// Stages in the same group share a Claude Code session (warm context).
+// Different groups get fresh sessions (clean perspective).
+
+const SESSION_GROUP: Record<string, string> = {
+  taskify: "explore",
+  plan: "explore",
+  build: "build",
+  autofix: "build",
+  "review-fix": "build",
+  review: "review",
+}
+
+function getSessionInfo(
+  stageName: string,
+  sessions: Record<string, string>,
+): { sessionId: string; resumeSession: boolean } | undefined {
+  const group = SESSION_GROUP[stageName]
+  if (!group) return undefined
+
+  const existing = sessions[group]
+  if (existing) {
+    return { sessionId: existing, resumeSession: true }
+  }
+
+  // Generate new session ID for this group
+  const newId = crypto.randomUUID()
+  sessions[group] = newId
+  return { sessionId: newId, resumeSession: false }
+}
 
 function validateStageOutput(
   stageName: string,
@@ -53,10 +85,18 @@ export async function executeAgentStage(
     extraEnv.ANTHROPIC_BASE_URL = config.agent.litellmUrl
   }
 
+  // Session management: stages in the same group share a Claude Code session
+  const sessions = ctx.sessions ?? {}
+  const sessionInfo = getSessionInfo(def.name, sessions)
+  if (sessionInfo) {
+    logger.info(`  session: ${SESSION_GROUP[def.name]} (${sessionInfo.resumeSession ? "resume" : "new"})`)
+  }
+
   const runner = getRunnerForStage(ctx, def.name)
   const result = await runner.run(def.name, prompt, model, def.timeout, ctx.taskDir, {
     cwd: ctx.projectDir,
     env: extraEnv,
+    ...sessionInfo,
   })
 
   if (result.outcome !== "completed") {

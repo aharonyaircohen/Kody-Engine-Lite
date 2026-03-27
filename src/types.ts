@@ -39,6 +39,7 @@ export interface PipelineStatus {
   taskId: string
   state: "running" | "completed" | "failed"
   stages: Record<StageName, StageState>
+  sessions?: Record<string, string>
   createdAt: string
   updatedAt: string
 }
@@ -59,6 +60,8 @@ export interface AgentResult {
 export interface AgentRunnerOptions {
   cwd?: string
   env?: Record<string, string>
+  sessionId?: string
+  resumeSession?: boolean
 }
 
 export interface AgentRunner {
@@ -78,6 +81,7 @@ export interface PipelineContext {
   taskDir: string
   projectDir: string
   runners: Record<string, AgentRunner>
+  sessions?: Record<string, string>
   input: {
     mode: "full" | "rerun" | "status"
     fromStage?: string

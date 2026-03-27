@@ -83,6 +83,9 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
     writeState(state, ctx.taskDir)
   }
 
+  // Restore sessions from state (for reruns) and share with context
+  ctx.sessions = state.sessions ?? {}
+
   // Reset for rerun
   if (state.state !== "running") {
     state.state = "running"
@@ -189,6 +192,7 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
         error: isTimeout ? "Stage timed out" : (result.error ?? "Stage failed"),
       }
       state.state = "failed"
+      state.sessions = ctx.sessions
       writeState(state, ctx.taskDir)
       logger.error(`[${def.name}] ${isTimeout ? "⏱ timed out" : `✗ failed: ${result.error}`}`)
       if (ctx.input.issueNumber && !ctx.input.local) {
@@ -197,6 +201,7 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
       break
     }
 
+    state.sessions = ctx.sessions
     writeState(state, ctx.taskDir)
   }
 
