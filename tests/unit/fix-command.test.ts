@@ -143,10 +143,10 @@ describe("fix command: skips taskify and plan", () => {
       updatedAt: new Date().toISOString(),
     }))
 
-    let capturedPrompt = ""
+    const capturedPrompts: Record<string, string> = {}
     const capturingRunner: AgentRunner = {
-      async run(_stage: string, prompt: string): Promise<AgentResult> {
-        capturedPrompt = prompt
+      async run(stage: string, prompt: string): Promise<AgentResult> {
+        capturedPrompts[stage] = prompt
         return { outcome: "completed", output: "## Step 1: X\n**File:** a.ts\n**Change:** Y\n**Why:** Z\n**Verify:** t" }
       },
       async healthCheck() { return true },
@@ -165,9 +165,10 @@ describe("fix command: skips taskify and plan", () => {
     }
 
     await runPipeline(ctx)
-    expect(capturedPrompt).toContain("Human Feedback")
-    expect(capturedPrompt).toContain("error handling")
-    expect(capturedPrompt).toContain("401 not 500")
+    const buildPrompt = capturedPrompts["build"] ?? ""
+    expect(buildPrompt).toContain("Human Feedback")
+    expect(buildPrompt).toContain("error handling")
+    expect(buildPrompt).toContain("401 not 500")
   })
 })
 

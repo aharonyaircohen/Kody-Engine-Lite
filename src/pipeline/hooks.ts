@@ -89,6 +89,49 @@ export function autoDetectComplexity(
   }
 }
 
+/**
+ * Risk gate: pause after plan for HIGH complexity tasks.
+ * Returns PipelineStatus if paused (caller should return it), null to continue.
+ */
+export function checkRiskGate(
+  ctx: PipelineContext,
+  def: StageDefinition,
+  state: PipelineStatus,
+  complexity: string,
+): PipelineStatus | null {
+  if (def.name !== "plan") return null
+  if (complexity !== "high") return null
+  if (ctx.input.dryRun || ctx.input.local) return null
+  if (ctx.input.mode === "rerun") return null
+  if (!ctx.input.issueNumber) return null
+
+  // Read plan for the comment
+  const planPath = path.join(ctx.taskDir, "plan.md")
+  const plan = fs.existsSync(planPath)
+    ? fs.readFileSync(planPath, "utf-8").slice(0, 1500)
+    : "(plan not available)"
+
+  try {
+    postComment(
+      ctx.input.issueNumber,
+      `🛑 **Risk gate: HIGH complexity — awaiting approval**\n\n`
+      + `<details><summary>📋 Plan summary</summary>\n\n${plan}\n</details>\n\n`
+      + `To approve: \`@kody approve\``,
+    )
+    setLifecycleLabel(ctx.input.issueNumber, "waiting")
+  } catch { /* fire-and-forget */ }
+
+  state.state = "failed"
+  state.stages[def.name] = {
+    ...state.stages[def.name],
+    state: "completed",
+    error: "paused: risk gate — awaiting approval",
+  }
+  writeState(state, ctx.taskDir)
+  logger.info(`  Pipeline paused — HIGH risk gate, awaiting approval on issue`)
+  return state
+}
+
 export function commitAfterStage(ctx: PipelineContext, def: StageDefinition): void {
   if (ctx.input.dryRun || !ctx.input.issueNumber) return
 

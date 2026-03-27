@@ -17,10 +17,12 @@ import {
   applyPreStageLabel,
   checkQuestionsAfterStage,
   autoDetectComplexity,
+  checkRiskGate,
   commitAfterStage,
   postSkippedStagesComment,
 } from "./pipeline/hooks.js"
 import { autoLearn } from "./learning/auto-learn.js"
+import { runRetrospective } from "./retrospective.js"
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -73,6 +75,7 @@ export async function runPipeline(ctx: PipelineContext): Promise<PipelineStatus>
 }
 
 async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
+  const pipelineStartTime = Date.now()
   let state = loadState(ctx.taskId, ctx.taskDir)
 
   if (!state) {
@@ -173,6 +176,9 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
         activeStages = detected.activeStages
       }
 
+      const gated = checkRiskGate(ctx, def, state, complexity)
+      if (gated) return gated
+
       commitAfterStage(ctx, def)
     } else {
       // Failed or timed out
@@ -204,6 +210,8 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
     }
     autoLearn(ctx)
   }
+
+  await runRetrospective(ctx, state, pipelineStartTime).catch(() => {})
 
   return state
 }

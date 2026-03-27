@@ -192,10 +192,10 @@ describe("approve flow: resume from paused state", () => {
     fs.mkdirSync(taskDir, { recursive: true })
     fs.writeFileSync(path.join(taskDir, "task.md"), "Test task")
 
-    let capturedPrompt = ""
+    const capturedPrompts: Record<string, string> = {}
     const capturingRunner: AgentRunner = {
-      async run(_stageName: string, prompt: string): Promise<AgentResult> {
-        capturedPrompt = prompt
+      async run(stageName: string, prompt: string): Promise<AgentResult> {
+        capturedPrompts[stageName] = prompt
         return { outcome: "completed", output: "## Step 1: X\n**File:** a.ts\n**Change:** Y\n**Why:** Z\n**Verify:** test" }
       },
       async healthCheck() { return true },
@@ -233,9 +233,10 @@ describe("approve flow: resume from paused state", () => {
     await runPipeline(ctx)
 
     // The plan stage prompt should contain the feedback
-    expect(capturedPrompt).toContain("Human Feedback")
-    expect(capturedPrompt).toContain("case-sensitive")
-    expect(capturedPrompt).toContain("Admin users")
+    const planPrompt = capturedPrompts["plan"] ?? ""
+    expect(planPrompt).toContain("Human Feedback")
+    expect(planPrompt).toContain("case-sensitive")
+    expect(planPrompt).toContain("Admin users")
   })
 })
 
