@@ -27,16 +27,22 @@ export async function tryStartLitellm(
   const portMatch = url.match(/:(\d+)/)
   const port = portMatch ? portMatch[1] : "4000"
 
-  // Check if litellm is installed
+  // Check if litellm is installed (use `which` — litellm imports are too slow for --version)
+  let litellmFound = false
   try {
-    execFileSync("litellm", ["--version"], { timeout: 5000, stdio: "pipe" })
+    execFileSync("which", ["litellm"], { timeout: 3000, stdio: "pipe" })
+    litellmFound = true
   } catch {
     try {
-      execFileSync("python3", ["-m", "litellm", "--version"], { timeout: 5000, stdio: "pipe" })
+      execFileSync("python3", ["-c", "import litellm"], { timeout: 10000, stdio: "pipe" })
+      litellmFound = true
     } catch {
-      logger.warn("litellm not installed (pip install 'litellm[proxy]')")
-      return null
+      // not found
     }
+  }
+  if (!litellmFound) {
+    logger.warn("litellm not installed (pip install 'litellm[proxy]')")
+    return null
   }
 
   logger.info(`Starting LiteLLM proxy on port ${port}...`)
@@ -45,7 +51,7 @@ export async function tryStartLitellm(
   let cmd: string
   let args: string[]
   try {
-    execFileSync("litellm", ["--version"], { timeout: 5000, stdio: "pipe" })
+    execFileSync("which", ["litellm"], { timeout: 3000, stdio: "pipe" })
     cmd = "litellm"
     args = ["--config", configPath, "--port", port]
   } catch {
