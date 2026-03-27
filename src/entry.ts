@@ -30,39 +30,44 @@ async function main() {
     logger.info(`Working directory: ${projectDir}`)
   }
 
-  // Resolve task via state machine
+  // State machine: check issue state before doing anything
+  if (input.issueNumber) {
+    const taskAction = resolveForIssue(input.issueNumber, projectDir)
+    logger.info(`Task action: ${taskAction.action}`)
+
+    if (taskAction.action === "already-completed") {
+      logger.info(`Issue #${input.issueNumber} already completed (task ${taskAction.taskId})`)
+      if (!input.local) {
+        try {
+          postComment(input.issueNumber, `✅ Issue #${input.issueNumber} already completed (task \`${taskAction.taskId}\`)`)
+        } catch { /* best effort */ }
+      }
+      process.exit(0)
+    }
+
+    if (taskAction.action === "already-running") {
+      logger.info(`Issue #${input.issueNumber} already running (task ${taskAction.taskId})`)
+      if (!input.local) {
+        try {
+          postComment(input.issueNumber, `⏳ Pipeline already running for issue #${input.issueNumber} (task \`${taskAction.taskId}\`)`)
+        } catch { /* best effort */ }
+      }
+      process.exit(0)
+    }
+
+    if (taskAction.action === "resume") {
+      input.taskId = taskAction.taskId
+      input.fromStage = taskAction.fromStage
+      input.command = "rerun" as "rerun"
+      logger.info(`Resuming task ${taskAction.taskId} from ${taskAction.fromStage}`)
+    }
+  }
+
+  // Resolve taskId
   let taskId = input.taskId
   if (!taskId) {
     if (input.issueNumber) {
-      const taskAction = resolveForIssue(input.issueNumber, projectDir)
-      logger.info(`Task action: ${taskAction.action}`)
-
-      if (taskAction.action === "already-completed") {
-        logger.info(`Issue #${input.issueNumber} already completed (task ${taskAction.taskId})`)
-        if (!input.local) {
-          try {
-            postComment(input.issueNumber, `✅ Issue #${input.issueNumber} already completed (task \`${taskAction.taskId}\`)`)
-          } catch { /* best effort */ }
-        }
-        process.exit(0)
-      }
-
-      if (taskAction.action === "already-running") {
-        logger.info(`Issue #${input.issueNumber} already running (task ${taskAction.taskId})`)
-        if (!input.local) {
-          try {
-            postComment(input.issueNumber, `⏳ Pipeline already running for issue #${input.issueNumber} (task \`${taskAction.taskId}\`)`)
-          } catch { /* best effort */ }
-        }
-        process.exit(0)
-      }
-
-      taskId = taskAction.taskId
-      if (taskAction.action === "resume") {
-        input.fromStage = taskAction.fromStage
-        input.command = "rerun" as "rerun"
-        logger.info(`Resuming task ${taskId} from ${taskAction.fromStage}`)
-      }
+      taskId = `${input.issueNumber}-${generateTaskId()}`
     } else if (input.command === "run" && input.task) {
       taskId = generateTaskId()
     } else {
