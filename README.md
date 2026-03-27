@@ -14,7 +14,7 @@ Kody is a 7-stage autonomous SDLC pipeline that runs in GitHub Actions. It uses 
                         ┌────────────────────────▼────────────────────────────────┐
                         │  ① TASKIFY                                              │
                         │  Classify task, detect complexity, ask questions         │
-                        │  Model: haiku │ Output: task.json                       │
+                        │  Tier: cheap │ Output: task.json                        │
                         └────────────────────────┬────────────────────────────────┘
                                                  │
                                     ┌────────────▼────────────┐
@@ -26,7 +26,7 @@ Kody is a 7-stage autonomous SDLC pipeline that runs in GitHub Actions. It uses 
                         ┌────────────────────────▼────────────────────────────────┐
                         │  ② PLAN                                                 │
                         │  TDD implementation plan (deep reasoning)               │
-                        │  Model: opus │ Output: plan.md                          │
+                        │  Tier: strong │ Output: plan.md                         │
                         └────────────────────────┬────────────────────────────────┘
                                                  │
                                     ┌────────────▼────────────┐
@@ -37,7 +37,7 @@ Kody is a 7-stage autonomous SDLC pipeline that runs in GitHub Actions. It uses 
                         ┌────────────────────────▼────────────────────────────────┐
                         │  ③ BUILD                                                │
                         │  Implement code via Claude Code tools                   │
-                        │  Model: sonnet │ Output: code changes + git commit      │
+                        │  Tier: mid │ Output: code changes + git commit          │
                         └────────────────────────┬────────────────────────────────┘
                                                  │
                         ┌────────────────────────▼────────────────────────────────┐
@@ -51,13 +51,13 @@ Kody is a 7-stage autonomous SDLC pipeline that runs in GitHub Actions. It uses 
                         ┌────────────────────────▼────────────────────────────────┐
                         │  ⑤ REVIEW                                               │
                         │  Code review: PASS/FAIL + Critical/Major/Minor          │
-                        │  Model: opus │ Output: review.md                        │
+                        │  Tier: strong │ Output: review.md                       │
                         └────────────────────────┬────────────────────────────────┘
                                                  │
                         ┌────────────────────────▼────────────────────────────────┐
                         │  ⑥ REVIEW-FIX                                           │
                         │  Fix Critical and Major findings                        │
-                        │  Model: sonnet │ Output: code changes + git commit      │
+                        │  Tier: mid │ Output: code changes + git commit          │
                         └────────────────────────┬────────────────────────────────┘
                                                  │
                         ┌────────────────────────▼────────────────────────────────┐
