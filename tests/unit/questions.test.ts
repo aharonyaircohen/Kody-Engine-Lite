@@ -134,6 +134,27 @@ describe("taskify question gate", () => {
     expect(state.state).toBe("completed")
   })
 
+  it("skips question gate on rerun mode (approve flow)", async () => {
+    const runner = createMockRunner({
+      task_type: "feature",
+      title: "Unclear task",
+      description: "Has questions",
+      scope: ["src/test.ts"],
+      risk_level: "low",
+      questions: ["Should this be X or Y?"],
+    })
+    // Rerun mode should skip question check even if questions exist
+    const ctx = createCtx(tmpDir, runner, { mode: "rerun", dryRun: false, local: true })
+    const state = await runPipeline(ctx)
+    expect(state.state).toBe("completed")
+    // Verify task.json has questions but pipeline didn't pause
+    const taskJsonPath = path.join(ctx.taskDir, "task.json")
+    if (fs.existsSync(taskJsonPath)) {
+      const parsed = JSON.parse(fs.readFileSync(taskJsonPath, "utf-8"))
+      expect(parsed.questions).toEqual(["Should this be X or Y?"])
+    }
+  })
+
   it("questions are written to task.json when present", async () => {
     const runner = createMockRunner({
       task_type: "feature",

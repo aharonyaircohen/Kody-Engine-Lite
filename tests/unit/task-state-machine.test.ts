@@ -147,13 +147,15 @@ describe("resolveForIssue — CI label fallback", () => {
     vi.restoreAllMocks()
   })
 
-  it("resumes from build when kody:waiting label exists (question gate loop fix)", () => {
+  it("resumes from taskify when kody:waiting label exists (question gate loop fix)", () => {
     vi.mocked(getIssueLabels).mockReturnValue(["kody:waiting"])
 
     const result = resolveForIssue(60, "/tmp/fake-project")
     expect(result.action).toBe("resume")
     if (result.action === "resume") {
-      expect(result.fromStage).toBe("build")
+      // Resume from taskify so task.json gets regenerated; the question check
+      // is skipped in rerun mode (checkQuestionsAfterStage) preventing loops
+      expect(result.fromStage).toBe("taskify")
       expect(result.taskId).toMatch(/^60-/)
     }
   })

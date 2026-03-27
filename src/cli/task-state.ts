@@ -82,9 +82,10 @@ export function resolveForIssue(
       return { action: "already-completed", taskId: `${issueNumber}-unknown` }
     }
     if (labels.includes("kody:waiting")) {
-      // Pipeline was paused for questions/approval — resume from build
-      // (skip taskify+plan which generate questions and would loop)
-      return { action: "resume", taskId: `${issueNumber}-${generateTaskId()}`, fromStage: "build" }
+      // Pipeline was paused (question gate or risk gate). Resume from taskify
+      // so task.json gets regenerated. The question check is skipped in rerun
+      // mode (checkQuestionsAfterStage), preventing the infinite question loop.
+      return { action: "resume", taskId: `${issueNumber}-${generateTaskId()}`, fromStage: "taskify" }
     }
   } catch { /* ignore — gh may not be available */ }
 

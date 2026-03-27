@@ -36,6 +36,7 @@ export function checkQuestionsAfterStage(
 ): PipelineStatus | null {
   if (def.name !== "taskify" && def.name !== "plan") return null
   if (ctx.input.dryRun) return null
+  if (ctx.input.mode === "rerun") return null  // Skip question gate on resume (approve)
 
   const paused = checkForQuestions(ctx, def.name)
   if (!paused) return null
