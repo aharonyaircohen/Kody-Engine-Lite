@@ -54,6 +54,7 @@ jobs:
       mode: ${{ steps.parse.outputs.mode }}
       from_stage: ${{ steps.parse.outputs.from_stage }}
       issue_number: ${{ steps.parse.outputs.issue_number }}
+      pr_number: ${{ steps.parse.outputs.pr_number }}
       feedback: ${{ steps.parse.outputs.feedback }}
       valid: ${{ steps.parse.outputs.valid }}
     steps:
@@ -103,7 +104,7 @@ jobs:
 
           # Validate mode
           case "$MODE" in
-            full|rerun|fix|status|approve) ;;
+            full|rerun|fix|status|approve|review) ;;
             *)
               # If first arg isn't a mode, it might be a task-id or nothing
               if [ -n "$MODE" ] && [ "$MODE" != "" ]; then
@@ -128,10 +129,22 @@ jobs:
             # FROM_STAGE will be determined by entry.ts from paused state
           fi
 
+          # Detect if this comment is on a PR (PRs are issues in GitHub API)
+          PR_NUMBER=""
+          if [ -n "${{ github.event.issue.pull_request }}" ]; then
+            PR_NUMBER="$ISSUE_NUM"
+          fi
+
+          # For review mode on a PR comment: use the PR number directly
+          if [ "$MODE" = "review" ] && [ -n "$PR_NUMBER" ]; then
+            TASK_ID="review-pr-${PR_NUMBER}-$(date +%y%m%d-%H%M%S)"
+          fi
+
           echo "task_id=$TASK_ID" >> $GITHUB_OUTPUT
           echo "mode=$MODE" >> $GITHUB_OUTPUT
           echo "from_stage=$FROM_STAGE" >> $GITHUB_OUTPUT
           echo "issue_number=$ISSUE_NUM" >> $GITHUB_OUTPUT
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
           {
             echo "feedback<<KODY_EOF"
             echo "$FEEDBACK"
@@ -194,6 +207,7 @@ jobs:
           MODE: ${{ github.event.inputs.mode || needs.parse.outputs.mode || 'full' }}
           FROM_STAGE: ${{ github.event.inputs.from_stage || needs.parse.outputs.from_stage }}
           ISSUE_NUMBER: ${{ github.event.inputs.issue_number || needs.parse.outputs.issue_number }}
+          PR_NUMBER: ${{ needs.parse.outputs.pr_number }}
           FEEDBACK: ${{ github.event.inputs.feedback || needs.parse.outputs.feedback }}
           DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -201,7 +215,10 @@ jobs:
           CMD="run"
           [ "$MODE" = "rerun" ] && CMD="rerun"
           [ "$MODE" = "fix" ] && CMD="fix"
-          ARGS="--task-id $TASK_ID --issue-number $ISSUE_NUMBER"
+          [ "$MODE" = "review" ] && CMD="review"
+          ARGS="--task-id $TASK_ID"
+          [ -n "$ISSUE_NUMBER" ] && ARGS="$ARGS --issue-number $ISSUE_NUMBER"
+          [ -n "$PR_NUMBER" ] && ARGS="$ARGS --pr-number $PR_NUMBER"
           [ -n "$FROM_STAGE" ] && ARGS="$ARGS --from $FROM_STAGE"
           [ -n "$FEEDBACK" ] && ARGS="$ARGS --feedback \"$FEEDBACK\""
           [ "$DRY_RUN" = "true" ] && ARGS="$ARGS --dry-run"

@@ -4,9 +4,10 @@ import { createRunners } from "./agent-runner.js"
 import { runPipeline, printStatus } from "./pipeline.js"
 import { runPreflight } from "./preflight.js"
 import { setConfigDir, getProjectConfig } from "./config.js"
-import { setGhCwd, getIssue, postComment } from "./github-api.js"
+import { setGhCwd, getIssue, postComment, getPRDetails, getPRsForIssue, postPRComment } from "./github-api.js"
 import { logger } from "./logger.js"
 import type { PipelineContext } from "./types.js"
+import { runStandaloneReview, resolveReviewTarget, formatReviewComment } from "./review-standalone.js"
 
 // Extracted modules
 import { parseArgs } from "./cli/args.js"
@@ -30,8 +31,8 @@ async function main() {
     logger.info(`Working directory: ${projectDir}`)
   }
 
-  // State machine: check issue state before doing anything
-  if (input.issueNumber) {
+  // State machine: check issue state before doing anything (skip for review command)
+  if (input.issueNumber && input.command !== "review") {
     const taskAction = resolveForIssue(input.issueNumber, projectDir)
     logger.info(`Task action: ${taskAction.action}`)
 
@@ -70,6 +71,8 @@ async function main() {
       taskId = `${input.issueNumber}-${generateTaskId()}`
     } else if (input.command === "run" && input.task) {
       taskId = generateTaskId()
+    } else if (input.command === "review") {
+      taskId = input.prNumber ? `review-pr-${input.prNumber}-${generateTaskId()}` : `review-${generateTaskId()}`
     } else {
       console.error("--task-id is required (or provide --issue-number to auto-generate)")
       process.exit(1)
@@ -83,6 +86,88 @@ async function main() {
   if (input.command === "status") {
     printStatus(taskId, taskDir)
     return
+  }
+
+  // Review command — standalone review, no full pipeline
+  if (input.command === "review") {
+    runPreflight()
+
+    // Resolve which PR to review
+    let prTitle = "Code review"
+    let prBody = ""
+    let prNumber: number | undefined = input.prNumber
+
+    if (!prNumber && input.issueNumber) {
+      // Find PRs for this issue
+      const prs = getPRsForIssue(input.issueNumber)
+      const target = resolveReviewTarget({ issueNumber: input.issueNumber, prs })
+
+      if (target.action === "none" || target.action === "pick") {
+        console.log(target.message)
+        if (!input.local && input.issueNumber) {
+          try { postComment(input.issueNumber, target.message) } catch { /* best effort */ }
+        }
+        process.exit(target.action === "none" ? 1 : 0)
+      }
+
+      prNumber = target.prNumber
+    }
+
+    if (prNumber) {
+      const details = getPRDetails(prNumber)
+      if (details) {
+        prTitle = details.title
+        prBody = details.body ?? ""
+      }
+    }
+
+    // Start LiteLLM if configured
+    const config = getProjectConfig()
+    let litellmProcess: { kill: () => void } | null = null
+    if (config.agent.litellmUrl) {
+      const proxyRunning = await checkLitellmHealth(config.agent.litellmUrl)
+      if (!proxyRunning) {
+        litellmProcess = await tryStartLitellm(config.agent.litellmUrl, projectDir)
+      }
+      if (config.agent.litellmUrl) {
+        process.env.ANTHROPIC_BASE_URL = config.agent.litellmUrl
+      }
+    }
+
+    const runners = createRunners(config)
+    const defaultRunnerName = config.agent.defaultRunner ?? Object.keys(runners)[0] ?? "claude"
+    const defaultRunner = runners[defaultRunnerName]
+    if (!defaultRunner) { console.error(`Default runner "${defaultRunnerName}" not configured`); process.exit(1) }
+    const healthy = await defaultRunner.healthCheck()
+    if (!healthy) { console.error(`Runner "${defaultRunnerName}" health check failed`); process.exit(1) }
+
+    const result = await runStandaloneReview({
+      projectDir,
+      runners,
+      prTitle,
+      prBody,
+      local: input.local ?? true,
+      taskId,
+    })
+
+    if (litellmProcess) litellmProcess.kill()
+
+    if (result.outcome === "failed") {
+      console.error(`Review failed: ${result.error}`)
+      process.exit(1)
+    }
+
+    // Output: console for CLI, PR comment for CI
+    if (result.reviewContent) {
+      console.log(result.reviewContent)
+
+      if (!input.local && prNumber) {
+        const comment = formatReviewComment(result.reviewContent, taskId)
+        postPRComment(prNumber, comment)
+      }
+    }
+
+    process.exit(0)
   }
 
   // Preflight

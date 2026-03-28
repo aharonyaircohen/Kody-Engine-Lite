@@ -169,6 +169,74 @@ export function setLifecycleLabel(
   setLabel(issueNumber, `kody:${phase}`)
 }
 
+export function getPRsForIssue(
+  issueNumber: number,
+): { number: number; title: string; url: string; headBranch: string }[] {
+  try {
+    const output = gh([
+      "pr", "list",
+      "--search", `${issueNumber} in:body`,
+      "--json", "number,title,url,headRefName",
+      "--state", "open",
+    ])
+    const prs = JSON.parse(output) as { number: number; title: string; url: string; headRefName: string }[]
+    // Also match PRs whose branch starts with the issue number (e.g. 42-feature-name)
+    const branchPrs = (() => {
+      try {
+        const branchOutput = gh([
+          "pr", "list",
+          "--json", "number,title,url,headRefName",
+          "--state", "open",
+        ])
+        return (JSON.parse(branchOutput) as { number: number; title: string; url: string; headRefName: string }[])
+          .filter((pr) => pr.headRefName.startsWith(`${issueNumber}-`))
+      } catch { return [] }
+    })()
+
+    // Merge and dedupe by PR number
+    const seen = new Set<number>()
+    const merged: { number: number; title: string; url: string; headBranch: string }[] = []
+    for (const pr of [...prs, ...branchPrs]) {
+      if (!seen.has(pr.number)) {
+        seen.add(pr.number)
+        merged.push({ number: pr.number, title: pr.title, url: pr.url, headBranch: pr.headRefName })
+      }
+    }
+    return merged
+  } catch (err) {
+    logger.error(`  Failed to get PRs for issue #${issueNumber}: ${err}`)
+    return []
+  }
+}
+
+export function getPRDetails(
+  prNumber: number,
+): { title: string; body: string; headBranch: string; baseBranch: string } | null {
+  try {
+    const output = gh([
+      "pr", "view", String(prNumber),
+      "--json", "title,body,headRefName,baseRefName",
+    ])
+    const data = JSON.parse(output)
+    return { title: data.title, body: data.body, headBranch: data.headRefName, baseBranch: data.baseRefName }
+  } catch (err) {
+    logger.error(`  Failed to get PR #${prNumber}: ${err}`)
+    return null
+  }
+}
+
+export function postPRComment(prNumber: number, body: string): void {
+  try {
+    gh(
+      ["pr", "comment", String(prNumber), "--body-file", "-"],
+      { input: body },
+    )
+    logger.info(`  Comment posted on PR #${prNumber}`)
+  } catch (err) {
+    logger.warn(`  Failed to post PR comment: ${err}`)
+  }
+}
+
 export function closeIssue(
   issueNumber: number,
   reason: "completed" | "not planned" = "completed",
