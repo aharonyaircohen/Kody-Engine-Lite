@@ -125,7 +125,7 @@ async function main() {
       }
     }
 
-    // Start LiteLLM if configured
+    // Start LiteLLM if configured — required when litellmUrl is set
     const config = getProjectConfig()
     let litellmProcess: { kill: () => void } | null = null
     if (config.agent.litellmUrl) {
@@ -133,13 +133,11 @@ async function main() {
       if (!proxyRunning) {
         litellmProcess = await tryStartLitellm(config.agent.litellmUrl, projectDir)
         if (!litellmProcess) {
-          logger.warn("LiteLLM not available — falling back to Anthropic models")
-          config.agent.litellmUrl = undefined
+          logger.error("LiteLLM is configured (litellmUrl) but could not be started. Install it with: pip install 'litellm[proxy]'")
+          process.exit(1)
         }
       }
-      if (config.agent.litellmUrl) {
-        process.env.ANTHROPIC_BASE_URL = config.agent.litellmUrl
-      }
+      process.env.ANTHROPIC_BASE_URL = config.agent.litellmUrl
     }
 
     const runners = createRunners(config)
@@ -246,24 +244,21 @@ async function main() {
   process.on("SIGINT", () => { cleanupLitellm(); process.exit(130) })
   process.on("SIGTERM", () => { cleanupLitellm(); process.exit(143) })
 
+  // Start LiteLLM if configured — required when litellmUrl is set
   if (config.agent.litellmUrl) {
     const proxyRunning = await checkLitellmHealth(config.agent.litellmUrl)
     if (!proxyRunning) {
       litellmProcess = await tryStartLitellm(config.agent.litellmUrl, projectDir)
       if (!litellmProcess) {
-        logger.warn("LiteLLM not available — falling back to Anthropic models")
-        config.agent.litellmUrl = undefined
+        logger.error("LiteLLM is configured (litellmUrl) but could not be started. Install it with: pip install 'litellm[proxy]'")
+        process.exit(1)
       }
     } else {
       logger.info(`LiteLLM proxy already running at ${config.agent.litellmUrl}`)
     }
 
-    // Set ANTHROPIC_BASE_URL at process level so ALL Claude Code invocations
-    // (including internal auth/validation calls) route through the proxy
-    if (config.agent.litellmUrl) {
-      process.env.ANTHROPIC_BASE_URL = config.agent.litellmUrl
-      logger.info(`ANTHROPIC_BASE_URL set to ${config.agent.litellmUrl}`)
-    }
+    process.env.ANTHROPIC_BASE_URL = config.agent.litellmUrl
+    logger.info(`ANTHROPIC_BASE_URL set to ${config.agent.litellmUrl}`)
   }
 
   // Create runners
