@@ -15,7 +15,19 @@ The CLI works locally (`--local` flag) without GitHub. The full CI/CD pipeline r
 Yes. Use `--cwd` to point to the specific package directory. Each package can have its own `kody.config.json`.
 
 **Q: What does `init` do exactly?**
-Spawns Claude Code to analyze your project, then generates: workflow file, config with auto-detected quality commands, project memory (architecture + conventions), and 14 GitHub labels — then commits and pushes. See [Configuration](CONFIGURATION.md).
+Spawns Claude Code to analyze your project, then generates: workflow file, config with auto-detected quality commands, project memory (architecture + conventions), **6 repo-customized step files** (`.kody/steps/` — tailored prompts for each pipeline stage), and 14 GitHub labels — then commits and pushes. See [Configuration](CONFIGURATION.md).
+
+**Q: What are step files (`.kody/steps/`)?**
+Customized instruction files for each pipeline stage, generated during `init`. They contain the engine's default prompt plus three sections specific to your repo: **Repo Patterns** (real code examples to follow), **Improvement Areas** (gaps to fix incrementally), and **Acceptance Criteria** (concrete quality checklist). This means Kody writes code that matches your existing patterns and improves known gaps. See [Features](FEATURES.md#repo-aware-step-files-kodysteps).
+
+**Q: Can I edit the step files?**
+Yes. They're plain markdown in `.kody/steps/`. Edit `build.md` to change how Kody writes code, edit `review.md` to change what it checks during review. Changes take effect on the next pipeline run. No engine update needed.
+
+**Q: How do I regenerate step files after a major refactor?**
+Run `kody-engine-lite init --force`. This re-analyzes your codebase and produces fresh step files reflecting the current state. Your previous customizations will be overwritten — commit them first if you want to compare.
+
+**Q: Why is this better than CLAUDE.md or AGENTS.md?**
+CLAUDE.md and AGENTS.md are generic project-wide instructions. Step files are **per-stage** — the build agent gets coding patterns and acceptance criteria, the review agent gets a review checklist, the plan agent gets architecture guidance. Each stage sees only what's relevant to it, with concrete examples instead of abstract rules.
 
 **Q: Can Kody handle complex features (auth systems, CRUD, multi-file)?**
 Yes. The pipeline is designed for complex tasks. A full auth system (JWT, sessions, middleware, RBAC, UI pages, tests) completed with all 7 stages and 3 autofix retries. Shared sessions within stage groups mean no cold-start re-exploration, and context.md carries decisions across session boundaries.

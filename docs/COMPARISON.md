@@ -5,6 +5,8 @@
 | Tool | Type | Open Source | Model Flexible | CI Native | Fire & Forget | Cost |
 |------|------|-------------|---------------|-----------|--------------|------|
 | **Kody** | SDLC Pipeline | MIT | Any via LiteLLM | GitHub Actions | Yes | API costs |
+
+**Kody is the only tool that generates repo-customized prompts** — every other tool uses the same generic instructions regardless of your codebase's patterns, conventions, and gaps.
 | Copilot Workspace | Interactive | No | GitHub models | GitHub Cloud | No | $10-39/mo |
 | Devin | Autonomous Agent | No | Proprietary | Cloud | Partially | $20-500/mo |
 | Cursor Agent | IDE Agent | No | Cursor models | No | No | Subscription |
@@ -113,18 +115,22 @@ A full authentication system built end-to-end with MiniMax via LiteLLM:
 
 ## Kody's Unique Advantages
 
-1. **Shared sessions, not bloated context.** Stages in the same group share a Claude Code session (no cold starts). Different groups get fresh sessions (no context pollution). Plus context.md carries structured summaries across all stages.
+1. **Repo-aware step files.** Every other tool sends the same generic prompt to every repo. Kody generates customized instruction files (`.kody/steps/`) for each pipeline stage, grounded in your actual code — real patterns, real gaps, real acceptance criteria. The AI writes code that looks like it belongs in your project because it was taught *from* your project. See [Features](FEATURES.md#repo-aware-step-files-kodysteps).
 
-2. **Handles complex tasks.** Auth systems, CRUD features, API clients — tasks where single-agent tools lose track. Structured stages + shared sessions + quality gates keep the pipeline on track.
+2. **Incremental codebase improvement.** Step files encode known gaps (missing access control, inconsistent error handling, unused DI containers). Every task that touches related code fixes these issues — quality improves organically without dedicated refactoring tickets.
 
-3. **AI failure diagnosis.** When tests fail, Kody classifies the error (fixable vs infrastructure vs pre-existing) before deciding whether to retry, skip, or abort.
+3. **Shared sessions, not bloated context.** Stages in the same group share a Claude Code session (no cold starts). Different groups get fresh sessions (no context pollution). Plus context.md carries structured summaries across all stages.
 
-4. **Risk gate.** HIGH-risk tasks pause for human approval after the plan — before any code is written.
+4. **Handles complex tasks.** Auth systems, CRUD features, API clients — tasks where single-agent tools lose track. Structured stages + shared sessions + quality gates keep the pipeline on track.
 
-5. **Self-improving memory.** Each successful run extracts coding conventions for future runs.
+5. **AI failure diagnosis.** When tests fail, Kody classifies the error (fixable vs infrastructure vs pre-existing) before deciding whether to retry, skip, or abort.
 
-6. **Model agnostic.** Route through LiteLLM to use any model. Switch providers without changing code.
+6. **Risk gate.** HIGH-risk tasks pause for human approval after the plan — before any code is written.
 
-7. **Runs in CI.** No IDE required, no cloud VM, no subscription. Just GitHub Actions and your API key.
+7. **Self-improving memory.** Each successful run extracts coding conventions for future runs.
 
-8. **Rerun from any stage.** If review-fix fails, rerun from review-fix. Don't redo the 20-minute build.
+8. **Model agnostic.** Route through LiteLLM to use any model. Switch providers without changing code.
+
+9. **Runs in CI.** No IDE required, no cloud VM, no subscription. Just GitHub Actions and your API key.
+
+10. **Rerun from any stage.** If review-fix fails, rerun from review-fix. Don't redo the 20-minute build.
