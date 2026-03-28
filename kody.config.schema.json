@@ -23,11 +23,6 @@
           "description": "Auto-fix lint command, run when verify fails (e.g., 'pnpm lint:fix')",
           "default": ""
         },
-        "format": {
-          "type": "string",
-          "description": "Format check command (e.g., 'pnpm format:check'). Empty to skip.",
-          "default": ""
-        },
         "formatFix": {
           "type": "string",
           "description": "Auto-fix format command, run when verify fails (e.g., 'pnpm format')",
@@ -49,14 +44,6 @@
           "type": "string",
           "description": "Default branch for PR base and branch syncing (e.g., 'main', 'dev')",
           "default": "dev"
-        },
-        "userEmail": {
-          "type": "string",
-          "description": "Git user email for CI commits (optional, defaults to github-actions bot)"
-        },
-        "userName": {
-          "type": "string",
-          "description": "Git user name for CI commits (optional, defaults to github-actions bot)"
         }
       },
       "additionalProperties": false
@@ -76,50 +63,27 @@
       },
       "additionalProperties": false
     },
-    "paths": {
-      "type": "object",
-      "description": "File path configuration",
-      "properties": {
-        "taskDir": {
-          "type": "string",
-          "description": "Directory for pipeline artifacts and state (committed to branch)",
-          "default": ".kody/tasks"
-        }
-      },
-      "additionalProperties": false
-    },
     "agent": {
       "type": "object",
       "description": "Agent execution configuration",
       "properties": {
-        "runner": {
-          "type": "string",
-          "description": "Agent runner type",
-          "enum": ["claude-code"],
-          "default": "claude-code"
-        },
-        "defaultRunner": {
-          "type": "string",
-          "description": "Name of the default runner to use",
-          "default": "claude"
-        },
         "modelMap": {
           "type": "object",
-          "description": "Maps model tiers to actual model names. Use LiteLLM aliases when litellmUrl is set.",
+          "description": "Maps model tiers to actual model names. When provider is set, values should be the provider's model names.",
           "properties": {
             "cheap": {
               "type": "string",
-              "description": "Fast/cheap model for taskify stage (e.g., 'haiku' or LiteLLM alias)",
+              "description": "Fast/cheap model for taskify stage (e.g., 'haiku' or provider model name)",
               "default": "haiku"
             },
             "mid": {
               "type": "string",
-              "description": "Mid-tier model for build, review-fix, autofix (e.g., 'sonnet' or LiteLLM alias)",
+              "description": "Mid-tier model for build, review-fix, autofix (e.g., 'sonnet' or provider model name)",
               "default": "sonnet"
             },
             "strong": {
               "type": "string",
-              "description": "Strongest model for plan, review — deep reasoning (e.g., 'opus' or LiteLLM alias)",
+              "description": "Strongest model for plan, review — deep reasoning (e.g., 'opus' or provider model name)",
               "default": "opus"
             }
           },
@@ -130,15 +94,10 @@
           "description": "LLM provider name. When set (and not 'anthropic'), engine auto-starts LiteLLM proxy and routes model calls to this provider. modelMap values should be the provider's model names.",
           "examples": ["anthropic", "minimax", "openai", "google"]
         },
-        "litellmUrl": {
+        "defaultRunner": {
           "type": "string",
-          "description": "(Deprecated) Use 'provider' instead. LiteLLM proxy URL for manual setup.",
-          "examples": ["http://localhost:4000"]
-        },
-        "usePerStageRouting": {
-          "type": "boolean",
-          "description": "When true, uses stage name as the LiteLLM model alias instead of modelMap tier",
-          "default": false
+          "description": "Name of the default runner when multiple runners are configured (advanced)",
+          "default": "claude"
         },
         "runners": {
           "type": "object",

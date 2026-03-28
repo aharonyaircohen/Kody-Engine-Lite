@@ -8,7 +8,7 @@ import type {
 } from "./types.js"
 import { STAGES } from "./definitions.js"
 import { resolveModel } from "./context.js"
-import { getProjectConfig } from "./config.js"
+import { getProjectConfig, needsLitellmProxy, getLitellmUrl } from "./config.js"
 import { getRunnerForStage } from "./pipeline/runner-selection.js"
 import { logger } from "./logger.js"
 
@@ -206,8 +206,8 @@ export async function runRetrospective(
     const model = resolveModel("cheap")
     const config = getProjectConfig()
     const extraEnv: Record<string, string> = {}
-    if (config.agent.litellmUrl) {
-      extraEnv.ANTHROPIC_BASE_URL = config.agent.litellmUrl
+    if (needsLitellmProxy(config)) {
+      extraEnv.ANTHROPIC_BASE_URL = getLitellmUrl()
     }
     const result = await runner.run("retrospective", prompt, model, 30_000, "", {
       cwd: ctx.projectDir,

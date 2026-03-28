@@ -23,7 +23,7 @@ async function ensureLitellmProxy(
 ): Promise<{ kill: () => void } | null> {
   if (!needsLitellmProxy(config)) return null
 
-  const litellmUrl = getLitellmUrl(config)
+  const litellmUrl = getLitellmUrl()
   const proxyRunning = await checkLitellmHealth(litellmUrl)
 
   let litellmProcess: ReturnType<typeof import("child_process").spawn> | null = null

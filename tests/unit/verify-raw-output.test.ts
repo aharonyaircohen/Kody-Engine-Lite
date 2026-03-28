@@ -31,14 +31,12 @@ describe("runQualityGates rawOutputs", () => {
         typecheck: "",
         lint: "pnpm lint",
         lintFix: "",
-        format: "",
         formatFix: "",
         testUnit: "pnpm test",
       },
       git: { defaultBranch: "main" },
       github: { owner: "", repo: "" },
-      paths: { taskDir: ".kody/tasks" },
-      agent: { runner: "claude-code", defaultRunner: "claude", modelMap: {} },
+      agent: { modelMap: {} },
     })
   })
 

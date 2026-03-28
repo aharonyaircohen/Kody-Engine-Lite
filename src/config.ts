@@ -19,34 +19,23 @@ export interface KodyConfig {
     typecheck: string
     lint: string
     lintFix: string
-    format: string
     formatFix: string
     testUnit: string
   }
   git: {
     defaultBranch: string
-    userEmail?: string
-    userName?: string
   }
   github: {
     owner: string
     repo: string
   }
-  paths: {
-    taskDir: string
-  }
   agent: {
-    // Legacy single-runner (backward compat)
-    runner?: string
     modelMap: { cheap: string; mid: string; strong: string }
-    /** @deprecated Use `provider` instead. Kept for backward compat. */
-    litellmUrl?: string
     /** LLM provider name (e.g. "minimax", "openai", "google"). When set, engine auto-starts LiteLLM proxy. */
     provider?: string
-    usePerStageRouting?: boolean
-    // Multi-runner
-    defaultRunner?: string
+    // Multi-runner (advanced)
     runners?: Record<string, RunnerConfig>
+    defaultRunner?: string
     stageRunners?: Record<string, string>
   }
   contextTiers?: ContextTiersConfig
@@ -57,7 +46,6 @@ const DEFAULT_CONFIG: KodyConfig = {
     typecheck: "pnpm -s tsc --noEmit",
     lint: "pnpm -s lint",
     lintFix: "pnpm lint:fix",
-    format: "pnpm -s format:check",
     formatFix: "pnpm format:fix",
     testUnit: "pnpm -s test",
   },
@@ -68,12 +56,7 @@ const DEFAULT_CONFIG: KodyConfig = {
     owner: "",
     repo: "",
   },
-  paths: {
-    taskDir: ".kody/tasks",
-  },
   agent: {
-    runner: "claude-code",
-    defaultRunner: "claude",
     modelMap: { cheap: "haiku", mid: "sonnet", strong: "opus" },
   },
   contextTiers: {
@@ -96,14 +79,12 @@ export const TIER_TO_ANTHROPIC_IDS: Record<string, string[]> = {
 
 /** Check if a provider needs LiteLLM proxy */
 export function needsLitellmProxy(config: KodyConfig): boolean {
-  if (config.agent.litellmUrl) return true
-  if (config.agent.provider && config.agent.provider !== "anthropic") return true
-  return false
+  return !!(config.agent.provider && config.agent.provider !== "anthropic")
 }
 
-/** Derive the LiteLLM URL from config */
-export function getLitellmUrl(config: KodyConfig): string {
-  return config.agent.litellmUrl ?? LITELLM_DEFAULT_URL
+/** Get the LiteLLM proxy URL */
+export function getLitellmUrl(): string {
+  return LITELLM_DEFAULT_URL
 }
 
 /** Get the env var name for a provider's API key */
@@ -140,7 +121,6 @@ export function getProjectConfig(): KodyConfig {
         quality: { ...DEFAULT_CONFIG.quality, ...raw.quality },
         git: { ...DEFAULT_CONFIG.git, ...raw.git },
         github: { ...DEFAULT_CONFIG.github, ...raw.github },
-        paths: { ...DEFAULT_CONFIG.paths, ...raw.paths },
         agent: { ...DEFAULT_CONFIG.agent, ...raw.agent },
         contextTiers: raw.contextTiers
           ? { ...DEFAULT_CONFIG.contextTiers, ...raw.contextTiers }

@@ -14,13 +14,10 @@ describe("createClaudeCodeRunner", () => {
 
 describe("createRunners", () => {
   const baseConfig: KodyConfig = {
-    quality: { typecheck: "", lint: "", lintFix: "", format: "", formatFix: "", testUnit: "" },
+    quality: { typecheck: "", lint: "", lintFix: "", formatFix: "", testUnit: "" },
     git: { defaultBranch: "main" },
     github: { owner: "", repo: "" },
-    paths: { taskDir: ".kody/tasks" },
     agent: {
-      runner: "claude-code",
-      defaultRunner: "claude",
       modelMap: { cheap: "haiku", mid: "sonnet", strong: "opus" },
     },
   }

@@ -22,7 +22,7 @@ describe("config", () => {
     const config = getProjectConfig()
     expect(config.git.defaultBranch).toBe("dev")
     expect(config.agent.modelMap.cheap).toBe("haiku")
-    expect(config.agent.defaultRunner).toBe("claude")
+    expect(config.agent.defaultRunner).toBeUndefined()
   })
 
   it("merges user config with defaults", () => {

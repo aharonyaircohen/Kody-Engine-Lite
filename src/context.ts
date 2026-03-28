@@ -155,11 +155,6 @@ function buildFullPromptTiered(
 export function resolveModel(modelTier: string, stageName?: string): string {
   const config = getProjectConfig()
 
-  // Per-stage routing: use stage name as LiteLLM alias
-  if (config.agent.usePerStageRouting && stageName) {
-    return stageName
-  }
-
   // When a non-Anthropic provider is set, modelMap contains provider model names
   // (used for LiteLLM config generation). Claude Code must receive Anthropic names.
   if (config.agent.provider && config.agent.provider !== "anthropic") {

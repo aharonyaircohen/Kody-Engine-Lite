@@ -162,9 +162,7 @@ export function createRunners(config: KodyConfig): Record<string, AgentRunner> {
     return runners
   }
 
-  // Legacy single-runner fallback
-  const runnerType = config.agent.runner ?? "claude-code"
-  const factory = RUNNER_FACTORIES[runnerType]
+  // Single-runner default
   const defaultName = config.agent.defaultRunner ?? "claude"
-  return { [defaultName]: factory ? factory() : createClaudeCodeRunner() }
+  return { [defaultName]: createClaudeCodeRunner() }
 }

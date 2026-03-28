@@ -9,7 +9,7 @@ import type {
   PipelineContext,
 } from "../types.js"
 import { resolveModel } from "../context.js"
-import { getProjectConfig, FIX_COMMAND_TIMEOUT_MS } from "../config.js"
+import { getProjectConfig, FIX_COMMAND_TIMEOUT_MS, needsLitellmProxy, getLitellmUrl } from "../config.js"
 import { parseCommand } from "../verify-runner.js"
 import { getRunnerForStage } from "../pipeline/runner-selection.js"
 import { postComment } from "../github-api.js"
@@ -42,8 +42,8 @@ export async function executeVerifyWithAutofix(
       const defaultRunner = getRunnerForStage(ctx, "taskify") // use cheap model
       const diagConfig = getProjectConfig()
       const diagEnv: Record<string, string> = {}
-      if (diagConfig.agent.litellmUrl) {
-        diagEnv.ANTHROPIC_BASE_URL = diagConfig.agent.litellmUrl
+      if (needsLitellmProxy(diagConfig)) {
+        diagEnv.ANTHROPIC_BASE_URL = getLitellmUrl()
       }
       const diagnosis = await diagnoseFailure(
         "verify",

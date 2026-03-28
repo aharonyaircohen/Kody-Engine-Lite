@@ -171,16 +171,12 @@ function buildConfig(cwd: string, basic: { defaultBranch: string; owner: string;
       typecheck: find("typecheck", "type-check") || (pkg.devDependencies?.typescript ? `${basic.pm} tsc --noEmit` : ""),
       lint: find("lint"),
       lintFix: find("lint:fix", "lint-fix"),
-      format: find("format:check"),
       formatFix: find("format", "format:fix"),
       testUnit: find("test:unit", "test", "test:ci"),
     },
     git: { defaultBranch: basic.defaultBranch },
     github: { owner: basic.owner, repo: basic.repo },
-    paths: { taskDir: ".kody/tasks" },
     agent: {
-      runner: "claude-code",
-      defaultRunner: "claude",
       modelMap: { cheap: "haiku", mid: "sonnet", strong: "opus" },
     },
   }

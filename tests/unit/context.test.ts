@@ -112,16 +112,6 @@ describe("resolveModel", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true })
   })
 
-  it("returns stage name when usePerStageRouting is true", () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kody-model-test-"))
-    fs.writeFileSync(
-      path.join(tmpDir, "kody.config.json"),
-      JSON.stringify({ agent: { usePerStageRouting: true } }),
-    )
-    setConfigDir(tmpDir)
-    expect(resolveModel("mid", "plan")).toBe("plan")
-    fs.rmSync(tmpDir, { recursive: true, force: true })
-  })
 })
 
 describe("buildFullPrompt with tiered context", () => {

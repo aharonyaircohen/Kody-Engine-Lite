@@ -85,7 +85,6 @@ describe("buildConfig", () => {
     expect(config).toHaveProperty("quality")
     expect(config).toHaveProperty("git")
     expect(config).toHaveProperty("github")
-    expect(config).toHaveProperty("paths")
     expect(config).toHaveProperty("agent")
   })
 
@@ -148,7 +147,6 @@ describe("buildConfig", () => {
     const quality = (config as Record<string, Record<string, string>>).quality
     expect(quality.lint).toBe("")
     expect(quality.lintFix).toBe("")
-    expect(quality.format).toBe("")
   })
 
   it("detects typecheck from typescript devDependency", () => {
@@ -200,8 +198,6 @@ describe("buildConfig", () => {
       defaultBranch: "main", owner: "o", repo: "r", pm: "pnpm",
     })
     const agent = (config as Record<string, Record<string, unknown>>).agent
-    expect(agent.runner).toBe("claude-code")
-    expect(agent.defaultRunner).toBe("claude")
     expect(agent.modelMap).toEqual({ cheap: "haiku", mid: "sonnet", strong: "opus" })
   })
 

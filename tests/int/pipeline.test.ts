@@ -57,7 +57,7 @@ describe("Integration: full pipeline dry-run", () => {
     fs.writeFileSync(
       path.join(tmpDir, "kody.config.json"),
       JSON.stringify({
-        quality: { typecheck: "true", lint: "", lintFix: "", format: "", formatFix: "", testUnit: "true" },
+        quality: { typecheck: "true", lint: "", lintFix: "", formatFix: "", testUnit: "true" },
         agent: { defaultRunner: "claude" },
       }),
     )

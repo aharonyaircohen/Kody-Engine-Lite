@@ -81,7 +81,7 @@ export async function executeAgentStage(
 
   const extraEnv: Record<string, string> = {}
   if (needsLitellmProxy(config)) {
-    extraEnv.ANTHROPIC_BASE_URL = getLitellmUrl(config)
+    extraEnv.ANTHROPIC_BASE_URL = getLitellmUrl()
   }
 
   // Session management: stages in the same group share a Claude Code session
