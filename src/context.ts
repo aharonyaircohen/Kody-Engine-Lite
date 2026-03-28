@@ -13,7 +13,17 @@ const MAX_TASK_CONTEXT_PLAN = 1500
 const MAX_TASK_CONTEXT_SPEC = 2000
 const MAX_ACCUMULATED_CONTEXT = 4000
 
-export function readPromptFile(stageName: string): string {
+export function readPromptFile(stageName: string, projectDir?: string): string {
+  // Try project-level step file first (.kody/steps/{stageName}.md)
+  if (projectDir) {
+    const stepFile = path.join(projectDir, ".kody", "steps", `${stageName}.md`)
+    if (fs.existsSync(stepFile)) {
+      return fs.readFileSync(stepFile, "utf-8")
+    }
+    console.warn(`  ⚠ No step file at ${stepFile}, falling back to engine defaults. Run 'kody-engine-lite init --force' to generate step files.`)
+  }
+
+  // Fallback: engine's built-in prompts
   const scriptDir = new URL(".", import.meta.url).pathname
 
   // Try multiple resolution paths (dev: src/../prompts, prod: dist/bin/../../prompts)
@@ -98,7 +108,7 @@ export function buildFullPrompt(
   feedback?: string,
 ): string {
   const memory = readProjectMemory(projectDir)
-  const promptTemplate = readPromptFile(stageName)
+  const promptTemplate = readPromptFile(stageName, projectDir)
   const prompt = injectTaskContext(promptTemplate, taskId, taskDir, feedback)
   return memory ? `${memory}\n---\n\n${prompt}` : prompt
 }

@@ -205,6 +205,90 @@ function detectArchitecture(cwd: string): string[] {
   return detected
 }
 
+// ─── Step file generation ────────────────────────────────────────────────────
+
+const STEP_STAGES = ["taskify", "plan", "build", "autofix", "review", "review-fix"] as const
+
+function gatherSampleSourceFiles(cwd: string, maxFiles = 3, maxCharsEach = 2000): string {
+  const srcDir = path.join(cwd, "src")
+  const baseDir = fs.existsSync(srcDir) ? srcDir : cwd
+  const results: string[] = []
+
+  function walk(dir: string): { filePath: string; size: number }[] {
+    const entries: { filePath: string; size: number }[] = []
+    try {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (entry.name === "node_modules" || entry.name.startsWith(".")) continue
+        const full = path.join(dir, entry.name)
+        if (entry.isDirectory()) {
+          entries.push(...walk(full))
+        } else if (/\.(ts|js)$/.test(entry.name) &&
+          !/\.(test|spec|config|d)\.(ts|js)$/.test(entry.name)) {
+          try {
+            const stat = fs.statSync(full)
+            if (stat.size >= 200 && stat.size <= 5000) {
+              entries.push({ filePath: full, size: stat.size })
+            }
+          } catch { /* skip */ }
+        }
+      }
+    } catch { /* skip */ }
+    return entries
+  }
+
+  const files = walk(baseDir)
+    .sort((a, b) => b.size - a.size) // prefer larger (more representative) files
+    .slice(0, maxFiles)
+
+  for (const { filePath } of files) {
+    const rel = path.relative(cwd, filePath)
+    const content = fs.readFileSync(filePath, "utf-8").slice(0, maxCharsEach)
+    results.push(`### File: ${rel}\n\`\`\`typescript\n${content}\n\`\`\``)
+  }
+
+  return results.join("\n\n")
+}
+
+function buildStepCustomizationPrompt(
+  stageName: string,
+  defaultPrompt: string,
+  repoContext: string,
+  architecture: string,
+  conventions: string,
+): string {
+  return `You are customizing a Kody pipeline prompt for a specific repository.
+
+## Your Task
+Take the default prompt template below and produce a CUSTOMIZED version tailored to this specific repository.
+
+## Rules
+1. KEEP the entire original prompt intact — its role definition, rules, output format, and {{TASK_CONTEXT}} placeholder. Do not remove or rephrase any existing content.
+2. APPEND three new sections after the original content but BEFORE the {{TASK_CONTEXT}} line:
+   - ## Repo Patterns — Real code examples from this repo that demonstrate the patterns to follow. Include specific file paths, function signatures, and brief code snippets. Show what GOOD looks like in this repo.
+   - ## Improvement Areas — Gaps, anti-patterns, or inconsistencies found in the codebase that this stage should address when touching related code. Be specific with file paths and what to fix. Do NOT refactor unrelated code — only improve what the task touches.
+   - ## Acceptance Criteria — A concrete checklist (using markdown checkboxes) that defines "done" for this stage in this specific repo.
+3. Be SPECIFIC — reference actual file paths, function names, and conventions from the repo context provided below.
+4. Keep each appended section concise (10-20 lines max).
+5. Output ONLY the complete customized prompt markdown. No explanation before or after.
+
+## Stage Being Customized
+Stage: ${stageName}
+
+## Default Prompt Template
+${defaultPrompt}
+
+## Repository Context
+
+### Architecture
+${architecture}
+
+### Conventions
+${conventions}
+
+### Project Details
+${repoContext}`
+}
+
 // ─── Smart config detection ─────────────────────────────────────────────────
 
 function detectBasicConfig(cwd: string): { defaultBranch: string; owner: string; repo: string; pm: string } {
@@ -693,7 +777,93 @@ function initCommand(opts: { force: boolean }) {
     console.log("  ✓ .kody/memory/conventions.md (seed)")
   }
 
-  // ── Step 6: Commit and push generated files ──
+  // ── Step 6: Generate .kody/steps/ ──
+  console.log("\n── Step Files ──")
+  const stepsDir = path.join(cwd, ".kody", "steps")
+  const stepsExist = fs.existsSync(stepsDir) && fs.readdirSync(stepsDir).some((f) => f.endsWith(".md"))
+
+  if (stepsExist && !opts.force) {
+    console.log("  ○ .kody/steps/ (exists, use --force to regenerate)")
+  } else {
+    fs.mkdirSync(stepsDir, { recursive: true })
+
+    // Gather repo context for step customization
+    const readIfExistsForSteps = (rel: string, maxChars = 3000) => {
+      const p = path.join(cwd, rel)
+      if (fs.existsSync(p)) return fs.readFileSync(p, "utf-8").slice(0, maxChars)
+      return null
+    }
+
+    let repoContext = ""
+    const pkgForSteps = readIfExistsForSteps("package.json")
+    if (pkgForSteps) repoContext += `## package.json\n${pkgForSteps}\n\n`
+    const readmeForSteps = readIfExistsForSteps("README.md", 2000)
+    if (readmeForSteps) repoContext += `## README.md\n${readmeForSteps}\n\n`
+    const claudeMdForSteps = readIfExistsForSteps("CLAUDE.md", 3000)
+    if (claudeMdForSteps) repoContext += `## CLAUDE.md\n${claudeMdForSteps}\n\n`
+    const agentsMdForSteps = readIfExistsForSteps("AGENTS.md", 3000)
+    if (agentsMdForSteps) repoContext += `## AGENTS.md\n${agentsMdForSteps}\n\n`
+
+    // Add sample source files
+    const sampleFiles = gatherSampleSourceFiles(cwd)
+    if (sampleFiles) repoContext += `## Sample Source Files\n${sampleFiles}\n\n`
+
+    // Add directory structure
+    try {
+      const srcEntries = fs.readdirSync(path.join(cwd, "src"), { withFileTypes: true })
+        .filter((e) => e.isDirectory()).map((e) => e.name)
+      if (srcEntries.length > 0) repoContext += `## src/ structure\n${srcEntries.join(", ")}\n\n`
+    } catch { /* no src dir */ }
+
+    // Read architecture and conventions (just generated above)
+    const arch = fs.existsSync(archPath) ? fs.readFileSync(archPath, "utf-8") : ""
+    const conv = fs.existsSync(conventionsPath) ? fs.readFileSync(conventionsPath, "utf-8") : ""
+
+    console.log("  ⏳ Customizing step files with Claude (sonnet)...")
+    let stepCount = 0
+    for (const stage of STEP_STAGES) {
+      const templatePath = path.join(PKG_ROOT, "prompts", `${stage}.md`)
+      if (!fs.existsSync(templatePath)) {
+        console.log(`  ✗ ${stage}.md — template not found in engine`)
+        continue
+      }
+
+      const defaultPrompt = fs.readFileSync(templatePath, "utf-8")
+      const customizationPrompt = buildStepCustomizationPrompt(stage, defaultPrompt, repoContext, arch, conv)
+
+      try {
+        const output = execFileSync("claude", [
+          "--print",
+          "--model", "sonnet",
+          "--dangerously-skip-permissions",
+          customizationPrompt,
+        ], {
+          encoding: "utf-8",
+          timeout: 120_000,
+          cwd,
+          stdio: ["pipe", "pipe", "pipe"],
+        }).trim()
+
+        // Validate that {{TASK_CONTEXT}} placeholder is preserved
+        if (!output.includes("{{TASK_CONTEXT}}")) {
+          console.log(`  ⚠ ${stage}.md — AI dropped {{TASK_CONTEXT}}, using default template`)
+          fs.writeFileSync(path.join(stepsDir, `${stage}.md`), defaultPrompt)
+        } else {
+          fs.writeFileSync(path.join(stepsDir, `${stage}.md`), output)
+        }
+        stepCount++
+        console.log(`  ✓ ${stage}.md`)
+      } catch (err) {
+        // Fallback: copy default template as-is
+        console.log(`  ⚠ ${stage}.md — customization failed, using default template`)
+        fs.copyFileSync(templatePath, path.join(stepsDir, `${stage}.md`))
+        stepCount++
+      }
+    }
+    console.log(`  ✓ Generated ${stepCount} step files in .kody/steps/`)
+  }
+
+  // ── Step 7: Commit and push generated files ──
   console.log("\n── Git ──")
   const filesToCommit = [
     ".github/workflows/kody.yml",
@@ -701,6 +871,14 @@ function initCommand(opts: { force: boolean }) {
     ".kody/memory/architecture.md",
     ".kody/memory/conventions.md",
   ].filter((f) => fs.existsSync(path.join(cwd, f)))
+
+  // Add step files
+  for (const stage of STEP_STAGES) {
+    const stepFile = `.kody/steps/${stage}.md`
+    if (fs.existsSync(path.join(cwd, stepFile))) {
+      filesToCommit.push(stepFile)
+    }
+  }
 
   if (filesToCommit.length > 0) {
     try {
