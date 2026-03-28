@@ -138,23 +138,19 @@ Comment on any GitHub issue:
 
 ### Switch to a different model (optional)
 
-Add `litellm-config.yaml` to route all tiers through MiniMax (or any LLM):
-
-```yaml
-# litellm-config.yaml
-model_list:
-  - model_name: claude-haiku-4-5-20251001
-    litellm_params:
-      model: minimax/MiniMax-M2.7-highspeed
-      api_key: os.environ/MINIMAX_API_KEY
-```
+Set the `provider` field in `kody.config.json` — Kody auto-generates the LiteLLM config, starts the proxy, and routes all stages through your provider:
 
 ```json
-// kody.config.json — add litellmUrl
-{ "agent": { "litellmUrl": "http://localhost:4000" } }
+// kody.config.json — use MiniMax (or any LLM)
+{ "agent": { "provider": "minimax" } }
 ```
 
-Kody auto-starts the proxy and loads API keys from `.env`. [Full LiteLLM guide →](docs/LITELLM.md)
+Add the provider's API key to `.env`:
+```
+MINIMAX_API_KEY=your-key-here
+```
+
+That's it. Kody auto-starts the LiteLLM proxy and loads API keys from `.env`. For advanced routing (different models per tier, custom config), add a `litellm-config.yaml`. [Full LiteLLM guide →](docs/LITELLM.md)
 
 ## Commands
 
@@ -167,16 +163,18 @@ Kody auto-starts the proxy and loads API keys from `.env`. [Full LiteLLM guide �
 | `@kody fix` | Re-run from build stage. Write feedback in the comment body — it gets injected into the build prompt |
 | `@kody rerun` | Resume from the failed or paused stage |
 | `@kody rerun --from <stage>` | Resume from a specific stage |
+| `@kody bootstrap` | Regenerate project memory and step files |
 
 ### CLI
 
 ```bash
+kody-engine-lite init [--force]          # Setup repo: workflow, config, memory, step files
+kody-engine-lite bootstrap               # Regenerate memory + step files (runs in GH Actions)
 kody-engine-lite run --issue-number 42 --local --cwd ./project
 kody-engine-lite run --task "Add retry utility" --local
 kody-engine-lite fix --issue-number 42 --feedback "Use middleware pattern"
 kody-engine-lite rerun --issue-number 42 --from verify
 kody-engine-lite status --task-id 42-260327-102254
-kody-engine-lite init [--force]
 ```
 
 ## Key Features

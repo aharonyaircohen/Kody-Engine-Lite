@@ -4,14 +4,15 @@
 
 ```
 src/
-├── bin/cli.ts              # Package CLI: init, run, version (726 lines)
+├── bin/cli.ts              # Package CLI: init, bootstrap, run, version (905 lines)
 ├── entry.ts                # Runtime: arg parsing, preflight, LiteLLM, pipeline launch
 ├── pipeline.ts             # Pipeline loop: stage execution, state, lock
 ├── agent-runner.ts         # Claude Code subprocess: spawn, pipe prompt, timeout
-├── context.ts              # Prompt assembly: memory + template + task context
+├── context.ts              # Prompt assembly: memory + template + tiered task context
+├── context-tiers.ts        # L0/L1/L2 tiered context loading for token optimization
 ├── definitions.ts          # 7 stage definitions (timeouts, models, retries)
 ├── types.ts                # TypeScript interfaces
-├── config.ts               # kody.config.json loader
+├── config.ts               # kody.config.json loader + LiteLLM helpers
 ├── git-utils.ts            # Branch create, commit, push, sync, merge
 ├── github-api.ts           # Issues, labels, PRs, comments (via gh CLI)
 ├── verify-runner.ts        # Quality gate execution + error parsing
@@ -310,10 +311,12 @@ Each agent stage gets a prompt built by `context.ts`:
 
 **Step file resolution:** `readPromptFile()` checks `.kody/steps/<stage>.md` in the project directory first. If not found, it falls back to the engine's built-in `prompts/<stage>.md` with a warning. Run `kody init --force` to generate customized step files.
 
-Truncation limits prevent token overflow:
-- plan.md: 1500 chars
-- spec.md: 2000 chars
-- context.md: 4000 chars (from end, so recent stages take priority)
+**Tiered context loading** (L0/L1/L2) reduces prompt token usage while maintaining quality:
+- **L0** (~100 tokens): First heading + first paragraph sentence. For JSON: key fields only.
+- **L1** (~300-500 tokens): All headings + first sentence of each section + bullet items.
+- **L2**: Full untruncated content.
+
+Each stage has a context policy specifying which tier to use per source (e.g., build stage gets `plan: L2` but `memory: L1`). Controlled by `contextTiers` in config. Cached per file to avoid reprocessing.
 
 ## Memory & Step Files
 
@@ -485,7 +488,7 @@ pnpm install
 
 ```bash
 pnpm typecheck              # TypeScript type check
-pnpm test                   # 240 tests across 27 files
+pnpm test                   # 416 tests across 41 files
 pnpm build                  # Build npm package (tsup → dist/bin/cli.js)
 pnpm kody run ...           # Dev mode (tsx — runs from source)
 npm publish --access public # Publish to npm
@@ -493,21 +496,7 @@ npm publish --access public # Publish to npm
 
 ### Test Coverage
 
-| Category | Files | Tests |
-|----------|-------|-------|
-| Pipeline orchestration | 3 | ~30 |
-| Risk gate | 1 | 7 |
-| Approve/question flow | 1 | 11 |
-| Stability (atomic writes, locks) | 1 | 9 |
-| Validators | 1 | 13 |
-| Observer/diagnosis | 1 | 14 |
-| Retrospective | 1 | ~15 |
-| Git utilities | 1 | 9 |
-| Config/context/memory | 3 | ~20 |
-| Agent runner | 1 | ~10 |
-| Other (definitions, logger, utils) | 12 | ~94 |
-| Sessions | 1 | 5 |
-| **Total** | **27** | **240** |
+416 tests across 41 files (40 unit + 1 integration).
 
 ### Build
 

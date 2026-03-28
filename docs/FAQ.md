@@ -64,10 +64,10 @@ In `.kody/tasks/<task-id>/` — includes task.json, plan.md, context.md, verify.
 Any model that supports tool use. Anthropic models (haiku/sonnet/opus) are the default. MiniMax M2.7-highspeed is validated for all stages via LiteLLM. See [LiteLLM guide](LITELLM.md).
 
 **Q: How do I switch to a different model (e.g., MiniMax)?**
-Add a `litellm-config.yaml` mapping Anthropic model IDs to your provider, and set `litellmUrl` in kody.config.json. Kody auto-starts the proxy. See [LiteLLM guide](LITELLM.md#setup).
+Set `"provider": "minimax"` in `kody.config.json` — Kody auto-generates the LiteLLM config and starts the proxy. For advanced routing, add a custom `litellm-config.yaml`. See [LiteLLM guide](LITELLM.md#setup).
 
 **Q: Can I use different models for different stages?**
-Yes. The `modelMap` in config maps tiers (cheap/mid/strong) to model names. Or use `stageRunners` for per-stage runner assignment.
+Yes. The `modelMap` in config maps tiers (cheap/mid/strong) to model names. For fine-grained control, create a `litellm-config.yaml` mapping specific Anthropic model IDs to different backend models per tier.
 
 **Q: Can I use local models (Ollama)?**
 Yes, via LiteLLM proxy. Configure Ollama as a provider in `litellm-config.yaml`. Performance depends on model capability — tool use support is required.

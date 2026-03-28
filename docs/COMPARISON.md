@@ -135,4 +135,4 @@ A full authentication system built end-to-end with MiniMax via LiteLLM:
 
 10. **Runs in CI.** No IDE required, no cloud VM, no subscription. Just GitHub Actions and your API key (or free models).
 
-10. **Rerun from any stage.** If review-fix fails, rerun from review-fix. Don't redo the 20-minute build.
+11. **Rerun from any stage.** If review-fix fails, rerun from review-fix. Don't redo the 20-minute build.

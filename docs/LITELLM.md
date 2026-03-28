@@ -14,9 +14,23 @@ Kody uses Claude Code under the hood, but Claude Code can route API calls throug
 
 ## Setup
 
-### 1. Create `litellm-config.yaml`
+### Simple: Use the `provider` field (recommended)
 
-In your project root:
+Set the `provider` in `kody.config.json` and Kody handles everything — auto-generates the LiteLLM config, starts the proxy, and routes all stages:
+
+```json
+{
+  "agent": {
+    "provider": "minimax"
+  }
+}
+```
+
+Kody auto-generates the LiteLLM routing config mapping all Anthropic model IDs to your provider. No `litellm-config.yaml` needed.
+
+### Advanced: Custom `litellm-config.yaml`
+
+For fine-grained control (different models per tier, custom parameters), create `litellm-config.yaml` in your project root:
 
 ```yaml
 model_list:
@@ -35,19 +49,9 @@ model_list:
       api_key: os.environ/MINIMAX_API_KEY
 ```
 
-### 2. Add `litellmUrl` to `kody.config.json`
+When a `litellm-config.yaml` exists, Kody uses it instead of auto-generating config from the `provider` field.
 
-```json
-{
-  "agent": {
-    "litellmUrl": "http://localhost:4000"
-  }
-}
-```
-
-No `modelMap` override needed — Kody uses default Anthropic names which LiteLLM routes to your backend.
-
-### 3. Set API Keys
+### Set API Keys
 
 **Local:** Add to `.env` in your project root:
 ```
@@ -81,7 +85,7 @@ Add to `.github/workflows/kody.yml` before the pipeline step:
 
 ## Auto-Start
 
-When `litellmUrl` is configured and the proxy isn't already running, Kody automatically:
+When `provider` is set (or a `litellm-config.yaml` exists) and the proxy isn't already running, Kody automatically:
 
 1. Checks proxy health at the configured URL
 2. If not running, looks for `litellm-config.yaml` in the project
@@ -105,7 +109,7 @@ LiteLLM supports [100+ providers](https://docs.litellm.ai/docs/providers). Any m
 
 **Model names must be Anthropic IDs.** Claude Code validates `--model` client-side. You can't pass `minimax-test` or `gpt-4o` — Claude Code will reject it silently (exit code 1, no stderr). Always use Anthropic model IDs (`claude-haiku-4-5-20251001`, etc.) in your litellm-config.yaml `model_name` fields. LiteLLM intercepts the API call and routes it.
 
-**Don't use `modelMap` with LiteLLM.** If you set `modelMap: { cheap: "minimax-test" }` in kody.config.json, Kody passes `--model minimax-test` to Claude Code, which rejects it. Remove modelMap entirely — the defaults (`haiku`/`sonnet`/`opus`) work with LiteLLM routing.
+**Don't use custom model names in `modelMap`.** If you set `modelMap: { cheap: "minimax-test" }`, Kody passes `--model minimax-test` to Claude Code, which rejects it. Keep the defaults (`haiku`/`sonnet`/`opus`) and let LiteLLM handle the routing.
 
 **CI pip install needs a venv.** `sudo pip install` fails on Ubuntu runners due to system package conflicts (`typing_extensions`). User-level `pip install` puts the binary in `~/.local/bin` which isn't on PATH. The venv + symlink pattern is the most reliable:
 
