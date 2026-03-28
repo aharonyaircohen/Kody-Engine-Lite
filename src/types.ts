@@ -87,6 +87,7 @@ export interface PipelineContext {
     fromStage?: string
     dryRun?: boolean
     issueNumber?: number
+    prNumber?: number
     feedback?: string
     local?: boolean
     complexity?: "low" | "medium" | "high"

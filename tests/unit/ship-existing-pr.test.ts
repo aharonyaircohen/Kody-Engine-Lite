@@ -131,7 +131,7 @@ describe("ship stage: existing PR detection", () => {
 
     expect(githubApi.postComment).toHaveBeenCalledWith(
       148,
-      expect.stringContaining("Fix pushed to existing PR"),
+      expect.stringContaining("Fix pushed to PR #148"),
     )
   })
 

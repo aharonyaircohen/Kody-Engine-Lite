@@ -31,8 +31,10 @@ async function main() {
     logger.info(`Working directory: ${projectDir}`)
   }
 
-  // State machine: check issue state before doing anything (skip for review command)
-  if (input.issueNumber && input.command !== "review") {
+  // State machine: check issue state before doing anything
+  // Skip for review command and for PR-based fix (fix on a PR doesn't need issue resolution)
+  const isPRFix = input.command === "fix" && !!input.prNumber
+  if (input.issueNumber && input.command !== "review" && !isPRFix) {
     const taskAction = resolveForIssue(input.issueNumber, projectDir)
     logger.info(`Task action: ${taskAction.action}`)
 
@@ -67,7 +69,9 @@ async function main() {
   // Resolve taskId
   let taskId = input.taskId
   if (!taskId) {
-    if (input.issueNumber) {
+    if (isPRFix) {
+      taskId = `fix-pr-${input.prNumber}-${generateTaskId()}`
+    } else if (input.issueNumber) {
       taskId = `${input.issueNumber}-${generateTaskId()}`
     } else if (input.command === "run" && input.task) {
       taskId = generateTaskId()
@@ -187,9 +191,17 @@ async function main() {
     fs.writeFileSync(path.join(taskDir, "task.md"), input.task)
   }
 
-  // Auto-fetch issue body as task if no task.md and issue-number provided
+  // Auto-fetch task context: PR details for PR-based fix, issue body otherwise
   const taskMdPath = path.join(taskDir, "task.md")
-  if (!fs.existsSync(taskMdPath) && input.issueNumber) {
+  if (!fs.existsSync(taskMdPath) && isPRFix && input.prNumber) {
+    logger.info(`Fetching PR #${input.prNumber} details as task context...`)
+    const prDetails = getPRDetails(input.prNumber)
+    if (prDetails) {
+      const taskContent = `# ${prDetails.title}\n\n${prDetails.body ?? ""}`
+      fs.writeFileSync(taskMdPath, taskContent)
+      logger.info(`  Task loaded from PR #${input.prNumber}: ${prDetails.title}`)
+    }
+  } else if (!fs.existsSync(taskMdPath) && input.issueNumber) {
     logger.info(`Fetching issue #${input.issueNumber} body as task...`)
     const issue = getIssue(input.issueNumber)
     if (issue) {
@@ -275,6 +287,7 @@ async function main() {
       fromStage: input.fromStage,
       dryRun: input.dryRun,
       issueNumber: input.issueNumber,
+      prNumber: input.prNumber,
       feedback: input.feedback,
       local: input.local,
       complexity: input.complexity,

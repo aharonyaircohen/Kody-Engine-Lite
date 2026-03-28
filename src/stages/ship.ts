@@ -14,6 +14,7 @@ import {
 } from "../git-utils.js"
 import {
   postComment,
+  postPRComment,
   createPR,
   getPRForBranch,
   updatePR,
@@ -169,9 +170,15 @@ export function executeShipStage(
       // PR exists — update its body with latest review/verify info
       updatePR(existingPr.number, body)
 
-      if (ctx.input.issueNumber && !ctx.input.local) {
+      if (!ctx.input.local) {
+        const msg = `✅ Fix pushed to PR #${existingPr.number}: ${existingPr.url}`
         try {
-          postComment(ctx.input.issueNumber, `✅ Fix pushed to existing PR: ${existingPr.url}`)
+          // For PR-based fix: post on the PR itself
+          if (ctx.input.prNumber) {
+            postPRComment(ctx.input.prNumber, msg)
+          } else if (ctx.input.issueNumber) {
+            postComment(ctx.input.issueNumber, msg)
+          }
         } catch {
           // Fire and forget
         }
