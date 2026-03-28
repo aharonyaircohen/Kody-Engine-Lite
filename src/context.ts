@@ -160,7 +160,13 @@ export function resolveModel(modelTier: string, stageName?: string): string {
     return stageName
   }
 
-  // Config model map (may be LiteLLM aliases or direct model names)
+  // When a non-Anthropic provider is set, modelMap contains provider model names
+  // (used for LiteLLM config generation). Claude Code must receive Anthropic names.
+  if (config.agent.provider && config.agent.provider !== "anthropic") {
+    return DEFAULT_MODEL_MAP[modelTier] ?? "sonnet"
+  }
+
+  // Config model map (direct Anthropic model names or aliases)
   const mapped = config.agent.modelMap[modelTier as keyof typeof config.agent.modelMap]
   if (mapped) return mapped
 
