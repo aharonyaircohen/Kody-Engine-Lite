@@ -1,5 +1,6 @@
 import { execFileSync } from "child_process"
 import { logger } from "./logger.js"
+import { getProjectConfig } from "./config.js"
 
 const BASE_BRANCHES = ["dev", "main", "master"]
 
@@ -33,6 +34,16 @@ export function deriveBranchName(issueNumber: number, title: string): string {
 }
 
 export function getDefaultBranch(cwd?: string): string {
+  // Method 0: use kody.config.json if it specifies a default branch
+  try {
+    const config = getProjectConfig()
+    if (config.git?.defaultBranch) {
+      return config.git.defaultBranch
+    }
+  } catch {
+    // Fall through to git-based detection
+  }
+
   // Method 1: symbolic-ref (fast, no network)
   try {
     const ref = git(["symbolic-ref", "refs/remotes/origin/HEAD"], { cwd })

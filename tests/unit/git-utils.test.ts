@@ -1,5 +1,9 @@
-import { describe, it, expect } from "vitest"
-import { deriveBranchName } from "../../src/git-utils.js"
+import { describe, it, expect, beforeEach, afterEach } from "vitest"
+import * as fs from "fs"
+import * as path from "path"
+import * as os from "os"
+import { deriveBranchName, getDefaultBranch } from "../../src/git-utils.js"
+import { resetProjectConfig, setConfigDir } from "../../src/config.js"
 
 describe("deriveBranchName", () => {
   it("generates branch from issue number and title", () => {
@@ -18,6 +22,54 @@ describe("deriveBranchName", () => {
     const longTitle = "This is an extremely long title that exceeds the maximum allowed characters for a branch name"
     const branch = deriveBranchName(99, longTitle)
     expect(branch.length).toBeLessThanOrEqual(54) // 99- + 50 chars + possible trailing
+  })
+})
+
+describe("getDefaultBranch", () => {
+  let tmpDir: string
+
+  beforeEach(() => {
+    resetProjectConfig()
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kody-git-utils-test-"))
+  })
+
+  afterEach(() => {
+    resetProjectConfig()
+    fs.rmSync(tmpDir, { recursive: true, force: true })
+  })
+
+  it("returns config defaultBranch when set", () => {
+    fs.writeFileSync(
+      path.join(tmpDir, "kody.config.json"),
+      JSON.stringify({ git: { defaultBranch: "kody" } }),
+    )
+    setConfigDir(tmpDir)
+    expect(getDefaultBranch(tmpDir)).toBe("kody")
+  })
+
+  it("returns config defaultBranch over git detection", () => {
+    fs.writeFileSync(
+      path.join(tmpDir, "kody.config.json"),
+      JSON.stringify({ git: { defaultBranch: "staging" } }),
+    )
+    setConfigDir(tmpDir)
+    // Even though tmpDir is not a git repo, config takes priority
+    expect(getDefaultBranch(tmpDir)).toBe("staging")
+  })
+
+  it("falls back to git detection when config has no defaultBranch", () => {
+    fs.writeFileSync(
+      path.join(tmpDir, "kody.config.json"),
+      JSON.stringify({ git: {} }),
+    )
+    setConfigDir(tmpDir)
+    // No config defaultBranch and not a git repo, so falls through to hardcoded "dev"
+    expect(getDefaultBranch(tmpDir)).toBe("dev")
+  })
+
+  it("falls back to dev when no config file and not a git repo", () => {
+    setConfigDir(tmpDir)
+    expect(getDefaultBranch(tmpDir)).toBe("dev")
   })
 })
 
