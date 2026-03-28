@@ -237,6 +237,37 @@ export function postPRComment(prNumber: number, body: string): void {
   }
 }
 
+export function submitPRReview(
+  prNumber: number,
+  body: string,
+  event: "approve" | "request-changes",
+): void {
+  const flag = event === "approve" ? "--approve" : "--request-changes"
+  try {
+    gh(
+      ["pr", "review", String(prNumber), flag, "--body-file", "-"],
+      { input: body },
+    )
+    logger.info(`  PR review submitted on #${prNumber}: ${event}`)
+  } catch (err) {
+    logger.warn(`  Failed to submit PR review: ${err}`)
+  }
+}
+
+export function getLatestKodyReviewComment(prNumber: number): string | null {
+  try {
+    const output = gh([
+      "api",
+      `repos/{owner}/{repo}/issues/${prNumber}/comments`,
+      "--jq", "[.[] | select(.body | test(\"Kody Review\"))] | last | .body",
+    ])
+    return output.trim() || null
+  } catch (err) {
+    logger.warn(`  Failed to get review comments for PR #${prNumber}: ${err}`)
+    return null
+  }
+}
+
 export function closeIssue(
   issueNumber: number,
   reason: "completed" | "not planned" = "completed",

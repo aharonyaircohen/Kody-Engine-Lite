@@ -4,10 +4,10 @@ import { createRunners } from "./agent-runner.js"
 import { runPipeline, printStatus } from "./pipeline.js"
 import { runPreflight } from "./preflight.js"
 import { setConfigDir, getProjectConfig } from "./config.js"
-import { setGhCwd, getIssue, postComment, getPRDetails, getPRsForIssue, postPRComment } from "./github-api.js"
+import { setGhCwd, getIssue, postComment, getPRDetails, getPRsForIssue, postPRComment, submitPRReview, getLatestKodyReviewComment } from "./github-api.js"
 import { logger } from "./logger.js"
 import type { PipelineContext } from "./types.js"
-import { runStandaloneReview, resolveReviewTarget, formatReviewComment } from "./review-standalone.js"
+import { runStandaloneReview, resolveReviewTarget, formatReviewComment, detectReviewVerdict } from "./review-standalone.js"
 
 // Extracted modules
 import { parseArgs } from "./cli/args.js"
@@ -157,13 +157,21 @@ async function main() {
       process.exit(1)
     }
 
-    // Output: console for CLI, PR comment for CI
+    // Output: console for CLI, PR comment + PR review for CI
     if (result.reviewContent) {
       console.log(result.reviewContent)
 
       if (!input.local && prNumber) {
         const comment = formatReviewComment(result.reviewContent, taskId)
         postPRComment(prNumber, comment)
+
+        // Submit a GitHub PR review (approve or request-changes)
+        const verdict = detectReviewVerdict(result.reviewContent)
+        if (verdict === "fail") {
+          submitPRReview(prNumber, comment, "request-changes")
+        } else {
+          submitPRReview(prNumber, comment, "approve")
+        }
       }
     }
 
@@ -200,6 +208,18 @@ async function main() {
   // Fix command defaults to --from build
   if (input.command === "fix" && !input.fromStage) {
     input.fromStage = "build"
+  }
+
+  // Fix on a PR: auto-fetch the latest Kody review comment as context
+  if (input.command === "fix" && input.prNumber) {
+    const reviewComment = getLatestKodyReviewComment(input.prNumber)
+    if (reviewComment) {
+      logger.info(`  Found Kody review comment on PR #${input.prNumber}, injecting as feedback`)
+      const reviewContext = `## Review findings from PR #${input.prNumber}\n\n${reviewComment}`
+      input.feedback = input.feedback
+        ? `${reviewContext}\n\n## Additional feedback\n\n${input.feedback}`
+        : reviewContext
+    }
   }
 
   // Start LiteLLM proxy if configured and not running

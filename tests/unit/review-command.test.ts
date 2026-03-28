@@ -260,4 +260,78 @@ describe("formatReviewComment", () => {
     expect(output).toContain("Kody")
     expect(output).toContain("review-42")
   })
+
+  it("adds @kody fix CTA when verdict is FAIL", async () => {
+    const { formatReviewComment } = await import("../../src/review-standalone.js")
+
+    const output = formatReviewComment(
+      "## Verdict: FAIL\n\n## Summary\nSecurity issue.\n\n## Findings\n\n### Critical\nSQL injection.\n\n### Major\nNone.\n\n### Minor\nNone.",
+      "review-42",
+    )
+
+    expect(output).toContain("@kody fix")
+    expect(output).toContain("review findings will be used automatically")
+  })
+
+  it("does not add @kody fix CTA when verdict is PASS", async () => {
+    const { formatReviewComment } = await import("../../src/review-standalone.js")
+
+    const output = formatReviewComment(
+      "## Verdict: PASS\n\n## Summary\nAll good.\n\n## Findings\n\n### Critical\nNone.\n\n### Major\nNone.\n\n### Minor\nNone.",
+      "review-42",
+    )
+
+    expect(output).not.toContain("@kody fix")
+  })
+})
+
+// ─── Verdict detection ─────────────────────────────────────────────────────
+
+describe("detectReviewVerdict", () => {
+  it("detects PASS verdict", async () => {
+    const { detectReviewVerdict } = await import("../../src/review-standalone.js")
+    expect(detectReviewVerdict("## Verdict: PASS\n\nAll good.")).toBe("pass")
+  })
+
+  it("detects FAIL verdict", async () => {
+    const { detectReviewVerdict } = await import("../../src/review-standalone.js")
+    expect(detectReviewVerdict("## Verdict: FAIL\n\nSecurity issue.")).toBe("fail")
+  })
+
+  it("detects FAIL verdict case-insensitively", async () => {
+    const { detectReviewVerdict } = await import("../../src/review-standalone.js")
+    expect(detectReviewVerdict("## Verdict: fail\n\nBad code.")).toBe("fail")
+  })
+
+  it("falls back to fail when critical findings exist without explicit verdict", async () => {
+    const { detectReviewVerdict } = await import("../../src/review-standalone.js")
+    const content = "## Summary\nBad.\n\n## Findings\n\n### Critical\nSQL injection in query.\n\n### Major\nNone.\n\n### Minor\nNone."
+    expect(detectReviewVerdict(content)).toBe("fail")
+  })
+
+  it("falls back to fail when major findings exist without explicit verdict", async () => {
+    const { detectReviewVerdict } = await import("../../src/review-standalone.js")
+    const content = "## Summary\nIssues.\n\n## Findings\n\n### Critical\nNone.\n\n### Major\nMissing error handling.\n\n### Minor\nNone."
+    expect(detectReviewVerdict(content)).toBe("fail")
+  })
+
+  it("falls back to pass when no critical/major findings and no explicit verdict", async () => {
+    const { detectReviewVerdict } = await import("../../src/review-standalone.js")
+    const content = "## Summary\nLooks fine.\n\n## Findings\n\n### Critical\nNone.\n\n### Major\nNone.\n\n### Minor\nSmall style issue."
+    expect(detectReviewVerdict(content)).toBe("pass")
+  })
+})
+
+// ─── GitHub API: new review functions ──────────────────────────────────────
+
+describe("github-api review functions", () => {
+  it("submitPRReview is exported", async () => {
+    const api = await import("../../src/github-api.js")
+    expect(typeof api.submitPRReview).toBe("function")
+  })
+
+  it("getLatestKodyReviewComment is exported", async () => {
+    const api = await import("../../src/github-api.js")
+    expect(typeof api.getLatestKodyReviewComment).toBe("function")
+  })
 })
