@@ -138,6 +138,11 @@ async function main() {
         }
       }
       process.env.ANTHROPIC_BASE_URL = config.agent.litellmUrl
+      // Claude Code CLI requires ANTHROPIC_API_KEY to start, even when routing through LiteLLM.
+      // Auto-set a valid-format placeholder so users only need their provider key (e.g. MINIMAX_API_KEY).
+      if (!process.env.ANTHROPIC_API_KEY || !process.env.ANTHROPIC_API_KEY.startsWith("sk-ant-")) {
+        process.env.ANTHROPIC_API_KEY = "sk-ant-api03-litellm-proxy-key-00000000000000000000000000000000000000000000000000000000000000000000"
+      }
     }
 
     const runners = createRunners(config)
@@ -259,6 +264,11 @@ async function main() {
 
     process.env.ANTHROPIC_BASE_URL = config.agent.litellmUrl
     logger.info(`ANTHROPIC_BASE_URL set to ${config.agent.litellmUrl}`)
+    // Claude Code CLI requires ANTHROPIC_API_KEY to start, even when routing through LiteLLM.
+    // Auto-set a valid-format placeholder so users only need their provider key (e.g. MINIMAX_API_KEY).
+    if (!process.env.ANTHROPIC_API_KEY || !process.env.ANTHROPIC_API_KEY.startsWith("sk-ant-")) {
+      process.env.ANTHROPIC_API_KEY = "sk-ant-api03-litellm-proxy-key-00000000000000000000000000000000000000000000000000000000000000000000"
+    }
   }
 
   // Create runners
