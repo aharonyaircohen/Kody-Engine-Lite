@@ -109,7 +109,7 @@ jobs:
 
           # Validate mode
           case "$MODE" in
-            full|rerun|fix|status|approve|review) ;;
+            full|rerun|fix|status|approve|review|bootstrap) ;;
             *)
               # If first arg isn't a mode, it might be a task-id or nothing
               if [ -n "$MODE" ] && [ "$MODE" != "" ]; then
@@ -137,6 +137,11 @@ jobs:
               FEEDBACK="$FIX_BODY"
             fi
             # Leave TASK_ID empty — entry.ts finds latest task for issue
+          fi
+
+          # Bootstrap mode: set task-id and skip normal pipeline
+          if [ "$MODE" = "bootstrap" ]; then
+            TASK_ID="bootstrap-$(date +%y%m%d-%H%M%S)"
           fi
 
           # Auto-generate task-id if not provided (only for full mode)
@@ -237,17 +242,22 @@ jobs:
           DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          CMD="run"
-          [ "$MODE" = "rerun" ] && CMD="rerun"
-          [ "$MODE" = "fix" ] && CMD="fix"
-          [ "$MODE" = "review" ] && CMD="review"
-          ARGS="--issue-number $ISSUE_NUMBER"
-          [ -n "$TASK_ID" ] && ARGS="$ARGS --task-id $TASK_ID"
-          [ -n "$PR_NUMBER" ] && ARGS="$ARGS --pr-number $PR_NUMBER"
-          [ -n "$FROM_STAGE" ] && ARGS="$ARGS --from $FROM_STAGE"
-          [ -n "$FEEDBACK" ] && ARGS="$ARGS --feedback \"$FEEDBACK\""
-          [ "$DRY_RUN" = "true" ] && ARGS="$ARGS --dry-run"
-          kody-engine-lite $CMD $ARGS
+          if [ "$MODE" = "bootstrap" ]; then
+            echo "Running bootstrap..."
+            kody-engine-lite bootstrap
+          else
+            CMD="run"
+            [ "$MODE" = "rerun" ] && CMD="rerun"
+            [ "$MODE" = "fix" ] && CMD="fix"
+            [ "$MODE" = "review" ] && CMD="review"
+            ARGS="--issue-number $ISSUE_NUMBER"
+            [ -n "$TASK_ID" ] && ARGS="$ARGS --task-id $TASK_ID"
+            [ -n "$PR_NUMBER" ] && ARGS="$ARGS --pr-number $PR_NUMBER"
+            [ -n "$FROM_STAGE" ] && ARGS="$ARGS --from $FROM_STAGE"
+            [ -n "$FEEDBACK" ] && ARGS="$ARGS --feedback \"$FEEDBACK\""
+            [ "$DRY_RUN" = "true" ] && ARGS="$ARGS --dry-run"
+            kody-engine-lite $CMD $ARGS
+          fi
 
       - name: Pipeline summary
         if: always()
