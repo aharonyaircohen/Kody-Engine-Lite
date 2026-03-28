@@ -132,6 +132,10 @@ async function main() {
       const proxyRunning = await checkLitellmHealth(config.agent.litellmUrl)
       if (!proxyRunning) {
         litellmProcess = await tryStartLitellm(config.agent.litellmUrl, projectDir)
+        if (!litellmProcess) {
+          logger.warn("LiteLLM not available — falling back to Anthropic models")
+          config.agent.litellmUrl = undefined
+        }
       }
       if (config.agent.litellmUrl) {
         process.env.ANTHROPIC_BASE_URL = config.agent.litellmUrl
