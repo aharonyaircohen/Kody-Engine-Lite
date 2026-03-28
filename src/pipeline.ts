@@ -27,6 +27,8 @@ import { runRetrospective } from "./retrospective.js"
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function ensureFeatureBranchIfNeeded(ctx: PipelineContext): void {
+  // Skip branch creation for PR-based fix — workflow already checked out the PR branch
+  if (ctx.input.prNumber) return
   if (!ctx.input.issueNumber || ctx.input.dryRun) return
   try {
     const taskMdPath = path.join(ctx.taskDir, "task.md")
