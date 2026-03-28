@@ -82,8 +82,8 @@
       "properties": {
         "taskDir": {
           "type": "string",
-          "description": "Directory for pipeline artifacts and state (gitignored)",
-          "default": ".tasks"
+          "description": "Directory for pipeline artifacts and state (committed to branch)",
+          "default": ".kody/tasks"
         }
       },
       "additionalProperties": false

@@ -62,7 +62,7 @@ function createCtx(
   inputOverrides?: Partial<PipelineContext["input"]>,
 ): PipelineContext {
   const taskId = "riskgate-test"
-  const taskDir = path.join(tmpDir, ".tasks", taskId)
+  const taskDir = path.join(tmpDir, ".kody/tasks", taskId)
   fs.mkdirSync(taskDir, { recursive: true })
   fs.writeFileSync(path.join(taskDir, "task.md"), "Test task for risk gate")
   return {

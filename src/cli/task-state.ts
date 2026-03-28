@@ -62,10 +62,10 @@ export function resolveForIssue(
   issueNumber: number,
   projectDir: string,
 ): TaskAction {
-  // First: check local task state (works locally and when .tasks/ persists)
+  // First: check local task state (works locally and when .kody/tasks/ persists)
   const existingTaskId = findLatestTaskForIssue(issueNumber, projectDir)
   if (existingTaskId) {
-    const statusPath = path.join(projectDir, ".tasks", existingTaskId, "status.json")
+    const statusPath = path.join(projectDir, ".kody", "tasks", existingTaskId, "status.json")
     let existingState: TaskState | null = null
     if (fs.existsSync(statusPath)) {
       try {
@@ -75,7 +75,7 @@ export function resolveForIssue(
     return resolveTaskAction(issueNumber, existingTaskId, existingState)
   }
 
-  // Second: check GitHub labels (works in CI where .tasks/ doesn't persist)
+  // Second: check GitHub labels (works in CI where .kody/tasks/ doesn't persist)
   try {
     const labels = getIssueLabels(issueNumber)
     if (labels.includes("kody:done")) {

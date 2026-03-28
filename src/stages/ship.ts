@@ -2,6 +2,7 @@ import * as fs from "fs"
 import * as path from "path"
 import { execFileSync } from "child_process"
 
+import { logger } from "../logger.js"
 import type {
   StageDefinition,
   StageResult,
@@ -105,6 +106,23 @@ export function executeShipStage(
   try {
     const head = getCurrentBranch(ctx.projectDir)
     const base = getDefaultBranch(ctx.projectDir)
+
+    // Commit task artifacts (.kody/tasks/) so they persist in the PR
+    try {
+      execFileSync("git", ["add", ctx.taskDir], {
+        cwd: ctx.projectDir,
+        env: { ...process.env, HUSKY: "0", SKIP_HOOKS: "1" },
+        stdio: "pipe",
+      })
+      execFileSync("git", ["commit", "--no-gpg-sign", "-m", `chore: add kody task artifacts [skip ci]`], {
+        cwd: ctx.projectDir,
+        env: { ...process.env, HUSKY: "0", SKIP_HOOKS: "1" },
+        stdio: "pipe",
+      })
+      logger.info("  Committed task artifacts")
+    } catch {
+      // No task artifacts to commit, or already committed — continue
+    }
 
     pushBranch(ctx.projectDir)
 

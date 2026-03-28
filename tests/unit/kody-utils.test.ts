@@ -18,10 +18,10 @@ describe("ensureTaskDir", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true })
   })
 
-  it("creates .tasks/<id> directory", () => {
+  it("creates .kody/tasks/<id> directory", () => {
     const dir = ensureTaskDir("test-123")
     expect(fs.existsSync(dir)).toBe(true)
-    expect(dir).toContain(".tasks")
+    expect(dir).toContain(".kody/tasks")
     expect(dir).toContain("test-123")
   })
 

@@ -399,7 +399,7 @@ Given this project context, output ONLY a JSON object with EXACTLY this structur
     },
     "git": { "defaultBranch": "${basic.defaultBranch}" },
     "github": { "owner": "${basic.owner}", "repo": "${basic.repo}" },
-    "paths": { "taskDir": ".tasks" },
+    "paths": { "taskDir": ".kody/tasks" },
     "agent": {
       "runner": "${"claude-code"}",
       "defaultRunner": "${"claude"}",
@@ -463,7 +463,7 @@ ${context}`
     config.git.defaultBranch = config.git.defaultBranch || basic.defaultBranch
     config.github.owner = config.github.owner || basic.owner
     config.github.repo = config.github.repo || basic.repo
-    config.paths.taskDir = config.paths.taskDir || ".tasks"
+    config.paths.taskDir = config.paths.taskDir || ".kody/tasks"
     config.agent.runner = config.agent.runner || ("claude-code")
     config.agent.defaultRunner = config.agent.defaultRunner || ("claude")
     if (!config.agent.modelMap) {
@@ -553,7 +553,7 @@ function buildFallbackConfig(
     },
     git: { defaultBranch: basic.defaultBranch },
     github: { owner: basic.owner, repo: basic.repo },
-    paths: { taskDir: ".tasks" },
+    paths: { taskDir: ".kody/tasks" },
     agent: {
       runner: "claude-code",
       defaultRunner: "claude",
@@ -599,15 +599,16 @@ function initCommand(opts: { force: boolean }) {
     console.log("  ○ kody.config.json (exists)")
   }
 
-  // .gitignore
+  // .gitignore — remove legacy .tasks/ entry if present (tasks now live in .kody/tasks/ and are committed)
   const gitignorePath = path.join(cwd, ".gitignore")
   if (fs.existsSync(gitignorePath)) {
     const content = fs.readFileSync(gitignorePath, "utf-8")
-    if (!content.includes(".tasks/")) {
-      fs.appendFileSync(gitignorePath, "\n.tasks/\n")
-      console.log("  ✓ .gitignore (added .tasks/)")
+    if (content.includes(".tasks/")) {
+      const updated = content.replace(/\n?\.tasks\/\n?/g, "\n")
+      fs.writeFileSync(gitignorePath, updated)
+      console.log("  ✓ .gitignore (removed legacy .tasks/ — tasks now committed in .kody/tasks/)")
     } else {
-      console.log("  ○ .gitignore (.tasks/ already present)")
+      console.log("  ○ .gitignore (ok)")
     }
   }
 

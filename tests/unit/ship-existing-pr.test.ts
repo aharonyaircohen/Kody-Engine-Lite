@@ -40,7 +40,7 @@ const stubDef: StageDefinition = {
 
 function makeTmpDir(): string {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kody-ship-test-"))
-  const taskDir = path.join(tmpDir, ".tasks", "ship-test")
+  const taskDir = path.join(tmpDir, ".kody/tasks", "ship-test")
   fs.mkdirSync(taskDir, { recursive: true })
   // Minimal task.json
   fs.writeFileSync(
@@ -59,7 +59,7 @@ function makeTmpDir(): string {
 function makeCtx(tmpDir: string, overrides: Partial<PipelineContext["input"]> = {}): PipelineContext {
   return {
     taskId: "ship-test",
-    taskDir: path.join(tmpDir, ".tasks", "ship-test"),
+    taskDir: path.join(tmpDir, ".kody/tasks", "ship-test"),
     projectDir: tmpDir,
     runners: {},
     input: {

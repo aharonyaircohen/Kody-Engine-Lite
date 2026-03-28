@@ -68,7 +68,7 @@ describe("PR body generation", () => {
   afterEach(() => cleanup())
 
   it("generates ship.md with task summary after local pipeline", async () => {
-    const taskDir = path.join(tmpDir, ".tasks", "pr-test")
+    const taskDir = path.join(tmpDir, ".kody/tasks", "pr-test")
     fs.mkdirSync(taskDir, { recursive: true })
     fs.writeFileSync(path.join(taskDir, "task.md"), "Add search function")
 
@@ -91,7 +91,7 @@ describe("PR body generation", () => {
   })
 
   it("task.json contains all fields for PR body", async () => {
-    const taskDir = path.join(tmpDir, ".tasks", "pr-fields")
+    const taskDir = path.join(tmpDir, ".kody/tasks", "pr-fields")
     fs.mkdirSync(taskDir, { recursive: true })
     fs.writeFileSync(path.join(taskDir, "task.md"), "Add search")
 
@@ -115,7 +115,7 @@ describe("PR body generation", () => {
   })
 
   it("plan.md is created for PR body details section", async () => {
-    const taskDir = path.join(tmpDir, ".tasks", "pr-plan")
+    const taskDir = path.join(tmpDir, ".kody/tasks", "pr-plan")
     fs.mkdirSync(taskDir, { recursive: true })
     fs.writeFileSync(path.join(taskDir, "task.md"), "Add search")
 
@@ -137,7 +137,7 @@ describe("PR body generation", () => {
   })
 
   it("review.md contains verdict for PR body", async () => {
-    const taskDir = path.join(tmpDir, ".tasks", "pr-review")
+    const taskDir = path.join(tmpDir, ".kody/tasks", "pr-review")
     fs.mkdirSync(taskDir, { recursive: true })
     fs.writeFileSync(path.join(taskDir, "task.md"), "Add search")
 
@@ -170,7 +170,7 @@ describe("skipped stages comment", () => {
   afterEach(() => cleanup())
 
   it("low complexity marks plan/review/review-fix as completed", async () => {
-    const taskDir = path.join(tmpDir, ".tasks", "skip-test")
+    const taskDir = path.join(tmpDir, ".kody/tasks", "skip-test")
     fs.mkdirSync(taskDir, { recursive: true })
     fs.writeFileSync(path.join(taskDir, "task.md"), "Fix typo")
 

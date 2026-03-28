@@ -37,7 +37,7 @@ describe("runQualityGates rawOutputs", () => {
       },
       git: { defaultBranch: "main" },
       github: { owner: "", repo: "" },
-      paths: { taskDir: ".tasks" },
+      paths: { taskDir: ".kody/tasks" },
       agent: { runner: "claude-code", defaultRunner: "claude", modelMap: {} },
     })
   })

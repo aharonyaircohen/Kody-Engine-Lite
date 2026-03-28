@@ -3,7 +3,7 @@ import * as path from "path"
 import { execFileSync } from "child_process"
 
 export function findLatestTaskForIssue(issueNumber: number, projectDir: string): string | null {
-  const tasksDir = path.join(projectDir, ".tasks")
+  const tasksDir = path.join(projectDir, ".kody", "tasks")
   if (!fs.existsSync(tasksDir)) return null
 
   // Only consider directories (not files)

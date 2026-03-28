@@ -25,7 +25,7 @@ describe("findLatestTaskForIssue", () => {
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kody-task-"))
-    fs.mkdirSync(path.join(tmpDir, ".tasks"), { recursive: true })
+    fs.mkdirSync(path.join(tmpDir, ".kody/tasks"), { recursive: true })
   })
 
   afterEach(() => {
@@ -33,13 +33,13 @@ describe("findLatestTaskForIssue", () => {
   })
 
   it("finds task by issue number prefix", () => {
-    fs.mkdirSync(path.join(tmpDir, ".tasks", "42-260326-120000"))
+    fs.mkdirSync(path.join(tmpDir, ".kody/tasks", "42-260326-120000"))
     const result = findLatestTaskForIssue(42, tmpDir)
     expect(result).toBe("42-260326-120000")
   })
 
   it("returns null when no matching task exists", () => {
-    fs.mkdirSync(path.join(tmpDir, ".tasks", "99-260326-120000"))
+    fs.mkdirSync(path.join(tmpDir, ".kody/tasks", "99-260326-120000"))
     const result = findLatestTaskForIssue(42, tmpDir)
     expect(result).toBeNull()
   })
@@ -52,14 +52,14 @@ describe("findLatestTaskForIssue", () => {
   })
 
   it("ignores files, only matches directories", () => {
-    fs.writeFileSync(path.join(tmpDir, ".tasks", "42-old-file"), "stale")
+    fs.writeFileSync(path.join(tmpDir, ".kody/tasks", "42-old-file"), "stale")
     const result = findLatestTaskForIssue(42, tmpDir)
     expect(result).toBeNull()
   })
 
   it("returns latest task when multiple match", () => {
-    fs.mkdirSync(path.join(tmpDir, ".tasks", "42-260326-100000"))
-    fs.mkdirSync(path.join(tmpDir, ".tasks", "42-260326-120000"))
+    fs.mkdirSync(path.join(tmpDir, ".kody/tasks", "42-260326-100000"))
+    fs.mkdirSync(path.join(tmpDir, ".kody/tasks", "42-260326-120000"))
     const result = findLatestTaskForIssue(42, tmpDir)
     // Sorted reverse, so latest first
     expect(result).toBe("42-260326-120000")

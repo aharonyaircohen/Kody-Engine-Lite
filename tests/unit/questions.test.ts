@@ -61,7 +61,7 @@ function createCtx(
   runner: AgentRunner,
   overrides?: Partial<PipelineContext["input"]>,
 ): PipelineContext {
-  const taskDir = path.join(tmpDir, ".tasks", "q-test")
+  const taskDir = path.join(tmpDir, ".kody/tasks", "q-test")
   fs.mkdirSync(taskDir, { recursive: true })
   fs.writeFileSync(path.join(taskDir, "task.md"), "Test task")
   return {

@@ -68,7 +68,7 @@ describe("session management", () => {
 
   it("taskify and plan share the 'explore' session", async () => {
     const { runner, calls } = createCapturingRunner()
-    const taskDir = path.join(tmpDir, ".tasks", "session-test")
+    const taskDir = path.join(tmpDir, ".kody/tasks", "session-test")
     fs.mkdirSync(taskDir, { recursive: true })
     fs.writeFileSync(path.join(taskDir, "task.md"), "Test task")
 
@@ -105,7 +105,7 @@ describe("session management", () => {
 
   it("build gets a different session than explore", async () => {
     const { runner, calls } = createCapturingRunner()
-    const taskDir = path.join(tmpDir, ".tasks", "session-test-2")
+    const taskDir = path.join(tmpDir, ".kody/tasks", "session-test-2")
     fs.mkdirSync(taskDir, { recursive: true })
     fs.writeFileSync(path.join(taskDir, "task.md"), "Test task")
 
@@ -131,7 +131,7 @@ describe("session management", () => {
 
   it("review gets a fresh session (not build)", async () => {
     const { runner, calls } = createCapturingRunner()
-    const taskDir = path.join(tmpDir, ".tasks", "session-test-3")
+    const taskDir = path.join(tmpDir, ".kody/tasks", "session-test-3")
     fs.mkdirSync(taskDir, { recursive: true })
     fs.writeFileSync(path.join(taskDir, "task.md"), "Test task")
 
@@ -155,7 +155,7 @@ describe("session management", () => {
 
   it("sessions are persisted in status.json", async () => {
     const { runner } = createCapturingRunner()
-    const taskDir = path.join(tmpDir, ".tasks", "session-persist")
+    const taskDir = path.join(tmpDir, ".kody/tasks", "session-persist")
     fs.mkdirSync(taskDir, { recursive: true })
     fs.writeFileSync(path.join(taskDir, "task.md"), "Test task")
 
@@ -177,7 +177,7 @@ describe("session management", () => {
 
   it("review-fix resumes the build session", async () => {
     const { runner, calls } = createCapturingRunner()
-    const taskDir = path.join(tmpDir, ".tasks", "session-reviewfix")
+    const taskDir = path.join(tmpDir, ".kody/tasks", "session-reviewfix")
     fs.mkdirSync(taskDir, { recursive: true })
     fs.writeFileSync(path.join(taskDir, "task.md"), "Test task")
 

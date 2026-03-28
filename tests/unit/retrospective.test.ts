@@ -77,7 +77,7 @@ describe("collectRunContext", () => {
 
   beforeEach(() => {
     projectDir = makeTmpDir()
-    taskDir = path.join(projectDir, ".tasks", "test-1")
+    taskDir = path.join(projectDir, ".kody/tasks", "test-1")
     fs.mkdirSync(taskDir, { recursive: true })
   })
 
@@ -263,7 +263,7 @@ describe("runRetrospective", () => {
 
   beforeEach(() => {
     projectDir = makeTmpDir()
-    taskDir = path.join(projectDir, ".tasks", "test-1")
+    taskDir = path.join(projectDir, ".kody/tasks", "test-1")
     fs.mkdirSync(taskDir, { recursive: true })
   })
 

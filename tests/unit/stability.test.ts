@@ -17,7 +17,7 @@ function createMockRunner(): AgentRunner {
 
 function createCtx(overrides: Partial<PipelineContext> = {}): PipelineContext {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kody-stab-"))
-  const taskDir = path.join(tmpDir, ".tasks", "test-1")
+  const taskDir = path.join(tmpDir, ".kody/tasks", "test-1")
   fs.mkdirSync(taskDir, { recursive: true })
   fs.writeFileSync(path.join(taskDir, "task.md"), "# Test task")
 

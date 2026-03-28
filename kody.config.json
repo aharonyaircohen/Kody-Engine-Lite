@@ -15,7 +15,7 @@
     "repo": "Kody-Engine-Lite"
   },
   "paths": {
-    "taskDir": ".tasks"
+    "taskDir": ".kody/tasks"
   },
   "agent": {
     "runner": "claude-code",

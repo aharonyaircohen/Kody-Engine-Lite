@@ -71,7 +71,7 @@ export async function runStandaloneReview(
   input: StandaloneReviewInput,
 ): Promise<StandaloneReviewResult> {
   const taskId = input.taskId ?? `review-${generateTaskId()}`
-  const taskDir = path.join(input.projectDir, ".tasks", taskId)
+  const taskDir = path.join(input.projectDir, ".kody", "tasks", taskId)
   fs.mkdirSync(taskDir, { recursive: true })
 
   // Write task.md from PR info

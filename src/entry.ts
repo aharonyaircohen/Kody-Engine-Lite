@@ -83,7 +83,7 @@ async function main() {
     }
   }
 
-  const taskDir = path.join(projectDir, ".tasks", taskId)
+  const taskDir = path.join(projectDir, ".kody", "tasks", taskId)
   fs.mkdirSync(taskDir, { recursive: true })
 
   // Status command — no preflight needed
@@ -213,7 +213,7 @@ async function main() {
 
   // Verify task.md exists
   if (!fs.existsSync(taskMdPath)) {
-    console.error("No task.md found. Provide --task, --issue-number, or ensure .tasks/<id>/task.md exists.")
+    console.error("No task.md found. Provide --task, --issue-number, or ensure .kody/tasks/<id>/task.md exists.")
     process.exit(1)
   }
 

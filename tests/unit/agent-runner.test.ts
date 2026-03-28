@@ -17,7 +17,7 @@ describe("createRunners", () => {
     quality: { typecheck: "", lint: "", lintFix: "", format: "", formatFix: "", testUnit: "" },
     git: { defaultBranch: "main" },
     github: { owner: "", repo: "" },
-    paths: { taskDir: ".tasks" },
+    paths: { taskDir: ".kody/tasks" },
     agent: {
       runner: "claude-code",
       defaultRunner: "claude",

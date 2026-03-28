@@ -57,7 +57,7 @@ const DEFAULT_CONFIG: KodyConfig = {
     repo: "",
   },
   paths: {
-    taskDir: ".tasks",
+    taskDir: ".kody/tasks",
   },
   agent: {
     runner: "claude-code",

@@ -38,7 +38,7 @@ function createMockRunner(responses?: Record<string, AgentResult>): AgentRunner 
 }
 
 function createTestContext(tmpDir: string, overrides?: Partial<PipelineContext>): PipelineContext {
-  const taskDir = path.join(tmpDir, ".tasks", "test-task")
+  const taskDir = path.join(tmpDir, ".kody/tasks", "test-task")
   fs.mkdirSync(taskDir, { recursive: true })
   fs.writeFileSync(path.join(taskDir, "task.md"), "Test task description")
 
@@ -176,7 +176,7 @@ describe("complexity detection ordering", () => {
       async healthCheck() { return true },
     }
 
-    const taskDir = path.join(tmpDir, ".tasks", "order-test")
+    const taskDir = path.join(tmpDir, ".kody/tasks", "order-test")
     fs.mkdirSync(taskDir, { recursive: true })
     fs.writeFileSync(path.join(taskDir, "task.md"), "Auth rewrite task")
 

@@ -71,7 +71,7 @@ describe("fix command: skips taskify and plan", () => {
   afterEach(() => cleanup())
 
   it("rerun from build skips taskify and plan", async () => {
-    const taskDir = path.join(tmpDir, ".tasks", "fix-test")
+    const taskDir = path.join(tmpDir, ".kody/tasks", "fix-test")
     fs.mkdirSync(taskDir, { recursive: true })
     fs.writeFileSync(path.join(taskDir, "task.md"), "Fix auth")
 
@@ -119,7 +119,7 @@ describe("fix command: skips taskify and plan", () => {
   })
 
   it("feedback is available when fix runs", async () => {
-    const taskDir = path.join(tmpDir, ".tasks", "fix-feedback")
+    const taskDir = path.join(tmpDir, ".kody/tasks", "fix-feedback")
     fs.mkdirSync(taskDir, { recursive: true })
     fs.writeFileSync(path.join(taskDir, "task.md"), "Fix auth")
     fs.writeFileSync(path.join(taskDir, "task.json"), JSON.stringify({

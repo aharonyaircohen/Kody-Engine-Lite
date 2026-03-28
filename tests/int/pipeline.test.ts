@@ -70,7 +70,7 @@ describe("Integration: full pipeline dry-run", () => {
   })
 
   it("runs all 7 stages and produces status.json", async () => {
-    const taskDir = path.join(tmpDir, ".tasks", "int-test")
+    const taskDir = path.join(tmpDir, ".kody/tasks", "int-test")
     fs.mkdirSync(taskDir, { recursive: true })
     fs.writeFileSync(path.join(taskDir, "task.md"), "Integration test: add a utility function")
 
@@ -103,7 +103,7 @@ describe("Integration: full pipeline dry-run", () => {
   })
 
   it("medium complexity auto-detected skips review-fix", async () => {
-    const taskDir = path.join(tmpDir, ".tasks", "int-medium")
+    const taskDir = path.join(tmpDir, ".kody/tasks", "int-medium")
     fs.mkdirSync(taskDir, { recursive: true })
     fs.writeFileSync(path.join(taskDir, "task.md"), "Medium complexity task")
 
@@ -123,7 +123,7 @@ describe("Integration: full pipeline dry-run", () => {
   })
 
   it("stops on stage failure", async () => {
-    const taskDir = path.join(tmpDir, ".tasks", "int-fail")
+    const taskDir = path.join(tmpDir, ".kody/tasks", "int-fail")
     fs.mkdirSync(taskDir, { recursive: true })
     fs.writeFileSync(path.join(taskDir, "task.md"), "Fail test")
 

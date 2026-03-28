@@ -61,7 +61,7 @@ function createCtx(
   runner: AgentRunner,
   inputOverrides?: Partial<PipelineContext["input"]>,
 ): PipelineContext {
-  const taskDir = path.join(tmpDir, ".tasks", "approve-test")
+  const taskDir = path.join(tmpDir, ".kody/tasks", "approve-test")
   fs.mkdirSync(taskDir, { recursive: true })
   fs.writeFileSync(path.join(taskDir, "task.md"), "Test task for approve flow")
   return {
@@ -132,7 +132,7 @@ describe("approve flow: resume from paused state", () => {
   afterEach(() => cleanup())
 
   it("rerun resumes from plan when taskify was paused", async () => {
-    const taskDir = path.join(tmpDir, ".tasks", "resume-test")
+    const taskDir = path.join(tmpDir, ".kody/tasks", "resume-test")
     fs.mkdirSync(taskDir, { recursive: true })
     fs.writeFileSync(path.join(taskDir, "task.md"), "Test task")
 
@@ -188,7 +188,7 @@ describe("approve flow: resume from paused state", () => {
   })
 
   it("feedback is available in context after approve", async () => {
-    const taskDir = path.join(tmpDir, ".tasks", "feedback-test")
+    const taskDir = path.join(tmpDir, ".kody/tasks", "feedback-test")
     fs.mkdirSync(taskDir, { recursive: true })
     fs.writeFileSync(path.join(taskDir, "task.md"), "Test task")
 
@@ -252,7 +252,7 @@ describe("approve flow: auto-detect fromStage", () => {
   afterEach(() => cleanup())
 
   it("finds next stage after paused taskify", () => {
-    const taskDir = path.join(tmpDir, ".tasks", "autodetect-test")
+    const taskDir = path.join(tmpDir, ".kody/tasks", "autodetect-test")
     fs.mkdirSync(taskDir, { recursive: true })
 
     const pausedStatus = {
@@ -292,7 +292,7 @@ describe("approve flow: auto-detect fromStage", () => {
   })
 
   it("finds next stage after paused plan", () => {
-    const taskDir = path.join(tmpDir, ".tasks", "autodetect-plan")
+    const taskDir = path.join(tmpDir, ".kody/tasks", "autodetect-plan")
     fs.mkdirSync(taskDir, { recursive: true })
 
     const pausedStatus = {
@@ -331,7 +331,7 @@ describe("approve flow: auto-detect fromStage", () => {
   })
 
   it("finds failed stage when no paused state", () => {
-    const taskDir = path.join(tmpDir, ".tasks", "autodetect-failed")
+    const taskDir = path.join(tmpDir, ".kody/tasks", "autodetect-failed")
     fs.mkdirSync(taskDir, { recursive: true })
 
     const failedStatus = {
