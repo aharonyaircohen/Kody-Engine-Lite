@@ -177,6 +177,7 @@ function buildConfig(cwd: string, basic: { defaultBranch: string; owner: string;
     git: { defaultBranch: basic.defaultBranch },
     github: { owner: basic.owner, repo: basic.repo },
     agent: {
+      provider: "anthropic",
       modelMap: { cheap: "haiku", mid: "sonnet", strong: "opus" },
     },
   }
