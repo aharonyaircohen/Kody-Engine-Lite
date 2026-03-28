@@ -84,6 +84,36 @@ export function postComment(issueNumber: number, body: string): void {
   }
 }
 
+export function getPRForBranch(
+  branch: string,
+): { number: number; url: string } | null {
+  try {
+    const output = gh([
+      "pr", "view", branch,
+      "--json", "number,url",
+    ])
+    const data = JSON.parse(output)
+    return { number: data.number, url: data.url }
+  } catch {
+    return null
+  }
+}
+
+export function updatePR(
+  prNumber: number,
+  body: string,
+): void {
+  try {
+    gh(
+      ["pr", "edit", String(prNumber), "--body-file", "-"],
+      { input: body },
+    )
+    logger.info(`  PR #${prNumber} body updated`)
+  } catch (err) {
+    logger.warn(`  Failed to update PR #${prNumber}: ${err}`)
+  }
+}
+
 export function createPR(
   head: string,
   base: string,

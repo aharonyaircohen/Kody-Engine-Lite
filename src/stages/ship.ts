@@ -15,6 +15,8 @@ import {
 import {
   postComment,
   createPR,
+  getPRForBranch,
+  updatePR,
 } from "../github-api.js"
 import { getProjectConfig } from "../config.js"
 
@@ -159,20 +161,39 @@ export function executeShipStage(
 
     // Build rich PR body
     const body = buildPrBody(ctx)
-    const pr = createPR(head, base, title, body)
 
-    if (pr) {
+    // Check if a PR already exists for this branch (e.g. fix on existing PR)
+    const existingPr = getPRForBranch(head)
+
+    if (existingPr) {
+      // PR exists — update its body with latest review/verify info
+      updatePR(existingPr.number, body)
+
       if (ctx.input.issueNumber && !ctx.input.local) {
         try {
-          postComment(ctx.input.issueNumber, `🎉 PR created: ${pr.url}`)
+          postComment(ctx.input.issueNumber, `✅ Fix pushed to existing PR: ${existingPr.url}`)
         } catch {
           // Fire and forget
         }
       }
 
-      fs.writeFileSync(shipPath, `# Ship\n\nPR created: ${pr.url}\nPR #${pr.number}\n`)
+      fs.writeFileSync(shipPath, `# Ship\n\nUpdated existing PR: ${existingPr.url}\nPR #${existingPr.number}\n`)
     } else {
-      fs.writeFileSync(shipPath, "# Ship\n\nPushed branch but failed to create PR.\n")
+      const pr = createPR(head, base, title, body)
+
+      if (pr) {
+        if (ctx.input.issueNumber && !ctx.input.local) {
+          try {
+            postComment(ctx.input.issueNumber, `🎉 PR created: ${pr.url}`)
+          } catch {
+            // Fire and forget
+          }
+        }
+
+        fs.writeFileSync(shipPath, `# Ship\n\nPR created: ${pr.url}\nPR #${pr.number}\n`)
+      } else {
+        fs.writeFileSync(shipPath, "# Ship\n\nPushed branch but failed to create PR.\n")
+      }
     }
 
     return { outcome: "completed", outputFile: "ship.md", retries: 0 }
