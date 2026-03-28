@@ -6,6 +6,14 @@ export interface RunnerConfig {
   type: "claude-code"
 }
 
+import type { ContextTier } from "./context-tiers.js"
+
+export interface ContextTiersConfig {
+  enabled: boolean
+  tokenBudget?: number
+  stageOverrides?: Partial<Record<string, Partial<Record<string, ContextTier>>>>
+}
+
 export interface KodyConfig {
   quality: {
     typecheck: string
@@ -38,6 +46,7 @@ export interface KodyConfig {
     runners?: Record<string, RunnerConfig>
     stageRunners?: Record<string, string>
   }
+  contextTiers?: ContextTiersConfig
 }
 
 const DEFAULT_CONFIG: KodyConfig = {
@@ -63,6 +72,10 @@ const DEFAULT_CONFIG: KodyConfig = {
     runner: "claude-code",
     defaultRunner: "claude",
     modelMap: { cheap: "haiku", mid: "sonnet", strong: "opus" },
+  },
+  contextTiers: {
+    enabled: true,
+    tokenBudget: 8000,
   },
 }
 
@@ -97,6 +110,9 @@ export function getProjectConfig(): KodyConfig {
         github: { ...DEFAULT_CONFIG.github, ...raw.github },
         paths: { ...DEFAULT_CONFIG.paths, ...raw.paths },
         agent: { ...DEFAULT_CONFIG.agent, ...raw.agent },
+        contextTiers: raw.contextTiers
+          ? { ...DEFAULT_CONFIG.contextTiers, ...raw.contextTiers }
+          : DEFAULT_CONFIG.contextTiers,
       }
     } catch {
       logger.warn("kody.config.json is invalid JSON — using defaults")

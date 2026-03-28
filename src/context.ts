@@ -2,6 +2,12 @@ import * as fs from "fs"
 import * as path from "path"
 import { readProjectMemory } from "./memory.js"
 import { getProjectConfig } from "./config.js"
+import {
+  readProjectMemoryTiered,
+  injectTaskContextTiered,
+  resolveStagePolicy,
+  estimateTokens,
+} from "./context-tiers.js"
 
 const DEFAULT_MODEL_MAP: Record<string, string> = {
   cheap: "haiku",
@@ -107,10 +113,43 @@ export function buildFullPrompt(
   projectDir: string,
   feedback?: string,
 ): string {
+  const config = getProjectConfig()
+
+  if (config.contextTiers?.enabled) {
+    return buildFullPromptTiered(stageName, taskId, taskDir, projectDir, feedback)
+  }
+
   const memory = readProjectMemory(projectDir)
   const promptTemplate = readPromptFile(stageName, projectDir)
   const prompt = injectTaskContext(promptTemplate, taskId, taskDir, feedback)
   return memory ? `${memory}\n---\n\n${prompt}` : prompt
+}
+
+function buildFullPromptTiered(
+  stageName: string,
+  taskId: string,
+  taskDir: string,
+  projectDir: string,
+  feedback?: string,
+): string {
+  const config = getProjectConfig()
+  const policy = resolveStagePolicy(stageName, config.contextTiers?.stageOverrides)
+  const tokenBudget = config.contextTiers?.tokenBudget ?? 8000
+
+  const memory = readProjectMemoryTiered(projectDir, policy.memory)
+  const promptTemplate = readPromptFile(stageName, projectDir)
+  const prompt = injectTaskContextTiered(promptTemplate, taskId, taskDir, policy, feedback)
+
+  let assembled = memory ? `${memory}\n---\n\n${prompt}` : prompt
+
+  // Token budget enforcement: truncate if over budget
+  const tokens = estimateTokens(assembled)
+  if (tokens > tokenBudget) {
+    const maxChars = tokenBudget * 4
+    assembled = assembled.slice(0, maxChars) + "\n...(context truncated to fit token budget)"
+  }
+
+  return assembled
 }
 
 export function resolveModel(modelTier: string, stageName?: string): string {

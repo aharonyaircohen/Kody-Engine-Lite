@@ -3,6 +3,7 @@ import * as path from "path"
 
 import type { PipelineContext } from "../types.js"
 import { logger } from "../logger.js"
+import { invalidateCache } from "../context-tiers.js"
 
 function stripAnsi(str: string): string {
   return str.replace(/\x1b\[[0-9;]*m/g, "")
@@ -61,6 +62,7 @@ export function autoLearn(ctx: PipelineContext): void {
       const conventionsPath = path.join(memoryDir, "conventions.md")
       const entry = `\n## Learned ${timestamp} (task: ${ctx.taskId})\n${learnings.join("\n")}\n`
       fs.appendFileSync(conventionsPath, entry)
+      invalidateCache(conventionsPath, path.join(memoryDir, ".tiers"))
       logger.info(`Auto-learned ${learnings.length} convention(s)`)
     }
 
@@ -156,6 +158,7 @@ function autoLearnArchitecture(
   if (detected.length > 0) {
     const content = `# Architecture (auto-detected ${timestamp})\n\n## Overview\n${detected.join("\n")}\n`
     fs.writeFileSync(archPath, content)
+    invalidateCache(archPath, path.join(memoryDir, ".tiers"))
     logger.info(`Auto-detected architecture (${detected.length} items)`)
   }
 }

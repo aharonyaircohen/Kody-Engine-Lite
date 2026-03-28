@@ -4,6 +4,7 @@ import * as path from "path"
 import * as os from "os"
 import { injectTaskContext, resolveModel, buildFullPrompt } from "../../src/context.js"
 import { resetProjectConfig, setConfigDir } from "../../src/config.js"
+import { readProjectMemory } from "../../src/memory.js"
 
 describe("injectTaskContext", () => {
   let tmpDir: string
@@ -120,5 +121,89 @@ describe("resolveModel", () => {
     setConfigDir(tmpDir)
     expect(resolveModel("mid", "plan")).toBe("plan")
     fs.rmSync(tmpDir, { recursive: true, force: true })
+  })
+})
+
+describe("buildFullPrompt with tiered context", () => {
+  let projectDir: string
+  let taskDir: string
+
+  beforeEach(() => {
+    resetProjectConfig()
+    projectDir = fs.mkdtempSync(path.join(os.tmpdir(), "kody-tiered-prompt-"))
+    taskDir = path.join(projectDir, ".kody", "tasks", "test-task")
+    fs.mkdirSync(taskDir, { recursive: true })
+
+    // Create memory
+    const memDir = path.join(projectDir, ".kody", "memory")
+    fs.mkdirSync(memDir, { recursive: true })
+    fs.writeFileSync(path.join(memDir, "architecture.md"), "# Architecture\n\nNext.js 14 application with TypeScript, React, and Prisma ORM. The application follows a modular architecture with clear separation of concerns between the presentation layer, business logic, and data access layer.\n\n## Stack\n- Framework: Next.js 14 with App Router\n- Language: TypeScript 5.3 with strict mode enabled\n- ORM: Prisma with PostgreSQL database\n- Testing: vitest for unit tests, playwright for e2e\n- Linting: eslint with custom rules for the project\n- Formatting: prettier with 2-space indentation\n- State Management: zustand for client state, react-query for server state\n- Authentication: next-auth with custom providers\n\n## Directory Structure\n- src/app/ - Next.js app router pages and layouts\n- src/components/ - Reusable React components organized by feature\n- src/components/ui/ - Base UI primitives (Button, Input, Modal)\n- src/lib/ - Shared utilities and helper functions\n- src/lib/api/ - API client and request helpers\n- src/lib/hooks/ - Custom React hooks\n- src/services/ - Business logic services\n- src/types/ - TypeScript type definitions\n- prisma/ - Database schema and migrations\n- tests/ - Test files organized by type (unit, integration, e2e)\n\n## API Design\nAll API routes follow REST conventions with JSON responses. Error responses use a standard envelope format with status code, message, and optional details. Rate limiting is applied to all public endpoints.\n\n## Database\nPrisma schema uses soft deletes for all entities. Migrations are applied automatically in CI/CD. The database uses row-level security for multi-tenant isolation.\n")
+    fs.writeFileSync(path.join(memDir, "conventions.md"), "# Conventions\n\nAll imports use .js extensions for ESM compatibility. This is enforced by eslint and the TypeScript compiler configuration.\n\n## Testing\n- Uses vitest for unit tests with jsdom environment\n- Test files co-located with source in __tests__ directories\n- 80% coverage target enforced in CI\n- Integration tests use test database with automatic cleanup\n- E2E tests run against staging environment\n- Mock external APIs using msw (Mock Service Worker)\n- Use factory functions for test data generation\n\n## Code Style\n- Strict TypeScript with no implicit any\n- No any types allowed — use unknown with type guards\n- Prefer const assertions for literal types\n- Use barrel exports from feature directories\n- Maximum file length: 400 lines\n- Functions should be under 50 lines\n- Use early returns to reduce nesting\n\n## Git Workflow\n- Feature branches from main\n- Squash merge to main\n- Conventional commits required\n- PR reviews required from at least one team member\n- CI must pass before merge\n\n## Error Handling\n- Use custom error classes extending AppError\n- Log errors with structured metadata\n- Never expose internal errors to clients\n- Use error boundaries in React components\n")
+
+    // Create task artifacts
+    fs.writeFileSync(path.join(taskDir, "task.md"), "Add a retry utility function with exponential backoff support")
+    fs.writeFileSync(path.join(taskDir, "task.json"), JSON.stringify({ title: "Add retry utility", task_type: "feature", risk_level: "low", scope: ["src/lib/retry.ts"] }))
+    fs.writeFileSync(path.join(taskDir, "plan.md"), "# Implementation Plan\n\nStep 1: Create retry utility.\n\n## Steps\n1. Create src/lib/retry.ts with exponential backoff\n2. Create tests/lib/retry.test.ts\n3. Export from src/lib/index.ts\n\n## Detailed Design\nThe retry function accepts a function and options (maxRetries, baseDelay, maxDelay). It uses exponential backoff with jitter.\n")
+
+    // Create prompt template
+    const stepsDir = path.join(projectDir, ".kody", "steps")
+    fs.mkdirSync(stepsDir, { recursive: true })
+    fs.writeFileSync(path.join(stepsDir, "build.md"), "You are a code builder.\n\n{{TASK_CONTEXT}}")
+  })
+
+  afterEach(() => {
+    fs.rmSync(projectDir, { recursive: true, force: true })
+    resetProjectConfig()
+  })
+
+  it("produces identical output when tiers disabled vs explicit false", () => {
+    // Explicitly disabled
+    fs.writeFileSync(path.join(projectDir, "kody.config.json"), JSON.stringify({ agent: {}, contextTiers: { enabled: false } }))
+    setConfigDir(projectDir)
+    const first = buildFullPrompt("build", "test-task", taskDir, projectDir)
+
+    resetProjectConfig()
+
+    // Also explicitly disabled with different syntax
+    fs.writeFileSync(path.join(projectDir, "kody.config.json"), JSON.stringify({ agent: {}, contextTiers: { enabled: false, tokenBudget: 9999 } }))
+    setConfigDir(projectDir)
+    const second = buildFullPrompt("build", "test-task", taskDir, projectDir)
+
+    expect(second).toBe(first)
+  })
+
+  it("produces shorter output when tiers enabled vs disabled", () => {
+    // Without tiers (explicitly disabled)
+    fs.writeFileSync(path.join(projectDir, "kody.config.json"), JSON.stringify({ agent: {}, contextTiers: { enabled: false } }))
+    setConfigDir(projectDir)
+    const withoutTiers = buildFullPrompt("build", "test-task", taskDir, projectDir)
+
+    resetProjectConfig()
+
+    // With tiers enabled
+    fs.writeFileSync(path.join(projectDir, "kody.config.json"), JSON.stringify({ agent: {}, contextTiers: { enabled: true } }))
+    setConfigDir(projectDir)
+    const withTiers = buildFullPrompt("build", "test-task", taskDir, projectDir)
+
+    // Tiered version should be shorter because memory is L1 instead of full
+    expect(withTiers.length).toBeLessThan(withoutTiers.length)
+    // But should still contain the full plan (L2 for build stage)
+    expect(withTiers).toContain("Detailed Design")
+  })
+
+  it("respects token budget", () => {
+    fs.writeFileSync(path.join(projectDir, "kody.config.json"), JSON.stringify({ agent: {}, contextTiers: { enabled: true, tokenBudget: 100 } }))
+    setConfigDir(projectDir)
+    const result = buildFullPrompt("build", "test-task", taskDir, projectDir)
+    // 100 tokens * 4 chars = 400 chars + truncation message
+    expect(result.length).toBeLessThan(500)
+    expect(result).toContain("truncated to fit token budget")
+  })
+
+  it("includes overview indicator for tiered memory", () => {
+    fs.writeFileSync(path.join(projectDir, "kody.config.json"), JSON.stringify({ agent: {}, contextTiers: { enabled: true } }))
+    setConfigDir(projectDir)
+    const result = buildFullPrompt("build", "test-task", taskDir, projectDir)
+    expect(result).toContain("overview")
   })
 })
