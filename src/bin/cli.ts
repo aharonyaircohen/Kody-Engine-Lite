@@ -844,12 +844,15 @@ function initCommand(opts: { force: boolean }) {
           stdio: ["pipe", "pipe", "pipe"],
         }).trim()
 
+        // Strip markdown fences if the AI wrapped the output
+        const cleaned = output.replace(/^```(?:markdown|md)?\s*\n?/, "").replace(/\n?```\s*$/, "")
+
         // Validate that {{TASK_CONTEXT}} placeholder is preserved
-        if (!output.includes("{{TASK_CONTEXT}}")) {
+        if (!cleaned.includes("{{TASK_CONTEXT}}")) {
           console.log(`  ⚠ ${stage}.md — AI dropped {{TASK_CONTEXT}}, using default template`)
           fs.writeFileSync(path.join(stepsDir, `${stage}.md`), defaultPrompt)
         } else {
-          fs.writeFileSync(path.join(stepsDir, `${stage}.md`), output)
+          fs.writeFileSync(path.join(stepsDir, `${stage}.md`), cleaned)
         }
         stepCount++
         console.log(`  ✓ ${stage}.md`)
