@@ -11,10 +11,58 @@ import { runStandaloneReview, resolveReviewTarget, formatReviewComment, detectRe
 
 // Extracted modules
 import { parseArgs } from "./cli/args.js"
-import { checkLitellmHealth, tryStartLitellm } from "./cli/litellm.js"
+import { checkLitellmHealth, tryStartLitellm, generateLitellmConfig } from "./cli/litellm.js"
 import { generateTaskId } from "./cli/task-resolution.js"
 import { resolveForIssue } from "./cli/task-state.js"
+import { needsLitellmProxy, getLitellmUrl, providerApiKeyEnvVar } from "./config.js"
+import type { KodyConfig } from "./config.js"
 
+async function ensureLitellmProxy(
+  config: KodyConfig,
+  projectDir: string,
+): Promise<{ kill: () => void } | null> {
+  if (!needsLitellmProxy(config)) return null
+
+  const litellmUrl = getLitellmUrl(config)
+  const proxyRunning = await checkLitellmHealth(litellmUrl)
+
+  let litellmProcess: ReturnType<typeof import("child_process").spawn> | null = null
+  if (!proxyRunning) {
+    // Check provider API key before starting
+    if (config.agent.provider && config.agent.provider !== "anthropic") {
+      const keyVar = providerApiKeyEnvVar(config.agent.provider)
+      if (!process.env[keyVar]) {
+        logger.error(`Provider '${config.agent.provider}' requires ${keyVar} environment variable`)
+        process.exit(1)
+      }
+    }
+
+    // Generate config from provider + modelMap, or use manual litellm-config.yaml
+    let generatedConfig: string | undefined
+    if (config.agent.provider && config.agent.provider !== "anthropic") {
+      generatedConfig = generateLitellmConfig(config.agent.provider, config.agent.modelMap)
+    }
+
+    litellmProcess = await tryStartLitellm(litellmUrl, projectDir, generatedConfig)
+    if (!litellmProcess) {
+      logger.error("LiteLLM is configured but could not be started. Install it with: pip install 'litellm[proxy]'")
+      process.exit(1)
+    }
+  } else {
+    logger.info(`LiteLLM proxy already running at ${litellmUrl}`)
+  }
+
+  // Route Claude Code through LiteLLM
+  process.env.ANTHROPIC_BASE_URL = litellmUrl
+  logger.info(`ANTHROPIC_BASE_URL set to ${litellmUrl}`)
+
+  // Claude Code CLI requires a valid-format ANTHROPIC_API_KEY to start
+  if (!process.env.ANTHROPIC_API_KEY || !process.env.ANTHROPIC_API_KEY.startsWith("sk-ant-")) {
+    process.env.ANTHROPIC_API_KEY = "sk-ant-api03-litellm-proxy-key-00000000000000000000000000000000000000000000000000000000000000000000"
+  }
+
+  return litellmProcess
+}
 
 async function main() {
   const input = parseArgs()
@@ -125,25 +173,8 @@ async function main() {
       }
     }
 
-    // Start LiteLLM if configured — required when litellmUrl is set
     const config = getProjectConfig()
-    let litellmProcess: { kill: () => void } | null = null
-    if (config.agent.litellmUrl) {
-      const proxyRunning = await checkLitellmHealth(config.agent.litellmUrl)
-      if (!proxyRunning) {
-        litellmProcess = await tryStartLitellm(config.agent.litellmUrl, projectDir)
-        if (!litellmProcess) {
-          logger.error("LiteLLM is configured (litellmUrl) but could not be started. Install it with: pip install 'litellm[proxy]'")
-          process.exit(1)
-        }
-      }
-      process.env.ANTHROPIC_BASE_URL = config.agent.litellmUrl
-      // Claude Code CLI requires ANTHROPIC_API_KEY to start, even when routing through LiteLLM.
-      // Auto-set a valid-format placeholder so users only need their provider key (e.g. MINIMAX_API_KEY).
-      if (!process.env.ANTHROPIC_API_KEY || !process.env.ANTHROPIC_API_KEY.startsWith("sk-ant-")) {
-        process.env.ANTHROPIC_API_KEY = "sk-ant-api03-litellm-proxy-key-00000000000000000000000000000000000000000000000000000000000000000000"
-      }
-    }
+    const litellmProcess = await ensureLitellmProxy(config, projectDir)
 
     const runners = createRunners(config)
     const defaultRunnerName = config.agent.defaultRunner ?? Object.keys(runners)[0] ?? "claude"
@@ -241,35 +272,12 @@ async function main() {
     }
   }
 
-  // Start LiteLLM proxy if configured and not running
   const config = getProjectConfig()
-  let litellmProcess: { kill: () => void } | null = null
-  const cleanupLitellm = () => { if (litellmProcess) { litellmProcess.kill(); litellmProcess = null } }
+  let litellmProcess = await ensureLitellmProxy(config, projectDir)
+  const cleanupLitellm = () => { if (litellmProcess) { (litellmProcess as any).kill?.(); litellmProcess = null } }
   process.on("exit", cleanupLitellm)
   process.on("SIGINT", () => { cleanupLitellm(); process.exit(130) })
   process.on("SIGTERM", () => { cleanupLitellm(); process.exit(143) })
-
-  // Start LiteLLM if configured — required when litellmUrl is set
-  if (config.agent.litellmUrl) {
-    const proxyRunning = await checkLitellmHealth(config.agent.litellmUrl)
-    if (!proxyRunning) {
-      litellmProcess = await tryStartLitellm(config.agent.litellmUrl, projectDir)
-      if (!litellmProcess) {
-        logger.error("LiteLLM is configured (litellmUrl) but could not be started. Install it with: pip install 'litellm[proxy]'")
-        process.exit(1)
-      }
-    } else {
-      logger.info(`LiteLLM proxy already running at ${config.agent.litellmUrl}`)
-    }
-
-    process.env.ANTHROPIC_BASE_URL = config.agent.litellmUrl
-    logger.info(`ANTHROPIC_BASE_URL set to ${config.agent.litellmUrl}`)
-    // Claude Code CLI requires ANTHROPIC_API_KEY to start, even when routing through LiteLLM.
-    // Auto-set a valid-format placeholder so users only need their provider key (e.g. MINIMAX_API_KEY).
-    if (!process.env.ANTHROPIC_API_KEY || !process.env.ANTHROPIC_API_KEY.startsWith("sk-ant-")) {
-      process.env.ANTHROPIC_API_KEY = "sk-ant-api03-litellm-proxy-key-00000000000000000000000000000000000000000000000000000000000000000000"
-    }
-  }
 
   // Create runners
   const runners = createRunners(config)

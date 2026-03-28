@@ -1,8 +1,10 @@
 import * as fs from "fs"
+import * as os from "os"
 import * as path from "path"
 import { execFileSync } from "child_process"
 
 import { logger } from "../logger.js"
+import { TIER_TO_ANTHROPIC_IDS, providerApiKeyEnvVar } from "../config.js"
 
 export async function checkLitellmHealth(url: string): Promise<boolean> {
   try {
@@ -13,13 +15,47 @@ export async function checkLitellmHealth(url: string): Promise<boolean> {
   }
 }
 
+/**
+ * Generate LiteLLM config YAML from provider + modelMap.
+ * Maps all Anthropic model IDs (that Claude Code might send) to the provider's model.
+ */
+export function generateLitellmConfig(
+  provider: string,
+  modelMap: { cheap: string; mid: string; strong: string },
+): string {
+  const apiKeyVar = providerApiKeyEnvVar(provider)
+  const entries: string[] = ["model_list:"]
+
+  // For each tier (cheap/mid/strong), map all known Anthropic model IDs to the provider model
+  for (const [tier, providerModel] of Object.entries(modelMap)) {
+    const anthropicIds = TIER_TO_ANTHROPIC_IDS[tier]
+    if (!anthropicIds) continue
+    for (const modelName of anthropicIds) {
+      entries.push(`  - model_name: ${modelName}`)
+      entries.push(`    litellm_params:`)
+      entries.push(`      model: ${provider}/${providerModel}`)
+      entries.push(`      api_key: os.environ/${apiKeyVar}`)
+    }
+  }
+
+  return entries.join("\n") + "\n"
+}
+
 export async function tryStartLitellm(
   url: string,
   projectDir: string,
+  generatedConfig?: string,
 ): Promise<ReturnType<typeof import("child_process").spawn> | null> {
-  const configPath = path.join(projectDir, "litellm-config.yaml")
-  if (!fs.existsSync(configPath)) {
-    logger.warn("litellm-config.yaml not found — cannot start proxy")
+  // Use manual config file if it exists, otherwise use generated config
+  const manualConfigPath = path.join(projectDir, "litellm-config.yaml")
+  let configPath: string
+  if (fs.existsSync(manualConfigPath)) {
+    configPath = manualConfigPath
+  } else if (generatedConfig) {
+    configPath = path.join(os.tmpdir(), "kody-litellm-config.yaml")
+    fs.writeFileSync(configPath, generatedConfig)
+  } else {
+    logger.warn("litellm-config.yaml not found and no provider configured — cannot start proxy")
     return null
   }
 

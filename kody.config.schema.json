@@ -125,9 +125,14 @@
           },
           "additionalProperties": false
         },
+        "provider": {
+          "type": "string",
+          "description": "LLM provider name. When set (and not 'anthropic'), engine auto-starts LiteLLM proxy and routes model calls to this provider. modelMap values should be the provider's model names.",
+          "examples": ["anthropic", "minimax", "openai", "google"]
+        },
         "litellmUrl": {
           "type": "string",
-          "description": "LiteLLM proxy URL for using non-Anthropic models (e.g., 'http://localhost:4000'). Sets ANTHROPIC_BASE_URL for Claude Code.",
+          "description": "(Deprecated) Use 'provider' instead. LiteLLM proxy URL for manual setup.",
           "examples": ["http://localhost:4000"]
         },
         "usePerStageRouting": {

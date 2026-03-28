@@ -39,7 +39,10 @@ export interface KodyConfig {
     // Legacy single-runner (backward compat)
     runner?: string
     modelMap: { cheap: string; mid: string; strong: string }
+    /** @deprecated Use `provider` instead. Kept for backward compat. */
     litellmUrl?: string
+    /** LLM provider name (e.g. "minimax", "openai", "google"). When set, engine auto-starts LiteLLM proxy. */
+    provider?: string
     usePerStageRouting?: boolean
     // Multi-runner
     defaultRunner?: string
@@ -77,6 +80,35 @@ const DEFAULT_CONFIG: KodyConfig = {
     enabled: true,
     tokenBudget: 8000,
   },
+}
+
+// LiteLLM constants
+export const LITELLM_DEFAULT_PORT = 4000
+export const LITELLM_DEFAULT_URL = `http://localhost:${LITELLM_DEFAULT_PORT}`
+
+// Anthropic model IDs that Claude Code CLI sends in API requests
+// Keyed by tier (cheap/mid/strong) → list of model IDs Claude Code might use
+export const TIER_TO_ANTHROPIC_IDS: Record<string, string[]> = {
+  cheap: ["claude-haiku-4-5-20251001", "claude-haiku-4-5", "haiku"],
+  mid: ["claude-sonnet-4-6-20250514", "claude-sonnet-4-6", "sonnet"],
+  strong: ["claude-opus-4-6-20250514", "claude-opus-4-6", "opus"],
+}
+
+/** Check if a provider needs LiteLLM proxy */
+export function needsLitellmProxy(config: KodyConfig): boolean {
+  if (config.agent.litellmUrl) return true
+  if (config.agent.provider && config.agent.provider !== "anthropic") return true
+  return false
+}
+
+/** Derive the LiteLLM URL from config */
+export function getLitellmUrl(config: KodyConfig): string {
+  return config.agent.litellmUrl ?? LITELLM_DEFAULT_URL
+}
+
+/** Get the env var name for a provider's API key */
+export function providerApiKeyEnvVar(provider: string): string {
+  return `${provider.toUpperCase()}_API_KEY`
 }
 
 // Pipeline constants

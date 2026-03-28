@@ -9,7 +9,7 @@ import type {
 } from "../types.js"
 import { buildFullPrompt, resolveModel } from "../context.js"
 import { validateTaskJson, validatePlanMd, validateReviewMd, stripFences } from "../validators.js"
-import { getProjectConfig } from "../config.js"
+import { getProjectConfig, needsLitellmProxy, getLitellmUrl } from "../config.js"
 import { getRunnerForStage } from "../pipeline/runner-selection.js"
 import { logger } from "../logger.js"
 
@@ -80,8 +80,8 @@ export async function executeAgentStage(
   logger.info(`  runner=${runnerName} model=${model} timeout=${def.timeout / 1000}s`)
 
   const extraEnv: Record<string, string> = {}
-  if (config.agent.litellmUrl) {
-    extraEnv.ANTHROPIC_BASE_URL = config.agent.litellmUrl
+  if (needsLitellmProxy(config)) {
+    extraEnv.ANTHROPIC_BASE_URL = getLitellmUrl(config)
   }
 
   // Session management: stages in the same group share a Claude Code session
