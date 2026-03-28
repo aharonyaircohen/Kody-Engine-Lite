@@ -124,7 +124,7 @@ function createBrainRunner(config: KodyConfig): AgentRunner {
   const brainUrl = config.agent.brainUrl  // "https://brain.kody.dev"
   return {
     async run(stageName, prompt, model, timeout, taskDir, options) {
-      // 1. Read task artifacts from .tasks/<id>/
+      // 1. Read task artifacts from .kody/tasks/<id>/
       // 2. Read .kody/memory/*.md
       // 3. POST brainUrl/run/<stageName>
       //    Body: { taskId, stage, context: { taskMd, taskJson, planMd, diff, memory }, config }

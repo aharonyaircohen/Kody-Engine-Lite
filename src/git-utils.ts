@@ -182,20 +182,3 @@ export function pushBranch(cwd?: string): void {
   git(["push", "-u", "origin", "HEAD"], { cwd, timeout: 120_000 })
   logger.info("  Pushed to origin")
 }
-
-export function getChangedFiles(baseBranch: string, cwd?: string): string[] {
-  try {
-    const output = git(["diff", "--name-only", `origin/${baseBranch}...HEAD`], { cwd })
-    return output ? output.split("\n").filter(Boolean) : []
-  } catch {
-    return []
-  }
-}
-
-export function getDiff(baseBranch: string, cwd?: string): string {
-  try {
-    return git(["diff", `origin/${baseBranch}...HEAD`], { cwd })
-  } catch {
-    return ""
-  }
-}

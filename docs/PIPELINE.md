@@ -127,10 +127,10 @@ Auto-detected from taskify's `risk_level`, or override with `--complexity`:
 
 ## Task Artifacts
 
-Each run creates artifacts in `.tasks/<task-id>/`:
+Each run creates artifacts in `.kody/tasks/<task-id>/`:
 
 ```
-.tasks/42-260327-102254/
+.kody/tasks/42-260327-102254/
 ├── task.md        # Issue body (input)
 ├── task.json      # Structured classification
 ├── plan.md        # Implementation plan

@@ -21,7 +21,6 @@ const SESSION_GROUP: Record<string, string> = {
   taskify: "explore",
   plan: "explore",
   build: "build",
-  autofix: "build",
   "review-fix": "build",
   review: "review",
 }

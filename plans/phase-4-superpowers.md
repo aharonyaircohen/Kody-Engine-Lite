@@ -132,8 +132,8 @@ pnpm kody run --task-id 260325-mem-test --task "Add a helper function"
 cat .kody/memory/conventions.md  # Should have new entries after successful run
 
 # Plan quality improved (TDD ordering)
-cat .tasks/260325-mem-test/plan.md  # Steps should have test-first ordering
+cat .kody/tasks/260325-mem-test/plan.md  # Steps should have test-first ordering
 
 # Review quality improved (severity levels)
-cat .tasks/260325-mem-test/review.md  # Should have Critical/Major/Minor sections
+cat .kody/tasks/260325-mem-test/review.md  # Should have Critical/Major/Minor sections
 ```

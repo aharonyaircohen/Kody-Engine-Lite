@@ -53,7 +53,7 @@ For HIGH-risk tasks, Kody pauses after the plan stage and posts the plan on the 
 Yes. Each issue gets its own GitHub Actions run. The concurrency config is per-task, so different issues run simultaneously.
 
 **Q: Where are artifacts stored?**
-In `.tasks/<task-id>/` — includes task.json, plan.md, context.md, verify.md, review.md, ship.md, status.json. These are uploaded as GitHub Actions artifacts (7-day retention).
+In `.kody/tasks/<task-id>/` — includes task.json, plan.md, context.md, verify.md, review.md, ship.md, status.json. These are uploaded as GitHub Actions artifacts (7-day retention).
 
 **Q: What triggers a rerun vs a new run?**
 `@kody` always starts a new run with a fresh task ID. `@kody rerun` resumes the last task for that issue from the failed/paused stage.

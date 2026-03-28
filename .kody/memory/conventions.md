@@ -15,6 +15,6 @@
 - **src/**: Source TypeScript
 - **dist/**: Published npm package
 - **prompts/**: Claude instructions per stage
-- **.tasks/**: Ephemeral state (ignored in git)
+- **.kody/tasks/**: Task state persistence (committed to git)
 
 Refer to ONBOARDING.md for full architecture, design decisions, and pipeline internals.

@@ -228,7 +228,7 @@ jobs:
         if: always()
         run: |
           TASK_ID="${{ github.event.inputs.task_id || needs.parse.outputs.task_id }}"
-          STATUS_FILE=".tasks/${TASK_ID}/status.json"
+          STATUS_FILE=".kody/tasks/${TASK_ID}/status.json"
           if [ -f "$STATUS_FILE" ]; then
             STATE=$(jq -r '.state' "$STATUS_FILE")
             ICON="❌"
@@ -257,7 +257,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: kody-tasks-${{ github.event.inputs.task_id || needs.parse.outputs.task_id }}
-          path: .tasks/
+          path: .kody/tasks/
           retention-days: 7
 
   # ─── Error Notifications ─────────────────────────────────────────────────────
@@ -320,11 +320,11 @@ jobs:
         run: kody-engine-lite --help
       - name: Dry run
         run: |
-          mkdir -p .tasks/smoke-test
-          echo "Smoke test task" > .tasks/smoke-test/task.md
+          mkdir -p .kody/tasks/smoke-test
+          echo "Smoke test task" > .kody/tasks/smoke-test/task.md
           kody-engine-lite run --task-id smoke-test --dry-run || true
-          if [ -f ".tasks/smoke-test/status.json" ]; then
+          if [ -f ".kody/tasks/smoke-test/status.json" ]; then
             echo "✓ status.json created"
-            cat .tasks/smoke-test/status.json
+            cat .kody/tasks/smoke-test/status.json
           fi
-          rm -rf .tasks/smoke-test
+          rm -rf .kody/tasks/smoke-test

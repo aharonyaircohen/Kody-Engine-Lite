@@ -77,7 +77,7 @@ LLMs (Anthropic, OpenAI, MiniMax, etc.)
 - Kody orchestrates stages (Option A) — each stage is a fresh Claude Code invocation
 - **LiteLLM replaces all model configuration** — opencode.json's 21 agent→model mappings become LiteLLM aliases
 - Per-stage model selection via LiteLLM aliases passed to Claude Code `--model` flag
-- Filesystem persistence for resumability (`.tasks/<id>/status.json`)
+- Filesystem persistence for resumability (`.kody/tasks/<id>/status.json`)
 - Agent Runner interface for swappability (replace Claude Code later without touching state machine)
 - Claude Code uses tools (Read, Write, Edit, Bash) to modify files directly in the working directory
 
@@ -251,7 +251,7 @@ general_settings:
 Each Claude Code invocation is a fresh session. Two layers of context maintain continuity:
 
 ### Short-term: Task Context (per-task)
-- **Location:** `.tasks/<id>/`
+- **Location:** `.kody/tasks/<id>/`
 - **Contents:** task.json, plan.md, review.md, verify.md, status.json
 - **Injected via:** `{{TASK_CONTEXT}}` placeholder in prompts
 - **Lifetime:** One pipeline run. Persists for resume/rerun.
@@ -435,7 +435,7 @@ interface KodyConfig {
     repo: string
   }
   paths: {
-    taskDir: string  // ".tasks"
+    taskDir: string  // ".kody/tasks"
   }
   agent: {
     runner: "claude-code"
@@ -557,9 +557,9 @@ Port from Kody-Engine `validators.ts` (45 lines).
 
 Port from Kody-Engine `kody-utils.ts` (36 lines).
 
-- `getTaskDir(taskId)` — returns `.tasks/${taskId}` relative to cwd
+- `getTaskDir(taskId)` — returns `.kody/tasks/${taskId}` relative to cwd
 - `ensureTaskDir(taskId)` — creates directory recursively, returns path
-- `loadTaskJson(taskDir)` — reads/parses `.tasks/<id>/task.json`, returns null on parse error
+- `loadTaskJson(taskDir)` — reads/parses `.kody/tasks/<id>/task.json`, returns null on parse error
 - `TaskJson` interface: `{ id, title?, description?, profile?: "standard"|"lightweight"|"turbo", stages? }`
 
 ### Step 9: State Machine (`src/state-machine.ts`) ~350 lines
@@ -864,7 +864,7 @@ permissions:
 6. Set API keys from secrets (`ANTHROPIC_API_KEY`, `GH_TOKEN`)
 7. Run: `pnpm kody` with env vars from inputs
 8. Write pipeline summary to `$GITHUB_STEP_SUMMARY` (read status.json, format as table)
-9. Upload `.tasks/<id>/` artifacts (7-day retention)
+9. Upload `.kody/tasks/<id>/` artifacts (7-day retention)
 
 ---
 
@@ -958,10 +958,10 @@ pull_request_review:
 On push to main/dev (paths: `src/**`, `prompts/**`, `package.json`):
 - `pnpm typecheck`
 - `pnpm kody --help` (validates CLI loads, exits 0)
-- Seed test task: `mkdir -p .tasks/smoke-test && echo "Test task" > .tasks/smoke-test/task.md`
+- Seed test task: `mkdir -p .kody/tasks/smoke-test && echo "Test task" > .kody/tasks/smoke-test/task.md`
 - `pnpm kody run --task-id smoke-test --dry-run`
 - Validate: `status.json` exists and has expected structure
-- Cleanup: `rm -rf .tasks/smoke-test`
+- Cleanup: `rm -rf .kody/tasks/smoke-test`
 
 ### Step 27: Concurrency & Permissions
 
@@ -1099,7 +1099,7 @@ function createBrainRunner(config: KodyConfig): AgentRunner {
 
   return {
     async run(stageName, promptPath, timeout, taskId, taskDir, options) {
-      // 1. Read task artifacts from local .tasks/<id>/
+      // 1. Read task artifacts from local .kody/tasks/<id>/
       // 2. Read .kody/memory/*.md
       // 3. POST to brain server: /run/<stageName>
       //    Body: { taskId, stage, context: { taskMd, taskJson, planMd, diff, memory }, config: { modelTier, timeout } }
@@ -1265,8 +1265,8 @@ pnpm typecheck                                    # All files compile
 pnpm kody --help                                  # Shows usage
 pnpm kody status --task-id test                   # Preflight passes
 pnpm kody run --task-id 260325-test-sum-fn        # Full pipeline (needs claude CLI + ANTHROPIC_API_KEY)
-cat .tasks/260325-test-sum-fn/status.json         # All stages completed
-ls .tasks/260325-test-sum-fn/                     # task.json, plan.md, review.md, verify.md, ship.md
+cat .kody/tasks/260325-test-sum-fn/status.json         # All stages completed
+ls .kody/tasks/260325-test-sum-fn/                     # task.json, plan.md, review.md, verify.md, ship.md
 pnpm kody rerun --task-id 260325-test-sum-fn --from review  # Resume works
 grep -r "claude" src/state-machine.ts             # Returns nothing (decoupled)
 cat litellm-config.yaml                           # All agent aliases present

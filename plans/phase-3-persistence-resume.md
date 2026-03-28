@@ -64,7 +64,7 @@ interface StageState {
 }
 ```
 
-- `loadState(taskId, taskDir)` — load `.tasks/<id>/status.json`, validate taskId
+- `loadState(taskId, taskDir)` — load `.kody/tasks/<id>/status.json`, validate taskId
 - `writeState(state, taskDir)` — write with updated timestamp. **Called after EVERY stage.**
 - `initState(taskId)` — all stages `{ state: "pending", retries: 0 }`
 
@@ -150,11 +150,11 @@ pnpm kody --help
 ```bash
 # Full pipeline with all 7 stages
 pnpm kody run --task-id 260325-test --task "Add a multiply function"
-cat .tasks/260325-test/status.json  # All stages completed
+cat .kody/tasks/260325-test/status.json  # All stages completed
 
 # Resume from failure
 pnpm kody rerun --task-id 260325-test --from review
-cat .tasks/260325-test/status.json  # Review re-ran, earlier stages skipped
+cat .kody/tasks/260325-test/status.json  # Review re-ran, earlier stages skipped
 
 # Status check
 pnpm kody status --task-id 260325-test  # Shows per-stage status
@@ -164,5 +164,5 @@ pnpm kody status --task-id 260325-test  # Shows per-stage status
 
 # Dry run
 pnpm kody run --task-id dry-test --task "Test" --dry-run
-cat .tasks/dry-test/status.json  # Created but no agent calls made
+cat .kody/tasks/dry-test/status.json  # Created but no agent calls made
 ```

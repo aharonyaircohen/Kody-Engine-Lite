@@ -440,7 +440,7 @@ function initCommand(opts: { force: boolean }) {
 
 // ─── bootstrap command ───────────────────────────────────────────────────────
 
-const STEP_STAGES = ["taskify", "plan", "build", "autofix", "review", "review-fix"] as const
+const STEP_STAGES = ["taskify", "plan", "build", "review", "review-fix"] as const
 
 function gatherSampleSourceFiles(cwd: string, maxFiles = 3, maxCharsEach = 2000): string {
   const srcDir = path.join(cwd, "src")

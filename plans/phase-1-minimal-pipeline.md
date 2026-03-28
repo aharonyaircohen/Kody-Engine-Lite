@@ -17,7 +17,7 @@ Create a minimal working pipeline that runs a **single stage** (build) via CLI, 
 | `src/types.ts` | ~40 | Minimal types: `AgentRunner` interface, `AgentResult`, `AgentRunnerOptions` |
 | `src/agent-runner.ts` | ~80 | Thin wrapper: spawn `claude --print`, pipe stdin, enforce timeout, return output |
 | `src/entry.ts` | ~60 | CLI: `kody run --task "Create a sum function"` |
-| `src/kody-utils.ts` | ~20 | `ensureTaskDir(taskId)` — create `.tasks/<id>/`, return path |
+| `src/kody-utils.ts` | ~20 | `ensureTaskDir(taskId)` — create `.kody/tasks/<id>/`, return path |
 | `prompts/build.md` | ~50 | Single prompt: build stage with tool-use instructions |
 | `package.json` | update | Add `pino`, `zod`; remove `openai`; script `"kody": "tsx src/entry.ts"` |
 
@@ -77,7 +77,7 @@ pnpm kody run --task "Create a TypeScript function that sums an array of numbers
 ```
 - Parse `--task` from argv (required)
 - Generate taskId from timestamp: `YYMMDD-HHMMSS`
-- `ensureTaskDir(taskId)` → `.tasks/<id>/`
+- `ensureTaskDir(taskId)` → `.kody/tasks/<id>/`
 - Write `task.md` with task description
 - Read `prompts/build.md`, append task.md content
 - Call `runner.run("build", prompt, "sonnet", 1200000, taskDir)`
@@ -130,12 +130,12 @@ pnpm kody run --task "Add input validation using zod to the CLI arguments"
 
 Each should:
 - Create/modify files in the working directory
-- Output saved to `.tasks/<id>/`
+- Output saved to `.kody/tasks/<id>/`
 - Exit 0 on success
 
 ## Verification
 ```bash
 pnpm typecheck                          # Compiles
 pnpm kody run --task "Add a sum fn"     # Runs end-to-end
-ls .tasks/                              # Task directory created
+ls .kody/tasks/                         # Task directory created
 ```

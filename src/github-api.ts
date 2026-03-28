@@ -267,15 +267,3 @@ export function getLatestKodyReviewComment(prNumber: number): string | null {
     return null
   }
 }
-
-export function closeIssue(
-  issueNumber: number,
-  reason: "completed" | "not planned" = "completed",
-): void {
-  try {
-    gh(["issue", "close", String(issueNumber), "--reason", reason])
-    logger.info(`  Issue #${issueNumber} closed: ${reason}`)
-  } catch (err) {
-    logger.warn(`  Failed to close issue: ${err}`)
-  }
-}

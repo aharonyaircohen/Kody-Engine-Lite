@@ -73,7 +73,7 @@ GitHub Actions (kody.yml)
   │   4. Install LiteLLM proxy (if litellm-config.yaml exists)
   │   5. Configure git user
   │   6. Run: kody-engine-lite run --task-id 42-260327-102254 --issue-number 42
-  │   7. Upload .tasks/ artifacts
+  │   7. Upload .kody/tasks/ artifacts
   │
   └─ [kody-engine-lite entry.ts] ────────────────────────────────────
       1. Parse CLI args
@@ -86,7 +86,7 @@ GitHub Actions (kody.yml)
       8. Post "Pipeline started" comment on issue
       9. runPipeline(ctx)
           │
-          ├─ Acquire lock (.tasks/42-260327-102254/.lock)
+          ├─ Acquire lock (.kody/tasks/42-260327-102254/.lock)
           ├─ Load/init state (status.json)
           ├─ Set label: kody:planning
           ├─ Create feature branch: 42--issue-title
@@ -382,7 +382,7 @@ kody.yml
   │   │  Configure git user
   │   │  Run pipeline with env: ANTHROPIC_API_KEY, GH_TOKEN, task inputs
   │   │  Generate step summary (stage table)
-  │   │  Upload .tasks/ artifacts (7-day retention)
+  │   │  Upload .kody/tasks/ artifacts (7-day retention)
   │   │
   │   [smoke-test] ─────── push only
   │   │  Typecheck, CLI loads, dry run
@@ -443,7 +443,7 @@ type StageType = "agent" | "gate" | "deterministic"
 
 interface PipelineContext {
   taskId: string
-  taskDir: string          // .tasks/<task-id>/
+  taskDir: string          // .kody/tasks/<task-id>/
   projectDir: string       // repo root
   runners: Record<string, AgentRunner>
   sessions?: Record<string, string>  // group → session UUID

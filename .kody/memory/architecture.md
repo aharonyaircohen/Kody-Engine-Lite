@@ -15,7 +15,7 @@
 - **src/bin/**: CLI binary distribution
 - **prompts/**: Stage templates and instructions
 - **templates/kody.yml**: GitHub Actions workflow
-- **.tasks/**: Runtime state persistence (git-ignored)
+- **.kody/tasks/**: Runtime state persistence
 
 ## Data Flow
 GitHub comment (@kody full) → Workflow → CLI → State Machine → 7 Stages → PR Creation. Each stage reads task.json, executes Claude prompt, persists results.

@@ -129,7 +129,7 @@ on:
 - Set API keys from secrets
 - Run `pnpm kody` with env vars
 - Write pipeline summary to `$GITHUB_STEP_SUMMARY`
-- Upload `.tasks/<id>/` artifacts (7-day retention)
+- Upload `.kody/tasks/<id>/` artifacts (7-day retention)
 
 **3. notify-parse-error** — post usage message on bad `@kody` commands
 **4. notify-orchestrate-error** — post failure with logs link, set `kody:failed`

@@ -142,8 +142,8 @@ async function runPipeline(ctx: PipelineContext): Promise<void> {
 ```bash
 pnpm kody run --task-id 260325-sum-fn --task "Create a sum function with tests"
 # Runs: taskify → plan → build → review
-ls .tasks/260325-sum-fn/
+ls .kody/tasks/260325-sum-fn/
 # Expected: task.md, task.json, plan.md, review.md
-cat .tasks/260325-sum-fn/task.json   # Valid JSON with 5 fields
-cat .tasks/260325-sum-fn/review.md   # Contains PASS or FAIL verdict
+cat .kody/tasks/260325-sum-fn/task.json   # Valid JSON with 5 fields
+cat .kody/tasks/260325-sum-fn/review.md   # Contains PASS or FAIL verdict
 ```
