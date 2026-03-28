@@ -23,7 +23,7 @@ Most AI coding tools are **autocomplete** (Copilot) or **chat-based** (Cursor, C
 | **Incremental codebase improvement** | Step files encode gaps to fix — every task raises quality | No | No | No |
 | **Model flexible** | Any LLM via LiteLLM | GitHub models only | Proprietary | Cursor models |
 | **Open source** | MIT | Proprietary | Proprietary | Proprietary |
-| **Cost** | Your API costs only | $10-39/month | $20-500/month | Subscription |
+| **Cost** | **Free** with free-tier models (Gemini, etc.) or pay-per-use with any LLM | $10-39/month | $20-500/month | Subscription |
 
 [Full comparison →](docs/COMPARISON.md)
 

@@ -6,7 +6,7 @@
 Any. Kody uses Claude Code which supports all programming languages. The quality gates run whatever commands you configure in `kody.config.json`.
 
 **Q: How much does it cost per task?**
-Depends on complexity and model. LOW tasks (utilities, configs): ~$0.30-1.00. MEDIUM tasks (multi-file features): ~$1-3. HIGH tasks (full features with review): ~$3-8. Using cheaper models via LiteLLM reduces costs.
+**Kody can be completely free.** Route through LiteLLM to free-tier models (Google Gemini, etc.) and pay nothing. With paid models: LOW tasks ~$0.30-1.00, MEDIUM ~$1-3, HIGH ~$3-8. No subscriptions, no per-seat pricing — ever.
 
 **Q: Can I use it without GitHub?**
 The CLI works locally (`--local` flag) without GitHub. The full CI/CD pipeline requires GitHub Actions.

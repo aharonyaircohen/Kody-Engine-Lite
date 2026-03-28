@@ -4,7 +4,7 @@
 
 | Tool | Type | Open Source | Model Flexible | CI Native | Fire & Forget | Cost |
 |------|------|-------------|---------------|-----------|--------------|------|
-| **Kody** | SDLC Pipeline | MIT | Any via LiteLLM | GitHub Actions | Yes | API costs |
+| **Kody** | SDLC Pipeline | MIT | Any via LiteLLM | GitHub Actions | Yes | Free with free-tier models |
 
 **Kody is the only tool that generates repo-customized prompts** — every other tool uses the same generic instructions regardless of your codebase's patterns, conventions, and gaps.
 | Copilot Workspace | Interactive | No | GitHub models | GitHub Cloud | No | $10-39/mo |
@@ -32,11 +32,11 @@
 | **Memory** | Auto-learns conventions per project | No project memory |
 | **Models** | Any via LiteLLM | GitHub models only |
 | **Source** | MIT open source | Proprietary |
-| **Cost** | API costs (~$0.30-8/task) | $10-39/month |
+| **Cost** | Free with free-tier models, or ~$0.30-8/task with paid models | $10-39/month |
 
 **Choose Copilot Workspace** when you want interactive pair programming with tight GitHub integration.
 
-**Choose Kody** when you want autonomous issue-to-PR automation with quality gates, failure diagnosis, and model flexibility.
+**Choose Kody** when you want autonomous issue-to-PR automation with quality gates, failure diagnosis, and model flexibility — at zero cost with free-tier models.
 
 ### vs Devin
 
@@ -47,7 +47,7 @@
 | **Self-hosted** | Yes — your infra, your keys | Cloud only |
 | **Models** | Any LLM via LiteLLM | Proprietary (Devin 2.0) |
 | **Concurrency** | Multiple issues in parallel (GitHub Actions) | Multiple Devins (paid) |
-| **Cost** | API costs (~$0.30-8/task) | $20/mo (Core) to $500/mo (Team) |
+| **Cost** | Free with free-tier models, or ~$0.30-8/task with paid models | $20/mo (Core) to $500/mo (Team) |
 | **Failure handling** | AI diagnosis with 5 classifications | Retry |
 | **Human oversight** | Risk gate + labels + issue comments | Interactive steering |
 
@@ -131,6 +131,8 @@ A full authentication system built end-to-end with MiniMax via LiteLLM:
 
 8. **Model agnostic.** Route through LiteLLM to use any model. Switch providers without changing code.
 
-9. **Runs in CI.** No IDE required, no cloud VM, no subscription. Just GitHub Actions and your API key.
+9. **Completely free option.** Use free-tier models (Google Gemini, etc.) via LiteLLM and pay nothing. No subscriptions, no per-seat pricing — a full autonomous SDLC pipeline at zero cost.
+
+10. **Runs in CI.** No IDE required, no cloud VM, no subscription. Just GitHub Actions and your API key (or free models).
 
 10. **Rerun from any stage.** If review-fix fails, rerun from review-fix. Don't redo the 20-minute build.
