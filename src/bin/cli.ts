@@ -276,52 +276,8 @@ function initCommand(opts: { force: boolean }) {
       }
     }
 
-    // Create lifecycle labels
-    const labels = [
-      { name: "kody:planning", color: "c5def5", description: "Kody is analyzing and planning" },
-      { name: "kody:building", color: "0e8a16", description: "Kody is building code" },
-      { name: "kody:review", color: "fbca04", description: "Kody is reviewing code" },
-      { name: "kody:done", color: "0e8a16", description: "Kody completed successfully" },
-      { name: "kody:failed", color: "d93f0b", description: "Kody pipeline failed" },
-      { name: "kody:waiting", color: "fef2c0", description: "Kody is waiting for answers" },
-      { name: "kody:low", color: "bfdadc", description: "Low complexity — skip plan/review" },
-      { name: "kody:medium", color: "c5def5", description: "Medium complexity — skip review-fix" },
-      { name: "kody:high", color: "d4c5f9", description: "High complexity — full pipeline" },
-      { name: "kody:feature", color: "0e8a16", description: "New feature" },
-      { name: "kody:bugfix", color: "d93f0b", description: "Bug fix" },
-      { name: "kody:refactor", color: "fbca04", description: "Code refactoring" },
-      { name: "kody:docs", color: "0075ca", description: "Documentation" },
-      { name: "kody:chore", color: "e4e669", description: "Maintenance task" },
-    ]
-
     console.log("\n── Labels ──")
-    for (const label of labels) {
-      try {
-        execFileSync("gh", [
-          "label", "create", label.name,
-          "--repo", repoSlug,
-          "--color", label.color,
-          "--description", label.description,
-          "--force",
-        ], {
-          encoding: "utf-8",
-          timeout: 10_000,
-          stdio: ["pipe", "pipe", "pipe"],
-        })
-        console.log(`  ✓ ${label.name}`)
-      } catch {
-        try {
-          execFileSync("gh", ["label", "list", "--repo", repoSlug, "--search", label.name], {
-            encoding: "utf-8",
-            timeout: 10_000,
-            stdio: ["pipe", "pipe", "pipe"],
-          })
-          console.log(`  ○ ${label.name} (exists)`)
-        } catch {
-          console.log(`  ✗ ${label.name} — failed to create`)
-        }
-      }
-    }
+    console.log("  ○ Labels will be created automatically during bootstrap")
   }
 
   // ── Step 4: Validate config ──
@@ -728,7 +684,75 @@ REMINDER: Output the full prompt template first (unchanged), then your three app
   }
   console.log(`  ✓ Generated ${stepCount} step files in .kody/steps/`)
 
-  // ── Step 3: Format, commit and push ──
+  // ── Step 3: Create labels ──
+  console.log("\n── Labels ──")
+  try {
+    let repoSlug = ""
+    try {
+      const configPath = path.join(cwd, "kody.config.json")
+      if (fs.existsSync(configPath)) {
+        const config = JSON.parse(fs.readFileSync(configPath, "utf-8"))
+        if (config.github?.owner && config.github?.repo) {
+          repoSlug = `${config.github.owner}/${config.github.repo}`
+        }
+      }
+    } catch { /* ignore */ }
+
+    if (repoSlug) {
+      const labels = [
+        { name: "kody:planning", color: "c5def5", description: "Kody is analyzing and planning" },
+        { name: "kody:building", color: "0e8a16", description: "Kody is building code" },
+        { name: "kody:review", color: "fbca04", description: "Kody is reviewing code" },
+        { name: "kody:done", color: "0e8a16", description: "Kody completed successfully" },
+        { name: "kody:failed", color: "d93f0b", description: "Kody pipeline failed" },
+        { name: "kody:waiting", color: "fef2c0", description: "Kody is waiting for answers" },
+        { name: "kody:low", color: "bfdadc", description: "Low complexity — skip plan/review" },
+        { name: "kody:medium", color: "c5def5", description: "Medium complexity — skip review-fix" },
+        { name: "kody:high", color: "d4c5f9", description: "High complexity — full pipeline" },
+        { name: "kody:feature", color: "0e8a16", description: "New feature" },
+        { name: "kody:bugfix", color: "d93f0b", description: "Bug fix" },
+        { name: "kody:refactor", color: "fbca04", description: "Code refactoring" },
+        { name: "kody:docs", color: "0075ca", description: "Documentation" },
+        { name: "kody:chore", color: "e4e669", description: "Maintenance task" },
+      ]
+
+      for (const label of labels) {
+        try {
+          execFileSync("gh", [
+            "label", "create", label.name,
+            "--repo", repoSlug,
+            "--color", label.color,
+            "--description", label.description,
+            "--force",
+          ], {
+            cwd,
+            encoding: "utf-8",
+            timeout: 10_000,
+            stdio: ["pipe", "pipe", "pipe"],
+          })
+          console.log(`  ✓ ${label.name}`)
+        } catch {
+          try {
+            execFileSync("gh", ["label", "list", "--repo", repoSlug, "--search", label.name], {
+              cwd,
+              encoding: "utf-8",
+              timeout: 10_000,
+              stdio: ["pipe", "pipe", "pipe"],
+            })
+            console.log(`  ○ ${label.name} (exists)`)
+          } catch {
+            console.log(`  ✗ ${label.name} — failed to create`)
+          }
+        }
+      }
+    } else {
+      console.log("  ○ Skipped — could not determine repo from kody.config.json")
+    }
+  } catch {
+    console.log("  ○ Label creation skipped")
+  }
+
+  // ── Step 4: Format, commit and push ──
   console.log("\n── Git ──")
   const filesToCommit = [
     ".kody/memory/architecture.md",
