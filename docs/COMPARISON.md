@@ -71,22 +71,46 @@
 
 **Choose Kody** when you want to delegate tasks and walk away — CI-level automation that doesn't need your IDE open.
 
-### vs SWE-agent / OpenHands
+### vs OpenHands
 
-| | Kody | SWE-agent | OpenHands |
-|---|---|---|---|
-| **Focus** | Production SDLC pipeline | Research benchmark | General autonomous agent |
-| **Pipeline** | 7 structured stages | Single agent loop | Single agent loop |
-| **GitHub integration** | Native (issues, PRs, labels, comments) | Basic | Basic |
-| **Quality gates** | Built-in (typecheck, lint, test + AI diagnosis) | Test execution | Test execution |
-| **Memory** | Auto-learning conventions | No | No |
-| **Retrospective** | AI-powered run analysis | No | No |
-| **Production ready** | Yes | Research-focused | Growing |
-| **Community** | Early stage | Academic (NeurIPS 2024) | 65K+ stars |
+| | Kody | OpenHands |
+|---|---|---|
+| **Architecture** | 7-stage structured pipeline | Single agent loop |
+| **Focus** | Issue → PR automation (SDLC) | General-purpose autonomous coding |
+| **Runs where** | GitHub Actions (zero infra) | Docker/Kubernetes sandbox (self-hosted or cloud) |
+| **Setup** | `npm install` + `init` — 2 minutes | Docker compose + sandbox config |
+| **GitHub integration** | Native — issues, PRs, labels, comments, workflow triggers | Via integrations (GitHub, GitLab, Slack) |
+| **Trigger** | `@kody` on any issue | Web UI, API, or CI integration |
+| **Quality gates** | Built-in: typecheck + lint + tests + AI diagnosis between stages | Single pass — no structured gates |
+| **Failure handling** | 5-way AI diagnosis (fixable/infra/pre-existing/abort/flaky) → targeted retry | Retry within agent loop |
+| **Risk gate** | Pauses HIGH-risk tasks for human approval before building | No structured risk gate |
+| **Repo-aware prompts** | Auto-generated step files with your repo's patterns, gaps, and acceptance criteria | Generic prompts — same for every repo |
+| **Memory** | Auto-learns conventions from each successful run | No persistent project memory |
+| **Checkpoints** | Rerun from any stage — keep what worked | Start over on failure |
+| **Review** | Dedicated review stage with fresh session (no self-review bias) | Self-reviews in same context |
+| **Models** | Any via LiteLLM | Any LLM (Claude, GPT, etc.) |
+| **Source** | MIT | Apache 2.0 |
+| **Community** | Early stage | 65K+ stars |
+| **Cost** | Free with free-tier models, or ~$0.30-8/task | API costs + infra |
+
+**Choose OpenHands** when you need a general-purpose AI coding agent with a web IDE, browser access, and broad tooling — especially for exploratory tasks, prototyping, or workflows beyond GitHub issues.
+
+**Choose Kody** when you want structured issue-to-PR automation with quality gates, repo-aware prompts, failure diagnosis, and zero infrastructure — just GitHub Actions. Kody's pipeline approach handles complex multi-file tasks more reliably because each stage has a clear objective, shared sessions prevent context bloat, and quality gates catch errors between stages instead of after.
+
+### vs SWE-agent
+
+| | Kody | SWE-agent |
+|---|---|---|
+| **Focus** | Production SDLC pipeline | Research benchmark |
+| **Pipeline** | 7 structured stages | Single agent loop |
+| **GitHub integration** | Native (issues, PRs, labels, comments) | Basic |
+| **Quality gates** | Built-in (typecheck, lint, test + AI diagnosis) | Test execution |
+| **Memory** | Auto-learning conventions | No |
+| **Retrospective** | AI-powered run analysis | No |
+| **Production ready** | Yes | Research-focused |
+| **Community** | Early stage | Academic (NeurIPS 2024) |
 
 **Choose SWE-agent** for research and benchmarking autonomous coding capabilities.
-
-**Choose OpenHands** for a general-purpose autonomous agent with a large community.
 
 **Choose Kody** for a production SDLC pipeline with structured stages, quality gates, and GitHub-native workflow.
 

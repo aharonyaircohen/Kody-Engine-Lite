@@ -15,7 +15,7 @@ The CLI works locally (`--local` flag) without GitHub. The full CI/CD pipeline r
 Yes. Use `--cwd` to point to the specific package directory. Each package can have its own `kody.config.json`.
 
 **Q: What does `init` do exactly?**
-Spawns Claude Code to analyze your project, then generates: workflow file, config with auto-detected quality commands, project memory (architecture + conventions), **6 repo-customized step files** (`.kody/steps/` — tailored prompts for each pipeline stage), and 14 GitHub labels — then commits and pushes. See [Configuration](CONFIGURATION.md).
+Spawns Claude Code to analyze your project, then generates: workflow file, config with auto-detected quality commands, project memory (architecture + conventions), and **6 repo-customized step files** (`.kody/steps/` — tailored prompts for each pipeline stage) — then commits and pushes. GitHub labels (14 total) are created during `@kody bootstrap`. See [Configuration](CONFIGURATION.md).
 
 **Q: What are step files (`.kody/steps/`)?**
 Customized instruction files for each pipeline stage, generated during `init`. They contain the engine's default prompt plus three sections specific to your repo: **Repo Patterns** (real code examples to follow), **Improvement Areas** (gaps to fix incrementally), and **Acceptance Criteria** (concrete quality checklist). This means Kody writes code that matches your existing patterns and improves known gaps. See [Features](FEATURES.md#repo-aware-step-files-kodysteps).

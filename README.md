@@ -40,7 +40,7 @@ Most AI coding tools are **autocomplete** (Copilot) or **chat-based** (Cursor, C
   └──────────────────────────┬──────────────────────────────────┘
                              │
                 ┌────────────▼────────────┐
-                │  LOW?  skip to ④        │
+                │  LOW?  skip to ③        │
                 │  MEDIUM?  continue      │
                 │  HIGH?  continue        │
                 └────────────┬────────────┘
@@ -124,9 +124,9 @@ This analyzes your project and generates:
 - **Config** (`kody.config.json` — auto-detected quality commands, git, GitHub settings)
 - **Project memory** (`.kody/memory/` — architecture and conventions)
 - **Customized step files** (`.kody/steps/` — see below)
-- **GitHub labels** for lifecycle tracking
-
 Then commits and pushes everything.
+
+> **Note:** GitHub labels for lifecycle tracking are created automatically during `@kody bootstrap`.
 
 ### 4. Use
 
@@ -246,10 +246,11 @@ name: build
 | Doc | What's in it |
 |-----|-------------|
 | [Pipeline](docs/PIPELINE.md) | Stage details, shared sessions, complexity skipping, artifacts |
+| [Bootstrap](docs/BOOTSTRAP.md) | Project memory, step files, labels — what bootstrap generates and when to run it |
 | [Features](docs/FEATURES.md) | Risk gate, diagnosis, sessions, retrospective, auto-learn, labels |
 | [LiteLLM](docs/LITELLM.md) | Non-Anthropic model setup, auto-start, tested providers |
 | [Configuration](docs/CONFIGURATION.md) | Full config reference, env vars, workflow setup |
-| [Comparison](docs/COMPARISON.md) | vs Copilot, Devin, Cursor, Cline, SWE-agent, OpenHands |
+| [Comparison](docs/COMPARISON.md) | vs Copilot, Devin, Cursor, Cline, OpenHands, SWE-agent |
 | [Architecture](docs/ARCHITECTURE.md) | Source tree, state machine diagram, development guide |
 | [FAQ](docs/FAQ.md) | Common questions about usage, models, security, cost |
 
