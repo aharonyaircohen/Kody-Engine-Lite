@@ -192,4 +192,58 @@ describe("ship stage: existing PR detection", () => {
 
     expect(githubApi.postComment).not.toHaveBeenCalled()
   })
+
+  it("recovers PR when createPR fails but PR was actually created", () => {
+    // First call (existing PR check) returns null, second call (recovery) returns the PR
+    vi.mocked(githubApi.getPRForBranch)
+      .mockReturnValueOnce(null)
+      .mockReturnValueOnce({
+        number: 160,
+        url: "https://github.com/test-owner/test-repo/pull/160",
+      })
+    vi.mocked(githubApi.createPR).mockReturnValue(null)
+
+    const ctx = makeCtx(tmpDir, { issueNumber: 105 })
+    const result = executeShipStage(ctx, stubDef)
+
+    expect(result.outcome).toBe("completed")
+    expect(githubApi.getPRForBranch).toHaveBeenCalledTimes(2)
+    expect(githubApi.postComment).toHaveBeenCalledWith(
+      105,
+      expect.stringContaining("PR created"),
+    )
+
+    const shipMd = fs.readFileSync(path.join(ctx.taskDir, "ship.md"), "utf-8")
+    expect(shipMd).toContain("PR created")
+    expect(shipMd).toContain("#160")
+  })
+
+  it("writes failure when createPR fails and PR does not exist", () => {
+    vi.mocked(githubApi.getPRForBranch).mockReturnValue(null)
+    vi.mocked(githubApi.createPR).mockReturnValue(null)
+
+    const ctx = makeCtx(tmpDir, { issueNumber: 106 })
+    const result = executeShipStage(ctx, stubDef)
+
+    expect(result.outcome).toBe("completed")
+    expect(githubApi.getPRForBranch).toHaveBeenCalledTimes(2)
+    expect(githubApi.postComment).not.toHaveBeenCalled()
+
+    const shipMd = fs.readFileSync(path.join(ctx.taskDir, "ship.md"), "utf-8")
+    expect(shipMd).toContain("failed to create PR")
+  })
+
+  it("does not attempt recovery when createPR succeeds", () => {
+    vi.mocked(githubApi.getPRForBranch).mockReturnValue(null)
+    vi.mocked(githubApi.createPR).mockReturnValue({
+      number: 170,
+      url: "https://github.com/test-owner/test-repo/pull/170",
+    })
+
+    const ctx = makeCtx(tmpDir)
+    executeShipStage(ctx, stubDef)
+
+    // Only called once (the initial existing PR check), not for recovery
+    expect(githubApi.getPRForBranch).toHaveBeenCalledTimes(1)
+  })
 })

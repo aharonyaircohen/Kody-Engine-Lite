@@ -204,7 +204,17 @@ export function executeShipStage(
 
       fs.writeFileSync(shipPath, `# Ship\n\nUpdated existing PR: ${existingPr.url}\nPR #${existingPr.number}\n`)
     } else {
-      const pr = createPR(head, base, title, body)
+      let pr = createPR(head, base, title, body)
+
+      // gh pr create can fail on response read-back even when the PR was created
+      // (known GitHub GraphQL issue). Check if the PR actually exists.
+      if (!pr) {
+        const recovered = getPRForBranch(head)
+        if (recovered) {
+          logger.info(`  PR recovered after create error: ${recovered.url}`)
+          pr = recovered
+        }
+      }
 
       if (pr) {
         if (ctx.input.issueNumber && !ctx.input.local) {
