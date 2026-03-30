@@ -9,7 +9,7 @@ Kody runs a 7-stage pipeline that transforms a GitHub issue into a tested, revie
 | **taskify** | cheap | haiku | 5 min | Classify task, detect complexity, ask questions | `task.json` |
 | **plan** | strong | opus | 10 min | TDD implementation plan with deep reasoning | `plan.md` |
 | **build** | mid | sonnet | 20 min | Implement code via Claude Code tools | code changes |
-| **verify** | gate | — | 5 min | typecheck + tests + lint, auto-retry with diagnosis | `verify.md` |
+| **verify** | gate | — | 5 min | runs configured quality commands, auto-retry with AI diagnosis | `verify.md` |
 | **review** | strong | opus | 10 min | Code review: PASS/FAIL + Critical/Major/Minor | `review.md` |
 | **review-fix** | mid | sonnet | 10 min | Fix Critical and Major review findings | code changes |
 | **ship** | deterministic | — | 2 min | Push branch, create PR, comment on issue | `ship.md` |

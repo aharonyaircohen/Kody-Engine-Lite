@@ -47,7 +47,7 @@ Seven stages, each with a clear objective, output artifacts, and quality gates b
 | **Taskify** | Classify task, detect complexity, ask questions | `task.json` |
 | **Plan** | TDD implementation plan with deep reasoning | `plan.md` |
 | **Build** | Implement code via Claude Code tools | code + commit |
-| **Verify** | typecheck + tests + lint with AI diagnosis | `verify.md` |
+| **Verify** | runs your configured quality commands + AI diagnosis on failure | `verify.md` |
 | **Review** | Code review: PASS/FAIL + Critical/Major/Minor | `review.md` |
 | **review-fix** | Fix Critical and Major review findings | code + commit |
 | **Ship** | Push branch, create PR, close issue | PR |

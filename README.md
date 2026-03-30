@@ -29,7 +29,7 @@ Kody wraps Claude Code with a 7-stage autonomous pipeline — classify, plan, bu
 ③ BUILD ───── implement via Claude Code tools
     │
     ▼
-④ VERIFY ──── typecheck + tests + lint
+④ VERIFY ──── run your quality commands (typecheck, tests, lint)
     │          ✗ fail → AI diagnosis → autofix → retry
     ▼
 ⑤ REVIEW ──── AI code review (fresh session, no build bias)
