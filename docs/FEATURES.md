@@ -131,6 +131,38 @@ After each successful run, Kody extracts conventions from pipeline artifacts:
 
 Conventions are stored in `.kody/memory/conventions.md` and prepended to every future agent prompt, improving accuracy over time.
 
+## Pattern Discovery
+
+The plan stage enforces **mandatory pattern discovery** before proposing any implementation. Before writing a plan, the agent must:
+
+1. **Search for similar implementations** — grep/glob for how the same problem is already solved elsewhere in the codebase
+2. **Reuse existing patterns** — if the codebase already solves a similar problem, the plan must follow that pattern
+3. **Check decisions.md** — read prior architectural decisions that may apply
+4. **Report what it found** — every plan includes an "Existing Patterns Found" section documenting which patterns were discovered and how they're reused
+
+This prevents the AI from inventing new patterns when existing ones already work (e.g., creating `label_en`/`label_he` fields when the codebase already uses per-locale documents).
+
+## Decision Memory
+
+Architectural decisions are automatically extracted from code reviews and saved to `.kody/memory/decisions.md`. The system detects patterns like:
+
+- "Use existing X" / "follow existing X" / "reuse X pattern"
+- "Instead of X, use Y" / "prefer Y over X"
+- "Consistent with X" / "same pattern as X"
+- "Don't use X for Y" / "avoid X"
+
+Decisions are deduplicated and persist across tasks. The plan agent reads `decisions.md` before every plan, ensuring the same mistake isn't repeated.
+
+## PR Feedback for Fix
+
+When `@kody fix` runs on a PR, it automatically collects three layers of context:
+
+1. **Kody's own review** — the latest "Kody Review" comment (from the review stage)
+2. **Human PR comments** — issue comments and inline code review comments from human reviewers
+3. **Fix comment body** — any additional text written after `@kody fix`
+
+Human feedback is **scoped to the current fix cycle** — only comments posted after the last Kody action are included. This prevents confusion from already-addressed feedback across multiple `@kody fix` rounds.
+
 ## Lifecycle Labels
 
 Kody updates issue labels in real-time as the pipeline progresses:

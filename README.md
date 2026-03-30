@@ -160,7 +160,7 @@ That's it. Kody auto-starts the LiteLLM proxy and loads API keys from `.env`. Fo
 |---------|-------------|
 | `@kody` | Run full pipeline |
 | `@kody approve` | Resume after questions or risk gate |
-| `@kody fix` | Re-run from build stage. Write feedback in the comment body — it gets injected into the build prompt |
+| `@kody fix` | Re-run from build stage. Automatically reads human PR review comments + Kody's own review as context. Additional feedback in the comment body is also injected |
 | `@kody fix-ci` | Fix failing CI checks. Fetches CI failure logs and re-runs from build stage. Auto-triggered when CI fails on a PR (with loop guard) |
 | `@kody rerun` | Resume from the failed or paused stage |
 | `@kody rerun --from <stage>` | Resume from a specific stage |
@@ -242,6 +242,8 @@ name: build
 - **Any LLM** — route through LiteLLM to use MiniMax, GPT, Gemini, local models ([setup guide](docs/LITELLM.md))
 - **Retrospective** — analyzes each run, identifies patterns, suggests improvements ([details](docs/FEATURES.md#retrospective-system))
 - **Auto-Learning** — extracts coding conventions from each successful run ([details](docs/FEATURES.md#auto-learning-memory))
+- **Pattern Discovery** — plan stage searches for existing patterns before proposing new approaches ([details](docs/FEATURES.md#pattern-discovery))
+- **Decision Memory** — architectural decisions extracted from code reviews are saved and enforced in future tasks ([details](docs/FEATURES.md#decision-memory))
 
 ## Documentation
 
@@ -249,7 +251,7 @@ name: build
 |-----|-------------|
 | [Pipeline](docs/PIPELINE.md) | Stage details, shared sessions, complexity skipping, artifacts |
 | [Bootstrap](docs/BOOTSTRAP.md) | Project memory, step files, labels — what bootstrap generates and when to run it |
-| [Features](docs/FEATURES.md) | Risk gate, diagnosis, sessions, retrospective, auto-learn, labels |
+| [Features](docs/FEATURES.md) | Risk gate, diagnosis, sessions, retrospective, auto-learn, pattern discovery, decision memory, PR feedback |
 | [LiteLLM](docs/LITELLM.md) | Non-Anthropic model setup, auto-start, tested providers |
 | [Configuration](docs/CONFIGURATION.md) | Full config reference, env vars, workflow setup |
 | [Comparison](docs/COMPARISON.md) | vs Copilot, Devin, Cursor, Cline, OpenHands, SWE-agent |
