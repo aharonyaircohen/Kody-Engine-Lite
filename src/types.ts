@@ -62,6 +62,7 @@ export interface AgentRunnerOptions {
   env?: Record<string, string>
   sessionId?: string
   resumeSession?: boolean
+  mcpConfigJson?: string
 }
 
 export interface AgentRunner {

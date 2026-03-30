@@ -14,6 +14,32 @@ export interface ContextTiersConfig {
   stageOverrides?: Partial<Record<string, Partial<Record<string, ContextTier>>>>
 }
 
+export interface McpServerConfig {
+  command: string
+  args?: string[]
+  env?: Record<string, string>
+}
+
+export interface DevServerConfig {
+  /** Command to start the dev server (e.g., "pnpm dev") */
+  command: string
+  /** URL where the dev server will be accessible (e.g., "http://localhost:3000") */
+  url: string
+  /** Regex pattern to match in stdout when server is ready (e.g., "Ready in") */
+  readyPattern?: string
+  /** Seconds to wait for the server to be ready before giving up. Default: 30 */
+  readyTimeout?: number
+}
+
+export interface McpConfig {
+  enabled: boolean
+  servers: Record<string, McpServerConfig>
+  /** Which stages can use MCP tools. Defaults to ["build", "verify", "review", "review-fix"] */
+  stages?: string[]
+  /** Dev server config — when set, browser tool guidance will include instructions to start and browse */
+  devServer?: DevServerConfig
+}
+
 export interface KodyConfig {
   quality: {
     typecheck: string
@@ -39,6 +65,7 @@ export interface KodyConfig {
     stageRunners?: Record<string, string>
   }
   contextTiers?: ContextTiersConfig
+  mcp?: McpConfig
 }
 
 const DEFAULT_CONFIG: KodyConfig = {
@@ -125,6 +152,9 @@ export function getProjectConfig(): KodyConfig {
         contextTiers: raw.contextTiers
           ? { ...DEFAULT_CONFIG.contextTiers, ...raw.contextTiers }
           : DEFAULT_CONFIG.contextTiers,
+        mcp: raw.mcp
+          ? { enabled: false, servers: {}, stages: ["build", "verify", "review", "review-fix"], ...raw.mcp }
+          : undefined,
       }
     } catch {
       logger.warn("kody.config.json is invalid JSON — using defaults")

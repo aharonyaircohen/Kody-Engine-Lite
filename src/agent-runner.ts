@@ -126,6 +126,10 @@ export function createClaudeCodeRunner(): AgentRunner {
         "--allowedTools", "Bash,Edit,Read,Write,Glob,Grep",
       ]
 
+      if (options?.mcpConfigJson) {
+        args.push("--mcp-config", options.mcpConfigJson)
+      }
+
       if (options?.sessionId) {
         if (options.resumeSession) {
           args.push("--resume", options.sessionId)

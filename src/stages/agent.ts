@@ -10,6 +10,7 @@ import type {
 import { buildFullPrompt, resolveModel } from "../context.js"
 import { validateTaskJson, validatePlanMd, validateReviewMd, stripFences } from "../validators.js"
 import { getProjectConfig, needsLitellmProxy, getLitellmUrl } from "../config.js"
+import { buildMcpConfigJson, isMcpEnabledForStage } from "../mcp-config.js"
 import { getRunnerForStage } from "../pipeline/runner-selection.js"
 import { logger } from "../logger.js"
 
@@ -91,11 +92,20 @@ export async function executeAgentStage(
     logger.info(`  session: ${SESSION_GROUP[def.name]} (${sessionInfo.resumeSession ? "resume" : "new"})`)
   }
 
+  // MCP: pass server config if enabled for this stage
+  const mcpConfigJson = isMcpEnabledForStage(def.name, config.mcp)
+    ? buildMcpConfigJson(config.mcp)
+    : undefined
+  if (mcpConfigJson) {
+    logger.info(`  MCP servers enabled for ${def.name}`)
+  }
+
   const runner = getRunnerForStage(ctx, def.name)
   const result = await runner.run(def.name, prompt, model, def.timeout, ctx.taskDir, {
     cwd: ctx.projectDir,
     env: extraEnv,
     ...sessionInfo,
+    mcpConfigJson,
   })
 
   if (result.outcome !== "completed") {

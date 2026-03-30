@@ -8,6 +8,7 @@ import {
   resolveStagePolicy,
   estimateTokens,
 } from "./context-tiers.js"
+import { isMcpEnabledForStage } from "./mcp-config.js"
 
 const DEFAULT_MODEL_MAP: Record<string, string> = {
   cheap: "haiku",
@@ -106,6 +107,128 @@ export function injectTaskContext(
   return prompt.replace("{{TASK_CONTEXT}}", context)
 }
 
+/**
+ * Read task.json and check if the task involves UI.
+ * Returns true if hasUI is true or absent (default: include guidance).
+ * Returns false only if hasUI is explicitly false.
+ */
+function taskHasUI(taskDir: string): boolean {
+  const taskJsonPath = path.join(taskDir, "task.json")
+  if (!fs.existsSync(taskJsonPath)) return true // no task.json yet → don't suppress
+  try {
+    const taskDef = JSON.parse(fs.readFileSync(taskJsonPath, "utf-8"))
+    return taskDef.hasUI !== false
+  } catch {
+    return true
+  }
+}
+
+function getDevServerInfo(taskDir: string): { command: string; url: string; readyPattern: string; readyTimeout: number } | undefined {
+  const config = getProjectConfig()
+  const ds = config.mcp?.devServer
+  if (!ds) return undefined
+  return {
+    command: ds.command,
+    url: ds.url,
+    readyPattern: ds.readyPattern ?? "Ready in|compiled|started server|Local:",
+    readyTimeout: ds.readyTimeout ?? 30,
+  }
+}
+
+function getBrowserToolGuidance(stageName: string, taskDir: string): string {
+  const devServer = getDevServerInfo(taskDir)
+
+  const devServerBlock = devServer
+    ? `
+### Dev Server Setup (REQUIRED before browsing)
+You MUST start the dev server before using any browser navigation tools:
+\`\`\`bash
+# Start the dev server in the background
+${devServer.command} &
+# Wait for it to be ready (look for "${devServer.readyPattern}" in output)
+sleep 5
+\`\`\`
+The dev server URL is: ${devServer.url}
+After you are done browsing, kill the dev server: \`kill %1 2>/dev/null || true\``
+    : `
+### Dev Server Setup (REQUIRED before browsing)
+You MUST start the project's dev server before using any browser navigation tools.
+Check package.json for the dev command (usually \`pnpm dev\` or \`npm run dev\`).
+\`\`\`bash
+# Start the dev server in the background
+pnpm dev &
+# Wait for it to be ready
+sleep 5
+\`\`\`
+After you are done browsing, kill the dev server: \`kill %1 2>/dev/null || true\``
+
+  if (stageName === "build" || stageName === "review-fix") {
+    return `## Browser Visual Verification (MANDATORY for UI tasks)
+
+This task involves UI changes. You MUST visually verify your implementation using the browser tools.
+${devServerBlock}
+
+### Available Browser Tools
+- \`mcp__playwright__browser_navigate\` — go to a URL
+- \`mcp__playwright__browser_snapshot\` — capture accessibility tree (shows all elements, text, roles)
+- \`mcp__playwright__browser_take_screenshot\` — take a visual screenshot
+- \`mcp__playwright__browser_click\` — click an element (by text, role, or ref from snapshot)
+- \`mcp__playwright__browser_type\` — type text into an input field
+- \`mcp__playwright__browser_fill_form\` — fill multiple form fields at once
+- \`mcp__playwright__browser_hover\` — hover over an element (test hover states)
+- \`mcp__playwright__browser_select_option\` — select a dropdown option
+- \`mcp__playwright__browser_press_key\` — press keyboard keys (Enter, Escape, Tab, etc.)
+- \`mcp__playwright__browser_resize\` — resize viewport (test responsive layouts)
+- \`mcp__playwright__browser_wait_for\` — wait for text to appear/disappear
+- \`mcp__playwright__browser_evaluate\` — run JavaScript on the page
+
+### Verification Steps (DO ALL OF THESE)
+1. Start the dev server (see above)
+2. Use \`browser_navigate\` to go to the affected page(s)
+3. Use \`browser_snapshot\` to capture the page and verify elements are present
+4. **Test interactions**: if the task involves buttons, forms, search, toggles, or any interactive elements — click them, type into them, and verify the result with another snapshot
+5. If the task mentions responsive behavior, use \`browser_resize\` to test at different widths (e.g., 1200px, 768px, 480px) and take snapshots at each
+6. Kill the dev server when done
+
+Do NOT skip the browser verification. The visual check AND interaction testing are required parts of implementing UI changes.`
+  }
+
+  if (stageName === "review") {
+    return `## Browser Visual Verification (MANDATORY for UI review)
+
+This task involves UI changes. You MUST visually verify the implementation using the browser tools before giving your verdict.
+${devServerBlock}
+
+### Available Browser Tools
+- \`mcp__playwright__browser_navigate\` — go to a URL
+- \`mcp__playwright__browser_snapshot\` — capture accessibility tree (shows all elements, text, roles)
+- \`mcp__playwright__browser_take_screenshot\` — take a visual screenshot
+- \`mcp__playwright__browser_click\` — click an element
+- \`mcp__playwright__browser_type\` — type text into an input
+- \`mcp__playwright__browser_hover\` — hover over an element
+- \`mcp__playwright__browser_resize\` — resize viewport
+- \`mcp__playwright__browser_wait_for\` — wait for text to appear/disappear
+
+### Review Verification Steps (DO ALL OF THESE)
+1. Start the dev server (see above)
+2. Use \`browser_navigate\` to go to the affected page(s)
+3. Use \`browser_snapshot\` to verify elements, layout, and text content
+4. **Test interactions**: click buttons, fill forms, test search — verify the UI responds correctly
+5. If the task mentions responsive behavior, use \`browser_resize\` to test at different widths
+6. Include your browser verification findings in the review (what you saw, what you interacted with, what worked/failed)
+7. Kill the dev server when done
+
+Do NOT skip the browser verification. A review of UI changes without visual AND interaction verification is incomplete.`
+  }
+
+  return `## Browser Tools Available
+
+You have access to Playwright MCP browser tools for visual verification.
+${devServerBlock}
+
+Use browser tools to navigate to pages and take snapshots to verify UI output.`
+}
+
 export function buildFullPrompt(
   stageName: string,
   taskId: string,
@@ -115,14 +238,22 @@ export function buildFullPrompt(
 ): string {
   const config = getProjectConfig()
 
+  let assembled: string
   if (config.contextTiers?.enabled) {
-    return buildFullPromptTiered(stageName, taskId, taskDir, projectDir, feedback)
+    assembled = buildFullPromptTiered(stageName, taskId, taskDir, projectDir, feedback)
+  } else {
+    const memory = readProjectMemory(projectDir)
+    const promptTemplate = readPromptFile(stageName, projectDir)
+    const prompt = injectTaskContext(promptTemplate, taskId, taskDir, feedback)
+    assembled = memory ? `${memory}\n---\n\n${prompt}` : prompt
   }
 
-  const memory = readProjectMemory(projectDir)
-  const promptTemplate = readPromptFile(stageName, projectDir)
-  const prompt = injectTaskContext(promptTemplate, taskId, taskDir, feedback)
-  return memory ? `${memory}\n---\n\n${prompt}` : prompt
+  // Append browser tool guidance if MCP is enabled for this stage and task has UI
+  if (isMcpEnabledForStage(stageName, config.mcp) && taskHasUI(taskDir)) {
+    assembled = assembled + "\n\n" + getBrowserToolGuidance(stageName, taskDir)
+  }
+
+  return assembled
 }
 
 function buildFullPromptTiered(

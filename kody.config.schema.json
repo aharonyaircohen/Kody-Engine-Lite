@@ -128,6 +128,72 @@
         }
       },
       "additionalProperties": false
+    },
+    "mcp": {
+      "type": "object",
+      "description": "MCP (Model Context Protocol) server configuration. Enables external tools like browser automation.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable MCP server integration",
+          "default": false
+        },
+        "servers": {
+          "type": "object",
+          "description": "Named MCP server definitions. Each key is a server name.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "command": {
+                "type": "string",
+                "description": "Command to start the MCP server (e.g., 'npx')"
+              },
+              "args": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Command arguments"
+              },
+              "env": {
+                "type": "object",
+                "additionalProperties": { "type": "string" },
+                "description": "Environment variables for the server process"
+              }
+            },
+            "required": ["command"]
+          }
+        },
+        "stages": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Stages that can use MCP tools. Defaults to [\"build\", \"verify\", \"review\", \"review-fix\"]",
+          "default": ["build", "verify", "review", "review-fix"]
+        },
+        "devServer": {
+          "type": "object",
+          "description": "Dev server configuration for browser tool verification",
+          "properties": {
+            "command": {
+              "type": "string",
+              "description": "Command to start the dev server (e.g., 'pnpm dev')"
+            },
+            "url": {
+              "type": "string",
+              "description": "URL where the dev server will be accessible (e.g., 'http://localhost:3000')"
+            },
+            "readyPattern": {
+              "type": "string",
+              "description": "Regex pattern to match in stdout when server is ready. Default: 'Ready in|compiled|started server|Local:'"
+            },
+            "readyTimeout": {
+              "type": "number",
+              "description": "Seconds to wait for the server to be ready. Default: 30"
+            }
+          },
+          "required": ["command", "url"]
+        }
+      },
+      "required": ["enabled", "servers"],
+      "additionalProperties": false
     }
   },
   "additionalProperties": false
