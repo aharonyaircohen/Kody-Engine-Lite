@@ -4,7 +4,7 @@ import { createRunners } from "./agent-runner.js"
 import { runPipeline, printStatus } from "./pipeline.js"
 import { runPreflight } from "./preflight.js"
 import { setConfigDir, getProjectConfig } from "./config.js"
-import { setGhCwd, getIssue, postComment, getPRDetails, getPRsForIssue, postPRComment, submitPRReview, getLatestKodyReviewComment, getCIFailureLogs, getLatestFailedRunForBranch } from "./github-api.js"
+import { setGhCwd, getIssue, postComment, getPRDetails, getPRsForIssue, postPRComment, submitPRReview, getLatestKodyReviewComment, getCIFailureLogs, getLatestFailedRunForBranch, getPRFeedbackSinceLastKodyAction } from "./github-api.js"
 import { logger } from "./logger.js"
 import type { PipelineContext } from "./types.js"
 import { runStandaloneReview, resolveReviewTarget, formatReviewComment, detectReviewVerdict } from "./review-standalone.js"
@@ -286,15 +286,31 @@ async function main() {
     }
   }
 
-  // Fix on a PR: auto-fetch the latest Kody review comment as context
+  // Fix on a PR: auto-fetch Kody review + human comments as context
   if (input.command === "fix" && input.prNumber) {
+    const feedbackParts: string[] = []
+
+    // Kody's own review findings
     const reviewComment = getLatestKodyReviewComment(input.prNumber)
     if (reviewComment) {
-      logger.info(`  Found Kody review comment on PR #${input.prNumber}, injecting as feedback`)
-      const reviewContext = `## Review findings from PR #${input.prNumber}\n\n${reviewComment}`
-      input.feedback = input.feedback
-        ? `${reviewContext}\n\n## Additional feedback\n\n${input.feedback}`
-        : reviewContext
+      logger.info(`  Found Kody review comment on PR #${input.prNumber}`)
+      feedbackParts.push(`## Review findings from PR #${input.prNumber}\n\n${reviewComment}`)
+    }
+
+    // Human comments since the last Kody action (scoped to current fix cycle)
+    const humanFeedback = getPRFeedbackSinceLastKodyAction(input.prNumber)
+    if (humanFeedback) {
+      logger.info(`  Found human feedback on PR #${input.prNumber}`)
+      feedbackParts.push(`## Human review feedback from PR #${input.prNumber}\n\n${humanFeedback}`)
+    }
+
+    // Explicit feedback from the @kody fix comment body
+    if (input.feedback) {
+      feedbackParts.push(`## Additional feedback\n\n${input.feedback}`)
+    }
+
+    if (feedbackParts.length > 0) {
+      input.feedback = feedbackParts.join("\n\n")
     }
   }
 

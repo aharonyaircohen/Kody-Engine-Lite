@@ -66,6 +66,9 @@ export function autoLearn(ctx: PipelineContext): void {
       logger.info(`Auto-learned ${learnings.length} convention(s)`)
     }
 
+    // Extract architectural decisions from review feedback
+    autoLearnDecisions(ctx.taskDir, memoryDir, ctx.taskId, timestamp)
+
     // Auto-detect architecture
     autoLearnArchitecture(ctx.projectDir, memoryDir, timestamp)
   } catch {
@@ -161,4 +164,67 @@ function autoLearnArchitecture(
     invalidateCache(archPath, path.join(memoryDir, ".tiers"))
     logger.info(`Auto-detected architecture (${detected.length} items)`)
   }
+}
+
+/**
+ * Extract architectural decisions from review feedback.
+ *
+ * Parses review.md for findings that indicate pattern violations or
+ * architectural preferences (e.g., "use existing X pattern instead of Y").
+ * Saves them to `.kody/memory/decisions.md` so future tasks follow them.
+ */
+function autoLearnDecisions(
+  taskDir: string,
+  memoryDir: string,
+  taskId: string,
+  timestamp: string,
+): void {
+  const reviewPath = path.join(taskDir, "review.md")
+  if (!fs.existsSync(reviewPath)) return
+
+  const review = fs.readFileSync(reviewPath, "utf-8")
+  const decisions: string[] = []
+
+  // Pattern: "use existing X" / "follow existing X" / "reuse X pattern"
+  const existingPatternRe = /(?:use|follow|reuse|match|adopt)\s+(?:the\s+)?existing\s+(.+?)(?:\.|$)/gim
+  for (const match of review.matchAll(existingPatternRe)) {
+    decisions.push(`- Use existing ${match[1].trim()}`)
+  }
+
+  // Pattern: "instead of X, use Y" / "X instead of Y"
+  const insteadOfRe = /instead\s+of\s+(.+?),?\s+(?:use|prefer|adopt)\s+(.+?)(?:\.|$)/gim
+  for (const match of review.matchAll(insteadOfRe)) {
+    decisions.push(`- Prefer ${match[2].trim()} over ${match[1].trim()}`)
+  }
+
+  // Pattern: "should follow the same pattern as X" / "consistent with X"
+  const consistentRe = /(?:consistent\s+with|same\s+pattern\s+as|follow\s+the\s+pattern\s+(?:in|from))\s+(.+?)(?:\.|$)/gim
+  for (const match of review.matchAll(consistentRe)) {
+    decisions.push(`- Follow pattern from ${match[1].trim()}`)
+  }
+
+  // Pattern: "don't/never use X for Y" / "avoid X"
+  const avoidRe = /(?:don't|do\s+not|never|avoid)\s+(?:use\s+)?(.+?)\s+(?:for|when|in)\s+(.+?)(?:\.|$)/gim
+  for (const match of review.matchAll(avoidRe)) {
+    decisions.push(`- Avoid ${match[1].trim()} for ${match[2].trim()}`)
+  }
+
+  if (decisions.length === 0) return
+
+  // Deduplicate against existing decisions
+  const decisionsPath = path.join(memoryDir, "decisions.md")
+  let existing = ""
+  if (fs.existsSync(decisionsPath)) {
+    existing = fs.readFileSync(decisionsPath, "utf-8")
+  } else {
+    existing = "# Architectural Decisions\n\nDecisions extracted from code reviews. The planning agent MUST follow these.\n"
+  }
+
+  const newDecisions = decisions.filter((d) => !existing.includes(d))
+  if (newDecisions.length === 0) return
+
+  const entry = `\n## From task ${taskId} (${timestamp})\n${newDecisions.join("\n")}\n`
+  fs.appendFileSync(decisionsPath, existing ? entry : existing + entry)
+  invalidateCache(decisionsPath, path.join(memoryDir, ".tiers"))
+  logger.info(`Auto-learned ${newDecisions.length} architectural decision(s)`)
 }
