@@ -208,6 +208,124 @@ describe("buildConfig", () => {
     expect(config).toHaveProperty("quality")
     expect(config).toHaveProperty("git")
   })
+
+  it("auto-configures MCP with playwright for Next.js projects", () => {
+    fs.writeFileSync(path.join(tmpDir, "package.json"), JSON.stringify({
+      scripts: { dev: "next dev" },
+      dependencies: { next: "15.0.0", react: "19.0.0" },
+    }))
+    const config = buildConfig(tmpDir, {
+      defaultBranch: "main", owner: "o", repo: "r", pm: "pnpm",
+    })
+    const mcp = (config as Record<string, any>).mcp
+    expect(mcp).toBeDefined()
+    expect(mcp.enabled).toBe(true)
+    expect(mcp.servers.playwright).toBeDefined()
+    expect(mcp.servers.playwright.command).toBe("npx")
+    expect(mcp.stages).toEqual(["build", "review"])
+  })
+
+  it("auto-configures devServer for Next.js projects", () => {
+    fs.writeFileSync(path.join(tmpDir, "package.json"), JSON.stringify({
+      scripts: { dev: "next dev" },
+      dependencies: { next: "15.0.0" },
+    }))
+    const config = buildConfig(tmpDir, {
+      defaultBranch: "main", owner: "o", repo: "r", pm: "pnpm",
+    })
+    const mcp = (config as Record<string, any>).mcp
+    expect(mcp.devServer).toBeDefined()
+    expect(mcp.devServer.command).toBe("pnpm dev")
+    expect(mcp.devServer.url).toBe("http://localhost:3000")
+  })
+
+  it("auto-configures MCP for React (Vite) projects", () => {
+    fs.writeFileSync(path.join(tmpDir, "package.json"), JSON.stringify({
+      scripts: { dev: "vite" },
+      dependencies: { react: "19.0.0" },
+      devDependencies: { vite: "6.0.0" },
+    }))
+    const config = buildConfig(tmpDir, {
+      defaultBranch: "main", owner: "o", repo: "r", pm: "pnpm",
+    })
+    const mcp = (config as Record<string, any>).mcp
+    expect(mcp).toBeDefined()
+    expect(mcp.enabled).toBe(true)
+    expect(mcp.devServer.url).toBe("http://localhost:5173")
+  })
+
+  it("auto-configures MCP for Vue projects", () => {
+    fs.writeFileSync(path.join(tmpDir, "package.json"), JSON.stringify({
+      scripts: { dev: "vite" },
+      dependencies: { vue: "3.5.0" },
+      devDependencies: { vite: "6.0.0" },
+    }))
+    const config = buildConfig(tmpDir, {
+      defaultBranch: "main", owner: "o", repo: "r", pm: "pnpm",
+    })
+    const mcp = (config as Record<string, any>).mcp
+    expect(mcp).toBeDefined()
+    expect(mcp.enabled).toBe(true)
+  })
+
+  it("auto-configures MCP for Svelte projects", () => {
+    fs.writeFileSync(path.join(tmpDir, "package.json"), JSON.stringify({
+      scripts: { dev: "vite dev" },
+      devDependencies: { svelte: "5.0.0", vite: "6.0.0" },
+    }))
+    const config = buildConfig(tmpDir, {
+      defaultBranch: "main", owner: "o", repo: "r", pm: "pnpm",
+    })
+    const mcp = (config as Record<string, any>).mcp
+    expect(mcp).toBeDefined()
+    expect(mcp.enabled).toBe(true)
+  })
+
+  it("does NOT auto-configure MCP for backend-only projects", () => {
+    fs.writeFileSync(path.join(tmpDir, "package.json"), JSON.stringify({
+      scripts: { start: "node dist/index.js" },
+      dependencies: { express: "4.18.0" },
+    }))
+    const config = buildConfig(tmpDir, {
+      defaultBranch: "main", owner: "o", repo: "r", pm: "pnpm",
+    })
+    const mcp = (config as Record<string, any>).mcp
+    expect(mcp).toBeUndefined()
+  })
+
+  it("detects Vite port 5173 vs Next.js port 3000", () => {
+    // Vite project
+    fs.writeFileSync(path.join(tmpDir, "package.json"), JSON.stringify({
+      scripts: { dev: "vite" },
+      dependencies: { react: "19.0.0" },
+      devDependencies: { vite: "6.0.0" },
+    }))
+    const viteConfig = buildConfig(tmpDir, {
+      defaultBranch: "main", owner: "o", repo: "r", pm: "pnpm",
+    })
+    expect((viteConfig as any).mcp.devServer.url).toBe("http://localhost:5173")
+
+    // Next.js project
+    fs.writeFileSync(path.join(tmpDir, "package.json"), JSON.stringify({
+      scripts: { dev: "next dev" },
+      dependencies: { next: "15.0.0" },
+    }))
+    const nextConfig = buildConfig(tmpDir, {
+      defaultBranch: "main", owner: "o", repo: "r", pm: "pnpm",
+    })
+    expect((nextConfig as any).mcp.devServer.url).toBe("http://localhost:3000")
+  })
+
+  it("uses dev script from package.json for devServer command", () => {
+    fs.writeFileSync(path.join(tmpDir, "package.json"), JSON.stringify({
+      scripts: { dev: "next dev --turbo" },
+      dependencies: { next: "15.0.0" },
+    }))
+    const config = buildConfig(tmpDir, {
+      defaultBranch: "main", owner: "o", repo: "r", pm: "yarn",
+    })
+    expect((config as any).mcp.devServer.command).toBe("yarn dev")
+  })
 })
 
 describe("detectArchitectureBasic", () => {

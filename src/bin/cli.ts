@@ -165,7 +165,7 @@ function buildConfig(cwd: string, basic: { defaultBranch: string; owner: string;
   const scripts = (pkg.scripts ?? {}) as Record<string, string>
   const find = (...c: string[]) => { for (const s of c) { if (scripts[s]) return `${basic.pm} ${s}` } return "" }
 
-  return {
+  const config: Record<string, unknown> = {
     "$schema": "https://raw.githubusercontent.com/aharonyaircohen/Kody-Engine-Lite/main/kody.config.schema.json",
     quality: {
       typecheck: find("typecheck", "type-check") || (pkg.devDependencies?.typescript ? `${basic.pm} tsc --noEmit` : ""),
@@ -181,6 +181,52 @@ function buildConfig(cwd: string, basic: { defaultBranch: string; owner: string;
       modelMap: { cheap: "haiku", mid: "sonnet", strong: "opus" },
     },
   }
+
+  // Auto-configure MCP for frontend projects
+  const mcp = detectMcpConfig(cwd, basic.pm, pkg)
+  if (mcp) config.mcp = mcp
+
+  return config
+}
+
+const FRONTEND_DEPS = ["next", "react", "vue", "svelte", "nuxt", "astro", "solid-js", "angular", "@angular/core"]
+
+function detectMcpConfig(
+  cwd: string,
+  pm: string,
+  pkg: Record<string, unknown>,
+): Record<string, unknown> | undefined {
+  const allDeps = { ...(pkg.dependencies as Record<string, string> ?? {}), ...(pkg.devDependencies as Record<string, string> ?? {}) }
+  const hasFrontend = FRONTEND_DEPS.some((dep) => dep in allDeps)
+  if (!hasFrontend) return undefined
+
+  const scripts = (pkg.scripts ?? {}) as Record<string, string>
+  const hasDevScript = !!scripts.dev
+
+  // Detect dev server port
+  const isNext = "next" in allDeps || "nuxt" in allDeps
+  const isVite = "vite" in allDeps
+  const defaultPort = isNext ? 3000 : isVite ? 5173 : 3000
+
+  const mcp: Record<string, unknown> = {
+    enabled: true,
+    servers: {
+      playwright: {
+        command: "npx",
+        args: ["@playwright/mcp@latest"],
+      },
+    },
+    stages: ["build", "review"],
+  }
+
+  if (hasDevScript) {
+    mcp.devServer = {
+      command: `${pm} dev`,
+      url: `http://localhost:${defaultPort}`,
+    }
+  }
+
+  return mcp
 }
 
 // ─── init command ────────────────────────────────────────────────────────────
@@ -752,12 +798,22 @@ REMINDER: Output the full prompt template first (unchanged), then your three app
     console.log("  ○ Label creation skipped")
   }
 
-  // ── Step 4: Format, commit and push ──
+  // ── Step 4: Install skills ──
+  console.log("\n── Skills ──")
+  const installedSkillPaths = installSkillsForProject(cwd)
+
+  // ── Step 5: Format, commit and push ──
   console.log("\n── Git ──")
   const filesToCommit = [
     ".kody/memory/architecture.md",
     ".kody/memory/conventions.md",
+    ...installedSkillPaths,
   ].filter((f) => fs.existsSync(path.join(cwd, f)))
+
+  // Add skills-lock.json if created
+  if (fs.existsSync(path.join(cwd, "skills-lock.json"))) {
+    filesToCommit.push("skills-lock.json")
+  }
 
   for (const stage of STEP_STAGES) {
     const stepFile = `.kody/steps/${stage}.md`
@@ -906,9 +962,102 @@ function detectArchitectureBasic(cwd: string): string[] {
   return detected
 }
 
+// ─── Skill auto-detection ────────────────────────────────────────────────────
+
+interface SkillMapping {
+  /** Skill package in owner/repo@skill format */
+  package: string
+  /** Human-readable label for logging */
+  label: string
+}
+
+const SKILL_MAPPINGS: { detect: (deps: Record<string, string>) => boolean; skills: SkillMapping[] }[] = [
+  {
+    detect: (deps) => "next" in deps,
+    skills: [
+      { package: "vercel-labs/agent-skills@vercel-react-best-practices", label: "React best practices (Vercel)" },
+    ],
+  },
+  {
+    detect: (deps) => "react" in deps && !("next" in deps),
+    skills: [
+      { package: "vercel-labs/agent-skills@vercel-react-best-practices", label: "React best practices (Vercel)" },
+    ],
+  },
+  {
+    detect: (deps) => FRONTEND_DEPS.some((d) => d in deps),
+    skills: [
+      { package: "microsoft/playwright-cli@playwright-cli", label: "Playwright browser automation" },
+    ],
+  },
+]
+
+function detectSkillsForProject(cwd: string): SkillMapping[] {
+  const pkgPath = path.join(cwd, "package.json")
+  if (!fs.existsSync(pkgPath)) return []
+
+  try {
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"))
+    const allDeps: Record<string, string> = { ...pkg.dependencies, ...pkg.devDependencies }
+
+    const seen = new Set<string>()
+    const skills: SkillMapping[] = []
+
+    for (const mapping of SKILL_MAPPINGS) {
+      if (mapping.detect(allDeps)) {
+        for (const skill of mapping.skills) {
+          if (!seen.has(skill.package)) {
+            seen.add(skill.package)
+            skills.push(skill)
+          }
+        }
+      }
+    }
+
+    return skills
+  } catch {
+    return []
+  }
+}
+
+function installSkillsForProject(cwd: string): string[] {
+  const skills = detectSkillsForProject(cwd)
+  if (skills.length === 0) {
+    console.log("  ○ No skills to install (no frontend framework detected)")
+    return []
+  }
+
+  const installedPaths: string[] = []
+
+  for (const skill of skills) {
+    try {
+      console.log(`  Installing: ${skill.label} (${skill.package})`)
+      execFileSync("npx", ["skills", "add", skill.package, "--yes"], {
+        cwd,
+        encoding: "utf-8",
+        timeout: 60_000,
+        stdio: ["pipe", "pipe", "pipe"],
+      })
+
+      // Collect installed file paths for git
+      const skillName = skill.package.split("@").pop() ?? ""
+      const agentPath = `.agents/skills/${skillName}`
+      const claudePath = `.claude/skills/${skillName}`
+      if (fs.existsSync(path.join(cwd, agentPath))) installedPaths.push(agentPath)
+      if (fs.existsSync(path.join(cwd, claudePath))) installedPaths.push(claudePath)
+
+      console.log(`  ✓ ${skill.label}`)
+    } catch (err) {
+      console.log(`  ✗ ${skill.label} — failed to install`)
+    }
+  }
+
+  return installedPaths
+}
+
 // ─── exports for testing ─────────────────────────────────────────────────────
 
-export { detectBasicConfig, buildConfig, detectArchitectureBasic }
+export { detectBasicConfig, buildConfig, detectArchitectureBasic, detectSkillsForProject }
 export { checkCommand, checkFile, checkGhAuth, checkGhRepoAccess, checkGhSecret }
 export type { CheckResult }
 
