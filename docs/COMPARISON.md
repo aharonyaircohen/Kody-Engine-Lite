@@ -11,118 +11,147 @@
 | Cline | VS Code Extension | Yes | Any LLM | No | No | API costs |
 | OpenHands | Autonomous Agent | Apache 2.0 | Any LLM | Docker | Partially | API costs |
 | SWE-agent | Research Agent | MIT | Any LLM | Basic | Yes | API costs |
-| Sweep AI | SaaS Pipeline | Partial | Multiple LLMs | GitHub | Yes | SaaS pricing |
 
 ## Detailed Comparisons
 
 ### vs GitHub Copilot Workspace
 
-| | Kody | Copilot Workspace |
-|---|---|---|
+| Category | Kody | Copilot Workspace |
+|----------|------|-------------------|
+| **Type** | Autonomous pipeline | Interactive assistant |
 | **Trigger** | `@kody` on any issue | Open workspace from issue |
-| **Runs where** | CI (GitHub Actions) | GitHub Cloud |
-| **Autonomous** | Fully — fire and forget | Interactive — requires guidance |
-| **Pipeline** | 7 structured stages with artifacts | Plan → implement |
-| **Sessions** | Shared within stage groups (no cold starts) | Single conversation |
+| **Runs where** | GitHub Actions (CI) | GitHub Cloud |
+| **Autonomous** | Yes — fire and forget | No — requires guidance |
+| **Pipeline stages** | 7 with quality gates | Plan + implement |
+| **Shared sessions** | Yes (no cold starts between stages) | Single conversation |
 | **Quality gates** | typecheck + tests + lint + AI diagnosis | Basic validation |
-| **Risk gate** | Pauses HIGH-risk for approval | No |
+| **Risk gate** | Yes — pauses HIGH-risk for approval | No |
 | **Failure handling** | 5-way AI diagnosis + targeted autofix | Basic retry |
-| **Memory** | Auto-learns conventions per project | No project memory |
-| **Models** | Any via LiteLLM | GitHub models only |
-| **Source** | MIT open source | Proprietary |
-| **Cost** | Free with free-tier models, or ~$0.30-8/task with paid models | $10-39/month |
+| **Repo-aware prompts** | Yes — auto-generated per stage | No — generic prompts |
+| **Project memory** | Yes — auto-learns conventions | No |
+| **Checkpoints** | Rerun from any stage | No |
+| **Model flexible** | Any via LiteLLM | GitHub models only |
+| **Open source** | MIT | Proprietary |
+| **Cost** | Free with free-tier models | $10-39/month |
 
-**Choose Copilot Workspace** when you want interactive pair programming with tight GitHub integration.
+> **Choose Copilot Workspace** for interactive pair programming with tight GitHub integration.
+> **Choose Kody** for autonomous issue-to-PR automation with quality gates and model flexibility.
 
-**Choose Kody** when you want autonomous issue-to-PR automation with quality gates, failure diagnosis, and model flexibility — at zero cost with free-tier models.
+---
 
 ### vs Devin
 
-| | Kody | Devin |
-|---|---|---|
-| **Architecture** | Structured 7-stage pipeline | Single autonomous agent |
-| **Transparency** | Artifacts at every stage (task.json, plan.md, review.md) | Less transparent |
-| **Self-hosted** | Yes — your infra, your keys | Cloud only |
-| **Models** | Any LLM via LiteLLM | Proprietary (Devin 2.0) |
+| Category | Kody | Devin |
+|----------|------|-------|
+| **Type** | Structured pipeline | Autonomous agent |
+| **Architecture** | 7 stages with artifacts | Single agent |
+| **Transparency** | Full — artifacts at every stage | Limited |
+| **Self-hosted** | Yes — your infra, your keys | No — cloud only |
+| **Pipeline stages** | 7 with quality gates | Single pass |
+| **Shared sessions** | Yes (grouped stages) | Single conversation |
+| **Quality gates** | typecheck + tests + lint + AI diagnosis | No structured gates |
+| **Risk gate** | Yes — pauses HIGH-risk for approval | No |
+| **Failure handling** | 5-way AI diagnosis + targeted autofix | Basic retry |
+| **Repo-aware prompts** | Yes — auto-generated per stage | No — generic prompts |
+| **Project memory** | Yes — auto-learns conventions | Limited |
+| **Checkpoints** | Rerun from any stage | No |
 | **Concurrency** | Multiple issues in parallel (GitHub Actions) | Multiple Devins (paid) |
-| **Cost** | Free with free-tier models, or ~$0.30-8/task with paid models | $20/mo (Core) to $500/mo (Team) |
-| **Failure handling** | AI diagnosis with 5 classifications | Retry |
-| **Human oversight** | Risk gate + labels + issue comments | Interactive steering |
+| **Model flexible** | Any via LiteLLM | Proprietary only |
+| **Open source** | MIT | Proprietary |
+| **Cost** | Free with free-tier models | $20-500/month |
 
-**Choose Devin** when you want a fully managed autonomous coding environment for complex multi-step tasks.
+> **Choose Devin** for a fully managed autonomous coding environment.
+> **Choose Kody** for transparency, self-hosting, model flexibility, and structured quality gates.
 
-**Choose Kody** when you want transparency (staged artifacts), self-hosting, model flexibility, and structured quality gates in your existing GitHub workflow.
+---
 
 ### vs Cursor Agent / Cline
 
-| | Kody | Cursor/Cline |
-|---|---|---|
-| **Runs in** | CI (GitHub Actions) | Local IDE |
-| **Requires IDE** | No | Yes (must be open) |
-| **CI integration** | Native (issue → PR) | Manual |
-| **Batch processing** | Multiple issues in parallel | One at a time |
-| **Human oversight** | Risk gate at plan stage | Approval per action (Cline) |
-| **Project memory** | Auto-learning conventions | Session-based |
-| **Model flexibility** | Any via LiteLLM | Cursor models / Any (Cline) |
+| Category | Kody | Cursor Agent | Cline |
+|----------|------|-------------|-------|
+| **Type** | Autonomous pipeline | IDE agent | IDE agent |
+| **Runs where** | GitHub Actions (CI) | Local IDE | Local IDE |
+| **Requires IDE open** | No | Yes | Yes |
+| **Autonomous** | Yes — fire and forget | Partially | Partially |
+| **Pipeline stages** | 7 with quality gates | Single pass | Single pass |
+| **Quality gates** | typecheck + tests + lint + AI diagnosis | No | No |
+| **Risk gate** | Yes | No | No |
+| **Failure handling** | 5-way AI diagnosis + autofix | No | No |
+| **Repo-aware prompts** | Yes — auto-generated per stage | No | No |
+| **Project memory** | Yes — auto-learns conventions | Session-based | Session-based |
+| **Checkpoints** | Rerun from any stage | No | No |
+| **GitHub integration** | Native (issue → PR) | Manual | Manual |
+| **Batch processing** | Multiple issues in parallel | One at a time | One at a time |
+| **Model flexible** | Any via LiteLLM | Cursor models | Any LLM |
+| **Open source** | MIT | Proprietary | Yes |
+| **Cost** | Free with free-tier models | Subscription | API costs |
 
-**Choose Cursor/Cline** when you want an AI coding assistant while you're working at your desk.
+> **Choose Cursor/Cline** for AI-assisted coding while you're at your desk.
+> **Choose Kody** to delegate tasks and walk away — no IDE required.
 
-**Choose Kody** when you want to delegate tasks and walk away — CI-level automation that doesn't need your IDE open.
+---
 
 ### vs OpenHands
 
-| | Kody | OpenHands |
-|---|---|---|
-| **Architecture** | 7-stage structured pipeline | Single agent loop |
-| **Focus** | Issue → PR automation (SDLC) | General-purpose autonomous coding |
-| **Runs where** | GitHub Actions (zero infra) | Docker/Kubernetes sandbox (self-hosted or cloud) |
-| **Setup** | `npm install` + `init` — 2 minutes | Docker compose + sandbox config |
-| **GitHub integration** | Native — issues, PRs, labels, comments, workflow triggers | Via integrations (GitHub, GitLab, Slack) |
-| **Trigger** | `@kody` on any issue | Web UI, API, or CI integration |
-| **Quality gates** | Built-in: typecheck + lint + tests + AI diagnosis between stages | Single pass — no structured gates |
-| **Failure handling** | 5-way AI diagnosis (fixable/infra/pre-existing/abort/flaky) → targeted retry | Retry within agent loop |
-| **Risk gate** | Pauses HIGH-risk tasks for human approval before building | No structured risk gate |
-| **Repo-aware prompts** | Auto-generated step files with your repo's patterns, gaps, and acceptance criteria | Generic prompts — same for every repo |
-| **Memory** | Auto-learns conventions from each successful run | No persistent project memory |
-| **Checkpoints** | Rerun from any stage — keep what worked | Start over on failure |
-| **Review** | Dedicated review stage with fresh session (no self-review bias) | Self-reviews in same context |
-| **Models** | Any via LiteLLM | Any LLM (Claude, GPT, etc.) |
-| **Source** | MIT | Apache 2.0 |
+| Category | Kody | OpenHands |
+|----------|------|-----------|
+| **Type** | SDLC pipeline | Autonomous coding agent |
+| **Focus** | Issue → PR automation | General-purpose coding |
+| **Runs where** | GitHub Actions (zero infra) | Docker/Kubernetes sandbox |
+| **Setup** | `npm install` + `init` (2 min) | Docker compose + sandbox config |
+| **Autonomous** | Yes — fire and forget | Partially |
+| **Pipeline stages** | 7 with quality gates | Single agent loop |
+| **Shared sessions** | Yes (grouped stages, no cold starts) | Single conversation |
+| **Quality gates** | typecheck + tests + lint + AI diagnosis | No structured gates |
+| **Risk gate** | Yes — pauses HIGH-risk for approval | No |
+| **Failure handling** | 5-way AI diagnosis + targeted autofix | Retry within agent loop |
+| **Repo-aware prompts** | Yes — auto-generated per stage | No — generic prompts |
+| **Project memory** | Yes — auto-learns conventions | No persistent memory |
+| **Checkpoints** | Rerun from any stage | Start over on failure |
+| **Review** | Dedicated stage with fresh session | Self-review in same context |
+| **GitHub integration** | Native — issues, PRs, labels, comments | Via integrations |
+| **Model flexible** | Any via LiteLLM | Any LLM |
+| **Open source** | MIT | Apache 2.0 |
 | **Community** | Early stage | 65K+ stars |
-| **Cost** | Free with free-tier models, or ~$0.30-8/task | API costs + infra |
+| **Cost** | Free with free-tier models | API costs + infra |
 
-**Choose OpenHands** when you need a general-purpose AI coding agent with a web IDE, browser access, and broad tooling — especially for exploratory tasks, prototyping, or workflows beyond GitHub issues.
+> **Choose OpenHands** for general-purpose autonomous coding with a web IDE and broad tooling.
+> **Choose Kody** for structured issue-to-PR automation with quality gates, repo-aware prompts, and zero infrastructure.
 
-**Choose Kody** when you want structured issue-to-PR automation with quality gates, repo-aware prompts, failure diagnosis, and zero infrastructure — just GitHub Actions. Kody's pipeline approach handles complex multi-file tasks more reliably because each stage has a clear objective, shared sessions prevent context bloat, and quality gates catch errors between stages instead of after.
+---
 
 ### vs SWE-agent
 
-| | Kody | SWE-agent |
-|---|---|---|
-| **Focus** | Production SDLC pipeline | Research benchmark |
-| **Pipeline** | 7 structured stages | Single agent loop |
+| Category | Kody | SWE-agent |
+|----------|------|-----------|
+| **Type** | Production SDLC pipeline | Research agent |
+| **Focus** | Issue → PR automation | Benchmarking |
+| **Pipeline stages** | 7 with quality gates | Single agent loop |
+| **Quality gates** | typecheck + tests + lint + AI diagnosis | Test execution only |
+| **Failure handling** | 5-way AI diagnosis + autofix | Basic retry |
+| **Repo-aware prompts** | Yes — auto-generated per stage | No |
+| **Project memory** | Yes — auto-learns conventions | No |
+| **Retrospective** | Yes — AI-powered run analysis | No |
 | **GitHub integration** | Native (issues, PRs, labels, comments) | Basic |
-| **Quality gates** | Built-in (typecheck, lint, test + AI diagnosis) | Test execution |
-| **Memory** | Auto-learning conventions | No |
-| **Retrospective** | AI-powered run analysis | No |
-| **Production ready** | Yes | Research-focused |
+| **Model flexible** | Any via LiteLLM | Any LLM |
+| **Open source** | MIT | MIT |
 | **Community** | Early stage | Academic (NeurIPS 2024) |
+| **Production ready** | Yes | Research-focused |
 
-**Choose SWE-agent** for research and benchmarking autonomous coding capabilities.
+> **Choose SWE-agent** for research and benchmarking.
+> **Choose Kody** for production SDLC automation with structured stages and quality gates.
 
-**Choose Kody** for a production SDLC pipeline with structured stages, quality gates, and GitHub-native workflow.
+---
 
-## Why Pipelines Handle Complex Tasks Better Than Single Agents
-
-Single-agent tools run one conversation per task. For simple tasks, that's fine. For complex multi-file features, it breaks down:
+## Why Pipelines Beat Single Agents on Complex Tasks
 
 | Problem | Single Agent | Kody Pipeline |
 |---------|-------------|---------------|
-| **Context management** | One long conversation that accumulates over time | Shared sessions within groups + context.md across groups |
-| **Error cascading** | Agent writes broken code, tries to fix it in the same context | Quality gate catches errors between stages, AI diagnoses before retry |
-| **No checkpoint** | If it fails midway, start over | Rerun from any stage — keep what worked |
-| **No oversight** | Either fully autonomous or needs constant approval | Risk gate pauses only HIGH-risk tasks at the plan stage |
-| **Review quality** | Self-reviewing in the same context introduces bias | Fresh session for review — clean perspective on the code |
+| **Context management** | One long conversation that bloats over time | Shared sessions within groups + context.md across groups |
+| **Error cascading** | Writes broken code, tries to fix in same context | Quality gate catches errors between stages, AI diagnoses before retry |
+| **No checkpoint** | Fails midway → start over | Rerun from any stage — keep what worked |
+| **No oversight** | Fully autonomous or needs constant approval | Risk gate pauses only HIGH-risk tasks at plan stage |
+| **Review quality** | Self-review in same context (bias) | Fresh session for review — clean perspective |
 
 ### Real-World Example: Auth System (#29)
 
@@ -137,24 +166,13 @@ A full authentication system built end-to-end with MiniMax via LiteLLM:
 
 ## Kody's Unique Advantages
 
-1. **Repo-aware step files.** Every other tool sends the same generic prompt to every repo. Kody generates customized instruction files (`.kody/steps/`) for each pipeline stage, grounded in your actual code — real patterns, real gaps, real acceptance criteria. The AI writes code that looks like it belongs in your project because it was taught *from* your project. See [Features](FEATURES.md#repo-aware-step-files-kodysteps).
-
-2. **Incremental codebase improvement.** Step files encode known gaps (missing access control, inconsistent error handling, unused DI containers). Every task that touches related code fixes these issues — quality improves organically without dedicated refactoring tickets.
-
-3. **Shared sessions, not bloated context.** Stages in the same group share a Claude Code session (no cold starts). Different groups get fresh sessions (no context pollution). Plus context.md carries structured summaries across all stages.
-
-4. **Handles complex tasks.** Auth systems, CRUD features, API clients — tasks where single-agent tools lose track. Structured stages + shared sessions + quality gates keep the pipeline on track.
-
-5. **AI failure diagnosis.** When tests fail, Kody classifies the error (fixable vs infrastructure vs pre-existing) before deciding whether to retry, skip, or abort.
-
-6. **Risk gate.** HIGH-risk tasks pause for human approval after the plan — before any code is written.
-
-7. **Self-improving memory.** Each successful run extracts coding conventions for future runs.
-
-8. **Model agnostic.** Route through LiteLLM to use any model. Switch providers without changing code.
-
-9. **Completely free option.** Use free-tier models (Google Gemini, etc.) via LiteLLM and pay nothing. No subscriptions, no per-seat pricing — a full autonomous SDLC pipeline at zero cost.
-
-10. **Runs in CI.** No IDE required, no cloud VM, no subscription. Just GitHub Actions and your API key (or free models).
-
-11. **Rerun from any stage.** If review-fix fails, rerun from review-fix. Don't redo the 20-minute build.
+1. **Repo-aware step files** — auto-generated per-stage instructions grounded in your actual code patterns, gaps, and acceptance criteria. [Learn more →](FEATURES.md#repo-aware-step-files-kodysteps)
+2. **Incremental codebase improvement** — step files encode known gaps; every task that touches related code fixes them
+3. **Shared sessions** — no cold starts within stage groups, fresh sessions across groups, context.md carries summaries
+4. **AI failure diagnosis** — classifies errors (fixable/infrastructure/pre-existing/abort/flaky) before deciding to retry, skip, or abort
+5. **Risk gate** — HIGH-risk tasks pause for human approval after plan, before code
+6. **Self-improving memory** — each successful run extracts coding conventions for future runs
+7. **Model agnostic** — any LLM via LiteLLM, switch providers without code changes
+8. **Free option** — use free-tier models (Gemini, etc.) for zero-cost autonomous SDLC
+9. **Runs in CI** — no IDE, no cloud VM, no subscription — just GitHub Actions
+10. **Rerun from any stage** — don't redo a 20-minute build when only review-fix failed
