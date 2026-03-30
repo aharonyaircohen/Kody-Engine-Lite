@@ -50,7 +50,7 @@ Seven stages, each with a clear objective, output artifacts, and quality gates b
 | **Verify** | runs your configured quality commands + AI diagnosis on failure | `verify.md` |
 | **Review** | Code review: PASS/FAIL + Critical/Major/Minor | `review.md` |
 | **review-fix** | Fix Critical and Major review findings | code + commit |
-| **Ship** | Push branch, create PR, close issue | PR |
+| **Ship** | Push branch, create PR with `Closes #N` | PR |
 
 Low-complexity tasks skip plan/review. HIGH-risk tasks pause for human approval after plan. Stages share Claude Code sessions within groups so agents never start cold. [Full pipeline details →](PIPELINE.md)
 

@@ -38,7 +38,7 @@ Kody wraps Claude Code with a 7-stage autonomous pipeline — classify, plan, bu
 ⑥ REVIEW-FIX ─ fix Critical and Major findings
     │
     ▼
-⑦ SHIP ────── push branch, create PR, close issue
+⑦ SHIP ────── push branch, create PR with Closes #N
 ```
 
 ## Quick Start
