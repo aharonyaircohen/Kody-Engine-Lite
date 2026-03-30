@@ -37,7 +37,7 @@ async function ensureLitellmProxy(
       }
     }
 
-    // Generate config from provider + modelMap, or use manual litellm-config.yaml
+    // Generate config from provider + modelMap
     let generatedConfig: string | undefined
     if (config.agent.provider && config.agent.provider !== "anthropic") {
       generatedConfig = generateLitellmConfig(config.agent.provider, config.agent.modelMap)

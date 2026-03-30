@@ -71,7 +71,7 @@ GitHub Actions (kody.yml)
   │   1. Checkout repo (full history)
   │   2. Install pnpm + node deps
   │   3. Install kody-engine-lite + claude CLI
-  │   4. Install LiteLLM proxy (if litellm-config.yaml exists)
+  │   4. Install LiteLLM proxy (if provider configured)
   │   5. Configure git user
   │   6. Run: kody-engine-lite run --task-id 42-260327-102254 --issue-number 42
   │   7. Upload .kody/tasks/ artifacts
@@ -381,7 +381,7 @@ kody.yml
   │   [orchestrate] ────── parse success OR workflow_dispatch
   │   │  Checkout (full depth, persist credentials)
   │   │  Install: pnpm, node deps, kody-engine-lite, claude CLI
-  │   │  Install: LiteLLM proxy (if litellm-config.yaml exists)
+  │   │  Install: LiteLLM proxy (if provider configured)
   │   │  Configure git user
   │   │  Run pipeline with env: ANTHROPIC_API_KEY, GH_TOKEN, task inputs
   │   │  Generate step summary (stage table)

@@ -111,4 +111,4 @@ Config:
 }
 ```
 
-For advanced routing, add a `litellm-config.yaml` with custom model mappings per tier.
+For per-tier model control, configure `modelMap` in `kody.config.json`.

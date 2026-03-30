@@ -26,30 +26,22 @@ Set the `provider` in `kody.config.json` and Kody handles everything — auto-ge
 }
 ```
 
-Kody auto-generates the LiteLLM routing config mapping all Anthropic model IDs to your provider. No `litellm-config.yaml` needed.
+Kody auto-generates the LiteLLM routing config mapping all Anthropic model IDs to your provider.
 
-### Advanced: Custom `litellm-config.yaml`
+To use different models per tier, configure `modelMap`:
 
-For fine-grained control (different models per tier, custom parameters), create `litellm-config.yaml` in your project root:
-
-```yaml
-model_list:
-  # Map Anthropic model IDs to your provider
-  - model_name: claude-haiku-4-5-20251001
-    litellm_params:
-      model: minimax/MiniMax-M2.7-highspeed
-      api_key: os.environ/ANTHROPIC_COMPATIBLE_API_KEY
-  - model_name: claude-sonnet-4-6-20250514
-    litellm_params:
-      model: minimax/MiniMax-M2.7-highspeed
-      api_key: os.environ/ANTHROPIC_COMPATIBLE_API_KEY
-  - model_name: claude-opus-4-6-20250514
-    litellm_params:
-      model: minimax/MiniMax-M2.7-highspeed
-      api_key: os.environ/ANTHROPIC_COMPATIBLE_API_KEY
+```json
+{
+  "agent": {
+    "provider": "minimax",
+    "modelMap": {
+      "cheap": "MiniMax-M2.7-highspeed",
+      "mid": "MiniMax-M2.7-highspeed",
+      "strong": "MiniMax-M2.7-highspeed"
+    }
+  }
+}
 ```
-
-When a `litellm-config.yaml` exists, Kody uses it instead of auto-generating config from the `provider` field.
 
 ### Set API Keys
 
@@ -65,11 +57,10 @@ gh secret set ANTHROPIC_COMPATIBLE_API_KEY --repo owner/repo
 
 ### CI Workflow
 
-Add to `.github/workflows/kody.yml` before the pipeline step:
+When using a non-Anthropic provider, ensure LiteLLM is installed and API keys are passed in your workflow:
 
 ```yaml
 - name: Install LiteLLM proxy
-  if: hashFiles('litellm-config.yaml') != ''
   run: |
     python3 -m venv /tmp/litellm-venv
     /tmp/litellm-venv/bin/pip install 'litellm[proxy]'
@@ -85,11 +76,11 @@ Add to `.github/workflows/kody.yml` before the pipeline step:
 
 ## Auto-Start
 
-When `provider` is set (or a `litellm-config.yaml` exists) and the proxy isn't already running, Kody automatically:
+When `provider` is set and the proxy isn't already running, Kody automatically:
 
 1. Checks proxy health at the configured URL
-2. If not running, looks for `litellm-config.yaml` in the project
-3. Detects `litellm` binary (tries `litellm --version`, then `python3 -m litellm --version`)
+2. Generates LiteLLM config from `provider` + `modelMap` in `kody.config.json`
+3. Detects `litellm` binary (tries `which litellm`, then `python3 -c "import litellm"`)
 4. Loads `*_API_KEY` variables from the project's `.env` file into the proxy process
 5. Starts the proxy and waits for health check (up to 60 seconds)
 6. Falls back to Anthropic models if proxy fails to start
@@ -107,7 +98,7 @@ LiteLLM supports [100+ providers](https://docs.litellm.ai/docs/providers). Any m
 
 ## Common Gotchas
 
-**Model names must be Anthropic IDs.** Claude Code validates `--model` client-side. You can't pass `minimax-test` or `gpt-4o` — Claude Code will reject it silently (exit code 1, no stderr). Always use Anthropic model IDs (`claude-haiku-4-5-20251001`, etc.) in your litellm-config.yaml `model_name` fields. LiteLLM intercepts the API call and routes it.
+**Model names must be Anthropic IDs.** Claude Code validates `--model` client-side. You can't pass `minimax-test` or `gpt-4o` — Claude Code will reject it silently (exit code 1, no stderr). Kody automatically maps Anthropic model IDs to your provider via LiteLLM.
 
 **Don't use custom model names in `modelMap`.** If you set `modelMap: { cheap: "minimax-test" }`, Kody passes `--model minimax-test` to Claude Code, which rejects it. Keep the defaults (`haiku`/`sonnet`/`opus`) and let LiteLLM handle the routing.
 
@@ -134,7 +125,7 @@ LiteLLM supports [100+ providers](https://docs.litellm.ai/docs/providers). Any m
 - In CI: add keys as env vars in the workflow step
 
 **"Exit code 1" on taskify with no stderr**
-- Claude Code likely rejected the model name. Use Anthropic model IDs in litellm-config.yaml (not custom aliases like `minimax-test`)
+- Claude Code likely rejected the model name. Use Anthropic model IDs in `modelMap` (not custom aliases like `minimax-test`)
 
 **Proxy health check fails in compiled CLI but works from source**
 - Run `curl http://localhost:4000/health` to verify the proxy is actually running

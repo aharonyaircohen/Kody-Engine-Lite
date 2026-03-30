@@ -58,14 +58,14 @@ describe("LiteLLM command resolution", () => {
   }
 
   it("uses litellm directly when on PATH", () => {
-    const result = resolveCommand("found", "/app/litellm-config.yaml", "4000")
+    const result = resolveCommand("found", "/tmp/kody-litellm-config.yaml", "4000")
     expect(result.cmd).toBe("litellm")
     expect(result.args).toContain("--config")
-    expect(result.args).toContain("/app/litellm-config.yaml")
+    expect(result.args).toContain("/tmp/kody-litellm-config.yaml")
   })
 
   it("uses python3 -m litellm as fallback", () => {
-    const result = resolveCommand("not-found", "/app/litellm-config.yaml", "4000")
+    const result = resolveCommand("not-found", "/tmp/kody-litellm-config.yaml", "4000")
     expect(result.cmd).toBe("python3")
     expect(result.args[0]).toBe("-m")
     expect(result.args[1]).toBe("litellm")

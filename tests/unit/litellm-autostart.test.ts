@@ -7,11 +7,11 @@ describe("LiteLLM auto-start logic", () => {
     needsProxy: boolean,
     proxyRunning: boolean,
     litellmInstalled: boolean,
-    configExists: boolean,
-  ): "skip" | "already-running" | "start" | "fallback-no-config" | "fallback-no-litellm" {
+    hasProvider: boolean,
+  ): "skip" | "already-running" | "start" | "no-provider" | "fallback-no-litellm" {
     if (!needsProxy) return "skip"
     if (proxyRunning) return "already-running"
-    if (!configExists) return "fallback-no-config"
+    if (!hasProvider) return "no-provider"
     if (!litellmInstalled) return "fallback-no-litellm"
     return "start"
   }
@@ -28,16 +28,16 @@ describe("LiteLLM auto-start logic", () => {
     expect(decideLitellmAction(true, false, true, true)).toBe("start")
   })
 
-  it("falls back when litellm-config.yaml missing", () => {
-    expect(decideLitellmAction(true, false, true, false)).toBe("fallback-no-config")
+  it("falls back when no provider configured", () => {
+    expect(decideLitellmAction(true, false, true, false)).toBe("no-provider")
   })
 
   it("falls back when litellm not installed", () => {
     expect(decideLitellmAction(true, false, false, true)).toBe("fallback-no-litellm")
   })
 
-  it("falls back when both missing", () => {
-    expect(decideLitellmAction(true, false, false, false)).toBe("fallback-no-config")
+  it("falls back when no provider and no litellm", () => {
+    expect(decideLitellmAction(true, false, false, false)).toBe("no-provider")
   })
 })
 

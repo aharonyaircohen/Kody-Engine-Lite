@@ -99,16 +99,16 @@ Three ways: (1) Watch issue labels change in real-time (`kody:planning` → `kod
 Any model that supports tool use. Anthropic models (haiku/sonnet/opus) are the default. MiniMax M2.7-highspeed is validated for all stages via LiteLLM. See [LiteLLM guide](LITELLM.md).
 
 **Q: How do I switch to a different model (e.g., MiniMax)?**
-Set `"provider": "minimax"` in `kody.config.json` — Kody auto-generates the LiteLLM config and starts the proxy. For advanced routing, add a custom `litellm-config.yaml`. See [LiteLLM guide](LITELLM.md#setup).
+Set `"provider": "minimax"` in `kody.config.json` — Kody auto-generates the LiteLLM config and starts the proxy. Use `modelMap` for per-tier model control. See [LiteLLM guide](LITELLM.md#setup).
 
 **Q: Can I use different models for different stages?**
-Yes. The `modelMap` in config maps tiers (cheap/mid/strong) to model names. For fine-grained control, create a `litellm-config.yaml` mapping specific Anthropic model IDs to different backend models per tier.
+Yes. Set different models per tier using the `modelMap` field in `kody.config.json`.
 
 **Q: Can I use local models (Ollama)?**
-Yes, via LiteLLM proxy. Configure Ollama as a provider in `litellm-config.yaml`. Performance depends on model capability — tool use support is required.
+Yes, via LiteLLM proxy. Set `"provider": "ollama"` in `kody.config.json`. Performance depends on model capability — tool use support is required.
 
 **Q: Why can't I use custom model names like "minimax-test"?**
-Claude Code validates `--model` names client-side and only accepts Anthropic model names. Use Anthropic model IDs in your LiteLLM config and let LiteLLM route to your actual backend. See [LiteLLM guide](LITELLM.md#common-gotchas).
+Claude Code validates `--model` names client-side and only accepts Anthropic model names. Kody automatically maps Anthropic IDs to your provider via LiteLLM. See [LiteLLM guide](LITELLM.md#common-gotchas).
 
 ## Security
 

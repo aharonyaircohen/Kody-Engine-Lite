@@ -87,18 +87,12 @@ export async function tryStartLitellm(
   projectDir: string,
   generatedConfig?: string,
 ): Promise<ReturnType<typeof import("child_process").spawn> | null> {
-  // Use manual config file if it exists, otherwise use generated config
-  const manualConfigPath = path.join(projectDir, "litellm-config.yaml")
-  let configPath: string
-  if (fs.existsSync(manualConfigPath)) {
-    configPath = manualConfigPath
-  } else if (generatedConfig) {
-    configPath = path.join(os.tmpdir(), "kody-litellm-config.yaml")
-    fs.writeFileSync(configPath, generatedConfig)
-  } else {
-    logger.warn("litellm-config.yaml not found and no provider configured — cannot start proxy")
+  if (!generatedConfig) {
+    logger.warn("No provider configured in kody.config.json — cannot start LiteLLM proxy")
     return null
   }
+  const configPath = path.join(os.tmpdir(), "kody-litellm-config.yaml")
+  fs.writeFileSync(configPath, generatedConfig)
 
   // Extract port from URL
   const portMatch = url.match(/:(\d+)/)

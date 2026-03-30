@@ -3,43 +3,90 @@
 [![npm](https://img.shields.io/npm/v/@kody-ade/kody-engine-lite)](https://www.npmjs.com/package/@kody-ade/kody-engine-lite)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**Comment `@kody` on a GitHub issue. Get back a tested, reviewed PR. Free and open source.**
+**Issue → PR in one command.** Comment `@kody` on a GitHub issue and Kody autonomously classifies, plans, builds, tests, reviews, fixes, and ships a pull request.
 
-Kody wraps Claude Code with a 7-stage autonomous pipeline — classify, plan, build, verify, review, fix, ship — with quality gates between every stage. If verify catches a bug, it gets fixed before review ever sees it. No blind retries, no context drift, no babysitting.
+Kody is a 7-stage autonomous SDLC pipeline that runs in GitHub Actions. It uses Claude Code (or any LLM via LiteLLM) to turn issues into production-ready PRs — with quality gates, AI-powered failure diagnosis, risk-based human approval, and shared context between stages.
 
-- **Repo-aware prompts** — `kody init` analyzes your codebase and generates customized instructions for every stage, not generic "write clean code" prompts
-- **Quality gates** — typecheck, tests, lint between stages + AI code review in a fresh session
-- **AI failure diagnosis** — classifies errors as fixable/infrastructure/pre-existing before retrying
-- **Self-improving** — learns conventions, remembers architectural decisions, discovers existing patterns
-- **Runs anywhere** — locally from your terminal or via GitHub Actions
-- **Any model** — Anthropic natively, or free models (Gemini, MiniMax) via LiteLLM. Zero cost possible
+> **Kody is the only AI coding tool that generates repo-customized prompts.** Every other tool sends the same generic instructions regardless of your codebase. Kody analyzes your repo's patterns, conventions, and gaps — then generates tailored instruction files for every pipeline stage. The AI writes code that looks like it belongs in your project because it was taught *from* your project. [Learn more →](docs/FEATURES.md#repo-aware-step-files-kodysteps)
 
-[Why Kody? →](docs/ABOUT.md) · [Full comparison →](docs/COMPARISON.md)
+## Why Kody?
+
+Most AI coding tools are **autocomplete** (Copilot) or **chat-based** (Cursor, Cline). You still drive. Kody is an **autonomous pipeline** — comment `@kody`, walk away, come back to a PR.
+
+- **Repo-aware prompts** — auto-generated step files with your repo's patterns, gaps, and acceptance criteria
+- **7 stages with quality gates** — not a single agent conversation
+- **Fire and forget** — runs in GitHub Actions, no IDE required
+- **Any LLM** — route through LiteLLM to use MiniMax, GPT, Gemini, or local models
+- **Free** with free-tier models — no subscriptions, no per-seat pricing
+
+[How Kody compares to Copilot, Devin, Cursor, OpenHands, and others →](docs/COMPARISON.md)
+
+## Pipeline
 
 ```
-@kody on issue
-    │
-    ▼
-① TASKIFY ─── classify, scope, detect complexity, ask questions
-    │
-    ▼
-② PLAN ────── TDD implementation plan (deep reasoning)
-    │          🛑 HIGH risk? Pause for human approval
-    ▼
-③ BUILD ───── implement via Claude Code tools
-    │
-    ▼
-④ VERIFY ──── typecheck + tests + lint
-    │          ✗ fail → AI diagnosis → autofix → retry
-    ▼
-⑤ REVIEW ──── AI code review (fresh session, no build bias)
-    │
-    ▼
-⑥ REVIEW-FIX ─ fix Critical and Major findings
-    │
-    ▼
-⑦ SHIP ────── push branch, create PR, close issue
+  ┌─────────────────────────────────────────────────────────────┐
+  │                      @kody on issue                         │
+  └──────────────────────────┬──────────────────────────────────┘
+                             │
+  ┌──────────────────────────▼──────────────────────────────────┐
+  │  ① TASKIFY         Tier: cheap                              │
+  │  Classify task, detect complexity, ask questions → task.json │
+  └──────────────────────────┬──────────────────────────────────┘
+                             │
+                ┌────────────▼────────────┐
+                │  LOW?  skip to ③        │
+                │  MEDIUM?  continue      │
+                │  HIGH?  continue        │
+                └────────────┬────────────┘
+                             │
+  ┌──────────────────────────▼──────────────────────────────────┐
+  │  ② PLAN            Tier: strong                             │
+  │  TDD implementation plan (deep reasoning)        → plan.md  │
+  └──────────────────────────┬──────────────────────────────────┘
+                             │
+                ┌────────────▼────────────┐
+                │  HIGH risk?             │
+                │  🛑 Pause for approval  │──── @kody approve
+                └────────────┬────────────┘
+                             │
+  ┌──────────────────────────▼──────────────────────────────────┐
+  │  ③ BUILD           Tier: mid                                │
+  │  Implement code via Claude Code tools    → code + git commit│
+  └──────────────────────────┬──────────────────────────────────┘
+                             │
+  ┌──────────────────────────▼──────────────────────────────────┐
+  │  ④ VERIFY          (deterministic gate)                     │
+  │  typecheck + tests + lint                                   │
+  │  ┌───────────────────────────────────────────────────┐      │
+  │  │  Fail? → AI diagnosis → autofix → retry (up to 2) │      │
+  │  └───────────────────────────────────────────────────┘      │
+  └──────────────────────────┬──────────────────────────────────┘
+                             │
+  ┌──────────────────────────▼──────────────────────────────────┐
+  │  ⑤ REVIEW          Tier: strong                             │
+  │  Code review: PASS/FAIL + Critical/Major/Minor  → review.md │
+  └──────────────────────────┬──────────────────────────────────┘
+                             │
+  ┌──────────────────────────▼──────────────────────────────────┐
+  │  ⑥ REVIEW-FIX      Tier: mid                               │
+  │  Fix Critical and Major findings             → code + commit│
+  └──────────────────────────┬──────────────────────────────────┘
+                             │
+  ┌──────────────────────────▼──────────────────────────────────┐
+  │  ⑦ SHIP            (deterministic)                          │
+  │  Push branch + create PR with Closes #N       → ship.md + PR│
+  └──────────────────────────┬──────────────────────────────────┘
+                             │
+  ┌──────────────────────────▼──────────────────────────────────┐
+  │                 ✅ PR created & ready for review             │
+  └─────────────────────────────────────────────────────────────┘
 ```
+
+**Tiers are configurable** — cheap/mid/strong map to any model via `modelMap` in config. Defaults: haiku/sonnet/opus. Route to MiniMax, GPT, Gemini, or local models via [LiteLLM](docs/LITELLM.md).
+
+**Shared sessions** — stages in the same group share a Claude Code session: taskify+plan (explore), build+autofix+review-fix (implementation), review (fresh perspective). No cold-start re-exploration between stages.
+
+[Pipeline details →](docs/PIPELINE.md)
 
 ## Quick Start
 
@@ -70,9 +117,10 @@ This analyzes your project and generates:
 - **Workflow** (`.github/workflows/kody.yml`)
 - **Config** (`kody.config.json` — auto-detected quality commands, git, GitHub settings)
 - **Project memory** (`.kody/memory/` — architecture and conventions)
-- **Customized step files** (`.kody/steps/` — repo-aware prompts for every stage)
-
+- **Customized step files** (`.kody/steps/` — see below)
 Then commits and pushes everything.
+
+> **Note:** GitHub labels for lifecycle tracking are created automatically during `@kody bootstrap`.
 
 ### 4. Use
 
@@ -82,46 +130,36 @@ Comment on any GitHub issue:
 @kody
 ```
 
-Kody picks up the issue and works through the pipeline autonomously. You'll see:
-- Labels updating in real-time: `kody:planning` → `kody:building` → `kody:review` → `kody:done`
-- Progress comments on the issue at each stage
-- A PR with a rich description, passing quality checks, and `Closes #N`
-
-If the task is HIGH-risk, Kody pauses after planning and asks for approval before writing code.
-
 ### Switch to a different model (optional)
 
+Set the `provider` field in `kody.config.json` — Kody auto-generates the LiteLLM config, starts the proxy, and routes all stages through your provider:
+
 ```json
-// kody.config.json
+// kody.config.json — use MiniMax (or any LLM)
 { "agent": { "provider": "minimax" } }
 ```
 
+Add the provider's API key to `.env`:
 ```
-# .env
 ANTHROPIC_COMPATIBLE_API_KEY=your-key-here
 ```
 
-Kody auto-starts the LiteLLM proxy. [Full LiteLLM guide →](docs/LITELLM.md)
+That's it. Kody auto-starts the LiteLLM proxy and loads API keys from `.env`. For per-tier model control, configure `modelMap` in `kody.config.json`. [Full LiteLLM guide →](docs/LITELLM.md)
 
 ## Commands
 
 | Command | What it does |
 |---------|-------------|
 | `@kody` | Run full pipeline on an issue |
-| `@kody review` | Review any PR — structured findings + GitHub approve/request-changes |
-| `@kody fix` | Re-run from build with human PR feedback + Kody's review as context |
-| `@kody fix-ci` | Fix failing CI checks (auto-triggered with loop guard) |
-| `@kody rerun` | Resume from failed or paused stage |
-| `@kody rerun --from <stage>` | Resume from a specific stage |
 | `@kody approve` | Resume after questions or risk gate |
+| `@kody fix` | Re-run from build. Reads PR review comments as context |
+| `@kody fix-ci` | Fix failing CI checks (auto-triggered on Kody PRs) |
+| `@kody rerun` | Resume from the failed or paused stage |
 | `@kody bootstrap` | Regenerate project memory and step files |
 
 ```bash
-kody-engine-lite init [--force]          # Setup repo: workflow, config, memory, step files
-kody-engine-lite bootstrap               # Regenerate memory + step files
-kody-engine-lite run --issue-number 42 --local --cwd ./project
-kody-engine-lite run --task "Add retry utility" --local
-kody-engine-lite review --pr-number 42   # Standalone PR review
+kody-engine-lite init [--force]        # Setup repo
+kody-engine-lite run --issue-number 42 --local
 kody-engine-lite fix --issue-number 42 --feedback "Use middleware pattern"
 kody-engine-lite fix-ci --pr-number 42
 kody-engine-lite rerun --issue-number 42 --from verify
@@ -131,26 +169,30 @@ kody-engine-lite rerun --issue-number 42 --from verify
 
 ## Key Features
 
-- **Repo-Aware Step Files** — auto-generated prompts with your repo's patterns, gaps, and acceptance criteria ([details](docs/FEATURES.md#repo-aware-step-files-kodysteps))
-- **Standalone PR Review** — `@kody review` on any PR for structured code review with GitHub approve/request-changes ([details](docs/FEATURES.md#standalone-pr-review))
-- **Shared Sessions** — stages share Claude Code sessions, no cold-start re-exploration ([details](docs/FEATURES.md#shared-sessions))
-- **Risk Gate** — HIGH-risk tasks pause for human approval before building ([details](docs/FEATURES.md#risk-gate))
-- **AI Failure Diagnosis** — classifies errors as fixable/infrastructure/pre-existing/abort before retry ([details](docs/FEATURES.md#ai-powered-failure-diagnosis))
-- **Question Gates** — asks product/architecture questions when the task is unclear ([details](docs/FEATURES.md#question-gates))
-- **Auto Fix-CI** — CI fails on a PR? Kody fetches logs, diagnoses, and pushes a fix ([details](docs/FEATURES.md#auto-fix-ci))
-- **Pattern Discovery** — searches for existing patterns before proposing new ones ([details](docs/FEATURES.md#pattern-discovery))
-- **Decision Memory** — architectural decisions extracted from reviews persist across tasks ([details](docs/FEATURES.md#decision-memory))
-- **Auto-Learning** — extracts coding conventions from each successful run ([details](docs/FEATURES.md#auto-learning-memory))
-- **Retrospective** — analyzes each run, identifies patterns, suggests improvements ([details](docs/FEATURES.md#retrospective-system))
-- **Any LLM** — route through LiteLLM to use free or paid models ([setup guide](docs/LITELLM.md))
+- **[Repo-Aware Step Files](docs/FEATURES.md#repo-aware-step-files-kodysteps)** — auto-generated per-stage instructions grounded in your actual code patterns, gaps, and acceptance criteria. Edit `.kody/steps/*.md` to customize how Kody works in your repo.
+- **[Shared Sessions](docs/FEATURES.md#shared-sessions)** — stages in the same group share a Claude Code session, eliminating cold-start re-exploration
+- **[Risk Gate](docs/FEATURES.md#risk-gate)** — HIGH-risk tasks pause for human approval before building
+- **[AI Failure Diagnosis](docs/FEATURES.md#ai-powered-failure-diagnosis)** — classifies errors (fixable/infrastructure/pre-existing/abort) before retry
+- **[Question Gates](docs/FEATURES.md#question-gates)** — asks product/architecture questions when the task is unclear
+- **[Any LLM](docs/LITELLM.md)** — route through LiteLLM to use MiniMax, GPT, Gemini, local models
+- **[Retrospective](docs/FEATURES.md#retrospective-system)** — analyzes each run, identifies patterns, suggests improvements
+- **[Auto-Learning](docs/FEATURES.md#auto-learning-memory)** — extracts coding conventions from each successful run
+- **[Pattern Discovery](docs/FEATURES.md#pattern-discovery)** — plan stage searches for existing patterns before proposing new approaches
+- **[Decision Memory](docs/FEATURES.md#decision-memory)** — architectural decisions from code reviews are saved and enforced in future tasks
 
 ## Documentation
 
-**Understand Kody:** [About](docs/ABOUT.md) · [Features](docs/FEATURES.md) · [Pipeline](docs/PIPELINE.md) · [Comparison](docs/COMPARISON.md)
-
-**Set up & use:** [CLI](docs/CLI.md) · [Configuration](docs/CONFIGURATION.md) · [Bootstrap](docs/BOOTSTRAP.md) · [LiteLLM](docs/LITELLM.md)
-
-**Reference:** [Architecture](docs/ARCHITECTURE.md) · [FAQ](docs/FAQ.md)
+| Doc | What's in it |
+|-----|-------------|
+| [Pipeline](docs/PIPELINE.md) | Stage details, shared sessions, complexity skipping, artifacts |
+| [Bootstrap](docs/BOOTSTRAP.md) | Project memory, step files, labels — what bootstrap generates and when to run it |
+| [Features](docs/FEATURES.md) | Risk gate, diagnosis, sessions, retrospective, auto-learn, pattern discovery, decision memory, PR feedback |
+| [LiteLLM](docs/LITELLM.md) | Non-Anthropic model setup, auto-start, tested providers |
+| [CLI](docs/CLI.md) | Full command reference — all flags, env vars, and examples |
+| [Configuration](docs/CONFIGURATION.md) | Config file reference, env vars, workflow setup |
+| [Comparison](docs/COMPARISON.md) | vs Copilot, Devin, Cursor, Cline, OpenHands, SWE-agent |
+| [Architecture](docs/ARCHITECTURE.md) | Source tree, state machine diagram, development guide |
+| [FAQ](docs/FAQ.md) | Common questions about usage, models, security, cost |
 
 ## License
 
