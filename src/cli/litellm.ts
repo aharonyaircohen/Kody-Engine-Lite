@@ -46,8 +46,11 @@ export async function checkModelHealth(
     }
 
     const body = await res.json()
-    if (!body.content?.[0]?.text) {
-      return { ok: false, error: "Empty response from model" }
+    // Accept both Anthropic format (content[0].text) and OpenAI format (choices[0].message.content)
+    const hasAnthropicContent = !!body.content?.[0]?.text
+    const hasOpenAIContent = !!body.choices?.[0]?.message?.content
+    if (!hasAnthropicContent && !hasOpenAIContent) {
+      return { ok: false, error: `Unexpected response format: ${JSON.stringify(body).slice(0, 200)}` }
     }
 
     return { ok: true }
