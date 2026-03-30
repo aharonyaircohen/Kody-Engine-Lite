@@ -254,6 +254,42 @@ export function submitPRReview(
   }
 }
 
+export function getCIFailureLogs(
+  runId: string | number,
+  maxLength: number = 8000,
+): string | null {
+  try {
+    const logsOutput = gh([
+      "run", "view", String(runId),
+      "--log-failed",
+    ])
+    if (!logsOutput) return null
+    const truncated = logsOutput.slice(-maxLength)
+    const prefix = logsOutput.length > maxLength ? "...(earlier output truncated)\n" : ""
+    return `${prefix}${truncated}`
+  } catch (err) {
+    logger.warn(`  Failed to get CI failure logs for run ${runId}: ${err}`)
+    return null
+  }
+}
+
+export function getLatestFailedRunForBranch(branch: string): string | null {
+  try {
+    const output = gh([
+      "run", "list",
+      "--branch", branch,
+      "--status", "failure",
+      "--limit", "1",
+      "--json", "databaseId",
+      "--jq", ".[0].databaseId",
+    ])
+    return output.trim() || null
+  } catch (err) {
+    logger.warn(`  Failed to get latest failed run for branch ${branch}: ${err}`)
+    return null
+  }
+}
+
 export function getLatestKodyReviewComment(prNumber: number): string | null {
   try {
     const output = gh([

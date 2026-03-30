@@ -4,7 +4,7 @@ import { createRunners } from "./agent-runner.js"
 import { runPipeline, printStatus } from "./pipeline.js"
 import { runPreflight } from "./preflight.js"
 import { setConfigDir, getProjectConfig } from "./config.js"
-import { setGhCwd, getIssue, postComment, getPRDetails, getPRsForIssue, postPRComment, submitPRReview, getLatestKodyReviewComment } from "./github-api.js"
+import { setGhCwd, getIssue, postComment, getPRDetails, getPRsForIssue, postPRComment, submitPRReview, getLatestKodyReviewComment, getCIFailureLogs, getLatestFailedRunForBranch } from "./github-api.js"
 import { logger } from "./logger.js"
 import type { PipelineContext } from "./types.js"
 import { runStandaloneReview, resolveReviewTarget, formatReviewComment, detectReviewVerdict } from "./review-standalone.js"
@@ -81,7 +81,7 @@ async function main() {
 
   // State machine: check issue state before doing anything
   // Skip for review command and for PR-based fix (fix on a PR doesn't need issue resolution)
-  const isPRFix = input.command === "fix" && !!input.prNumber
+  const isPRFix = (input.command === "fix" || input.command === "fix-ci") && !!input.prNumber
   if (input.issueNumber && input.command !== "review" && !isPRFix) {
     const taskAction = resolveForIssue(input.issueNumber, projectDir)
     logger.info(`Task action: ${taskAction.action}`)
@@ -118,7 +118,7 @@ async function main() {
   let taskId = input.taskId
   if (!taskId) {
     if (isPRFix) {
-      taskId = `fix-pr-${input.prNumber}-${generateTaskId()}`
+      taskId = `${input.command === "fix-ci" ? "fixci" : "fix"}-pr-${input.prNumber}-${generateTaskId()}`
     } else if (input.issueNumber) {
       taskId = `${input.issueNumber}-${generateTaskId()}`
     } else if (input.command === "run" && input.task) {
@@ -256,8 +256,34 @@ async function main() {
   }
 
   // Fix command defaults to --from build
-  if (input.command === "fix" && !input.fromStage) {
+  if ((input.command === "fix" || input.command === "fix-ci") && !input.fromStage) {
     input.fromStage = "build"
+  }
+
+  // Fix-CI on a PR: fetch CI failure logs as context
+  if (input.command === "fix-ci" && input.prNumber) {
+    // Resolve CI run ID from arg, feedback body, or latest failed run
+    let ciRunId = input.ciRunId
+    if (!ciRunId && input.feedback) {
+      const match = input.feedback.match(/Run ID:\s*(\d+)/)
+      ciRunId = match?.[1]
+    }
+    if (!ciRunId) {
+      const prDetails = getPRDetails(input.prNumber)
+      if (prDetails) {
+        ciRunId = getLatestFailedRunForBranch(prDetails.headBranch) ?? undefined
+      }
+    }
+    if (ciRunId) {
+      const ciLogs = getCIFailureLogs(ciRunId)
+      if (ciLogs) {
+        logger.info(`  Found CI failure logs for run ${ciRunId}, injecting as feedback`)
+        const ciContext = `## CI Failure Logs (run ${ciRunId})\n\nThe CI pipeline failed. Fix the code to make CI pass.\n\n\`\`\`\n${ciLogs}\n\`\`\``
+        input.feedback = input.feedback
+          ? `${ciContext}\n\n## Additional context\n\n${input.feedback}`
+          : ciContext
+      }
+    }
   }
 
   // Fix on a PR: auto-fetch the latest Kody review comment as context
@@ -300,7 +326,7 @@ async function main() {
     projectDir,
     runners,
     input: {
-      mode: (input.command === "rerun" || input.command === "fix") ? "rerun" : "full",
+      mode: (input.command === "rerun" || input.command === "fix" || input.command === "fix-ci") ? "rerun" : "full",
       fromStage: input.fromStage,
       dryRun: input.dryRun,
       issueNumber: input.issueNumber,

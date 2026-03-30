@@ -28,12 +28,16 @@ on:
   pull_request_review:
     types: [submitted]
 
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
   push:
     branches: [main, dev]
     paths: ["src/**", "kody.config.json", "package.json"]
 
 concurrency:
-  group: kody-${{ github.event.inputs.task_id || github.event.issue.number || github.event.pull_request.number || github.sha }}
+  group: kody-${{ github.event.inputs.task_id || github.event.issue.number || github.event.pull_request.number || github.event.workflow_run.id || github.sha }}
   cancel-in-progress: false
 
 permissions:
@@ -56,6 +60,7 @@ jobs:
       issue_number: ${{ steps.parse.outputs.issue_number }}
       pr_number: ${{ steps.parse.outputs.pr_number }}
       feedback: ${{ steps.parse.outputs.feedback }}
+      ci_run_id: ${{ steps.parse.outputs.ci_run_id }}
       valid: ${{ steps.parse.outputs.valid }}
     steps:
       - uses: actions/setup-node@v4
@@ -104,7 +109,7 @@ jobs:
 
           # Validate mode
           case "$MODE" in
-            full|rerun|fix|status|approve|review) ;;
+            full|rerun|fix|fix-ci|status|approve|review) ;;
             *)
               # If first arg isn't a mode, it might be a task-id or nothing
               if [ -n "$MODE" ] && [ "$MODE" != "" ]; then
@@ -129,6 +134,15 @@ jobs:
             # FROM_STAGE will be determined by entry.ts from paused state
           fi
 
+          # fix-ci: extract body as feedback + CI run ID
+          if [ "$MODE" = "fix-ci" ]; then
+            FIX_CI_BODY=$(echo "$BODY" | sed -n '/\(@kody\|\/kody\)\s*fix-ci/,$p' | tail -n +2)
+            if [ -n "$FIX_CI_BODY" ]; then
+              FEEDBACK="$FIX_CI_BODY"
+            fi
+            CI_RUN_ID=$(echo "$FIX_CI_BODY" | grep -oP 'Run ID:\s*\K\d+' || echo "")
+          fi
+
           # Detect if this comment is on a PR (PRs are issues in GitHub API)
           PR_NUMBER=""
           if [ -n "${{ github.event.issue.pull_request }}" ]; then
@@ -150,6 +164,7 @@ jobs:
             echo "$FEEDBACK"
             echo "KODY_EOF"
           } >> $GITHUB_OUTPUT
+          echo "ci_run_id=${CI_RUN_ID:-}" >> $GITHUB_OUTPUT
           echo "valid=true" >> $GITHUB_OUTPUT
 
   # ─── Orchestrate ─────────────────────────────────────────────────────────────
@@ -209,12 +224,14 @@ jobs:
           ISSUE_NUMBER: ${{ github.event.inputs.issue_number || needs.parse.outputs.issue_number }}
           PR_NUMBER: ${{ needs.parse.outputs.pr_number }}
           FEEDBACK: ${{ github.event.inputs.feedback || needs.parse.outputs.feedback }}
+          CI_RUN_ID: ${{ needs.parse.outputs.ci_run_id }}
           DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           CMD="run"
           [ "$MODE" = "rerun" ] && CMD="rerun"
           [ "$MODE" = "fix" ] && CMD="fix"
+          [ "$MODE" = "fix-ci" ] && CMD="fix-ci"
           [ "$MODE" = "review" ] && CMD="review"
           ARGS="--task-id $TASK_ID"
           [ -n "$ISSUE_NUMBER" ] && ARGS="$ARGS --issue-number $ISSUE_NUMBER"
@@ -297,6 +314,68 @@ jobs:
                 body: `❌ Pipeline failed. [View logs](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`
               });
             }
+
+  # ─── Fix-CI Auto-trigger (workflow_run trigger) ─────────────────────────────
+  fix-ci-trigger:
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.pull_requests[0]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Check loop guard and post fix-ci comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.workflow_run.pull_requests[0];
+            const prNumber = pr.number;
+
+            // Check recent comments for existing fix-ci attempt (last 24h)
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              per_page: 30,
+            });
+
+            const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+            const recentFixCi = comments.data.filter(
+              (c) => c.body.includes('@kody fix-ci') && new Date(c.created_at) > oneDayAgo
+            );
+
+            if (recentFixCi.length >= 1) {
+              core.info('Loop guard: @kody fix-ci already commented in last 24h, skipping');
+              return;
+            }
+
+            // Check if last commit was from a bot (kody's previous fix attempt)
+            const commits = await github.rest.pulls.listCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+              per_page: 1,
+            });
+            const lastAuthor = commits.data[commits.data.length - 1]?.commit?.author?.name;
+            if (lastAuthor === 'github-actions[bot]' || lastAuthor === 'kody[bot]') {
+              core.info('Loop guard: last commit from bot, skipping');
+              return;
+            }
+
+            // Post fix-ci comment
+            const runId = context.payload.workflow_run.id;
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: `@kody fix-ci\nCI failed: [View logs](${runUrl})\nRun ID: ${runId}`,
+            });
+            core.info(`Posted @kody fix-ci on PR #${prNumber} for run ${runId}`);
 
   # ─── Smoke Test (push trigger) ──────────────────────────────────────────────
   smoke-test:
