@@ -7,6 +7,8 @@
 
 Kody is a 7-stage autonomous SDLC pipeline that runs in GitHub Actions. It uses Claude Code (or any LLM via LiteLLM) to turn issues into production-ready PRs — with quality gates, AI-powered failure diagnosis, risk-based human approval, and shared context between stages.
 
+> **Kody is the only AI coding tool that generates repo-customized prompts.** Every other tool sends the same generic instructions regardless of your codebase. Kody analyzes your repo's patterns, conventions, and gaps — then generates tailored instruction files for every pipeline stage. The AI writes code that looks like it belongs in your project because it was taught *from* your project. [Learn more →](docs/FEATURES.md#repo-aware-step-files-kodysteps)
+
 ## Why Kody?
 
 Most AI coding tools are **autocomplete** (Copilot) or **chat-based** (Cursor, Cline). You still drive. Kody is an **autonomous pipeline** — comment `@kody`, walk away, come back to a PR.

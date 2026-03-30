@@ -5,8 +5,6 @@
 | Tool | Type | Open Source | Model Flexible | CI Native | Fire & Forget | Cost |
 |------|------|-------------|---------------|-----------|--------------|------|
 | **Kody** | SDLC Pipeline | MIT | Any via LiteLLM | GitHub Actions | Yes | Free with free-tier models |
-
-**Kody is the only tool that generates repo-customized prompts** — every other tool uses the same generic instructions regardless of your codebase's patterns, conventions, and gaps.
 | Copilot Workspace | Interactive | No | GitHub models | GitHub Cloud | No | $10-39/mo |
 | Devin | Autonomous Agent | No | Proprietary | Cloud | Partially | $20-500/mo |
 | Cursor Agent | IDE Agent | No | Cursor models | No | No | Subscription |
