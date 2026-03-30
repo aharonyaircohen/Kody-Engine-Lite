@@ -508,7 +508,7 @@ function ghComment(issueNumber: number, body: string, cwd: string): void {
   } catch { /* best effort */ }
 }
 
-function bootstrapCommand() {
+function bootstrapCommand(opts: { force: boolean } = { force: false }) {
   const cwd = process.cwd()
   const issueNumber = parseInt(process.env.ISSUE_NUMBER ?? "", 10) || 0
   console.log(`\n🔧 Kody Bootstrap — Generating project memory + step files\n`)
@@ -569,6 +569,26 @@ function bootstrapCommand() {
   const archPath = path.join(memoryDir, "architecture.md")
   const conventionsPath = path.join(memoryDir, "conventions.md")
 
+  const existingArch = fs.existsSync(archPath) ? fs.readFileSync(archPath, "utf-8") : ""
+  const existingConv = fs.existsSync(conventionsPath) ? fs.readFileSync(conventionsPath, "utf-8") : ""
+  const hasExisting = !!(existingArch || existingConv)
+
+  const extendInstruction = hasExisting && !opts.force
+    ? `\n## Existing Documentation (EXTEND, do not replace)
+You are UPDATING existing documentation. Follow these rules strictly:
+- PRESERVE all existing sections and content that are still accurate
+- REMOVE only lines that reference files, patterns, or dependencies that no longer exist in the project
+- APPEND new sections or lines for newly discovered patterns, files, or conventions
+- Do NOT rewrite sections that are still correct — keep them verbatim
+
+### Existing architecture.md:
+${existingArch}
+
+### Existing conventions.md:
+${existingConv}
+`
+    : ""
+
   const memoryPrompt = `You are analyzing a project to generate documentation for an autonomous SDLC pipeline.
 
 Given this project context, output ONLY a JSON object with EXACTLY this structure:
@@ -588,7 +608,7 @@ Rules for conventions (markdown string):
 - Extract actual patterns from the project
 - If CLAUDE.md exists, reference it
 - Keep under 30 lines
-
+${extendInstruction}
 Output ONLY valid JSON. No markdown fences. No explanation.
 
 ${repoContext}`
@@ -651,13 +671,21 @@ ${repoContext}`
       continue
     }
 
+    const stepOutputPath = path.join(stepsDir, `${stage}.md`)
+
+    // Skip if step file already exists (unless --force)
+    if (fs.existsSync(stepOutputPath) && !opts.force) {
+      console.log(`  ○ ${stage}.md — already exists (use --force to regenerate)`)
+      continue
+    }
+
     const defaultPrompt = fs.readFileSync(templatePath, "utf-8")
     const contextPlaceholder = "{{TASK_CONTEXT}}"
     const placeholderIdx = defaultPrompt.indexOf(contextPlaceholder)
 
     // If template has no placeholder, copy as-is
     if (placeholderIdx === -1) {
-      fs.copyFileSync(templatePath, path.join(stepsDir, `${stage}.md`))
+      fs.copyFileSync(templatePath, stepOutputPath)
       stepCount++
       console.log(`  ✓ ${stage}.md`)
       continue
@@ -719,12 +747,12 @@ REMINDER: Output the full prompt template first (unchanged), then your three app
 
       // Re-append the placeholder
       const finalPrompt = cleaned + "\n\n" + afterPlaceholder
-      fs.writeFileSync(path.join(stepsDir, `${stage}.md`), finalPrompt)
+      fs.writeFileSync(stepOutputPath, finalPrompt)
       stepCount++
       console.log(`  ✓ ${stage}.md`)
     } catch {
       console.log(`  ⚠ ${stage}.md — customization failed, using default template`)
-      fs.copyFileSync(templatePath, path.join(stepsDir, `${stage}.md`))
+      fs.copyFileSync(templatePath, stepOutputPath)
       stepCount++
     }
   }
@@ -1027,9 +1055,32 @@ function installSkillsForProject(cwd: string): string[] {
     return []
   }
 
+  // Read existing skills-lock.json to skip already installed
+  let installedSkills: Record<string, unknown> = {}
+  const lockPath = path.join(cwd, "skills-lock.json")
+  if (fs.existsSync(lockPath)) {
+    try {
+      const lock = JSON.parse(fs.readFileSync(lockPath, "utf-8"))
+      installedSkills = lock.skills ?? {}
+    } catch { /* ignore */ }
+  }
+
   const installedPaths: string[] = []
 
   for (const skill of skills) {
+    const skillName = skill.package.split("@").pop() ?? ""
+
+    // Skip if already installed
+    if (skillName in installedSkills) {
+      console.log(`  ○ ${skill.label} — already installed`)
+      // Still collect paths for git commit
+      const agentPath = `.agents/skills/${skillName}`
+      const claudePath = `.claude/skills/${skillName}`
+      if (fs.existsSync(path.join(cwd, agentPath))) installedPaths.push(agentPath)
+      if (fs.existsSync(path.join(cwd, claudePath))) installedPaths.push(claudePath)
+      continue
+    }
+
     try {
       console.log(`  Installing: ${skill.label} (${skill.package})`)
       execFileSync("npx", ["skills", "add", skill.package, "--yes"], {
@@ -1069,7 +1120,7 @@ const command = args[0]
 if (command === "init") {
   initCommand({ force: args.includes("--force") })
 } else if (command === "bootstrap") {
-  bootstrapCommand()
+  bootstrapCommand({ force: args.includes("--force") })
 } else if (command === "version" || command === "--version" || command === "-v") {
   console.log(getVersion())
 } else {
