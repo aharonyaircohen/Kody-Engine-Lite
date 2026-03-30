@@ -24,7 +24,7 @@
 | **Runs where** | GitHub Actions (CI) | GitHub Cloud |
 | **Autonomous** | Yes — fire and forget | No — requires guidance |
 | **Pipeline stages** | 7 with quality gates | Plan + implement |
-| **Quality gates** | typecheck + tests + lint + AI diagnosis | Basic validation |
+| **Quality gates** | Configured quality commands + AI diagnosis | Basic validation |
 | **Failure handling** | 5-way AI diagnosis + targeted autofix | Basic retry |
 | **Repo-aware prompts** | Yes — auto-generated per stage | No |
 | **Project memory** | Yes — auto-learns conventions | No |
@@ -46,7 +46,7 @@
 | **Architecture** | 7 stages with artifacts | Single agent |
 | **Transparency** | Full — artifacts at every stage | Limited |
 | **Self-hosted** | Yes — your infra, your keys | No — cloud only |
-| **Quality gates** | typecheck + tests + lint + AI diagnosis | No structured gates |
+| **Quality gates** | Configured quality commands + AI diagnosis | No structured gates |
 | **Failure handling** | 5-way AI diagnosis + targeted autofix | Basic retry |
 | **Repo-aware prompts** | Yes — auto-generated per stage | No |
 | **Checkpoints** | Rerun from any stage | No |
@@ -68,7 +68,7 @@
 | **Runs where** | GitHub Actions (CI) | Local IDE | Local IDE |
 | **Requires IDE open** | No | Yes | Yes |
 | **Autonomous** | Yes — fire and forget | Partially | Partially |
-| **Quality gates** | typecheck + tests + lint + AI diagnosis | No | No |
+| **Quality gates** | Configured quality commands + AI diagnosis | No | No |
 | **Failure handling** | 5-way AI diagnosis + autofix | No | No |
 | **Repo-aware prompts** | Yes — auto-generated per stage | No | No |
 | **GitHub integration** | Native (issue → PR) | Manual | Manual |
@@ -90,7 +90,7 @@
 | **Type** | SDLC pipeline | Autonomous coding agent |
 | **Runs where** | GitHub Actions (zero infra) | Docker/Kubernetes sandbox |
 | **Setup** | `npm install` + `init` (2 min) | Docker compose + sandbox config |
-| **Quality gates** | typecheck + tests + lint + AI diagnosis | No structured gates |
+| **Quality gates** | Configured quality commands + AI diagnosis | No structured gates |
 | **Failure handling** | 5-way AI diagnosis + targeted autofix | Retry within agent loop |
 | **Repo-aware prompts** | Yes — auto-generated per stage | No |
 | **Checkpoints** | Rerun from any stage | Start over on failure |
@@ -111,7 +111,7 @@
 |----------|------|-----------|
 | **Type** | Production SDLC pipeline | Research agent |
 | **Focus** | Issue → PR automation | Benchmarking |
-| **Quality gates** | typecheck + tests + lint + AI diagnosis | Test execution only |
+| **Quality gates** | Configured quality commands + AI diagnosis | Test execution only |
 | **Failure handling** | 5-way AI diagnosis + autofix | Basic retry |
 | **Repo-aware prompts** | Yes — auto-generated per stage | No |
 | **Project memory** | Yes — auto-learns conventions | No |
