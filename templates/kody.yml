@@ -295,10 +295,11 @@ jobs:
       - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: kody-tasks-${{ github.event.inputs.task_id || needs.parse.outputs.task_id }}
           path: .kody/tasks/
-          retention-days: 7
+          retention-days: 3
 
   # ─── Error Notifications ─────────────────────────────────────────────────────
   notify-parse-error:
