@@ -161,6 +161,7 @@ That's it. Kody auto-starts the LiteLLM proxy and loads API keys from `.env`. Fo
 | `@kody` | Run full pipeline |
 | `@kody approve` | Resume after questions or risk gate |
 | `@kody fix` | Re-run from build stage. Write feedback in the comment body — it gets injected into the build prompt |
+| `@kody fix-ci` | Fix failing CI checks. Fetches CI failure logs and re-runs from build stage. Auto-triggered when CI fails on a PR (with loop guard) |
 | `@kody rerun` | Resume from the failed or paused stage |
 | `@kody rerun --from <stage>` | Resume from a specific stage |
 | `@kody bootstrap` | Regenerate project memory and step files |
@@ -173,6 +174,7 @@ kody-engine-lite bootstrap               # Regenerate memory + step files (runs 
 kody-engine-lite run --issue-number 42 --local --cwd ./project
 kody-engine-lite run --task "Add retry utility" --local
 kody-engine-lite fix --issue-number 42 --feedback "Use middleware pattern"
+kody-engine-lite fix-ci --pr-number 42 --ci-run-id 12345
 kody-engine-lite rerun --issue-number 42 --from verify
 kody-engine-lite status --task-id 42-260327-102254
 ```

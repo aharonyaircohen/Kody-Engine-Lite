@@ -172,6 +172,26 @@ verify fail
 
 The autofix agent resumes the build session, so it already knows the codebase and what was implemented.
 
+## Auto Fix-CI
+
+When CI fails on a PR, Kody can automatically fix it:
+
+```
+CI fails on PR
+  → workflow_run trigger fires
+  → loop guard checks (max 1 attempt per 24h, skips if last commit from bot)
+  → posts @kody fix-ci comment with CI run ID
+  → engine fetches failed CI logs (gh run view --log-failed)
+  → injects logs as feedback, re-runs pipeline from build stage
+  → build agent fixes the code, verify confirms, ship pushes the fix
+```
+
+**Loop prevention:** Two guards prevent infinite fix loops:
+1. Only one `@kody fix-ci` comment per PR per 24 hours
+2. If the last commit was authored by `github-actions[bot]` or `kody[bot]`, the trigger is skipped
+
+You can also trigger it manually: comment `@kody fix-ci` on any PR with failing CI checks.
+
 ## Rich PR Descriptions
 
 ```markdown
