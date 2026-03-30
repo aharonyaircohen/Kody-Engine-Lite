@@ -114,9 +114,12 @@ export function getLitellmUrl(): string {
   return LITELLM_DEFAULT_URL
 }
 
-/** Get the env var name for a provider's API key */
+/** Get the env var name for a provider's API key.
+ *  Anthropic uses ANTHROPIC_API_KEY; all other providers use a single
+ *  ANTHROPIC_COMPATIBLE_API_KEY (the provider field controls LiteLLM routing). */
 export function providerApiKeyEnvVar(provider: string): string {
-  return `${provider.toUpperCase()}_API_KEY`
+  if (provider === "anthropic") return "ANTHROPIC_API_KEY"
+  return "ANTHROPIC_COMPATIBLE_API_KEY"
 }
 
 // Pipeline constants

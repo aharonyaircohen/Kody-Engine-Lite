@@ -11,7 +11,7 @@ describe("generateLitellmConfig", () => {
 
     expect(yaml).toContain("model_list:")
     expect(yaml).toContain("model: minimax/MiniMax-M2.7-highspeed")
-    expect(yaml).toContain("api_key: os.environ/MINIMAX_API_KEY")
+    expect(yaml).toContain("api_key: os.environ/ANTHROPIC_COMPATIBLE_API_KEY")
     // Should map all Anthropic model IDs
     expect(yaml).toContain("model_name: claude-sonnet-4-6")
     expect(yaml).toContain("model_name: claude-haiku-4-5")
@@ -32,7 +32,7 @@ describe("generateLitellmConfig", () => {
     expect(yaml).toContain("model: openai/gpt-4o-mini")
     expect(yaml).toContain("model: openai/gpt-4o")
     expect(yaml).toContain("model: openai/o3")
-    expect(yaml).toContain("api_key: os.environ/OPENAI_API_KEY")
+    expect(yaml).toContain("api_key: os.environ/ANTHROPIC_COMPATIBLE_API_KEY")
   })
 
   it("maps different models per tier", () => {
@@ -47,6 +47,6 @@ describe("generateLitellmConfig", () => {
     expect(yaml).toContain("model: google/gemini-2.0-flash")
     // Sonnet IDs should map to mid model
     expect(yaml).toContain("model: google/gemini-2.5-pro")
-    expect(yaml).toContain("api_key: os.environ/GOOGLE_API_KEY")
+    expect(yaml).toContain("api_key: os.environ/ANTHROPIC_COMPATIBLE_API_KEY")
   })
 })
