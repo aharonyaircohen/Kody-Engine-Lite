@@ -11,21 +11,13 @@ Kody is a 7-stage autonomous SDLC pipeline that runs in GitHub Actions. It uses 
 
 Most AI coding tools are **autocomplete** (Copilot) or **chat-based** (Cursor, Cline). You still drive. Kody is an **autonomous pipeline** — comment `@kody`, walk away, come back to a PR.
 
-| | Kody | Copilot Workspace | Devin | Cursor Agent |
-|---|---|---|---|---|
-| **Repo-aware instructions** | AI-customized per-stage prompts with your repo's patterns, gaps, and acceptance criteria | Generic prompts | Generic prompts | Generic prompts |
-| **Runs in CI** | GitHub Actions | GitHub Cloud | Devin Cloud | Local IDE |
-| **Fire and forget** | Yes | No — interactive | Partially | No — IDE must be open |
-| **Pipeline stages** | 7 stages with quality gates | Plan → implement | Single agent | Single agent |
-| **Shared sessions** | Stages share Claude Code sessions (no cold starts) | Single conversation | Single conversation | Single conversation |
-| **Risk gate** | Pauses HIGH-risk for human approval | No | No | No |
-| **AI failure diagnosis** | Classifies errors before retry (fixable/infra/abort) | No | No | No |
-| **Incremental codebase improvement** | Step files encode gaps to fix — every task raises quality | No | No | No |
-| **Model flexible** | Any LLM via LiteLLM | GitHub models only | Proprietary | Cursor models |
-| **Open source** | MIT | Proprietary | Proprietary | Proprietary |
-| **Cost** | **Free** with free-tier models (Gemini, etc.) or pay-per-use with any LLM | $10-39/month | $20-500/month | Subscription |
+- **Repo-aware prompts** — auto-generated step files with your repo's patterns, gaps, and acceptance criteria
+- **7 stages with quality gates** — not a single agent conversation
+- **Fire and forget** — runs in GitHub Actions, no IDE required
+- **Any LLM** — route through LiteLLM to use MiniMax, GPT, Gemini, or local models
+- **Free** with free-tier models — no subscriptions, no per-seat pricing
 
-[Full comparison →](docs/COMPARISON.md)
+[How Kody compares to Copilot, Devin, Cursor, OpenHands, and others →](docs/COMPARISON.md)
 
 ## Pipeline
 
@@ -181,69 +173,16 @@ kody-engine-lite status --task-id 42-260327-102254
 
 ## Key Features
 
-### Repo-Aware Step Files (`.kody/steps/`)
-
-**This is what separates Kody from every other AI coding tool.**
-
-Most AI tools send the same generic prompt regardless of whether they're working on a Next.js app, a Go microservice, or a Python ML pipeline. Kody generates **customized instruction files for every pipeline stage**, tailored to your specific repository.
-
-During `kody init`, Kody analyzes your codebase — your frameworks, patterns, conventions, file structure, even your anti-patterns — and produces 6 step files in `.kody/steps/`:
-
-| Step File | What It Controls |
-|-----------|-----------------|
-| `taskify.md` | How tasks are classified and scoped for this repo |
-| `plan.md` | Planning guidelines with your repo's architecture in mind |
-| `build.md` | Coding instructions with your actual patterns as examples |
-| `autofix.md` | How to fix verification failures using your toolchain |
-| `review.md` | Review checklist calibrated to your repo's quality bar |
-| `review-fix.md` | How to address review findings in your codebase |
-
-Each step file contains three repo-specific sections:
-- **Repo Patterns** — real code examples from your codebase (file paths, function signatures, snippets) showing what "good" looks like in your project
-- **Improvement Areas** — gaps, anti-patterns, and inconsistencies the AI should fix when it touches related code (e.g., "collections missing access control", "services not using DI")
-- **Acceptance Criteria** — a concrete checklist that defines "done" for each stage in your specific repo
-
-**Why this matters:**
-- Code produced by Kody **matches your existing patterns** — same naming, same abstractions, same file organization
-- Known gaps get **incrementally fixed** — every task that touches a weak area leaves it better
-- Quality bar is **explicit and auditable** — acceptance criteria are version-controlled in your repo, not hidden in a prompt
-- **You own and customize** the instructions — edit `.kody/steps/build.md` to change how Kody writes code, no engine changes needed
-- Re-run `kody init --force` after major refactors to **regenerate** step files from current state
-
-```
-# Example: .kody/steps/build.md (auto-generated, then customizable)
----
-name: build
-...
----
-<original engine prompt preserved>
-
-## Repo Patterns
-**Collection pattern** (`src/collections/certificates.ts`):
-- Always cast `relationTo` with `as CollectionSlug`
-- Register every new collection in `src/payload.config.ts`
-
-## Improvement Areas
-- Collections missing access control — add `access` guards when touching
-- Run `pnpm payload generate:types` after any schema change
-
-## Acceptance Criteria
-- [ ] `pnpm tsc --noEmit` exits with zero errors
-- [ ] All new collections include explicit access control
-- [ ] User-supplied strings sanitized via `src/security/sanitizers.ts`
-```
-
-### Other Features
-
-- **Shared Sessions** — stages in the same group share a Claude Code session, eliminating cold-start codebase re-exploration ([details](docs/FEATURES.md#shared-sessions))
-- **Risk Gate** — HIGH-risk tasks pause for human plan approval before building ([details](docs/FEATURES.md#risk-gate))
-- **AI Failure Diagnosis** — classifies errors as fixable/infrastructure/pre-existing/abort before retry ([details](docs/FEATURES.md#ai-powered-failure-diagnosis))
-- **Question Gates** — asks product/architecture questions when the task is unclear ([details](docs/FEATURES.md#question-gates))
-- **Any LLM** — route through LiteLLM to use MiniMax, GPT, Gemini, local models ([setup guide](docs/LITELLM.md))
-- **Retrospective** — analyzes each run, identifies patterns, suggests improvements ([details](docs/FEATURES.md#retrospective-system))
-- **Auto-Learning** — extracts coding conventions from each successful run ([details](docs/FEATURES.md#auto-learning-memory))
-- **Pattern Discovery** — plan stage searches for existing patterns before proposing new approaches ([details](docs/FEATURES.md#pattern-discovery))
-- **Decision Memory** — architectural decisions extracted from code reviews are saved and enforced in future tasks ([details](docs/FEATURES.md#decision-memory))
+- **[Repo-Aware Step Files](docs/FEATURES.md#repo-aware-step-files-kodysteps)** — auto-generated per-stage instructions grounded in your actual code patterns, gaps, and acceptance criteria. Edit `.kody/steps/*.md` to customize how Kody works in your repo.
+- **[Shared Sessions](docs/FEATURES.md#shared-sessions)** — stages in the same group share a Claude Code session, eliminating cold-start re-exploration
+- **[Risk Gate](docs/FEATURES.md#risk-gate)** — HIGH-risk tasks pause for human approval before building
+- **[AI Failure Diagnosis](docs/FEATURES.md#ai-powered-failure-diagnosis)** — classifies errors (fixable/infrastructure/pre-existing/abort) before retry
+- **[Question Gates](docs/FEATURES.md#question-gates)** — asks product/architecture questions when the task is unclear
+- **[Any LLM](docs/LITELLM.md)** — route through LiteLLM to use MiniMax, GPT, Gemini, local models
+- **[Retrospective](docs/FEATURES.md#retrospective-system)** — analyzes each run, identifies patterns, suggests improvements
+- **[Auto-Learning](docs/FEATURES.md#auto-learning-memory)** — extracts coding conventions from each successful run
+- **[Pattern Discovery](docs/FEATURES.md#pattern-discovery)** — plan stage searches for existing patterns before proposing new approaches
+- **[Decision Memory](docs/FEATURES.md#decision-memory)** — architectural decisions from code reviews are saved and enforced in future tasks
 
 ## Documentation
 
