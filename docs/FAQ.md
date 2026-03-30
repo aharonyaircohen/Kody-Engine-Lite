@@ -23,16 +23,19 @@ The `--local` flag is auto-enabled outside CI. You'll need Claude Code CLI insta
 Yes. Use `--cwd` to point to the specific package directory. Each package can have its own `kody.config.json`.
 
 **Q: What does `init` do exactly?**
-Spawns Claude Code to analyze your project, then generates: workflow file, config with auto-detected quality commands, project memory (architecture + conventions), and **6 repo-customized step files** (`.kody/steps/` — tailored prompts for each pipeline stage) — then commits and pushes. GitHub labels (14 total) are created during `@kody bootstrap`. See [Configuration](CONFIGURATION.md).
+Generates the workflow file (`.github/workflows/kody.yml`) and config (`kody.config.json` with auto-detected quality commands) — deterministically, no LLM needed. Then commits and pushes. Run `@kody bootstrap` next to generate repo-aware step files and labels. See [Configuration](CONFIGURATION.md).
+
+**Q: What does `bootstrap` do?**
+Analyzes your codebase with an LLM and generates: project memory (`.kody/memory/` — architecture + conventions), **6 repo-customized step files** (`.kody/steps/` — tailored prompts for each pipeline stage), and 14 GitHub labels for lifecycle tracking. This is required after `init` for a complete setup. See [Bootstrap](BOOTSTRAP.md).
 
 **Q: What are step files (`.kody/steps/`)?**
-Customized instruction files for each pipeline stage, generated during `init`. They contain the engine's default prompt plus three sections specific to your repo: **Repo Patterns** (real code examples to follow), **Improvement Areas** (gaps to fix incrementally), and **Acceptance Criteria** (concrete quality checklist). This means Kody writes code that matches your existing patterns and improves known gaps. See [Features](FEATURES.md#repo-aware-step-files-kodysteps).
+Customized instruction files for each pipeline stage, generated during `bootstrap`. They contain the engine's default prompt plus three sections specific to your repo: **Repo Patterns** (real code examples to follow), **Improvement Areas** (gaps to fix incrementally), and **Acceptance Criteria** (concrete quality checklist). This means Kody writes code that matches your existing patterns and improves known gaps. See [Features](FEATURES.md#repo-aware-step-files-kodysteps).
 
 **Q: Can I edit the step files?**
 Yes. They're plain markdown in `.kody/steps/`. Edit `build.md` to change how Kody writes code, edit `review.md` to change what it checks during review. Changes take effect on the next pipeline run. No engine update needed.
 
 **Q: How do I regenerate step files after a major refactor?**
-Run `kody-engine-lite init --force`. This re-analyzes your codebase and produces fresh step files reflecting the current state. Your previous customizations will be overwritten — commit them first if you want to compare.
+Run `kody-engine-lite bootstrap --force` (or `@kody bootstrap` on GitHub). This re-analyzes your codebase and produces fresh step files reflecting the current state. Your previous customizations will be overwritten — commit them first if you want to compare.
 
 **Q: Why is this better than CLAUDE.md or AGENTS.md?**
 CLAUDE.md and AGENTS.md are generic project-wide instructions. Step files are **per-stage** — the build agent gets coding patterns and acceptance criteria, the review agent gets a review checklist, the plan agent gets architecture guidance. Each stage sees only what's relevant to it, with concrete examples instead of abstract rules.

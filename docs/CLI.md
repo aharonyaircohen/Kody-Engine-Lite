@@ -6,7 +6,7 @@ Full command reference for `kody-engine-lite`. Run `kody-engine-lite --help` for
 
 ### `init`
 
-Set up a repository for Kody. Analyzes your project and generates all required files.
+Set up a repository for Kody. Generates the workflow and config files deterministically (no LLM needed).
 
 ```bash
 kody-engine-lite init [--force]
@@ -14,19 +14,17 @@ kody-engine-lite init [--force]
 
 | Flag | Description |
 |------|-------------|
-| `--force` | Overwrite existing files (workflow, config, memory, step files) |
+| `--force` | Overwrite existing workflow and config files |
 
 **What it generates:**
 - `.github/workflows/kody.yml` — GitHub Actions workflow
 - `kody.config.json` — auto-detected quality commands, git settings, GitHub config
-- `.kody/memory/` — architecture and conventions (via Claude Code)
-- `.kody/steps/` — customized per-stage instruction files (via Claude Code)
 
-Then commits and pushes everything.
+Then commits and pushes. Run `bootstrap` next to generate repo-aware step files.
 
 ### `bootstrap`
 
-Regenerate project memory and step files. Useful after major refactors.
+Generate project memory, customized step files, and GitHub labels by analyzing your codebase with an LLM. Required after `init` for a complete setup. Also useful after major refactors.
 
 ```bash
 kody-engine-lite bootstrap [--force]

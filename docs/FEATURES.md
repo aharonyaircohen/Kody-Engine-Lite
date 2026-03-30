@@ -6,12 +6,12 @@
 
 Every AI coding tool sends the same generic prompt to every repo. The result: code that *compiles* but doesn't fit your project — wrong patterns, wrong abstractions, new solutions where existing ones already work. You spend time fixing style and structure instead of reviewing logic.
 
-Kody solves this. During `init`, it analyzes your codebase and generates **customized instruction files for each pipeline stage** in `.kody/steps/`.
+Kody solves this. During `bootstrap`, it analyzes your codebase with an LLM and generates **customized instruction files for each pipeline stage** in `.kody/steps/`.
 
 Each step file contains the original engine prompt **plus three repo-specific sections**:
 
 - **Repo Patterns** — real code examples extracted from your codebase with file paths, function signatures, and snippets. Instead of a generic "use dependency injection," the build agent gets: "Look at `src/services/PaymentService.ts` — this is how we structure services. Follow the same pattern."
-- **Improvement Areas** — gaps, anti-patterns, and inconsistencies identified during init. When the AI touches related code during a task, it incrementally fixes these issues — raising quality organically over time.
+- **Improvement Areas** — gaps, anti-patterns, and inconsistencies identified during bootstrap. When the AI touches related code during a task, it incrementally fixes these issues — raising quality organically over time.
 - **Acceptance Criteria** — a concrete checklist (markdown checkboxes) that defines "done" for each stage. These criteria are grounded in your actual toolchain, conventions, and quality bar.
 
 ### Step files generated
@@ -31,7 +31,7 @@ Each step file contains the original engine prompt **plus three repo-specific se
 2. **Quality improves with every task** — improvement areas act as a persistent to-do list: every task that touches a weak area leaves it better
 3. **Explicit, auditable quality bar** — acceptance criteria are version-controlled in `.kody/steps/`, not hidden in a prompt you can't see or change
 4. **Fully customizable** — edit any step file to change how Kody works for your repo. No engine changes, no config flags — just markdown
-5. **Re-generate on demand** — run `kody init --force` after major refactors to refresh step files from current codebase state
+5. **Re-generate on demand** — run `kody-engine-lite bootstrap --force` after major refactors to refresh step files from current codebase state
 
 ### Generic prompts vs repo-aware step files
 
@@ -177,7 +177,7 @@ kody:planning → kody:building → kody:review → kody:done
 
 If it fails: `kody:failed`. If waiting for human input: `kody:waiting`.
 
-### All Labels (created by `init`)
+### All Labels (created by `bootstrap`)
 
 | Category | Labels |
 |----------|--------|

@@ -5,9 +5,9 @@
 
 **Issue → PR in one command.** Comment `@kody` on a GitHub issue and Kody autonomously classifies, plans, builds, tests, reviews, fixes, and ships a pull request.
 
-Kody is a 7-stage autonomous SDLC pipeline that runs in GitHub Actions. It uses Claude Code (or any LLM via LiteLLM) to turn issues into production-ready PRs — with quality gates, AI-powered failure diagnosis, risk-based human approval, and shared context between stages.
+Kody is a 7-stage autonomous SDLC pipeline that runs in GitHub Actions. It uses Claude Code (or other Anthropic-compatible providers via LiteLLM) to turn issues into production-ready PRs — with quality gates, AI-powered failure diagnosis, risk-based human approval, and shared context between stages.
 
-> **Kody is the only AI coding tool that generates repo-customized prompts.** Every other tool sends the same generic instructions regardless of your codebase. Kody analyzes your repo's patterns, conventions, and gaps — then generates tailored instruction files for every pipeline stage. The AI writes code that looks like it belongs in your project because it was taught *from* your project. [Learn more →](docs/FEATURES.md#repo-aware-step-files-kodysteps)
+> **Kody is the only AI coding tool that generates repo-customized prompts.** Every other tool sends the same generic instructions regardless of your codebase. `bootstrap` analyzes your repo's patterns, conventions, and gaps — then generates tailored instruction files for every pipeline stage. The AI writes code that looks like it belongs in your project because it was taught *from* your project. [Learn more →](docs/FEATURES.md#repo-aware-step-files-kodysteps)
 
 ## Why Kody?
 
@@ -16,8 +16,8 @@ Most AI coding tools are **autocomplete** (Copilot) or **chat-based** (Cursor, C
 - **Repo-aware prompts** — auto-generated step files with your repo's patterns, gaps, and acceptance criteria
 - **7 stages with quality gates** — not a single agent conversation
 - **Fire and forget** — runs in GitHub Actions, no IDE required
-- **Any LLM** — route through LiteLLM to use MiniMax, GPT, Gemini, or local models
-- **Free** with free-tier models — no subscriptions, no per-seat pricing
+- **Anthropic-compatible models** — route through LiteLLM to use MiniMax, Gemini, or other providers
+- **Free-tier models available** — no subscriptions, no per-seat pricing
 
 [How Kody compares to Copilot, Devin, Cursor, OpenHands, and others →](docs/COMPARISON.md)
 
@@ -82,7 +82,7 @@ Most AI coding tools are **autocomplete** (Copilot) or **chat-based** (Cursor, C
   └─────────────────────────────────────────────────────────────┘
 ```
 
-**Tiers are configurable** — cheap/mid/strong map to any model via `modelMap` in config. Defaults: haiku/sonnet/opus. Route to MiniMax, GPT, Gemini, or local models via [LiteLLM](docs/LITELLM.md).
+**Tiers are configurable** — cheap/mid/strong map to models via `modelMap` in config. Defaults: haiku/sonnet/opus. Route to MiniMax, Gemini, or other Anthropic-compatible providers via [LiteLLM](docs/LITELLM.md).
 
 **Shared sessions** — stages in the same group share a Claude Code session: taskify+plan (explore), build+autofix+review-fix (implementation), review (fresh perspective). No cold-start re-exploration between stages.
 
@@ -113,16 +113,22 @@ cd your-project
 kody-engine-lite init
 ```
 
-This analyzes your project and generates:
-- **Workflow** (`.github/workflows/kody.yml`)
-- **Config** (`kody.config.json` — auto-detected quality commands, git, GitHub settings)
+This generates the workflow (`.github/workflows/kody.yml`) and config (`kody.config.json` — auto-detected quality commands, git, GitHub settings), then commits and pushes.
+
+### 4. Bootstrap
+
+Comment on any GitHub issue:
+
+```
+@kody bootstrap
+```
+
+This analyzes your codebase with an LLM and generates:
 - **Project memory** (`.kody/memory/` — architecture and conventions)
-- **Customized step files** (`.kody/steps/` — see below)
-Then commits and pushes everything.
+- **Customized step files** (`.kody/steps/` — repo-aware prompts for every stage)
+- **GitHub labels** for lifecycle tracking (14 labels)
 
-> **Note:** GitHub labels for lifecycle tracking are created automatically during `@kody bootstrap`.
-
-### 4. Use
+### 5. Use
 
 Comment on any GitHub issue:
 
@@ -135,7 +141,7 @@ Comment on any GitHub issue:
 Set the `provider` field in `kody.config.json` — Kody auto-generates the LiteLLM config, starts the proxy, and routes all stages through your provider:
 
 ```json
-// kody.config.json — use MiniMax (or any LLM)
+// kody.config.json
 { "agent": { "provider": "minimax" } }
 ```
 
@@ -158,8 +164,11 @@ That's it. Kody auto-starts the LiteLLM proxy and loads API keys from `.env`. Fo
 | `@kody bootstrap` | Regenerate project memory and step files |
 
 ```bash
-kody-engine-lite init [--force]        # Setup repo
-kody-engine-lite run --issue-number 42 --local
+kody-engine-lite init [--force]          # Setup repo: workflow + config
+kody-engine-lite bootstrap [--force]     # Generate memory + step files + labels
+kody-engine-lite run --issue-number 42 --local --cwd ./project
+kody-engine-lite run --task "Add retry utility" --local
+kody-engine-lite review --pr-number 42   # Standalone PR review
 kody-engine-lite fix --issue-number 42 --feedback "Use middleware pattern"
 kody-engine-lite fix-ci --pr-number 42
 kody-engine-lite rerun --issue-number 42 --from verify
@@ -169,12 +178,12 @@ kody-engine-lite rerun --issue-number 42 --from verify
 
 ## Key Features
 
-- **[Repo-Aware Step Files](docs/FEATURES.md#repo-aware-step-files-kodysteps)** — auto-generated per-stage instructions grounded in your actual code patterns, gaps, and acceptance criteria. Edit `.kody/steps/*.md` to customize how Kody works in your repo.
+- **[Repo-Aware Step Files](docs/FEATURES.md#repo-aware-step-files-kodysteps)** — auto-generated per-stage instructions grounded in your actual code patterns, gaps, and acceptance criteria. Edit `.kody/steps/*.md` to customize.
 - **[Shared Sessions](docs/FEATURES.md#shared-sessions)** — stages in the same group share a Claude Code session, eliminating cold-start re-exploration
 - **[Risk Gate](docs/FEATURES.md#risk-gate)** — HIGH-risk tasks pause for human approval before building
 - **[AI Failure Diagnosis](docs/FEATURES.md#ai-powered-failure-diagnosis)** — classifies errors (fixable/infrastructure/pre-existing/abort) before retry
 - **[Question Gates](docs/FEATURES.md#question-gates)** — asks product/architecture questions when the task is unclear
-- **[Any LLM](docs/LITELLM.md)** — route through LiteLLM to use MiniMax, GPT, Gemini, local models
+- **[Anthropic-Compatible Models](docs/LITELLM.md)** — route through LiteLLM to use MiniMax, Gemini, or other providers
 - **[Retrospective](docs/FEATURES.md#retrospective-system)** — analyzes each run, identifies patterns, suggests improvements
 - **[Auto-Learning](docs/FEATURES.md#auto-learning-memory)** — extracts coding conventions from each successful run
 - **[Pattern Discovery](docs/FEATURES.md#pattern-discovery)** — plan stage searches for existing patterns before proposing new approaches

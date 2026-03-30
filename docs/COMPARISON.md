@@ -4,7 +4,7 @@
 
 | Tool | Type | Open Source | Model Flexible | CI Native | Fire & Forget | Cost |
 |------|------|-------------|---------------|-----------|--------------|------|
-| **Kody** | SDLC Pipeline | MIT | Any via LiteLLM | GitHub Actions | Yes | Free with free-tier models |
+| **Kody** | SDLC Pipeline | MIT | Anthropic-compatible via LiteLLM | GitHub Actions | Yes | API costs (free-tier models available) |
 | Copilot Workspace | Interactive | No | GitHub models | GitHub Cloud | No | $10-39/mo |
 | Devin | Autonomous Agent | No | Proprietary | Cloud | Partially | $20-500/mo |
 | Cursor Agent | IDE Agent | No | Cursor models | No | No | Subscription |
@@ -28,9 +28,9 @@
 | **Failure handling** | 5-way AI diagnosis + targeted autofix | Basic retry |
 | **Repo-aware prompts** | Yes — auto-generated per stage | No |
 | **Project memory** | Yes — auto-learns conventions | No |
-| **Model flexible** | Any via LiteLLM | GitHub models only |
+| **Model flexible** | Anthropic-compatible via LiteLLM | GitHub models only |
 | **Open source** | MIT | Proprietary |
-| **Cost** | Free with free-tier models | $10-39/month |
+| **Cost** | API costs (free-tier models available) | $10-39/month |
 
 > **Choose Copilot Workspace** if your team prefers real-time IDE-style assistance and doesn't mind the monthly cost.
 > **Choose Kody** if you want to comment on an issue, walk away, and get back a tested PR — no IDE required.
@@ -50,9 +50,9 @@
 | **Failure handling** | 5-way AI diagnosis + targeted autofix | Basic retry |
 | **Repo-aware prompts** | Yes — auto-generated per stage | No |
 | **Checkpoints** | Rerun from any stage | No |
-| **Model flexible** | Any via LiteLLM | Proprietary only |
+| **Model flexible** | Anthropic-compatible via LiteLLM | Proprietary only |
 | **Open source** | MIT | Proprietary |
-| **Cost** | Free with free-tier models | $20-500/month |
+| **Cost** | API costs (free-tier models available) | $20-500/month |
 
 > **Choose Devin** if you want a fully managed cloud environment and don't need to self-host or control model choice.
 > **Choose Kody** if you want full transparency (artifacts at every stage), self-hosting, and zero vendor lock-in.
@@ -73,9 +73,9 @@
 | **Repo-aware prompts** | Yes — auto-generated per stage | No | No |
 | **GitHub integration** | Native (issue → PR) | Manual | Manual |
 | **Batch processing** | Multiple issues in parallel | One at a time | One at a time |
-| **Model flexible** | Any via LiteLLM | Cursor models | Any LLM |
+| **Model flexible** | Anthropic-compatible via LiteLLM | Cursor models | Any LLM |
 | **Open source** | MIT | Proprietary | Yes |
-| **Cost** | Free with free-tier models | Subscription | API costs |
+| **Cost** | API costs (free-tier models available) | Subscription | API costs |
 
 > **Choose Cursor/Cline** if you want AI assistance while actively coding in your IDE.
 > **Choose Kody** if you want to delegate entire tasks and walk away — runs in CI, no IDE required.
@@ -97,7 +97,7 @@
 | **Review** | Dedicated stage with fresh session | Self-review in same context |
 | **Open source** | MIT | Apache 2.0 |
 | **Community** | Early stage | 65K+ stars |
-| **Cost** | Free with free-tier models | API costs + infra |
+| **Cost** | API costs (free-tier models available) | API costs + infra |
 
 > **Choose OpenHands** if you need general-purpose autonomous coding with a web IDE and broad tooling ecosystem.
 > **Choose Kody** if you want structured issue-to-PR automation that runs in GitHub Actions with zero infrastructure setup.

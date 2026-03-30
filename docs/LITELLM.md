@@ -94,7 +94,7 @@ The auto-start loads **only** `*_API_KEY` patterns from `.env` to avoid poisonin
 | **MiniMax** | MiniMax-M2.7-highspeed | Full pipeline validated (all 7 stages, autofix, review) |
 | **Anthropic** | claude-haiku/sonnet/opus | Default, fully supported |
 
-LiteLLM supports [100+ providers](https://docs.litellm.ai/docs/providers). Any model with tool-use support should work.
+LiteLLM supports [100+ providers](https://docs.litellm.ai/docs/providers). Models must support tool-use and be routable through LiteLLM's Anthropic-compatible translation layer.
 
 ## Common Gotchas
 

@@ -2,9 +2,11 @@
 
 Bootstrap generates project-specific memory and pipeline step files by analyzing your codebase with an LLM. It also creates the GitHub labels Kody uses for lifecycle tracking.
 
+> **Bootstrap is required.** After `kody init` sets up the workflow and config, you must run `@kody bootstrap` (or `kody-engine-lite bootstrap` locally) to generate project memory and customized step files. Without bootstrap, Kody runs with generic prompts instead of repo-aware ones.
+
 ## When to Run
 
-- **First time:** After `kody-engine-lite init` sets up the workflow and config, trigger bootstrap to generate project memory and step files.
+- **First time:** After `kody-engine-lite init` — required for a complete setup.
 - **After major refactors:** Re-run to regenerate memory and step files from the current state of your codebase.
 - **After config changes:** If you change frameworks, testing tools, or project structure.
 

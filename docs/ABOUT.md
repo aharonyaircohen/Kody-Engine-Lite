@@ -6,13 +6,13 @@
 
 Claude Code is a powerful AI coding agent. But it's a single agent — you prompt, it codes, you verify. Kody wraps it with a 7-stage autonomous pipeline that classifies, plans, builds, verifies, reviews, fixes, and ships — with quality gates between every stage.
 
-Comment `@kody` on an issue, walk away, come back to a tested PR. Comment `@kody review` on any PR for an instant structured code review. Run locally or via GitHub Actions. Use Anthropic models or free ones via LiteLLM.
+Comment `@kody` on an issue, walk away, come back to a tested PR. Comment `@kody review` on any PR for an instant structured code review. Run locally or via GitHub Actions. Use Anthropic models or route through other providers (MiniMax, Gemini, etc.) via LiteLLM.
 
 ---
 
 ## Bootstrap — How Kody Learns Your Repo
 
-`kody init` analyzes your codebase and generates customized instruction files for every pipeline stage in `.kody/steps/`. Each contains repo patterns (real code examples), improvement areas (gaps to fix), and acceptance criteria (concrete quality checklist). The AI writes code that matches your project because it was taught from your project.
+`kody bootstrap` analyzes your codebase and generates customized instruction files for every pipeline stage in `.kody/steps/`. Each contains repo patterns (real code examples), improvement areas (gaps to fix), and acceptance criteria (concrete quality checklist). The AI writes code that matches your project because it was taught from your project.
 
 ```
 Generic prompt:                          Repo-aware step file:
@@ -34,7 +34,7 @@ Generic prompt:                          Repo-aware step file:
                                           collection"
 ```
 
-Bootstrap also generates project memory (`.kody/memory/` — architecture and conventions injected into every prompt) and sets up the GitHub Actions workflow. Two minutes from `npm install` to first `@kody`. Fully editable markdown — change how Kody works by editing a file. [Full step files reference →](FEATURES.md#repo-aware-step-files-kodysteps)
+Bootstrap also generates project memory (`.kody/memory/` — architecture and conventions injected into every prompt) and creates GitHub labels for lifecycle tracking. Fully editable markdown — change how Kody works by editing a file. [Full step files reference →](FEATURES.md#repo-aware-step-files-kodysteps)
 
 ---
 
@@ -89,7 +89,7 @@ Run remotely via GitHub Actions for production — comment `@kody` on any issue.
 
 ### Any LLM via LiteLLM
 
-Use Anthropic models natively, or route through free-tier models (Google Gemini, etc.) via LiteLLM at zero cost. Set `provider` in config, add your API key, done. Kody auto-starts the LiteLLM proxy and loads API keys from `.env`.
+Use Anthropic models natively, or route through other Anthropic-compatible providers (MiniMax, Gemini, etc.) via LiteLLM. Set `provider` in config, add your API key, done. Kody auto-starts the LiteLLM proxy and loads API keys from `.env`.
 
 ### Auto Fix-CI
 
@@ -117,7 +117,7 @@ Key differentiators vs Copilot Workspace, Devin, Cursor, Cline, and OpenHands:
 - **Fire and forget** — runs in GitHub Actions, no IDE required
 - **AI failure diagnosis** — 5-way classification before retry, not blind loops
 - **Rerun from any stage** — keep what worked, don't start over
-- **Free option** — use free-tier models via LiteLLM for zero cost
+- **Free-tier models available** — route through MiniMax, Gemini, etc. via LiteLLM
 
 [Full side-by-side comparison →](COMPARISON.md)
 
