@@ -40,6 +40,8 @@ Also available as `@kody bootstrap` on GitHub.
 
 ## Pipeline Commands
 
+**When to use which:** Use **run** to start a fresh pipeline on a new issue or task. Use **fix** when a PR needs changes based on review feedback. Use **fix-ci** when CI is failing. Use **rerun** to retry from a specific stage after failure. Use **review** for standalone PR reviews.
+
 ### `run`
 
 Run the full Kody pipeline on an issue or ad-hoc task.
@@ -72,7 +74,7 @@ kody-engine-lite run --task "Add retry utility" --local
 
 ### `fix`
 
-Re-run the pipeline from the build stage with optional feedback. Used after reviewing a PR that needs changes.
+Re-run from build with review feedback as context. Automatically reads three layers: Kody's own review findings, human PR review comments (inline + top-level), and any text you include in the comment or `--feedback` flag.
 
 ```bash
 kody-engine-lite fix --task-id <id> [options]
@@ -82,10 +84,10 @@ kody-engine-lite fix --task-id <id> [options]
 |------|----------|-------------|
 | `--task-id <id>` | Yes* | Task identifier |
 | `--issue-number <n>` | No | GitHub issue number |
-| `--feedback "<text>"` | No | Feedback injected into the build prompt |
+| `--feedback "<text>"` | No | Additional feedback injected into the build prompt |
 | `--cwd <path>` | No | Working directory |
 
-Also available as `@kody fix` on GitHub — human PR review comments and Kody's own review are automatically read as context.
+Also available as `@kody fix` on GitHub.
 
 **Example:**
 ```bash
@@ -191,6 +193,7 @@ These commands are triggered by commenting on a GitHub issue or PR:
 | Command | Description |
 |---------|-------------|
 | `@kody` | Run the full pipeline on an issue |
+| `@kody review` | Run a standalone code review on a PR — posts structured findings and submits a GitHub review (approve or request-changes) |
 | `@kody approve` | Resume after questions or risk gate pause |
 | `@kody fix` | Re-run from build stage. Reads human PR review comments + Kody's review as context. Additional feedback in the comment body is also injected |
 | `@kody fix-ci` | Fix failing CI. Auto-triggered when CI fails on a Kody PR (with loop guard) |

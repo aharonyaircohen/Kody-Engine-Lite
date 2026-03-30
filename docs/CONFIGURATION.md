@@ -75,12 +75,20 @@ When `provider` is set to anything other than `"anthropic"`, Kody auto-starts a 
 
 ### Context Tiers
 
+Each pipeline stage gets context injected — memory, plan, prior stage summaries. Later stages accumulate more context. Without tiers, this can consume thousands of tokens. Tiered loading summarizes context to stay within budget:
+
+| Tier | Tokens | Content | Use case |
+|------|--------|---------|----------|
+| **L0** | ~100 | First heading + first sentence. JSON: key fields only | Quick reference when full content isn't needed |
+| **L1** | ~300-500 | All headings + first sentence of each section + bullets | Default for most context sources |
+| **L2** | Full | Untruncated content | When a stage needs full detail (e.g., build reads plan at L2) |
+
+Each stage has a default policy per source. For example, the build stage reads the plan at L2 (full detail) but memory at L1 (overview). Cached per file to avoid reprocessing. See [Architecture — Prompt Assembly](ARCHITECTURE.md#prompt-assembly) for implementation details.
+
 | Field | Description | Default |
 |-------|-------------|---------|
 | `contextTiers.enabled` | Enable L0/L1/L2 tiered context loading | `true` |
 | `contextTiers.tokenBudget` | Max tokens for context injection per stage | `8000` |
-
-Tiered context reduces prompt token usage by summarizing context at three levels: L0 (~100 tokens abstract), L1 (~300-500 tokens overview), L2 (full content). Each stage has a default policy for which tier to use per context source (memory, plan, etc.).
 
 ## Step Files (`.kody/steps/`)
 

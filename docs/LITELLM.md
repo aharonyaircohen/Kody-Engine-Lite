@@ -10,7 +10,7 @@ Kody uses Claude Code under the hood, but Claude Code can route API calls throug
 4. LiteLLM translates Anthropic's tool-use protocol to the provider's format
 5. No code changes needed — just configuration
 
-> **Important:** Claude Code validates `--model` names client-side — it only accepts Anthropic model names (e.g., `haiku`, `sonnet`, `claude-haiku-4-5-20251001`). The LiteLLM config must use these exact names as `model_name` entries. LiteLLM intercepts the request and routes it to your actual backend.
+> **Critical:** Claude Code only accepts Anthropic model names (e.g., `haiku`, `sonnet`). When you use LiteLLM, your config must use these same Anthropic names as `model_name` entries. Here's the flow: Kody passes `--model haiku` to Claude Code → Claude Code sends an API call to `localhost:4000` (LiteLLM proxy) → LiteLLM translates the request to your actual provider (e.g., MiniMax) → response comes back in Anthropic format. Claude Code never knows the difference.
 
 ## Setup
 
@@ -63,7 +63,7 @@ ANTHROPIC_COMPATIBLE_API_KEY=your-key-here
 gh secret set ANTHROPIC_COMPATIBLE_API_KEY --repo owner/repo
 ```
 
-### 4. CI Workflow
+### CI Workflow
 
 Add to `.github/workflows/kody.yml` before the pipeline step:
 
@@ -141,4 +141,4 @@ LiteLLM supports [100+ providers](https://docs.litellm.ai/docs/providers). Any m
 - The compiled CLI and source use identical health check code
 
 **Timeout on plan/review stages**
-- Proxy-routed models add latency. Plan and review have 10-minute timeouts. If your model is slower, increase timeouts in a fork or use faster models for those tiers.
+- Proxy-routed models add latency. Plan and review have 10-minute timeouts. If your model is slower, use faster models for those tiers. Stage timeouts are defined in `src/definitions.ts` if you need to adjust them.

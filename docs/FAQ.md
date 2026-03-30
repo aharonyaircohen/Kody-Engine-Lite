@@ -3,13 +3,21 @@
 ## General
 
 **Q: What languages/frameworks does Kody support?**
-Any. Kody uses Claude Code which supports all programming languages. The quality gates run whatever commands you configure in `kody.config.json`.
+Any language Claude Code supports — TypeScript, Python, Rust, Go, Java, C#, Ruby, etc. Kody doesn't enforce a specific framework. Quality gates run whatever commands you configure: `pnpm vitest` for TypeScript, `pytest` for Python, `cargo test` for Rust, and so on.
 
 **Q: How much does it cost per task?**
 **Kody can be completely free.** Route through LiteLLM to free-tier models (Google Gemini, etc.) and pay nothing. With paid models: LOW tasks ~$0.30-1.00, MEDIUM ~$1-3, HIGH ~$3-8. No subscriptions, no per-seat pricing — ever.
 
 **Q: Can I use it without GitHub?**
 The CLI works locally (`--local` flag) without GitHub. The full CI/CD pipeline requires GitHub Actions.
+
+**Q: How do I test locally before using GitHub Actions?**
+After `kody-engine-lite init`, run tasks locally with the CLI:
+```bash
+kody-engine-lite run --issue-number 42 --local --cwd ./project
+kody-engine-lite run --task "Add retry utility" --local
+```
+The `--local` flag is auto-enabled outside CI. You'll need Claude Code CLI installed and `ANTHROPIC_API_KEY` set (or a LiteLLM provider configured). Artifacts are created in `.kody/tasks/` in your project directory. See [CLI reference](CLI.md#run) for all flags.
 
 **Q: Does it work with monorepos?**
 Yes. Use `--cwd` to point to the specific package directory. Each package can have its own `kody.config.json`.
@@ -49,6 +57,15 @@ Comment `@kody approve` without answers — it will proceed with its best judgme
 **Q: How does the risk gate work?**
 For HIGH-risk tasks, Kody pauses after the plan stage and posts the plan on the issue. Review it, then comment `@kody approve` to continue. Reruns skip the gate. See [Features](FEATURES.md#risk-gate).
 
+**Q: Can Kody review PRs it didn't create?**
+Yes. Comment `@kody review` on any PR for a structured code review (Critical/Major/Minor findings, PASS/FAIL verdict). It submits an actual GitHub review (approve or request-changes). If the review finds issues, run `@kody fix` to auto-fix them. See [Standalone PR Review](FEATURES.md#standalone-pr-review).
+
+**Q: What does `@kody fix` do exactly?**
+Re-runs the pipeline from the build stage with three layers of context: (1) Kody's own review findings, (2) human PR comments posted since the last Kody action, and (3) any text you include in the `@kody fix` comment body. Only comments from the current fix cycle are included — already-addressed feedback is excluded. See [PR Feedback for Fix](FEATURES.md#pr-feedback-for-fix).
+
+**Q: What does `@kody fix-ci` do?**
+Fetches the failed CI logs (`gh run view --log-failed`), injects them as context, and re-runs from build stage. Auto-triggered when CI fails on a Kody PR, with loop guards: max 1 attempt per 24h, skipped if the last commit was from a bot. Also triggerable manually on any PR. See [Auto Fix-CI](FEATURES.md#auto-fix-ci).
+
 **Q: Can I run multiple issues in parallel?**
 Yes. Each issue gets its own GitHub Actions run. The concurrency config is per-task, so different issues run simultaneously.
 
@@ -57,6 +74,24 @@ In `.kody/tasks/<task-id>/` — includes task.json, plan.md, context.md, verify.
 
 **Q: What triggers a rerun vs a new run?**
 `@kody` always starts a new run with a fresh task ID. `@kody rerun` resumes the last task for that issue from the failed/paused stage.
+
+**Q: How long does a typical pipeline run take?**
+Depends on task complexity and model speed. Rough estimates: LOW ~2-5 min, MEDIUM ~5-15 min, HIGH ~15-30 min. Plan and review stages use deep reasoning models which are slower. LiteLLM-proxied models may add latency. Check progress via issue labels and comments.
+
+**Q: What happens if I push changes while Kody is running?**
+Kody works on its own feature branch, so your pushes to the default branch won't conflict mid-run. However, if you push to the same branch Kody is using, you may see merge conflicts when Kody tries to push. Best practice: let Kody finish, then push your changes.
+
+**Q: What if the LLM hallucinates or writes bad code?**
+The pipeline has multiple safety nets: (1) the verify stage catches type errors, test failures, and lint issues, (2) the review stage runs in a fresh session and can FAIL the code, triggering review-fix, (3) the risk gate pauses HIGH-risk tasks for human approval. Bad code that passes all gates is unlikely but possible — always review PRs before merging.
+
+**Q: Does Kody work with protected branches?**
+Yes. Kody creates feature branches and opens PRs — it never pushes directly to protected branches. Add your GitHub Actions bot as a bypass actor in branch protection rules so Kody can push to its own branches. See [Configuration](CONFIGURATION.md#branching-convention).
+
+**Q: Can I run Kody on a private repo?**
+Yes. Kody runs entirely in your GitHub Actions environment with your own API keys. No code is sent anywhere except the LLM API you configure.
+
+**Q: How do I see what Kody is doing while it's running?**
+Three ways: (1) Watch issue labels change in real-time (`kody:planning` → `kody:building` → etc.), (2) check the GitHub Actions run logs, (3) after completion, inspect artifacts in `.kody/tasks/<task-id>/` (uploaded to Actions with 7-day retention).
 
 ## Models
 

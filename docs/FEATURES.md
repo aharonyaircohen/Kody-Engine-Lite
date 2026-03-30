@@ -1,12 +1,16 @@
 # Features
 
+> For a high-level overview with comparison, see [About](ABOUT.md). This page goes deeper with code examples and implementation details.
+
 ## Repo-Aware Step Files (`.kody/steps/`)
 
-Every AI coding tool sends the same generic prompt to every repo. Kody doesn't. During `init`, Kody analyzes your codebase and generates **customized instruction files for each pipeline stage** in `.kody/steps/`.
+Every AI coding tool sends the same generic prompt to every repo. The result: code that *compiles* but doesn't fit your project — wrong patterns, wrong abstractions, new solutions where existing ones already work. You spend time fixing style and structure instead of reviewing logic.
+
+Kody solves this. During `init`, it analyzes your codebase and generates **customized instruction files for each pipeline stage** in `.kody/steps/`.
 
 Each step file contains the original engine prompt **plus three repo-specific sections**:
 
-- **Repo Patterns** — real code examples extracted from your codebase with file paths, function signatures, and snippets. These show the AI what "good" looks like *in your project*, not in some generic best-practices guide.
+- **Repo Patterns** — real code examples extracted from your codebase with file paths, function signatures, and snippets. Instead of a generic "use dependency injection," the build agent gets: "Look at `src/services/PaymentService.ts` — this is how we structure services. Follow the same pattern."
 - **Improvement Areas** — gaps, anti-patterns, and inconsistencies identified during init. When the AI touches related code during a task, it incrementally fixes these issues — raising quality organically over time.
 - **Acceptance Criteria** — a concrete checklist (markdown checkboxes) that defines "done" for each stage. These criteria are grounded in your actual toolchain, conventions, and quality bar.
 
@@ -97,7 +101,7 @@ When questions are detected:
 
 ## AI-Powered Failure Diagnosis
 
-When verify (typecheck/tests/lint) fails, Kody doesn't blindly retry. An AI observer diagnoses the error and classifies it:
+When verify (typecheck/tests/lint) fails, Kody doesn't blindly retry. An AI diagnosis system analyzes the error and classifies it:
 
 | Classification | Action | Example |
 |---------------|--------|---------|
@@ -118,7 +122,7 @@ After each pipeline run (pass or fail), Kody analyzes what happened:
 - **Suggestion**: one specific, actionable improvement
 - **Pipeline flaw**: component-level issue with supporting evidence
 
-Results are appended to `.kody/memory/observer-log.jsonl` as structured JSON. Over time, this builds institutional knowledge about recurring issues and pipeline improvements.
+Results are appended to `.kody/memory/observer-log.jsonl` as structured JSON. Over time, this builds a searchable log of recurring patterns — use it to debug repeated failures, discover systemic issues, or tune the pipeline. Quick check after any run: `cat .kody/memory/observer-log.jsonl | jq '.suggestion'`.
 
 ## Auto-Learning Memory
 
@@ -133,14 +137,14 @@ Conventions are stored in `.kody/memory/conventions.md` and prepended to every f
 
 ## Pattern Discovery
 
-The plan stage enforces **mandatory pattern discovery** before proposing any implementation. Before writing a plan, the agent must:
+The plan stage enforces **mandatory pattern discovery**: before proposing any implementation, the agent searches for how the same problem is already solved in your codebase. If your repo already uses per-locale documents for translations, the agent won't invent new `label_en`/`label_he` fields — it'll follow the existing pattern.
 
-1. **Search for similar implementations** — grep/glob for how the same problem is already solved elsewhere in the codebase
-2. **Reuse existing patterns** — if the codebase already solves a similar problem, the plan must follow that pattern
+Before writing a plan, the agent must:
+
+1. **Search for similar implementations** — grep/glob for existing solutions in the codebase
+2. **Reuse existing patterns** — follow the pattern if one exists
 3. **Check decisions.md** — read prior architectural decisions that may apply
-4. **Report what it found** — every plan includes an "Existing Patterns Found" section documenting which patterns were discovered and how they're reused
-
-This prevents the AI from inventing new patterns when existing ones already work (e.g., creating `label_en`/`label_he` fields when the codebase already uses per-locale documents).
+4. **Report findings** — every plan includes an "Existing Patterns Found" section documenting which patterns were discovered and how they're reused
 
 ## Decision Memory
 
@@ -161,7 +165,7 @@ When `@kody fix` runs on a PR, it automatically collects three layers of context
 2. **Human PR comments** — issue comments and inline code review comments from human reviewers
 3. **Fix comment body** — any additional text written after `@kody fix`
 
-Human feedback is **scoped to the current fix cycle** — only comments posted after the last Kody action are included. This prevents confusion from already-addressed feedback across multiple `@kody fix` rounds.
+Human feedback is **scoped to the current fix cycle** — only comments posted after the last Kody action are included. This keeps the feedback loop clean across multiple iterations: if you fix a review comment, run `@kody fix` again, and the reviewer posts new feedback — Kody ignores the old comment you already addressed and only acts on the new one.
 
 ## Lifecycle Labels
 
@@ -223,6 +227,27 @@ CI fails on PR
 2. If the last commit was authored by `github-actions[bot]` or `kody[bot]`, the trigger is skipped
 
 You can also trigger it manually: comment `@kody fix-ci` on any PR with failing CI checks.
+
+## Standalone PR Review
+
+Comment `@kody review` on any PR — not just PRs that Kody created — to get a structured code review.
+
+**What it does:**
+1. Reads the PR diff and description
+2. Runs the same review methodology as pipeline stage 5 (Critical/Major/Minor findings with a PASS/FAIL verdict)
+3. Posts findings as a PR comment
+4. Submits an actual GitHub PR review: **approve** if PASS, **request-changes** if FAIL
+
+**If the review finds issues:**
+The comment includes a prompt to run `@kody fix`, which automatically ingests the review findings as context and fixes them.
+
+**CLI usage:**
+```bash
+kody-engine-lite review --pr-number 42
+kody-engine-lite review --issue-number 42  # finds the associated PR
+```
+
+**Multi-PR resolution:** If an issue has multiple open PRs, Kody lists them and asks you to specify which one. If there's only one, it reviews automatically.
 
 ## Rich PR Descriptions
 

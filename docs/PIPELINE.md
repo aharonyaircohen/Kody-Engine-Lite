@@ -14,7 +14,7 @@ Kody runs a 7-stage pipeline that transforms a GitHub issue into a tested, revie
 | **review-fix** | mid | sonnet | 10 min | Fix Critical and Major review findings | code changes |
 | **ship** | deterministic | — | 2 min | Push branch, create PR, comment on issue | `ship.md` |
 
-Tiers (cheap/mid/strong) are configurable via `modelMap` in `kody.config.json`. Defaults are Anthropic models. Route to any model via [LiteLLM](LITELLM.md).
+The model tiers (cheap/mid/strong) are configurable via `modelMap` in `kody.config.json`. Defaults are Anthropic models. Route to any model via [LiteLLM](LITELLM.md).
 
 ### Stage Types
 
@@ -63,11 +63,17 @@ If the output isn't valid JSON, Kody retries once with a stricter prompt.
 
 ### 2. Plan
 
-Creates a TDD implementation plan using deep reasoning. Resumes the same session as taskify — so it already knows the codebase. For HIGH-risk tasks, the [risk gate](FEATURES.md#risk-gate) pauses here for human approval.
+Creates a TDD implementation plan using deep reasoning (strong tier model). Resumes the same session as taskify — the agent already knows the codebase from exploration, so it doesn't re-read files.
+
+The plan includes: step-by-step implementation order, files to create/modify, test strategy, and an "Existing Patterns Found" section documenting which codebase patterns were discovered and how they'll be reused (see [Pattern Discovery](FEATURES.md#pattern-discovery)). It also checks `.kody/memory/decisions.md` for prior architectural decisions that apply.
+
+For HIGH-risk tasks, the [risk gate](FEATURES.md#risk-gate) pauses here — the plan is posted on the issue, and no code is written until a human comments `@kody approve`.
 
 ### 3. Build
 
-Spawns Claude Code in a new session. Reads the plan, existing code, and project memory, then implements the changes. Commits after completion.
+Spawns Claude Code in a **new session** (the build session group). Reads the plan, existing code, project memory, and accumulated context from previous stages.
+
+The agent has full tool access (Read, Write, Edit, Bash, Grep, Glob) and implements the changes according to the plan. After completion, the pipeline auto-commits: `feat(<task-id>): implement task`. This session persists — the autofix and review-fix stages resume it later if needed.
 
 ### 4. Verify
 
@@ -117,13 +123,15 @@ Pushes the branch and creates a PR with a rich description:
 
 ## Complexity-Based Stage Skipping
 
-Auto-detected from taskify's `risk_level`, or override with `--complexity`:
+Kody auto-detects task complexity and skips expensive stages that aren't needed for simpler tasks:
 
-| Complexity | Stages Run | Stages Skipped |
-|-----------|-----------|----------------|
-| **low** | taskify → build → verify → ship | plan, review, review-fix |
-| **medium** | taskify → plan → build → verify → review → ship | review-fix |
-| **high** | all 7 stages | none |
+| Complexity | Example tasks | Stages Run | ~Time |
+|-----------|--------------|-----------|-------|
+| **low** | Add a utility, fix a typo, update config | taskify → build → verify → ship | 2-5 min |
+| **medium** | New feature, refactor, add endpoint | taskify → plan → build → verify → review → ship | 5-15 min |
+| **high** | Auth system, data migration, security | all 7 stages | 15-30 min |
+
+Override auto-detection with `--complexity low|medium|high`.
 
 ## Task Artifacts
 
@@ -146,3 +154,16 @@ Each run creates artifacts in `.kody/tasks/<task-id>/`:
 State is persisted atomically to `status.json` (write-to-tmp + rename). Each stage transition updates the state. Session IDs are stored so reruns resume the correct Claude Code sessions. A PID-based lock file prevents concurrent execution on the same task.
 
 On rerun, completed stages are skipped. Failed/running stages are reset to pending.
+
+## Related Commands
+
+| Command | Effect on Pipeline |
+|---------|-------------------|
+| `@kody` | Start a full pipeline run from taskify |
+| `@kody review` | Run only the review stage as a standalone PR review ([details](FEATURES.md#standalone-pr-review)) |
+| `@kody fix` | Re-run from build with PR feedback as context ([details](FEATURES.md#pr-feedback-for-fix)) |
+| `@kody fix-ci` | Re-run from build with CI failure logs as context ([details](FEATURES.md#auto-fix-ci)) |
+| `@kody rerun` | Resume from the failed or paused stage |
+| `@kody rerun --from <stage>` | Resume from a specific stage |
+
+See [CLI Reference](CLI.md) for full flag and environment variable documentation.
