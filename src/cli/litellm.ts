@@ -16,6 +16,47 @@ export async function checkLitellmHealth(url: string): Promise<boolean> {
 }
 
 /**
+ * Validate that the API key can reach the model by sending a minimal chat request.
+ * Works for both direct Anthropic API and LiteLLM proxy.
+ */
+export async function checkModelHealth(
+  baseUrl: string,
+  apiKey: string,
+  model: string = "claude-haiku-4-5",
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${baseUrl}/v1/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 4,
+        messages: [{ role: "user", content: "Reply with: ok" }],
+      }),
+      signal: AbortSignal.timeout(30_000),
+    })
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "")
+      return { ok: false, error: `HTTP ${res.status}: ${body.slice(0, 200)}` }
+    }
+
+    const body = await res.json()
+    if (!body.content?.[0]?.text) {
+      return { ok: false, error: "Empty response from model" }
+    }
+
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+  }
+}
+
+/**
  * Generate LiteLLM config YAML from provider + modelMap.
  * Maps all Anthropic model IDs (that Claude Code might send) to the provider's model.
  */

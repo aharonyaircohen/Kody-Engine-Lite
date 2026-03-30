@@ -11,7 +11,7 @@ import { runStandaloneReview, resolveReviewTarget, formatReviewComment, detectRe
 
 // Extracted modules
 import { parseArgs } from "./cli/args.js"
-import { checkLitellmHealth, tryStartLitellm, generateLitellmConfig } from "./cli/litellm.js"
+import { checkLitellmHealth, checkModelHealth, tryStartLitellm, generateLitellmConfig } from "./cli/litellm.js"
 import { generateTaskId } from "./cli/task-resolution.js"
 import { resolveForIssue } from "./cli/task-state.js"
 import { needsLitellmProxy, getLitellmUrl, providerApiKeyEnvVar } from "./config.js"
@@ -62,6 +62,31 @@ async function ensureLitellmProxy(
   }
 
   return litellmProcess
+}
+
+async function runModelHealthCheck(config: KodyConfig): Promise<void> {
+  const usesProxy = needsLitellmProxy(config)
+  const baseUrl = usesProxy ? getLitellmUrl() : "https://api.anthropic.com"
+  const apiKey = usesProxy
+    ? process.env.ANTHROPIC_COMPATIBLE_API_KEY
+    : process.env.ANTHROPIC_API_KEY
+
+  if (!apiKey) {
+    const keyName = usesProxy ? "ANTHROPIC_COMPATIBLE_API_KEY" : "ANTHROPIC_API_KEY"
+    logger.warn(`Skipping model health check — ${keyName} not set`)
+    return
+  }
+
+  const model = config.agent.modelMap.cheap
+  logger.info(`Model health check (${model} via ${usesProxy ? "LiteLLM" : "Anthropic"})...`)
+
+  const result = await checkModelHealth(baseUrl, apiKey, model)
+  if (result.ok) {
+    logger.info("  ✓ Model responded")
+  } else {
+    logger.error(`  ✗ Model health check failed: ${result.error}`)
+    process.exit(1)
+  }
 }
 
 async function main() {
@@ -175,6 +200,7 @@ async function main() {
 
     const config = getProjectConfig()
     const litellmProcess = await ensureLitellmProxy(config, projectDir)
+    await runModelHealthCheck(config)
 
     const runners = createRunners(config)
     const defaultRunnerName = config.agent.defaultRunner ?? Object.keys(runners)[0] ?? "claude"
@@ -316,6 +342,7 @@ async function main() {
 
   const config = getProjectConfig()
   let litellmProcess = await ensureLitellmProxy(config, projectDir)
+  await runModelHealthCheck(config)
   const cleanupLitellm = () => { if (litellmProcess) { (litellmProcess as any).kill?.(); litellmProcess = null } }
   process.on("exit", cleanupLitellm)
   process.on("SIGINT", () => { cleanupLitellm(); process.exit(130) })
