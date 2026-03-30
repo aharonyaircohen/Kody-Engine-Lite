@@ -146,30 +146,24 @@ That's it. Kody auto-starts the LiteLLM proxy and loads API keys from `.env`. Fo
 
 ## Commands
 
-### GitHub Comments
-
 | Command | What it does |
 |---------|-------------|
-| `@kody` | Run full pipeline |
+| `@kody` | Run full pipeline on an issue |
 | `@kody approve` | Resume after questions or risk gate |
-| `@kody fix` | Re-run from build stage. Automatically reads human PR review comments + Kody's own review as context. Additional feedback in the comment body is also injected |
-| `@kody fix-ci` | Fix failing CI checks. Fetches CI failure logs and re-runs from build stage. Auto-triggered when CI fails on a PR (with loop guard) |
+| `@kody fix` | Re-run from build. Reads PR review comments as context |
+| `@kody fix-ci` | Fix failing CI checks (auto-triggered on Kody PRs) |
 | `@kody rerun` | Resume from the failed or paused stage |
-| `@kody rerun --from <stage>` | Resume from a specific stage |
 | `@kody bootstrap` | Regenerate project memory and step files |
 
-### CLI
-
 ```bash
-kody-engine-lite init [--force]          # Setup repo: workflow, config, memory, step files
-kody-engine-lite bootstrap               # Regenerate memory + step files (runs in GH Actions)
-kody-engine-lite run --issue-number 42 --local --cwd ./project
-kody-engine-lite run --task "Add retry utility" --local
+kody-engine-lite init [--force]        # Setup repo
+kody-engine-lite run --issue-number 42 --local
 kody-engine-lite fix --issue-number 42 --feedback "Use middleware pattern"
-kody-engine-lite fix-ci --pr-number 42 --ci-run-id 12345
+kody-engine-lite fix-ci --pr-number 42
 kody-engine-lite rerun --issue-number 42 --from verify
-kody-engine-lite status --task-id 42-260327-102254
 ```
+
+[Full CLI reference with all flags and options →](docs/CLI.md)
 
 ## Key Features
 
@@ -192,7 +186,8 @@ kody-engine-lite status --task-id 42-260327-102254
 | [Bootstrap](docs/BOOTSTRAP.md) | Project memory, step files, labels — what bootstrap generates and when to run it |
 | [Features](docs/FEATURES.md) | Risk gate, diagnosis, sessions, retrospective, auto-learn, pattern discovery, decision memory, PR feedback |
 | [LiteLLM](docs/LITELLM.md) | Non-Anthropic model setup, auto-start, tested providers |
-| [Configuration](docs/CONFIGURATION.md) | Full config reference, env vars, workflow setup |
+| [CLI](docs/CLI.md) | Full command reference — all flags, env vars, and examples |
+| [Configuration](docs/CONFIGURATION.md) | Config file reference, env vars, workflow setup |
 | [Comparison](docs/COMPARISON.md) | vs Copilot, Devin, Cursor, Cline, OpenHands, SWE-agent |
 | [Architecture](docs/ARCHITECTURE.md) | Source tree, state machine diagram, development guide |
 | [FAQ](docs/FAQ.md) | Common questions about usage, models, security, cost |
