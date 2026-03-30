@@ -147,7 +147,7 @@ Set the `provider` field in `kody.config.json` — Kody auto-generates the LiteL
 
 Add the provider's API key to `.env`:
 ```
-MINIMAX_API_KEY=your-key-here
+ANTHROPIC_COMPATIBLE_API_KEY=your-key-here
 ```
 
 That's it. Kody auto-starts the LiteLLM proxy and loads API keys from `.env`. For advanced routing (different models per tier, custom config), add a `litellm-config.yaml`. [Full LiteLLM guide →](docs/LITELLM.md)

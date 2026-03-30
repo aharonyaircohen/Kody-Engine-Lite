@@ -38,15 +38,15 @@ model_list:
   - model_name: claude-haiku-4-5-20251001
     litellm_params:
       model: minimax/MiniMax-M2.7-highspeed
-      api_key: os.environ/MINIMAX_API_KEY
+      api_key: os.environ/ANTHROPIC_COMPATIBLE_API_KEY
   - model_name: claude-sonnet-4-6-20250514
     litellm_params:
       model: minimax/MiniMax-M2.7-highspeed
-      api_key: os.environ/MINIMAX_API_KEY
+      api_key: os.environ/ANTHROPIC_COMPATIBLE_API_KEY
   - model_name: claude-opus-4-6-20250514
     litellm_params:
       model: minimax/MiniMax-M2.7-highspeed
-      api_key: os.environ/MINIMAX_API_KEY
+      api_key: os.environ/ANTHROPIC_COMPATIBLE_API_KEY
 ```
 
 When a `litellm-config.yaml` exists, Kody uses it instead of auto-generating config from the `provider` field.
@@ -55,12 +55,12 @@ When a `litellm-config.yaml` exists, Kody uses it instead of auto-generating con
 
 **Local:** Add to `.env` in your project root:
 ```
-MINIMAX_API_KEY=your-key-here
+ANTHROPIC_COMPATIBLE_API_KEY=your-key-here
 ```
 
 **CI:** Add as a GitHub secret:
 ```bash
-gh secret set MINIMAX_API_KEY --repo owner/repo
+gh secret set ANTHROPIC_COMPATIBLE_API_KEY --repo owner/repo
 ```
 
 ### 4. CI Workflow
@@ -78,7 +78,7 @@ Add to `.github/workflows/kody.yml` before the pipeline step:
 - name: Run Kody pipeline
   env:
     ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-    MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
+    ANTHROPIC_COMPATIBLE_API_KEY: ${{ secrets.ANTHROPIC_COMPATIBLE_API_KEY }}
 ```
 
 > Use a venv to avoid system package conflicts. The symlink makes `litellm` available on PATH for Kody's auto-start.
