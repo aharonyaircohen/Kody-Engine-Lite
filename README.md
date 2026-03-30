@@ -43,15 +43,13 @@ Kody wraps Claude Code with a 7-stage autonomous pipeline — classify, plan, bu
 
 ## Quick Start
 
-**Prerequisites:** Node.js >= 22, [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code), [GitHub CLI](https://cli.github.com/), git
+**Prerequisites:** A GitHub repo + an Anthropic API key (or [compatible provider](docs/LITELLM.md) key).
 
-### 1. Install
+For local CLI usage, you also need: Node.js >= 22, [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code), [GitHub CLI](https://cli.github.com/), git.
 
-```bash
-npm install -g @kody-ade/kody-engine-lite
-```
+### 1. Set up GitHub
 
-### 2. Set up GitHub
+Add your API key as a secret — via [GitHub web UI](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions#creating-secrets-for-a-repository) or CLI:
 
 ```bash
 gh secret set ANTHROPIC_API_KEY --repo owner/repo
@@ -59,16 +57,17 @@ gh secret set ANTHROPIC_API_KEY --repo owner/repo
 
 Then in GitHub: **Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests"**
 
-### 3. Initialize
+### 2. Initialize
+
+Copy the [workflow template](templates/kody.yml) to `.github/workflows/kody.yml` and add a `kody.config.json` to your repo root. Or use the CLI to auto-generate both:
 
 ```bash
+npm install -g @kody-ade/kody-engine-lite
 cd your-project
 kody-engine-lite init
 ```
 
-This generates the workflow (`.github/workflows/kody.yml`) and config (`kody.config.json` — auto-detected quality commands, git, GitHub settings), then commits and pushes.
-
-### 4. Bootstrap
+### 3. Bootstrap
 
 Comment on any GitHub issue:
 
@@ -81,7 +80,7 @@ This analyzes your codebase with an LLM and generates:
 - **Customized step files** (`.kody/steps/` — repo-aware prompts for every stage)
 - **GitHub labels** for lifecycle tracking (14 labels)
 
-### 5. Use
+### 4. Use
 
 Comment on any GitHub issue:
 
