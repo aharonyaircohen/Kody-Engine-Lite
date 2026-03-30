@@ -69,7 +69,7 @@ kody-engine-lite init
 
 ### 3. Bootstrap
 
-Comment on any GitHub issue:
+Create a new GitHub issue (e.g., "Setup Kody") and comment:
 
 ```
 @kody bootstrap
