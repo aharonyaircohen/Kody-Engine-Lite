@@ -113,6 +113,7 @@ jobs:
           esac
           FROM_STAGE=$(echo "$KODY_ARGS" | grep -oP '(?<=--from )\S+' || echo "")
           FEEDBACK=$(echo "$KODY_ARGS" | grep -oP '(?<=--feedback ")[^"]*' || echo "")
+          COMPLEXITY=$(echo "$KODY_ARGS" | grep -oP '(?<=--complexity )\S+' || echo "")
           DRY_RUN="false"
           if echo "$KODY_ARGS" | grep -q -- '--dry-run'; then
             DRY_RUN="true"
@@ -190,6 +191,7 @@ jobs:
             echo "$FEEDBACK"
             echo "KODY_EOF"
           } >> $GITHUB_OUTPUT
+          echo "complexity=$COMPLEXITY" >> $GITHUB_OUTPUT
           echo "ci_run_id=${CI_RUN_ID:-}" >> $GITHUB_OUTPUT
           echo "dry_run=$DRY_RUN" >> $GITHUB_OUTPUT
           echo "valid=true" >> $GITHUB_OUTPUT
@@ -265,6 +267,7 @@ jobs:
           ISSUE_NUMBER: ${{ github.event.inputs.issue_number || needs.parse.outputs.issue_number }}
           PR_NUMBER: ${{ needs.parse.outputs.pr_number }}
           FEEDBACK: ${{ github.event.inputs.feedback || needs.parse.outputs.feedback }}
+          COMPLEXITY: ${{ needs.parse.outputs.complexity }}
           CI_RUN_ID: ${{ needs.parse.outputs.ci_run_id }}
           DRY_RUN: ${{ github.event.inputs.dry_run || needs.parse.outputs.dry_run || 'false' }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -283,6 +286,7 @@ jobs:
             [ -n "$TASK_ID" ] && ARGS="$ARGS --task-id $TASK_ID"
             [ -n "$PR_NUMBER" ] && ARGS="$ARGS --pr-number $PR_NUMBER"
             [ -n "$FROM_STAGE" ] && ARGS="$ARGS --from $FROM_STAGE"
+            [ -n "$COMPLEXITY" ] && ARGS="$ARGS --complexity $COMPLEXITY"
             # FEEDBACK is also passed via env var (avoids shell escaping issues)
             [ -n "$FEEDBACK" ] && ARGS="$ARGS --feedback \"$FEEDBACK\""
             [ "$DRY_RUN" = "true" ] && ARGS="$ARGS --dry-run"

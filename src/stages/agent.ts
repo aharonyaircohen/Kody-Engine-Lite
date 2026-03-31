@@ -159,6 +159,21 @@ export async function executeAgentStage(
               logger.info(`  taskify retry produced valid JSON`)
             } else {
               logger.warn(`  taskify retry still invalid: ${retryValidation.error}`)
+              // Fallback: generate a minimal valid task.json from the plain-text output.
+              // This typically happens when the task already exists and the LLM
+              // responds with a description instead of JSON.
+              const plainText = content.trim()
+              const fallback = JSON.stringify({
+                task_type: "chore",
+                title: plainText.slice(0, 72).replace(/\n/g, " "),
+                description: plainText.slice(0, 500),
+                scope: [],
+                risk_level: "low",
+                hasUI: false,
+                questions: [],
+              }, null, 2)
+              fs.writeFileSync(outputPath, fallback)
+              logger.info(`  taskify fallback: generated minimal task.json (risk_level=low)`)
             }
           }
         } else {
