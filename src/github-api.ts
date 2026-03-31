@@ -3,7 +3,7 @@ import { logger } from "./logger.js"
 
 const API_TIMEOUT_MS = 30_000
 
-const LIFECYCLE_LABELS = ["planning", "building", "review", "done", "failed", "waiting", "low", "medium", "high"]
+const LIFECYCLE_LABELS = ["planning", "building", "review", "shipping", "done", "failed", "waiting", "low", "medium", "high"]
 
 let _ghCwd: string | undefined
 

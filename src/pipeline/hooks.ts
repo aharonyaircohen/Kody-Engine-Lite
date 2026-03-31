@@ -21,6 +21,7 @@ export function applyPreStageLabel(ctx: PipelineContext, def: StageDefinition): 
   if (!ctx.input.issueNumber || ctx.input.local) return
   if (def.name === "build") setLifecycleLabel(ctx.input.issueNumber, "building")
   if (def.name === "review") setLifecycleLabel(ctx.input.issueNumber, "review")
+  if (def.name === "ship") setLifecycleLabel(ctx.input.issueNumber, "shipping")
 }
 
 // ─── Post-stage (success) ───────────────────────────────────────────────────

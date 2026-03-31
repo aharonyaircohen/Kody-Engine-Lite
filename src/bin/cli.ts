@@ -777,6 +777,7 @@ REMINDER: Output the full prompt template first (unchanged), then your three app
         { name: "kody:planning", color: "c5def5", description: "Kody is analyzing and planning" },
         { name: "kody:building", color: "0e8a16", description: "Kody is building code" },
         { name: "kody:review", color: "fbca04", description: "Kody is reviewing code" },
+        { name: "kody:shipping", color: "1d76db", description: "Kody is creating the pull request" },
         { name: "kody:done", color: "0e8a16", description: "Kody completed successfully" },
         { name: "kody:failed", color: "d93f0b", description: "Kody pipeline failed" },
         { name: "kody:waiting", color: "fef2c0", description: "Kody is waiting for answers" },
