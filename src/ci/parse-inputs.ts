@@ -29,7 +29,8 @@ if (triggerType === "dispatch") {
 }
 
 // For issue_comment, parse the comment body
-const commentBody = process.env.COMMENT_BODY ?? ""
+// Strip carriage returns — GitHub comments may contain \r\n line endings
+const commentBody = (process.env.COMMENT_BODY ?? "").replace(/\r/g, "")
 const issueNumber = process.env.ISSUE_NUMBER ?? ""
 
 // Match: @kody [mode] [task-id] [--from stage] [--feedback "text"]

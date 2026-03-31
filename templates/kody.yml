@@ -105,6 +105,9 @@ jobs:
         env:
           BODY: ${{ github.event.comment.body }}
         run: |
+          # Strip carriage returns — GitHub comments may contain \r\n line endings
+          BODY=$(printf '%s' "$BODY" | tr -d '\r')
+
           # Extract: @kody [mode] [task-id] [--from stage]
           KODY_ARGS=$(echo "$BODY" | grep -oP '(?:@kody|/kody)\s+\K.*' || echo "")
           MODE=$(echo "$KODY_ARGS" | awk '{print $1}')
