@@ -61,6 +61,7 @@ jobs:
       pr_number: ${{ steps.parse.outputs.pr_number }}
       feedback: ${{ steps.parse.outputs.feedback }}
       ci_run_id: ${{ steps.parse.outputs.ci_run_id }}
+      dry_run: ${{ steps.parse.outputs.dry_run }}
       valid: ${{ steps.parse.outputs.valid }}
     steps:
       - uses: actions/setup-node@v4
@@ -111,6 +112,10 @@ jobs:
           esac
           FROM_STAGE=$(echo "$KODY_ARGS" | grep -oP '(?<=--from )\S+' || echo "")
           FEEDBACK=$(echo "$KODY_ARGS" | grep -oP '(?<=--feedback ")[^"]*' || echo "")
+          DRY_RUN="false"
+          if echo "$KODY_ARGS" | grep -q -- '--dry-run'; then
+            DRY_RUN="true"
+          fi
 
           # Validate mode
           case "$MODE" in
@@ -185,6 +190,7 @@ jobs:
             echo "KODY_EOF"
           } >> $GITHUB_OUTPUT
           echo "ci_run_id=${CI_RUN_ID:-}" >> $GITHUB_OUTPUT
+          echo "dry_run=$DRY_RUN" >> $GITHUB_OUTPUT
           echo "valid=true" >> $GITHUB_OUTPUT
 
   # ─── Orchestrate ─────────────────────────────────────────────────────────────
@@ -259,7 +265,7 @@ jobs:
           PR_NUMBER: ${{ needs.parse.outputs.pr_number }}
           FEEDBACK: ${{ github.event.inputs.feedback || needs.parse.outputs.feedback }}
           CI_RUN_ID: ${{ needs.parse.outputs.ci_run_id }}
-          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || needs.parse.outputs.dry_run || 'false' }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           if [ "$MODE" = "bootstrap" ]; then
