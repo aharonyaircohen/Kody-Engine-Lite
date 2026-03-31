@@ -246,6 +246,45 @@ async function main() {
     process.exit(0)
   }
 
+  // Resolve command — merge default branch + resolve conflicts
+  if (input.command === "resolve") {
+    if (!input.prNumber) {
+      console.error("--pr-number is required for resolve command")
+      process.exit(1)
+    }
+
+    runPreflight()
+
+    const config = getProjectConfig()
+    const litellmProcess = await ensureLitellmProxy(config, projectDir)
+    await runModelHealthCheck(config)
+
+    const runners = createRunners(config)
+    const defaultRunnerName = config.agent.defaultRunner ?? Object.keys(runners)[0] ?? "claude"
+    const defaultRunner = runners[defaultRunnerName]
+    if (!defaultRunner) { console.error(`Default runner "${defaultRunnerName}" not configured`); process.exit(1) }
+    const healthy = await defaultRunner.healthCheck()
+    if (!healthy) { console.error(`Runner "${defaultRunnerName}" health check failed`); process.exit(1) }
+
+    const { runResolve } = await import("./resolve.js")
+    const result = await runResolve({
+      prNumber: input.prNumber,
+      projectDir,
+      runners,
+      local: input.local ?? true,
+    })
+
+    if (litellmProcess) (litellmProcess as any).kill?.()
+
+    if (result.outcome === "failed") {
+      console.error(`Resolve failed: ${result.error}`)
+      process.exit(1)
+    }
+
+    console.log(`Resolve: ${result.outcome}`)
+    process.exit(0)
+  }
+
   // Preflight
   logger.info("Preflight checks:")
   runPreflight()

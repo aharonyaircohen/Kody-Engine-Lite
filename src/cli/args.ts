@@ -1,5 +1,5 @@
 export interface CliInput {
-  command: "run" | "rerun" | "fix" | "fix-ci" | "status" | "review"
+  command: "run" | "rerun" | "fix" | "fix-ci" | "status" | "review" | "resolve"
   taskId?: string
   task?: string
   fromStage?: string
@@ -37,13 +37,14 @@ export function parseArgs(): CliInput {
   kody fix    --task-id <id> [--cwd <path>] [--issue-number <n>] [--feedback "<text>"]
   kody fix-ci [--pr-number <n>] [--ci-run-id <id>] [--cwd <path>] [--issue-number <n>] [--feedback "<text>"]
   kody review [--pr-number <n>] [--issue-number <n>] [--cwd <path>] [--local]
+  kody resolve --pr-number <n> [--cwd <path>] [--local]
   kody status --task-id <id> [--cwd <path>]
   kody --help`)
     process.exit(0)
   }
 
-  const command = args[0] as "run" | "rerun" | "fix" | "fix-ci" | "status" | "review"
-  if (!["run", "rerun", "fix", "fix-ci", "status", "review"].includes(command)) {
+  const command = args[0] as "run" | "rerun" | "fix" | "fix-ci" | "status" | "review" | "resolve"
+  if (!["run", "rerun", "fix", "fix-ci", "status", "review", "resolve"].includes(command)) {
     console.error(`Unknown command: ${command}`)
     process.exit(1)
   }

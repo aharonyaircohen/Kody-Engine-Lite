@@ -18,7 +18,7 @@ describe("workflow template", () => {
   it("recognizes bootstrap as valid mode", () => {
     expect(template).toContain("bootstrap")
     // The case statement should include bootstrap
-    expect(template).toMatch(/full\|rerun\|fix\|fix-ci\|status\|approve\|review\|bootstrap/)
+    expect(template).toMatch(/full\|rerun\|fix\|fix-ci\|status\|approve\|review\|resolve\|bootstrap/)
   })
 
   it("generates bootstrap task-id", () => {

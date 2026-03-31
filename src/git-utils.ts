@@ -160,6 +160,47 @@ export function syncWithDefault(cwd?: string): void {
   }
 }
 
+/**
+ * Attempt to merge default branch. Returns "clean" on success, "conflict" if
+ * conflicts remain (markers left in working tree), or "error" on other failure.
+ */
+export function mergeDefault(cwd?: string): "clean" | "conflict" | "error" {
+  const defaultBranch = getDefaultBranch(cwd)
+  const current = getCurrentBranch(cwd)
+  if (current === defaultBranch) return "clean"
+
+  try {
+    git(["fetch", "origin", defaultBranch], { cwd, timeout: 30_000 })
+  } catch {
+    logger.warn("  Failed to fetch latest from origin")
+    return "error"
+  }
+
+  try {
+    git(["merge", `origin/${defaultBranch}`, "--no-edit"], { cwd, timeout: 30_000 })
+    logger.info(`  Merged origin/${defaultBranch} cleanly`)
+    return "clean"
+  } catch {
+    // Check if it's a conflict (unmerged files exist) vs some other error
+    try {
+      const unmerged = git(["diff", "--name-only", "--diff-filter=U"], { cwd })
+      if (unmerged.trim()) return "conflict"
+    } catch { /* ignore */ }
+    // Not a conflict — some other merge error
+    try { git(["merge", "--abort"], { cwd }) } catch { /* ignore */ }
+    return "error"
+  }
+}
+
+export function getConflictedFiles(cwd?: string): string[] {
+  try {
+    const output = git(["diff", "--name-only", "--diff-filter=U"], { cwd })
+    return output ? output.split("\n") : []
+  } catch {
+    return []
+  }
+}
+
 export function commitAll(
   message: string,
   cwd?: string,
