@@ -113,7 +113,10 @@ jobs:
           esac
           FROM_STAGE=$(echo "$KODY_ARGS" | grep -oP '(?<=--from )\S+' || echo "")
           FEEDBACK=$(echo "$KODY_ARGS" | grep -oP '(?<=--feedback ")[^"]*' || echo "")
-          COMPLEXITY=$(echo "$KODY_ARGS" | sed -n 's/.*--complexity \([^ ]*\).*/\1/p')
+          COMPLEXITY=""
+          if echo "$KODY_ARGS" | grep -q -- '--complexity'; then
+            COMPLEXITY=$(echo "$KODY_ARGS" | tr ' ' '\n' | grep -A1 -- '--complexity' | tail -1)
+          fi
           DRY_RUN="false"
           if echo "$KODY_ARGS" | grep -q -- '--dry-run'; then
             DRY_RUN="true"
