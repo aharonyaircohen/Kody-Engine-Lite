@@ -874,7 +874,7 @@ REMINDER: Output the full prompt template first (unchanged), then your three app
     try {
       if (isCI) {
         // In GH Actions: create branch and PR
-        const branchName = `kody/bootstrap-${Date.now()}`
+        const branchName = `kody-bootstrap-${Date.now()}`
         execFileSync("git", ["checkout", "-b", branchName], { cwd, stdio: "pipe" })
         execFileSync("git", ["add", ...filesToCommit], { cwd, stdio: "pipe" })
         const staged = execFileSync("git", ["diff", "--cached", "--name-only"], { cwd, encoding: "utf-8" }).trim()
