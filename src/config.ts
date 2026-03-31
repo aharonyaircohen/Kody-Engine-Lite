@@ -162,7 +162,13 @@ export function getProjectConfig(): KodyConfig {
           ? { ...DEFAULT_CONFIG.contextTiers, ...raw.contextTiers }
           : DEFAULT_CONFIG.contextTiers,
         mcp: raw.mcp
-          ? { enabled: false, servers: {}, stages: ["build", "verify", "review", "review-fix"], ...raw.mcp }
+          ? {
+              servers: {},
+              stages: ["build", "verify", "review", "review-fix"],
+              ...raw.mcp,
+              // Auto-enable when devServer is configured (user can still set enabled: false to override)
+              enabled: raw.mcp.enabled ?? !!raw.mcp.devServer,
+            }
           : undefined,
       }
     } catch {

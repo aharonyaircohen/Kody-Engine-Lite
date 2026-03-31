@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { buildMcpConfigJson, isMcpEnabledForStage } from "../../src/mcp-config.js"
+import { buildMcpConfigJson, isMcpEnabledForStage, withPlaywrightIfNeeded } from "../../src/mcp-config.js"
 import type { McpConfig } from "../../src/config.js"
 
 describe("buildMcpConfigJson", () => {
@@ -105,9 +105,9 @@ describe("isMcpEnabledForStage", () => {
     expect(isMcpEnabledForStage("build", mcp)).toBe(false)
   })
 
-  it("returns false when no servers configured", () => {
+  it("returns true when enabled even with no explicit servers (Playwright auto-injected at runtime)", () => {
     const mcp: McpConfig = { enabled: true, servers: {} }
-    expect(isMcpEnabledForStage("build", mcp)).toBe(false)
+    expect(isMcpEnabledForStage("build", mcp)).toBe(true)
   })
 
   it("uses default stages when stages not specified", () => {
@@ -140,5 +140,63 @@ describe("isMcpEnabledForStage", () => {
     expect(isMcpEnabledForStage("build", mcp)).toBe(true)
     expect(isMcpEnabledForStage("review", mcp)).toBe(false)
     expect(isMcpEnabledForStage("verify", mcp)).toBe(false)
+  })
+})
+
+describe("withPlaywrightIfNeeded", () => {
+  it("returns undefined when mcp config is undefined", () => {
+    expect(withPlaywrightIfNeeded(undefined, true)).toBeUndefined()
+  })
+
+  it("returns unchanged config when disabled", () => {
+    const mcp: McpConfig = { enabled: false, servers: {} }
+    expect(withPlaywrightIfNeeded(mcp, true)).toBe(mcp)
+  })
+
+  it("returns unchanged config when hasUI is false", () => {
+    const mcp: McpConfig = { enabled: true, servers: {} }
+    expect(withPlaywrightIfNeeded(mcp, false)).toBe(mcp)
+  })
+
+  it("injects playwright server when hasUI and no playwright configured", () => {
+    const mcp: McpConfig = { enabled: true, servers: {} }
+    const result = withPlaywrightIfNeeded(mcp, true)!
+    expect(result.servers.playwright).toBeDefined()
+    expect(result.servers.playwright.command).toBe("npx")
+    expect(result.servers.playwright.args).toContain("@anthropic-ai/mcp-playwright")
+  })
+
+  it("does not mutate original config", () => {
+    const mcp: McpConfig = { enabled: true, servers: {} }
+    withPlaywrightIfNeeded(mcp, true)
+    expect(Object.keys(mcp.servers)).toHaveLength(0)
+  })
+
+  it("skips injection when playwright already configured", () => {
+    const mcp: McpConfig = {
+      enabled: true,
+      servers: { playwright: { command: "npx", args: ["@playwright/mcp@latest"] } },
+    }
+    const result = withPlaywrightIfNeeded(mcp, true)
+    expect(result).toBe(mcp)
+  })
+
+  it("skips injection when server name contains playwright", () => {
+    const mcp: McpConfig = {
+      enabled: true,
+      servers: { "my-playwright-server": { command: "node", args: ["server.js"] } },
+    }
+    const result = withPlaywrightIfNeeded(mcp, true)
+    expect(result).toBe(mcp)
+  })
+
+  it("preserves existing servers when injecting", () => {
+    const mcp: McpConfig = {
+      enabled: true,
+      servers: { github: { command: "npx", args: ["-y", "mcp-github"] } },
+    }
+    const result = withPlaywrightIfNeeded(mcp, true)!
+    expect(result.servers.github).toEqual(mcp.servers.github)
+    expect(result.servers.playwright).toBeDefined()
   })
 })

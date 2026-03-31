@@ -112,7 +112,7 @@ export function injectTaskContext(
  * Returns true if hasUI is true or absent (default: include guidance).
  * Returns false only if hasUI is explicitly false.
  */
-function taskHasUI(taskDir: string): boolean {
+export function taskHasUI(taskDir: string): boolean {
   const taskJsonPath = path.join(taskDir, "task.json")
   if (!fs.existsSync(taskJsonPath)) return true // no task.json yet → don't suppress
   try {

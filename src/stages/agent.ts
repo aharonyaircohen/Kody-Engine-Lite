@@ -7,10 +7,10 @@ import type {
   StageResult,
   PipelineContext,
 } from "../types.js"
-import { buildFullPrompt, resolveModel } from "../context.js"
+import { buildFullPrompt, resolveModel, taskHasUI } from "../context.js"
 import { validateTaskJson, validatePlanMd, validateReviewMd, stripFences } from "../validators.js"
 import { getProjectConfig, needsLitellmProxy, getLitellmUrl } from "../config.js"
-import { buildMcpConfigJson, isMcpEnabledForStage } from "../mcp-config.js"
+import { buildMcpConfigJson, isMcpEnabledForStage, withPlaywrightIfNeeded } from "../mcp-config.js"
 import { getRunnerForStage } from "../pipeline/runner-selection.js"
 import { logger } from "../logger.js"
 
@@ -97,9 +97,11 @@ export async function executeAgentStage(
   }
 
   // MCP: pass server config if enabled for this stage
-  const mcpConfigJson = isMcpEnabledForStage(def.name, config.mcp)
-    ? buildMcpConfigJson(config.mcp)
+  // Auto-inject Playwright when the task involves UI
+  const mcpForStage = isMcpEnabledForStage(def.name, config.mcp)
+    ? withPlaywrightIfNeeded(config.mcp, taskHasUI(ctx.taskDir))
     : undefined
+  const mcpConfigJson = buildMcpConfigJson(mcpForStage)
   if (mcpConfigJson) {
     logger.info(`  MCP servers enabled for ${def.name}`)
   }
