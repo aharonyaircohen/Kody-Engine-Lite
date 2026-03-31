@@ -154,7 +154,7 @@ kody-engine-lite rerun --issue-number 42 --from verify
 
 ## Documentation
 
-**Understand Kody:** [About](docs/ABOUT.md) · [Features](docs/FEATURES.md) · [Pipeline](docs/PIPELINE.md) · [Comparison](docs/COMPARISON.md)
+**Understand Kody:** [About](docs/ABOUT.md) · [Tech Stack](docs/TECH-STACK.md) · [Features](docs/FEATURES.md) · [Pipeline](docs/PIPELINE.md) · [Comparison](docs/COMPARISON.md)
 
 **Set up & use:** [CLI](docs/CLI.md) · [Configuration](docs/CONFIGURATION.md) · [Bootstrap](docs/BOOTSTRAP.md) · [LiteLLM](docs/LITELLM.md)
 
