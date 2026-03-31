@@ -31,9 +31,11 @@ function ensureFeatureBranchIfNeeded(ctx: PipelineContext): void {
 
   // PR-based fix/rerun: workflow already checked out the PR branch,
   // but we still merge latest default to avoid building on stale code.
+  // Use the PR's actual base branch (not config default) to avoid pulling
+  // unrelated changes from a different branch (e.g. kody vs dev).
   if (ctx.input.prNumber) {
     try {
-      syncWithDefault(ctx.projectDir)
+      syncWithDefault(ctx.projectDir, ctx.input.prBaseBranch)
     } catch (err) {
       logger.warn(`  Failed to sync with default branch: ${err}`)
     }

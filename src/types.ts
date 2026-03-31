@@ -89,6 +89,7 @@ export interface PipelineContext {
     dryRun?: boolean
     issueNumber?: number
     prNumber?: number
+    prBaseBranch?: string
     feedback?: string
     local?: boolean
     complexity?: "low" | "medium" | "high"

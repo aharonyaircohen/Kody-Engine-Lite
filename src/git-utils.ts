@@ -135,8 +135,8 @@ export function ensureFeatureBranch(
   return branchName
 }
 
-export function syncWithDefault(cwd?: string): void {
-  const defaultBranch = getDefaultBranch(cwd)
+export function syncWithDefault(cwd?: string, branch?: string): void {
+  const defaultBranch = branch ?? getDefaultBranch(cwd)
   const current = getCurrentBranch(cwd)
 
   if (current === defaultBranch) return // already on default, no merge needed

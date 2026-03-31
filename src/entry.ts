@@ -412,6 +412,15 @@ async function main() {
     process.exit(1)
   }
 
+  // Resolve PR base branch for sync (avoids merging wrong branch, e.g. kody vs dev)
+  let prBaseBranch: string | undefined
+  if (input.prNumber) {
+    const prDetails = getPRDetails(input.prNumber)
+    if (prDetails) {
+      prBaseBranch = prDetails.baseBranch
+    }
+  }
+
   // Build context
   const ctx: PipelineContext = {
     taskId,
@@ -424,6 +433,7 @@ async function main() {
       dryRun: input.dryRun,
       issueNumber: input.issueNumber,
       prNumber: input.prNumber,
+      prBaseBranch,
       feedback: input.feedback,
       local: input.local,
       complexity: input.complexity,

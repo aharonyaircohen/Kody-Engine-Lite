@@ -307,6 +307,22 @@ describe("default branch sync", () => {
     expect(gitUtils.syncWithDefault).toHaveBeenCalled()
   })
 
+  it("passes PR base branch to syncWithDefault on PR-based fix", async () => {
+    const ctx = createTestContext(tmpDir, {
+      input: { mode: "rerun", prNumber: 10, prBaseBranch: "dev", fromStage: "build" },
+    })
+    await runPipeline(ctx)
+    expect(gitUtils.syncWithDefault).toHaveBeenCalledWith(expect.any(String), "dev")
+  })
+
+  it("passes undefined to syncWithDefault when prBaseBranch not set", async () => {
+    const ctx = createTestContext(tmpDir, {
+      input: { mode: "rerun", prNumber: 10, fromStage: "build" },
+    })
+    await runPipeline(ctx)
+    expect(gitUtils.syncWithDefault).toHaveBeenCalledWith(expect.any(String), undefined)
+  })
+
   it("syncs with default branch on PR-based rerun", async () => {
     const ctx = createTestContext(tmpDir, {
       input: { mode: "rerun", prNumber: 10, issueNumber: 42, fromStage: "build" },
