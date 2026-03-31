@@ -101,7 +101,7 @@ describe("runResolve", () => {
     })
 
     expect(result.outcome).toBe("merged")
-    expect(gitUtils.mergeDefault).toHaveBeenCalled()
+    expect(gitUtils.mergeDefault).toHaveBeenCalledWith(tmpDir)
     expect(gitUtils.commitAll).not.toHaveBeenCalled()
   })
 
@@ -127,7 +127,10 @@ describe("runResolve", () => {
       expect.any(String),
       expect.any(Object),
     )
-    expect(gitUtils.commitAll).toHaveBeenCalled()
+    expect(gitUtils.commitAll).toHaveBeenCalledWith(
+      expect.stringContaining("resolve merge conflicts"),
+      tmpDir,
+    )
   })
 
   it("runs verify after conflict resolution", async () => {
@@ -140,7 +143,7 @@ describe("runResolve", () => {
       local: false,
     })
 
-    expect(verifyRunner.runQualityGates).toHaveBeenCalled()
+    expect(verifyRunner.runQualityGates).toHaveBeenCalledWith(tmpDir, tmpDir)
   })
 
   it("fails when verify fails after resolution", async () => {
@@ -173,7 +176,7 @@ describe("runResolve", () => {
       local: false,
     })
 
-    expect(gitUtils.pushBranch).toHaveBeenCalled()
+    expect(gitUtils.pushBranch).toHaveBeenCalledWith(tmpDir)
   })
 
   it("does NOT push in local mode", async () => {
@@ -213,7 +216,7 @@ describe("runResolve", () => {
       local: false,
     })
 
-    expect(gitUtils.pushBranch).toHaveBeenCalled()
+    expect(gitUtils.pushBranch).toHaveBeenCalledWith(tmpDir)
   })
 
   it("does NOT push clean merge in local mode", async () => {

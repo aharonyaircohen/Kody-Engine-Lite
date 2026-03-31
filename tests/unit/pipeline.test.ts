@@ -291,20 +291,22 @@ describe("default branch sync", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true })
   })
 
-  it("syncs with default branch on issue-based full run", async () => {
+  it("syncs with default branch (no override) on issue-based full run", async () => {
     const ctx = createTestContext(tmpDir, {
       input: { mode: "full", issueNumber: 42 },
     })
     await runPipeline(ctx)
-    expect(gitUtils.syncWithDefault).toHaveBeenCalled()
+    // Issue-based: calls syncWithDefault(projectDir) with no branch override
+    expect(gitUtils.syncWithDefault).toHaveBeenCalledWith(expect.any(String))
   })
 
-  it("syncs with default branch on PR-based fix", async () => {
+  it("syncs with default branch (no override) on PR-based fix without prBaseBranch", async () => {
     const ctx = createTestContext(tmpDir, {
       input: { mode: "rerun", prNumber: 10, fromStage: "build" },
     })
     await runPipeline(ctx)
-    expect(gitUtils.syncWithDefault).toHaveBeenCalled()
+    // No prBaseBranch provided — falls back to config default
+    expect(gitUtils.syncWithDefault).toHaveBeenCalledWith(expect.any(String), undefined)
   })
 
   it("passes PR base branch to syncWithDefault on PR-based fix", async () => {
@@ -323,12 +325,12 @@ describe("default branch sync", () => {
     expect(gitUtils.syncWithDefault).toHaveBeenCalledWith(expect.any(String), undefined)
   })
 
-  it("syncs with default branch on PR-based rerun", async () => {
+  it("passes PR base branch on PR-based rerun with prBaseBranch", async () => {
     const ctx = createTestContext(tmpDir, {
-      input: { mode: "rerun", prNumber: 10, issueNumber: 42, fromStage: "build" },
+      input: { mode: "rerun", prNumber: 10, issueNumber: 42, prBaseBranch: "main", fromStage: "build" },
     })
     await runPipeline(ctx)
-    expect(gitUtils.syncWithDefault).toHaveBeenCalled()
+    expect(gitUtils.syncWithDefault).toHaveBeenCalledWith(expect.any(String), "main")
   })
 
   it("does NOT create a feature branch on PR-based fix (already on PR branch)", async () => {
