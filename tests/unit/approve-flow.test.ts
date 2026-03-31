@@ -1,10 +1,19 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest"
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import * as fs from "fs"
 import * as path from "path"
 import * as os from "os"
 import type { AgentRunner, AgentResult, PipelineContext } from "../../src/types.js"
 import { runPipeline } from "../../src/pipeline.js"
 import { resetProjectConfig, setConfigDir } from "../../src/config.js"
+
+vi.mock("../../src/github-api.js", () => ({
+  setLifecycleLabel: vi.fn(),
+  setLabel: vi.fn(),
+  removeLabel: vi.fn(),
+  postComment: vi.fn(),
+  setGhCwd: vi.fn(),
+  getIssueLabels: vi.fn(() => []),
+}))
 
 function createRunner(taskifyQuestions: string[] = []): AgentRunner {
   return {

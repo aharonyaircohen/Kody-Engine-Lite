@@ -77,8 +77,7 @@ async function runModelHealthCheck(config: KodyConfig): Promise<void> {
     return
   }
 
-  // Use Anthropic model ID for the health check — LiteLLM proxy expects these
-  const model = usesProxy ? "claude-haiku-4-5" : config.agent.modelMap.cheap
+  const model = config.agent.modelMap.cheap
   logger.info(`Model health check (${model} via ${usesProxy ? "LiteLLM" : "Anthropic"})...`)
 
   const result = await checkModelHealth(baseUrl, apiKey, model)

@@ -4,7 +4,7 @@ import * as path from "path"
 import { execFileSync } from "child_process"
 
 import { logger } from "../logger.js"
-import { TIER_TO_ANTHROPIC_IDS, providerApiKeyEnvVar } from "../config.js"
+import { providerApiKeyEnvVar } from "../config.js"
 
 export async function checkLitellmHealth(url: string): Promise<boolean> {
   try {
@@ -71,16 +71,16 @@ export function generateLitellmConfig(
   const apiKeyVar = providerApiKeyEnvVar(provider)
   const entries: string[] = ["model_list:"]
 
-  // For each tier (cheap/mid/strong), map all known Anthropic model IDs to the provider model
-  for (const [tier, providerModel] of Object.entries(modelMap)) {
-    const anthropicIds = TIER_TO_ANTHROPIC_IDS[tier]
-    if (!anthropicIds) continue
-    for (const modelName of anthropicIds) {
-      entries.push(`  - model_name: ${modelName}`)
-      entries.push(`    litellm_params:`)
-      entries.push(`      model: ${provider}/${providerModel}`)
-      entries.push(`      api_key: os.environ/${apiKeyVar}`)
-    }
+  // Deduplicate: multiple tiers may map to the same provider model
+  const seen = new Set<string>()
+  for (const providerModel of Object.values(modelMap)) {
+    if (seen.has(providerModel)) continue
+    seen.add(providerModel)
+    // Map the config model name directly — this is what resolveModel() returns
+    entries.push(`  - model_name: ${providerModel}`)
+    entries.push(`    litellm_params:`)
+    entries.push(`      model: ${provider}/${providerModel}`)
+    entries.push(`      api_key: os.environ/${apiKeyVar}`)
   }
 
   return entries.join("\n") + "\n"

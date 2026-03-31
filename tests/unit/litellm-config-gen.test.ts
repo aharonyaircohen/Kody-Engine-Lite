@@ -12,14 +12,11 @@ describe("generateLitellmConfig", () => {
     expect(yaml).toContain("model_list:")
     expect(yaml).toContain("model: minimax/MiniMax-M2.7-highspeed")
     expect(yaml).toContain("api_key: os.environ/ANTHROPIC_COMPATIBLE_API_KEY")
-    // Should map all Anthropic model IDs
-    expect(yaml).toContain("model_name: claude-sonnet-4-6")
-    expect(yaml).toContain("model_name: claude-haiku-4-5")
-    expect(yaml).toContain("model_name: claude-opus-4-6")
-    // Should also map short Anthropic names
-    expect(yaml).toContain("model_name: haiku")
-    expect(yaml).toContain("model_name: sonnet")
-    expect(yaml).toContain("model_name: opus")
+    // Config model name is the single source of truth
+    expect(yaml).toContain("model_name: MiniMax-M2.7-highspeed")
+    // Deduped: same model across all tiers → single entry
+    const matches = yaml.match(/model_name:/g)
+    expect(matches).toHaveLength(1)
   })
 
   it("generates correct config for openai provider", () => {
@@ -29,24 +26,28 @@ describe("generateLitellmConfig", () => {
       strong: "o3",
     })
 
+    expect(yaml).toContain("model_name: gpt-4o-mini")
     expect(yaml).toContain("model: openai/gpt-4o-mini")
+    expect(yaml).toContain("model_name: gpt-4o")
     expect(yaml).toContain("model: openai/gpt-4o")
+    expect(yaml).toContain("model_name: o3")
     expect(yaml).toContain("model: openai/o3")
     expect(yaml).toContain("api_key: os.environ/ANTHROPIC_COMPATIBLE_API_KEY")
   })
 
-  it("maps different models per tier", () => {
+  it("deduplicates when multiple tiers use the same model", () => {
     const yaml = generateLitellmConfig("google", {
       cheap: "gemini-2.0-flash",
       mid: "gemini-2.5-pro",
       strong: "gemini-2.5-pro",
     })
 
-    // Haiku IDs should map to cheap model
-    expect(yaml).toContain("model_name: claude-haiku-4-5")
+    // Two unique models, not three
+    expect(yaml).toContain("model_name: gemini-2.0-flash")
     expect(yaml).toContain("model: google/gemini-2.0-flash")
-    // Sonnet IDs should map to mid model
+    expect(yaml).toContain("model_name: gemini-2.5-pro")
     expect(yaml).toContain("model: google/gemini-2.5-pro")
-    expect(yaml).toContain("api_key: os.environ/ANTHROPIC_COMPATIBLE_API_KEY")
+    const matches = yaml.match(/model_name:/g)
+    expect(matches).toHaveLength(2)
   })
 })
