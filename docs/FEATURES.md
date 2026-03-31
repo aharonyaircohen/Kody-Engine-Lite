@@ -188,10 +188,11 @@ If it fails: `kody:failed`. If waiting for human input: `kody:waiting`.
 ## Branch Management
 
 - Auto-creates feature branches: `<issue-number>--<title-slug>`
-- Syncs with default branch before building (merges latest)
+- Syncs with default branch before building (merges latest). For PR-based commands (`fix`, `fix-ci`, `rerun`), syncs against the PR's actual base branch instead of the configured default
 - Handles merge conflicts gracefully (abort and warn)
 - Commits after build: `feat(<task>): implement task`
 - Commits after review-fix: `fix(<task>): address review`
+- On rerun, if push is rejected (non-fast-forward), retries with `--force-with-lease` to safely overwrite diverged history
 
 ## Verify + Autofix Loop
 
@@ -265,7 +266,7 @@ kody-engine-lite resolve --pr-number 42
 Comment `@kody review` on any PR — not just PRs that Kody created — to get a structured code review.
 
 **What it does:**
-1. Reads the PR diff and description
+1. Reads the PR diff against the base branch (`git diff origin/<base>...HEAD`) to focus on actual PR changes, not working tree noise
 2. Runs the same review methodology as pipeline stage 5 (Critical/Major/Minor findings with a PASS/FAIL verdict)
 3. Submits a GitHub PR review: **approve** if PASS, **request-changes** if FAIL
 4. If the PR review fails (e.g., self-review not allowed), falls back to posting a plain PR comment

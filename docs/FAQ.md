@@ -69,6 +69,15 @@ Re-runs the pipeline from the build stage with three layers of context: (1) Kody
 **Q: What does `@kody fix-ci` do?**
 Fetches the failed CI logs (`gh run view --log-failed`), injects them as context, and re-runs from build stage. Auto-triggered when CI fails on a Kody PR, with loop guards: max 1 attempt per 24h, skipped if the last commit was from a bot. Also triggerable manually on any PR. See [Auto Fix-CI](FEATURES.md#auto-fix-ci).
 
+**Q: When does Kody close the issue?**
+The ship stage closes the issue immediately after creating the PR — it doesn't wait for the PR to be merged. This is because GitHub's `Closes #N` keyword only auto-closes issues when merging to the default branch, which may not apply if the PR targets a different branch.
+
+**Q: Can `@kody rerun` re-run a completed task?**
+Yes. `rerun` and `resolve` bypass the "already-completed" state check, so you can re-run from any stage even after the pipeline has finished. This is useful for iterating on a task without creating a new pipeline run.
+
+**Q: What if taskify fails to produce valid JSON?**
+Kody retries once with a stricter prompt. If the output is plain text instead of JSON (e.g., "task already exists"), taskify now handles this gracefully by producing valid JSON with `risk_level=low` instead of crashing the pipeline.
+
 **Q: Can I run multiple issues in parallel?**
 Yes. Each issue gets its own GitHub Actions run. The concurrency config is per-task, so different issues run simultaneously.
 

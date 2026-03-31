@@ -134,6 +134,8 @@ kody-engine-lite rerun --task-id <id> --from <stage> [options]
 
 **Environment variables:** `TASK_ID`, `FROM_STAGE`, `ISSUE_NUMBER`
 
+**Note:** `rerun` bypasses the "already-completed" state check, so you can re-run stages even after the pipeline has finished.
+
 **Example:**
 ```bash
 kody-engine-lite rerun --issue-number 42 --from verify
