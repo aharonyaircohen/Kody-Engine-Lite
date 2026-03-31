@@ -105,9 +105,10 @@ async function main() {
   }
 
   // State machine: check issue state before doing anything
-  // Skip for review command and for PR-based fix (fix on a PR doesn't need issue resolution)
+  // Skip for review/resolve/rerun commands and for PR-based fix (these don't need issue resolution)
   const isPRFix = (input.command === "fix" || input.command === "fix-ci") && !!input.prNumber
-  if (input.issueNumber && input.command !== "review" && !isPRFix) {
+  const skipStateCheck = input.command === "review" || input.command === "resolve" || input.command === "rerun"
+  if (input.issueNumber && !skipStateCheck && !isPRFix) {
     const taskAction = resolveForIssue(input.issueNumber, projectDir)
     logger.info(`Task action: ${taskAction.action}`)
 
