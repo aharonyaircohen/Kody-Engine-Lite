@@ -46,6 +46,15 @@ export function getIssue(
   }
 }
 
+export function closeIssue(issueNumber: number): void {
+  try {
+    gh(["issue", "close", String(issueNumber)])
+    logger.info(`  Issue #${issueNumber} closed`)
+  } catch (err) {
+    logger.warn(`  Failed to close issue #${issueNumber}: ${err}`)
+  }
+}
+
 export function getIssueLabels(issueNumber: number): string[] {
   try {
     const output = gh(["issue", "view", String(issueNumber), "--json", "labels", "--jq", ".labels[].name"])

@@ -19,6 +19,7 @@ import {
   createPR,
   getPRForBranch,
   updatePR,
+  closeIssue,
 } from "../github-api.js"
 import { getProjectConfig } from "../config.js"
 
@@ -223,6 +224,10 @@ export function executeShipStage(
           } catch {
             // Fire and forget
           }
+          // Close the issue — "Closes #N" in PR body only works when merging
+          // into GitHub's default branch, which may differ from the configured
+          // base branch (e.g. PRs target "kody" but GitHub default is "main").
+          closeIssue(ctx.input.issueNumber)
         }
 
         fs.writeFileSync(shipPath, `# Ship\n\nPR created: ${pr.url}\nPR #${pr.number}\n`)

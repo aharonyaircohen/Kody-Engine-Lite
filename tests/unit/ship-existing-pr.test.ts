@@ -20,6 +20,8 @@ vi.mock("../../src/github-api.js", () => ({
   updatePR: vi.fn(),
   createPR: vi.fn(),
   postComment: vi.fn(),
+  postPRComment: vi.fn(),
+  closeIssue: vi.fn(),
 }))
 
 vi.mock("../../src/config.js", () => ({
