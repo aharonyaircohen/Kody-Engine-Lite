@@ -82,6 +82,27 @@ export async function runPipeline(ctx: PipelineContext): Promise<PipelineStatus>
   acquireLock(ctx.taskDir)
   try {
     return await runPipelineInner(ctx)
+  } catch (err) {
+    // Ensure state is set to "failed" on unexpected crash — prevents
+    // stale "running" state that blocks subsequent commands.
+    try {
+      const state = loadState(ctx.taskId, ctx.taskDir)
+      if (state && state.state === "running") {
+        state.state = "failed"
+        // Mark any running stages as failed
+        for (const stage of STAGES) {
+          if (state.stages[stage.name]?.state === "running") {
+            state.stages[stage.name] = {
+              ...state.stages[stage.name],
+              state: "failed",
+              error: "Pipeline crashed unexpectedly",
+            }
+          }
+        }
+        writeState(state, ctx.taskDir)
+      }
+    } catch { /* best effort */ }
+    throw err
   } finally {
     releaseLock(ctx.taskDir)
   }

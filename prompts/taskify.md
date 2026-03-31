@@ -42,6 +42,14 @@ Questions rules:
 Good questions: "Should the search be case-sensitive?", "Which users should have access?", "Should this work offline?"
 Bad questions: "What framework should I use?", "Where should I put the file?", "What's the project structure?"
 
+If the task is already implemented (files exist, tests pass):
+- Still output valid JSON — never output plain text
+- Set task_type to "chore"
+- Set risk_level to "low"
+- Set title to "Verify existing implementation of <feature>"
+- Set description to explain that the work already exists and what was verified
+- Set scope to the existing file paths
+
 Guidelines:
 - scope must contain exact file paths (use Glob to discover them)
 - title must be actionable ("Add X", "Fix Y", "Refactor Z")

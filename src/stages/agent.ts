@@ -72,6 +72,10 @@ export async function executeAgentStage(
   const prompt = buildFullPrompt(def.name, ctx.taskId, ctx.taskDir, ctx.projectDir, ctx.input.feedback)
   const model = resolveModel(def.modelTier, def.name)
 
+  if (ctx.input.feedback && def.name === "build") {
+    logger.info(`  feedback: ${ctx.input.feedback.slice(0, 200)}${ctx.input.feedback.length > 200 ? "..." : ""}`)
+  }
+
   const config = getProjectConfig()
   const runnerName =
     config.agent.stageRunners?.[def.name] ??

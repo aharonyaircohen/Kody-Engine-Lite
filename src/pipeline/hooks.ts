@@ -61,7 +61,17 @@ export function autoDetectComplexity(
   def: StageDefinition,
 ): { complexity: "low" | "medium" | "high"; activeStages: StageDefinition[] } | null {
   if (def.name !== "taskify") return null
-  if (ctx.input.complexity) return null
+
+  // If complexity was explicitly overridden via --complexity flag, use it
+  if (ctx.input.complexity) {
+    const complexity = ctx.input.complexity as "low" | "medium" | "high"
+    const activeStages = filterByComplexity(STAGES, complexity)
+    logger.info(`  Complexity override: ${complexity} (${activeStages.map(s => s.name).join(" → ")})`)
+    if (ctx.input.issueNumber && !ctx.input.local) {
+      try { setLifecycleLabel(ctx.input.issueNumber, complexity) } catch { /* ignore */ }
+    }
+    return { complexity, activeStages }
+  }
 
   try {
     const taskJsonPath = path.join(ctx.taskDir, "task.json")

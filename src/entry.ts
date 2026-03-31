@@ -381,6 +381,13 @@ async function main() {
   }
 
   const config = getProjectConfig()
+
+  // Apply per-stage timeout overrides from config
+  if (config.timeouts) {
+    const { applyTimeoutOverrides } = await import("./definitions.js")
+    applyTimeoutOverrides(config.timeouts)
+  }
+
   let litellmProcess = await ensureLitellmProxy(config, projectDir)
   await runModelHealthCheck(config)
   const cleanupLitellm = () => { if (litellmProcess) { (litellmProcess as any).kill?.(); litellmProcess = null } }

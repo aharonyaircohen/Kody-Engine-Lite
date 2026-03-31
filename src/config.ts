@@ -64,6 +64,7 @@ export interface KodyConfig {
     defaultRunner?: string
     stageRunners?: Record<string, string>
   }
+  timeouts?: Record<string, number>
   contextTiers?: ContextTiersConfig
   mcp?: McpConfig
 }
@@ -156,6 +157,7 @@ export function getProjectConfig(): KodyConfig {
           ...raw.agent,
           modelMap: { ...DEFAULT_CONFIG.agent.modelMap, ...raw.agent?.modelMap },
         },
+        timeouts: raw.timeouts ?? undefined,
         contextTiers: raw.contextTiers
           ? { ...DEFAULT_CONFIG.contextTiers, ...raw.contextTiers }
           : DEFAULT_CONFIG.contextTiers,

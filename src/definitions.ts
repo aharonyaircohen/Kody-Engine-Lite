@@ -60,3 +60,12 @@ export const STAGES: StageDefinition[] = [
 export function getStage(name: string): StageDefinition | undefined {
   return STAGES.find((s) => s.name === name)
 }
+
+/** Apply per-stage timeout overrides from kody.config.json (values in seconds) */
+export function applyTimeoutOverrides(overrides: Record<string, number>): void {
+  for (const stage of STAGES) {
+    if (overrides[stage.name] != null) {
+      stage.timeout = overrides[stage.name] * 1000
+    }
+  }
+}

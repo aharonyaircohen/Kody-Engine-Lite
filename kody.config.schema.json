@@ -63,6 +63,20 @@
       },
       "additionalProperties": false
     },
+    "timeouts": {
+      "type": "object",
+      "description": "Per-stage timeout overrides in seconds. Defaults: taskify=600, plan=600, build=2400, verify=300, review=600, review-fix=1200, ship=240",
+      "properties": {
+        "taskify": { "type": "number", "description": "Taskify stage timeout in seconds", "default": 600 },
+        "plan": { "type": "number", "description": "Plan stage timeout in seconds", "default": 600 },
+        "build": { "type": "number", "description": "Build stage timeout in seconds", "default": 2400 },
+        "verify": { "type": "number", "description": "Verify stage timeout in seconds", "default": 300 },
+        "review": { "type": "number", "description": "Review stage timeout in seconds", "default": 600 },
+        "review-fix": { "type": "number", "description": "Review-fix stage timeout in seconds", "default": 1200 },
+        "ship": { "type": "number", "description": "Ship stage timeout in seconds", "default": 240 }
+      },
+      "additionalProperties": false
+    },
     "agent": {
       "type": "object",
       "description": "Agent execution configuration",
