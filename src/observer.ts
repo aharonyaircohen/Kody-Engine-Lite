@@ -47,7 +47,7 @@ export async function diagnoseFailure(
     `Stage: ${stageName}`,
     ``,
     `Error output:`,
-    errorOutput.slice(-2000), // Last 2000 chars of error
+    errorOutput.slice(-5000), // Last 5000 chars of error for accurate diagnosis
     ``,
     modifiedFiles.length > 0
       ? `Files modified by build stage:\n${modifiedFiles.map((f) => `- ${f}`).join("\n")}`
@@ -102,13 +102,21 @@ export async function diagnoseFailure(
 
 export function getModifiedFiles(projectDir: string): string[] {
   try {
-    const output = execFileSync("git", ["diff", "--name-only", "HEAD~1"], {
+    // Staged + unstaged changes (what the build stage actually modified)
+    const staged = execFileSync("git", ["diff", "--name-only", "--cached"], {
       encoding: "utf-8",
       cwd: projectDir,
       timeout: 5000,
       stdio: ["pipe", "pipe", "pipe"],
     }).trim()
-    return output ? output.split("\n").filter(Boolean) : []
+    const unstaged = execFileSync("git", ["diff", "--name-only"], {
+      encoding: "utf-8",
+      cwd: projectDir,
+      timeout: 5000,
+      stdio: ["pipe", "pipe", "pipe"],
+    }).trim()
+    const all = `${staged}\n${unstaged}`.split("\n").filter(Boolean)
+    return [...new Set(all)]
   } catch {
     return []
   }

@@ -3,7 +3,7 @@ import type { AgentRunner, AgentResult, AgentRunnerOptions } from "./types.js"
 import type { KodyConfig } from "./config.js"
 
 const SIGKILL_GRACE_MS = 5000
-const STDERR_TAIL_CHARS = 500
+const STDERR_TAIL_CHARS = 2000
 
 function writeStdin(
   child: ReturnType<typeof spawn>,

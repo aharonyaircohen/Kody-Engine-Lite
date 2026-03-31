@@ -68,6 +68,8 @@ Empty string = skip that check. Commands are run via `execFileSync` with a 60-se
 | `modelMap.cheap` | Model for taskify, verify diagnosis | `"haiku"` |
 | `modelMap.mid` | Model for build, review-fix, autofix | `"sonnet"` |
 | `modelMap.strong` | Model for plan, review | `"opus"` |
+
+**Partial modelMap:** You can override individual tiers without specifying all three. For example, `{ "agent": { "modelMap": { "strong": "opus" } } }` keeps the defaults for cheap and mid. The config is deep-merged.
 | `defaultRunner` | Default runner name (advanced) | `"claude"` |
 | `stageRunners` | Per-stage runner overrides (advanced) | — |
 

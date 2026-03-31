@@ -169,7 +169,7 @@ describe("diagnoseFailure", () => {
     expect(result.classification).toBe("infrastructure")
   })
 
-  it("truncates long error output to 2000 chars", async () => {
+  it("truncates long error output to 5000 chars", async () => {
     let capturedPrompt = ""
     const runner: AgentRunner = {
       async run(_stage: string, prompt: string): Promise<AgentResult> {
@@ -187,7 +187,7 @@ describe("diagnoseFailure", () => {
 
     // The error in the prompt should be truncated
     const errorInPrompt = capturedPrompt.split("Error output:")[1]?.split("\n\n")[0] ?? ""
-    expect(errorInPrompt.length).toBeLessThanOrEqual(2100) // 2000 + some padding
+    expect(errorInPrompt.length).toBeLessThanOrEqual(5100) // 5000 + some padding
   })
 
   it("includes modified files in diagnosis prompt", async () => {

@@ -125,7 +125,7 @@ export function providerApiKeyEnvVar(provider: string): string {
 // Pipeline constants
 export const SIGKILL_GRACE_MS = 5000
 export const MAX_PR_TITLE_LENGTH = 72
-export const STDERR_TAIL_CHARS = 500
+export const STDERR_TAIL_CHARS = 2000
 export const API_TIMEOUT_MS = 30_000
 export const DEFAULT_MAX_FIX_ATTEMPTS = 2
 export const AGENT_RETRY_DELAY_MS = 2000
@@ -151,7 +151,11 @@ export function getProjectConfig(): KodyConfig {
         quality: { ...DEFAULT_CONFIG.quality, ...raw.quality },
         git: { ...DEFAULT_CONFIG.git, ...raw.git },
         github: { ...DEFAULT_CONFIG.github, ...raw.github },
-        agent: { ...DEFAULT_CONFIG.agent, ...raw.agent },
+        agent: {
+          ...DEFAULT_CONFIG.agent,
+          ...raw.agent,
+          modelMap: { ...DEFAULT_CONFIG.agent.modelMap, ...raw.agent?.modelMap },
+        },
         contextTiers: raw.contextTiers
           ? { ...DEFAULT_CONFIG.contextTiers, ...raw.contextTiers }
           : DEFAULT_CONFIG.contextTiers,

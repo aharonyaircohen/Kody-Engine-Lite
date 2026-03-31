@@ -243,7 +243,7 @@ export function submitPRReview(
   prNumber: number,
   body: string,
   event: "approve" | "request-changes",
-): void {
+): boolean {
   const flag = event === "approve" ? "--approve" : "--request-changes"
   try {
     gh(
@@ -251,8 +251,10 @@ export function submitPRReview(
       { input: body },
     )
     logger.info(`  PR review submitted on #${prNumber}: ${event}`)
+    return true
   } catch (err) {
     logger.warn(`  Failed to submit PR review: ${err}`)
+    return false
   }
 }
 

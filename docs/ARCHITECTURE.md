@@ -134,20 +134,23 @@ GitHub Actions (kody.yml)
           │       abort → stop pipeline
           │     → retry up to 2 more times
           │
-          ├─ [review] ── session: review (new) ──────────────
-          │   claude --print --session-id <uuid> --model <strong tier>
-          │   (fresh session — no build bias)
-          │   Prompt: review.md + memory + git diff + context.md
-          │   Output: review.md (Verdict: PASS/FAIL + findings)
-          │   If FAIL with Critical/Major → proceed to review-fix
-          │   Set label: kody:review
-          │
-          ├─ [review-fix] ── session: build (resume) ────────
-          │   claude --print --resume <build-uuid> --model <mid tier>
-          │   (resumes build session — knows implementation context)
-          │   Prompt: review-fix.md + memory + review.md findings
-          │   Post-hooks:
-          │     → git commit: "fix(42-260327-102254): address review"
+          ├─ [review + review-fix loop] (up to 2 fix iterations) ──
+          │   │
+          │   ├─ [review] ── session: review (new) ────────────
+          │   │   claude --print --session-id <uuid> --model <strong tier>
+          │   │   (fresh session — no build bias)
+          │   │   Prompt: review.md + memory + git diff + context.md
+          │   │   Output: review.md (Verdict: PASS/FAIL + findings)
+          │   │   If PASS → skip review-fix, proceed to ship
+          │   │   Set label: kody:review
+          │   │
+          │   └─ [review-fix] ── session: build (resume) ──────
+          │       claude --print --resume <build-uuid> --model <mid tier>
+          │       (resumes build session — knows implementation context)
+          │       Prompt: review-fix.md + memory + review.md findings
+          │       Post-hooks:
+          │         → git commit: "fix(42-260327-102254): address review"
+          │       → loop back to review (max 2 fix iterations)
           │
           ├─ [ship] ─────────────────────────────────────────
           │   1. git push origin 42--issue-title
@@ -234,8 +237,8 @@ executeVerifyWithAutofix(ctx, def)
   ├─ Run gate: typecheck + tests + lint
   │   Pass? → return completed (retries: attempt)
   │
-  ├─ Read verify.md errors
-  ├─ Get modified files (git diff)
+  ├─ Read verify.md errors (up to 5000 chars for diagnosis)
+  ├─ Get modified files (staged + unstaged changes)
   ├─ AI diagnosis via observer.ts:
   │   │
   │   ├─ infrastructure → return completed (skip)
@@ -488,7 +491,7 @@ pnpm install
 
 ```bash
 pnpm typecheck              # TypeScript type check
-pnpm test                   # 416 tests across 41 files
+pnpm test                   # 494 tests across 48 files
 pnpm build                  # Build npm package (tsup → dist/bin/cli.js)
 pnpm kody run ...           # Dev mode (tsx — runs from source)
 npm publish --access public # Publish to npm
@@ -496,7 +499,7 @@ npm publish --access public # Publish to npm
 
 ### Test Coverage
 
-416 tests across 41 files (40 unit + 1 integration).
+494 tests across 48 files.
 
 ### Build
 

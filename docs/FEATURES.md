@@ -208,6 +208,8 @@ verify fail
 
 The autofix agent resumes the build session, so it already knows the codebase and what was implemented.
 
+The diagnosis agent receives up to 5000 characters of error output (and the agent runner captures up to 2000 characters of stderr) to ensure accurate failure classification even for complex TypeScript or ESLint errors.
+
 ## Auto Fix-CI
 
 When CI fails on a PR, Kody can automatically fix it:
@@ -228,6 +230,36 @@ CI fails on PR
 
 You can also trigger it manually: comment `@kody fix-ci` on any PR with failing CI checks.
 
+## Merge Conflict Resolution
+
+Comment `@kody resolve` on any PR to merge the default branch and AI-resolve any conflicts.
+
+**How it works:**
+
+```
+@kody resolve on PR
+  → merge default branch into PR branch
+  → if clean merge: push and done
+  → if conflicts: identify conflicted files
+  → agent reads conflict markers and diffs
+  → resolves each file (preserving PR intent for features, preferring default for infra)
+  → runs quality gates (typecheck, tests, lint)
+  → commits + pushes resolution
+  → posts summary comment on PR
+```
+
+**Resolution strategy:**
+- **Feature/business logic** — preserves the PR branch's intent
+- **Infrastructure/config/dependencies** — prefers the default branch
+- **Imports/types** — merges both sides
+
+The agent uses the `mid` tier model and has a 5-minute timeout. Up to 10 conflicted files are included in the context with up to 3000 chars of diff each.
+
+**CLI usage:**
+```bash
+kody-engine-lite resolve --pr-number 42
+```
+
 ## Standalone PR Review
 
 Comment `@kody review` on any PR — not just PRs that Kody created — to get a structured code review.
@@ -235,8 +267,8 @@ Comment `@kody review` on any PR — not just PRs that Kody created — to get a
 **What it does:**
 1. Reads the PR diff and description
 2. Runs the same review methodology as pipeline stage 5 (Critical/Major/Minor findings with a PASS/FAIL verdict)
-3. Posts findings as a PR comment
-4. Submits an actual GitHub PR review: **approve** if PASS, **request-changes** if FAIL
+3. Submits a GitHub PR review: **approve** if PASS, **request-changes** if FAIL
+4. If the PR review fails (e.g., self-review not allowed), falls back to posting a plain PR comment
 
 **If the review finds issues:**
 The comment includes a prompt to run `@kody fix`, which automatically ingests the review findings as context and fixes them.

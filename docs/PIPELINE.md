@@ -8,7 +8,7 @@ Kody runs a 7-stage pipeline that transforms a GitHub issue into a tested, revie
 |-------|------|--------------|---------|-------------|--------|
 | **taskify** | cheap | haiku | 5 min | Classify task, detect complexity, ask questions | `task.json` |
 | **plan** | strong | opus | 10 min | TDD implementation plan with deep reasoning | `plan.md` |
-| **build** | mid | sonnet | 20 min | Implement code via Claude Code tools | code changes |
+| **build** | mid | sonnet | 40 min | Implement code via Claude Code tools | code changes |
 | **verify** | gate | — | 5 min | runs configured quality commands, auto-retry with AI diagnosis | `verify.md` |
 | **review** | strong | opus | 10 min | Code review: PASS/FAIL + Critical/Major/Minor | `review.md` |
 | **review-fix** | mid | sonnet | 10 min | Fix Critical and Major review findings | code changes |
@@ -107,7 +107,7 @@ AI code review in a **fresh session** (no build bias):
 
 ### 6. Review-Fix
 
-If review verdict is FAIL with Critical or Major findings, this stage fixes them — resuming the build session so it knows the implementation context. Then review reruns.
+If review verdict is FAIL with Critical or Major findings, this stage runs a fix → review loop (up to 2 fix iterations). Each iteration resumes the build session so the agent knows the implementation context, applies fixes, then re-runs review in a fresh session. If the review still fails after 2 fix attempts, the pipeline continues with the best-effort result rather than hard-failing.
 
 ### 7. Ship
 
@@ -163,6 +163,7 @@ On rerun, completed stages are skipped. Failed/running stages are reset to pendi
 | `@kody review` | Run only the review stage as a standalone PR review ([details](FEATURES.md#standalone-pr-review)) |
 | `@kody fix` | Re-run from build with PR feedback as context ([details](FEATURES.md#pr-feedback-for-fix)) |
 | `@kody fix-ci` | Re-run from build with CI failure logs as context ([details](FEATURES.md#auto-fix-ci)) |
+| `@kody resolve` | Merge default branch into PR branch, AI-resolve conflicts, verify, push ([details](FEATURES.md#merge-conflict-resolution)) |
 | `@kody rerun` | Resume from the failed or paused stage |
 | `@kody rerun --from <stage>` | Resume from a specific stage |
 

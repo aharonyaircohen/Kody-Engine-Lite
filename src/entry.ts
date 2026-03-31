@@ -231,14 +231,14 @@ async function main() {
 
       if (!input.local && prNumber) {
         const comment = formatReviewComment(result.reviewContent, taskId)
-        postPRComment(prNumber, comment)
 
-        // Submit a GitHub PR review (approve or request-changes)
+        // Submit as a GitHub PR review (approve or request-changes)
+        // Falls back to a plain comment if the review fails (e.g., can't approve own PR)
         const verdict = detectReviewVerdict(result.reviewContent)
-        if (verdict === "fail") {
-          submitPRReview(prNumber, comment, "request-changes")
-        } else {
-          submitPRReview(prNumber, comment, "approve")
+        const event = verdict === "fail" ? "request-changes" : "approve"
+        const posted = submitPRReview(prNumber, comment, event)
+        if (!posted) {
+          postPRComment(prNumber, comment)
         }
       }
     }

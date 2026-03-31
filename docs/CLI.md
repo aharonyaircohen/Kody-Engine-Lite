@@ -139,6 +139,29 @@ kody-engine-lite rerun --task-id <id> --from <stage> [options]
 kody-engine-lite rerun --issue-number 42 --from verify
 ```
 
+### `resolve`
+
+Merge the default branch into a PR branch and AI-resolve any merge conflicts. Runs quality gates after resolution.
+
+```bash
+kody-engine-lite resolve --pr-number <n> [options]
+```
+
+| Flag | Required | Description |
+|------|----------|-------------|
+| `--pr-number <n>` | Yes | PR number to resolve conflicts for |
+| `--cwd <path>` | No | Working directory |
+| `--local` | No | Run locally (auto-enabled outside CI) |
+
+**Environment variables:** `PR_NUMBER`
+
+Also available as `@kody resolve` on GitHub.
+
+**Example:**
+```bash
+kody-engine-lite resolve --pr-number 42
+```
+
 ### `review`
 
 Run a standalone code review on a PR.
@@ -191,10 +214,11 @@ These commands are triggered by commenting on a GitHub issue or PR:
 | Command | Description |
 |---------|-------------|
 | `@kody` | Run the full pipeline on an issue |
-| `@kody review` | Run a standalone code review on a PR — posts structured findings and submits a GitHub review (approve or request-changes) |
+| `@kody review` | Run a standalone code review on a PR — posts structured findings and submits a GitHub review (approve or request-changes). Falls back to a plain PR comment if the review submission fails (e.g., self-review not allowed) |
 | `@kody approve` | Resume after questions or risk gate pause |
 | `@kody fix` | Re-run from build stage. Reads human PR review comments + Kody's review as context. Additional feedback in the comment body is also injected |
 | `@kody fix-ci` | Fix failing CI. Auto-triggered when CI fails on a Kody PR (with loop guard) |
+| `@kody resolve` | Merge default branch into PR, AI-resolve conflicts, verify, and push |
 | `@kody rerun` | Resume from the failed or paused stage |
 | `@kody rerun --from <stage>` | Resume from a specific stage |
 | `@kody bootstrap` | Regenerate project memory and step files |

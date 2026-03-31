@@ -114,9 +114,10 @@ Kody auto-starts the LiteLLM proxy. [Full LiteLLM guide →](docs/LITELLM.md)
 | Command | What it does |
 |---------|-------------|
 | `@kody` | Run full pipeline on an issue |
-| `@kody review` | Review any PR — structured findings + GitHub approve/request-changes |
+| `@kody review` | Review any PR — structured findings + GitHub approve/request-changes (falls back to comment if self-review blocked) |
 | `@kody fix` | Re-run from build with human PR feedback + Kody's review as context |
 | `@kody fix-ci` | Fix failing CI checks (auto-triggered with loop guard) |
+| `@kody resolve` | Merge default branch into PR, AI-resolve conflicts, verify, push |
 | `@kody rerun` | Resume from failed or paused stage |
 | `@kody rerun --from <stage>` | Resume from a specific stage |
 | `@kody approve` | Resume after questions or risk gate |
@@ -130,6 +131,7 @@ kody-engine-lite run --task "Add retry utility" --local
 kody-engine-lite review --pr-number 42   # Standalone PR review
 kody-engine-lite fix --issue-number 42 --feedback "Use middleware pattern"
 kody-engine-lite fix-ci --pr-number 42
+kody-engine-lite resolve --pr-number 42   # Merge + resolve conflicts
 kody-engine-lite rerun --issue-number 42 --from verify
 ```
 
