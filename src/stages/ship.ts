@@ -147,7 +147,8 @@ export function executeShipStage(
       }
     }
 
-    // Derive PR title from task.json (preferred) or task.md (fallback)
+    // Derive PR title: use issue title (user-written, always clean) with
+    // task_type prefix from task.json for conventional commit format.
     let title = "Update"
     const TYPE_PREFIX: Record<string, string> = {
       feature: "feat",
@@ -157,24 +158,37 @@ export function executeShipStage(
       chore: "chore",
     }
 
+    // Get type prefix from task.json
+    let prefix = "chore"
     const taskJsonPath = path.join(ctx.taskDir, "task.json")
     if (fs.existsSync(taskJsonPath)) {
       try {
         const raw = fs.readFileSync(taskJsonPath, "utf-8")
         const cleaned = raw.replace(/^```json\s*\n?/m, "").replace(/\n?```\s*$/m, "")
         const task = JSON.parse(cleaned)
-        const prefix = TYPE_PREFIX[task.task_type] ?? "chore"
-        const taskTitle = task.title ?? "Update"
-        title = `${prefix}: ${taskTitle}`.slice(0, 72)
-      } catch { /* fallback below */ }
+        prefix = TYPE_PREFIX[task.task_type] ?? "chore"
+      } catch { /* ignore */ }
+    }
+
+    // Get title from task.md (sourced from issue title — the user's own words)
+    const taskMdPath = path.join(ctx.taskDir, "task.md")
+    if (fs.existsSync(taskMdPath)) {
+      const content = fs.readFileSync(taskMdPath, "utf-8")
+      const heading = content.split("\n").find((l) => l.startsWith("# "))
+      if (heading) {
+        title = `${prefix}: ${heading.replace(/^#\s*/, "").trim()}`.slice(0, 72)
+      }
     }
 
     if (title === "Update") {
-      const taskMdPath = path.join(ctx.taskDir, "task.md")
-      if (fs.existsSync(taskMdPath)) {
-        const content = fs.readFileSync(taskMdPath, "utf-8")
-        const firstLine = content.split("\n").find((l) => l.trim() && !l.startsWith("#") && !l.startsWith("*"))
-        if (firstLine) title = `chore: ${firstLine.trim()}`.slice(0, 72)
+      // Last resort: use task.json title
+      if (fs.existsSync(taskJsonPath)) {
+        try {
+          const raw = fs.readFileSync(taskJsonPath, "utf-8")
+          const cleaned = raw.replace(/^```json\s*\n?/m, "").replace(/\n?```\s*$/m, "")
+          const task = JSON.parse(cleaned)
+          if (task.title) title = `${prefix}: ${task.title}`.slice(0, 72)
+        } catch { /* ignore */ }
       }
     }
 
