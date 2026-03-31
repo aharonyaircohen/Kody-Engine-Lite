@@ -69,7 +69,7 @@ Labels are created with `--force`, so re-running bootstrap safely updates existi
 
 ### Step 4: Commit and Push
 
-- **In CI (GitHub Actions):** Creates a new branch (`kody/bootstrap-<timestamp>`), commits files, pushes, and opens a PR.
+- **In CI (GitHub Actions):** Creates a new branch (`kody-bootstrap-<timestamp>`), commits files, pushes, and opens a PR.
 - **Locally:** Commits to the current branch and pushes.
 
 ## Output
