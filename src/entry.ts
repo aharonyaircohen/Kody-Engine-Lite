@@ -173,6 +173,7 @@ async function main() {
     // Resolve which PR to review
     let prTitle = "Code review"
     let prBody = ""
+    let baseBranch: string | undefined
     let prNumber: number | undefined = input.prNumber
 
     if (!prNumber && input.issueNumber) {
@@ -196,6 +197,7 @@ async function main() {
       if (details) {
         prTitle = details.title
         prBody = details.body ?? ""
+        baseBranch = details.baseBranch
       }
     }
 
@@ -215,6 +217,7 @@ async function main() {
       runners,
       prTitle,
       prBody,
+      baseBranch,
       local: input.local ?? true,
       taskId,
     })

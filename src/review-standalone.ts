@@ -14,6 +14,7 @@ export interface StandaloneReviewInput {
   runners: Record<string, AgentRunner>
   prTitle: string
   prBody: string
+  baseBranch?: string
   local: boolean
   taskId?: string
 }
@@ -74,8 +75,11 @@ export async function runStandaloneReview(
   const taskDir = path.join(input.projectDir, ".kody", "tasks", taskId)
   fs.mkdirSync(taskDir, { recursive: true })
 
-  // Write task.md from PR info
-  const taskContent = `# ${input.prTitle}\n\n${input.prBody ?? ""}`
+  // Write task.md from PR info, including diff instructions for the review agent
+  const diffInstruction = input.baseBranch
+    ? `\n\n## Diff Command\nRun: \`git diff origin/${input.baseBranch}...HEAD\` to see the PR changes.\nDo NOT use bare \`git diff\` — it shows only uncommitted working tree changes, not the PR diff.`
+    : ""
+  const taskContent = `# ${input.prTitle}\n\n${input.prBody ?? ""}${diffInstruction}`
   fs.writeFileSync(path.join(taskDir, "task.md"), taskContent)
 
   const reviewDef = STAGES.find((s) => s.name === "review")!
