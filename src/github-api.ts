@@ -136,8 +136,10 @@ export function createPR(
     const number = match ? parseInt(match[1], 10) : 0
     logger.info(`  PR created: ${url}`)
     return { number, url }
-  } catch (err) {
-    logger.error(`  Failed to create PR: ${err}`)
+  } catch (err: any) {
+    const stderr = err?.stderr?.toString().trim()
+    const reason = stderr || (err instanceof Error ? err.message : String(err))
+    logger.error(`  Failed to create PR: ${reason}`)
     return null
   }
 }

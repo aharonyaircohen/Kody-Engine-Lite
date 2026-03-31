@@ -911,10 +911,12 @@ REMINDER: Output the full prompt template first (unchanged), then your three app
             if (issueNumber) {
               ghComment(issueNumber, `✅ **Bootstrap complete** — PR created: ${prUrl}\n\nReview and merge to activate project-specific pipeline configuration.`, cwd)
             }
-          } catch (prErr) {
-            console.log(`  ○ PR creation failed: ${prErr instanceof Error ? prErr.message : prErr}`)
+          } catch (prErr: any) {
+            const stderr = prErr?.stderr?.toString().trim()
+            const reason = stderr || (prErr instanceof Error ? prErr.message : String(prErr))
+            console.log(`  ○ PR creation failed: ${reason}`)
             if (issueNumber) {
-              ghComment(issueNumber, `⚠️ **Bootstrap complete** — files generated and pushed to branch \`${branchName}\`, but PR creation failed. Create it manually.`, cwd)
+              ghComment(issueNumber, `⚠️ **Bootstrap complete** — files generated and pushed to branch \`${branchName}\`, but PR creation failed.\n\n**Reason:** ${reason}\n\nCreate it manually.`, cwd)
             }
           }
         } else {
