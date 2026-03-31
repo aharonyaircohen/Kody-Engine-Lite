@@ -5,6 +5,7 @@ import * as os from "os"
 import type { AgentRunner, AgentResult, PipelineContext } from "../../src/types.js"
 import { runPipeline, printStatus } from "../../src/pipeline.js"
 import { resetProjectConfig, setConfigDir } from "../../src/config.js"
+import * as gitUtils from "../../src/git-utils.js"
 
 vi.mock("../../src/github-api.js", () => ({
   setLifecycleLabel: vi.fn(),
@@ -13,6 +14,15 @@ vi.mock("../../src/github-api.js", () => ({
   postComment: vi.fn(),
   setGhCwd: vi.fn(),
   getIssueLabels: vi.fn(() => []),
+}))
+
+vi.mock("../../src/git-utils.js", () => ({
+  ensureFeatureBranch: vi.fn(() => "42-test-branch"),
+  syncWithDefault: vi.fn(),
+  getCurrentBranch: vi.fn(() => "42-test-branch"),
+  getDefaultBranch: vi.fn(() => "dev"),
+  commitAll: vi.fn(() => ({ success: false, hash: "", message: "No changes" })),
+  pushBranch: vi.fn(),
 }))
 
 function createMockRunner(responses?: Record<string, AgentResult>): AgentRunner {
@@ -257,5 +267,67 @@ describe("complexity filtering", () => {
     })
     const state = await runPipeline(ctx)
     expect(state.state).toBe("completed")
+  })
+})
+
+describe("default branch sync", () => {
+  let tmpDir: string
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kody-sync-test-"))
+    fs.writeFileSync(
+      path.join(tmpDir, "kody.config.json"),
+      JSON.stringify({
+        quality: { typecheck: "true", lint: "", lintFix: "", formatFix: "", testUnit: "true" },
+        agent: { defaultRunner: "claude" },
+      }),
+    )
+    setConfigDir(tmpDir)
+  })
+
+  afterEach(() => {
+    resetProjectConfig()
+    fs.rmSync(tmpDir, { recursive: true, force: true })
+  })
+
+  it("syncs with default branch on issue-based full run", async () => {
+    const ctx = createTestContext(tmpDir, {
+      input: { mode: "full", issueNumber: 42 },
+    })
+    await runPipeline(ctx)
+    expect(gitUtils.syncWithDefault).toHaveBeenCalled()
+  })
+
+  it("syncs with default branch on PR-based fix", async () => {
+    const ctx = createTestContext(tmpDir, {
+      input: { mode: "rerun", prNumber: 10, fromStage: "build" },
+    })
+    await runPipeline(ctx)
+    expect(gitUtils.syncWithDefault).toHaveBeenCalled()
+  })
+
+  it("syncs with default branch on PR-based rerun", async () => {
+    const ctx = createTestContext(tmpDir, {
+      input: { mode: "rerun", prNumber: 10, issueNumber: 42, fromStage: "build" },
+    })
+    await runPipeline(ctx)
+    expect(gitUtils.syncWithDefault).toHaveBeenCalled()
+  })
+
+  it("does NOT create a feature branch on PR-based fix (already on PR branch)", async () => {
+    const ctx = createTestContext(tmpDir, {
+      input: { mode: "rerun", prNumber: 10, fromStage: "build" },
+    })
+    await runPipeline(ctx)
+    expect(gitUtils.ensureFeatureBranch).not.toHaveBeenCalled()
+  })
+
+  it("skips sync in dry-run", async () => {
+    const ctx = createTestContext(tmpDir, {
+      input: { mode: "full", dryRun: true },
+    })
+    await runPipeline(ctx)
+    expect(gitUtils.syncWithDefault).not.toHaveBeenCalled()
   })
 })

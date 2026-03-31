@@ -27,9 +27,20 @@ import { runRetrospective } from "./retrospective.js"
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function ensureFeatureBranchIfNeeded(ctx: PipelineContext): void {
-  // Skip branch creation for PR-based fix — workflow already checked out the PR branch
-  if (ctx.input.prNumber) return
-  if (!ctx.input.issueNumber || ctx.input.dryRun) return
+  if (ctx.input.dryRun) return
+
+  // PR-based fix/rerun: workflow already checked out the PR branch,
+  // but we still merge latest default to avoid building on stale code.
+  if (ctx.input.prNumber) {
+    try {
+      syncWithDefault(ctx.projectDir)
+    } catch (err) {
+      logger.warn(`  Failed to sync with default branch: ${err}`)
+    }
+    return
+  }
+
+  if (!ctx.input.issueNumber) return
   try {
     const taskMdPath = path.join(ctx.taskDir, "task.md")
     const title = fs.existsSync(taskMdPath)
