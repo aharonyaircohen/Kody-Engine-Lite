@@ -19,7 +19,6 @@ import {
   createPR,
   getPRForBranch,
   updatePR,
-  closeIssue,
 } from "../github-api.js"
 import { getProjectConfig } from "../config.js"
 
@@ -224,13 +223,9 @@ export function executeShipStage(
           } catch {
             // Fire and forget
           }
-          // Close the issue — "Closes #N" in PR body only works when merging
-          // into GitHub's default branch, which may differ from the configured
-          // base branch (e.g. PRs target "kody" but GitHub default is "main").
-          // Skip if issueNumber is actually a PR (same as prNumber) to avoid closing the PR itself.
-          if (ctx.input.issueNumber !== ctx.input.prNumber) {
-            closeIssue(ctx.input.issueNumber)
-          }
+          // Don't close the issue here — "Closes #N" in the PR body will
+          // auto-close it when the PR is merged. Closing prematurely means
+          // the issue disappears before the code is actually merged.
         }
 
         fs.writeFileSync(shipPath, `# Ship\n\nPR created: ${pr.url}\nPR #${pr.number}\n`)
