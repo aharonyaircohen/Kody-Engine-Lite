@@ -220,6 +220,14 @@ export function commitAll(
 }
 
 export function pushBranch(cwd?: string): void {
-  git(["push", "-u", "origin", "HEAD"], { cwd, timeout: 120_000 })
+  try {
+    git(["push", "-u", "origin", "HEAD"], { cwd, timeout: 120_000 })
+  } catch {
+    // Fast-forward push failed — likely a rerun that diverged from remote.
+    // Use --force-with-lease for safe overwrite (refuses if remote changed
+    // since our last fetch, protecting against concurrent pushes).
+    logger.info("  Push rejected (non-fast-forward), retrying with --force-with-lease")
+    git(["push", "--force-with-lease", "-u", "origin", "HEAD"], { cwd, timeout: 120_000 })
+  }
   logger.info("  Pushed to origin")
 }
