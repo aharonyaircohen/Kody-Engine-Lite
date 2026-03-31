@@ -251,6 +251,13 @@ export function buildFullPrompt(
   // Append browser tool guidance if MCP is enabled for this stage and task has UI
   if (isMcpEnabledForStage(stageName, config.mcp) && taskHasUI(taskDir)) {
     assembled = assembled + "\n\n" + getBrowserToolGuidance(stageName, taskDir)
+
+    // Inject QA guide if it exists
+    const qaGuidePath = path.join(projectDir, ".kody", "qa-guide.md")
+    if (fs.existsSync(qaGuidePath)) {
+      const qaGuide = fs.readFileSync(qaGuidePath, "utf-8").trim()
+      assembled = assembled + "\n\n" + qaGuide
+    }
   }
 
   return assembled

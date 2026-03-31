@@ -209,7 +209,7 @@ describe("buildConfig", () => {
     expect(config).toHaveProperty("git")
   })
 
-  it("auto-configures MCP with playwright for Next.js projects", () => {
+  it("auto-configures MCP for Next.js projects (playwright auto-injected at runtime)", () => {
     fs.writeFileSync(path.join(tmpDir, "package.json"), JSON.stringify({
       scripts: { dev: "next dev" },
       dependencies: { next: "15.0.0", react: "19.0.0" },
@@ -220,9 +220,9 @@ describe("buildConfig", () => {
     const mcp = (config as Record<string, any>).mcp
     expect(mcp).toBeDefined()
     expect(mcp.enabled).toBe(true)
-    expect(mcp.servers.playwright).toBeDefined()
-    expect(mcp.servers.playwright.command).toBe("npx")
+    expect(mcp.servers).toEqual({})
     expect(mcp.stages).toEqual(["build", "review"])
+    expect(mcp.devServer.url).toBe("http://localhost:3000")
   })
 
   it("auto-configures devServer for Next.js projects", () => {
