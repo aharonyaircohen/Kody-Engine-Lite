@@ -110,13 +110,8 @@ jobs:
 
           # Extract: @kody [mode] [task-id] [--from stage]
           KODY_ARGS=$(echo "$BODY" | grep -oP '(?:@kody|/kody)\s+\K.*' || echo "")
-          MODE=$(echo "$KODY_ARGS" | awk '{print $1}')
-          RAW_TASK_ID=$(echo "$KODY_ARGS" | awk '{print $2}')
-          # Don't treat flags (--from, --feedback) as task IDs
-          case "$RAW_TASK_ID" in
-            --*) TASK_ID="" ;;
-            *)   TASK_ID="$RAW_TASK_ID" ;;
-          esac
+
+          # Extract flags first (before positional parsing)
           FROM_STAGE=$(echo "$KODY_ARGS" | grep -oP '(?<=--from )\S+' || echo "")
           FEEDBACK=$(echo "$KODY_ARGS" | grep -oP '(?<=--feedback ")[^"]*' || echo "")
           COMPLEXITY=""
@@ -128,12 +123,24 @@ jobs:
             DRY_RUN="true"
           fi
 
-          # Validate mode
+          # Strip flags and their values for clean positional parsing
+          POSITIONAL=$(echo "$KODY_ARGS" | sed -E \
+            -e 's/--from\s+\S+//g' \
+            -e 's/--feedback\s+"[^"]*"//g' \
+            -e 's/--complexity\s+\S+//g' \
+            -e 's/--dry-run//g' \
+            -e 's/--ci-run-id\s+\S+//g' \
+            -e 's/\s+/ /g' -e 's/^ //' -e 's/ $//')
+
+          MODE=$(echo "$POSITIONAL" | awk '{print $1}')
+          TASK_ID=$(echo "$POSITIONAL" | awk '{print $2}')
+
+          # Validate mode — after flag stripping, only positional args remain
           case "$MODE" in
             full|rerun|fix|fix-ci|status|approve|review|resolve|bootstrap) ;;
             *)
-              # If first arg isn't a mode, it might be a task-id or nothing
-              if [ -n "$MODE" ] && [ "$MODE" != "" ]; then
+              # First positional isn't a known mode — treat as task-id
+              if [ -n "$MODE" ]; then
                 TASK_ID="$MODE"
               fi
               MODE="full"
