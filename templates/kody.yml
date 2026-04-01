@@ -64,6 +64,8 @@ jobs:
       pr_number: ${{ steps.parse.outputs.pr_number }}
       feedback: ${{ steps.parse.outputs.feedback }}
       ci_run_id: ${{ steps.parse.outputs.ci_run_id }}
+      ticket_id: ${{ steps.parse.outputs.ticket_id }}
+      prd_file: ${{ steps.parse.outputs.prd_file }}
       dry_run: ${{ steps.parse.outputs.dry_run }}
       valid: ${{ steps.parse.outputs.valid }}
     steps:
@@ -190,12 +192,22 @@ jobs:
           FEEDBACK: ${{ github.event.inputs.feedback || needs.parse.outputs.feedback }}
           COMPLEXITY: ${{ needs.parse.outputs.complexity }}
           CI_RUN_ID: ${{ needs.parse.outputs.ci_run_id }}
+          TICKET_ID: ${{ needs.parse.outputs.ticket_id }}
+          PRD_FILE: ${{ needs.parse.outputs.prd_file }}
           DRY_RUN: ${{ github.event.inputs.dry_run || needs.parse.outputs.dry_run || 'false' }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           if [ "$MODE" = "bootstrap" ]; then
             echo "Running bootstrap..."
             npx kody-engine-lite bootstrap
+          elif [ "$MODE" = "taskify" ]; then
+            echo "Running taskify..."
+            ARGS=""
+            [ -n "$TICKET_ID" ] && ARGS="$ARGS --ticket $TICKET_ID"
+            [ -n "$PRD_FILE" ] && ARGS="$ARGS --file $PRD_FILE"
+            [ -n "$ISSUE_NUMBER" ] && ARGS="$ARGS --issue-number $ISSUE_NUMBER"
+            [ -n "$TASK_ID" ] && ARGS="$ARGS --task-id $TASK_ID"
+            npx kody-engine-lite taskify $ARGS
           else
             CMD="run"
             [ "$MODE" = "rerun" ] && CMD="rerun"

@@ -45,7 +45,7 @@ export interface McpConfig {
 
 export interface StageConfig {
   provider: string  // "claude" = direct Anthropic, anything else = LiteLLM
-  model: string     // e.g. "sonnet", "opus", "MiniMax-M2.7-highspeed"
+  model: string     // e.g. "claude-sonnet-4-6", "MiniMax-M2.7-highspeed"
 }
 
 export interface KodyConfig {
@@ -66,7 +66,7 @@ export interface KodyConfig {
     postSummary?: boolean
   }
   agent: {
-    modelMap: { cheap: string; mid: string; strong: string }
+    modelMap: Record<string, string>
     /** LLM provider name (e.g. "minimax", "openai", "google"). When set, engine auto-starts LiteLLM proxy. */
     provider?: string
     /** Per-stage provider + model overrides. Takes precedence over modelMap. */
@@ -113,14 +113,6 @@ const DEFAULT_CONFIG: KodyConfig = {
 export const LITELLM_DEFAULT_PORT = 4000
 export const LITELLM_DEFAULT_URL = `http://localhost:${LITELLM_DEFAULT_PORT}`
 
-// Anthropic model IDs that Claude Code CLI sends in API requests
-// Keyed by tier (cheap/mid/strong) → list of model IDs Claude Code might use
-export const TIER_TO_ANTHROPIC_IDS: Record<string, string[]> = {
-  cheap: ["claude-haiku-4-5-20251001", "claude-haiku-4-5", "haiku"],
-  mid: ["claude-sonnet-4-6-20250514", "claude-sonnet-4-6", "sonnet"],
-  strong: ["claude-opus-4-6-20250514", "claude-opus-4-6", "opus"],
-}
-
 /**
  * Resolve provider + model for a specific stage.
  * Priority: agent.stages[stageName] > agent.default > legacy agent.provider + modelMap
@@ -134,7 +126,7 @@ export function resolveStageConfig(config: KodyConfig, stageName: string, modelT
   if (config.agent.default) return config.agent.default
 
   // Legacy fallback: derive from provider + modelMap (all names from config, nothing hardcoded)
-  const model = config.agent.modelMap[modelTier as keyof typeof config.agent.modelMap]
+  const model = config.agent.modelMap[modelTier]
   if (!model) {
     throw new Error(`No model configured for stage '${stageName}' (tier: ${modelTier}). Set agent.stages.${stageName} or agent.default in kody.config.json`)
   }

@@ -206,6 +206,29 @@ export function createPR(
   }
 }
 
+export function createIssue(
+  title: string,
+  body: string,
+  labels?: string[],
+): { number: number; url: string } | null {
+  try {
+    const args = ["issue", "create", "--title", title, "--body-file", "-"]
+    if (labels && labels.length > 0) {
+      args.push("--label", labels.join(","))
+    }
+    const output = gh(args, { input: body })
+    const url = output.trim()
+    const match = url.match(/\/issues\/(\d+)$/)
+    const number = match ? parseInt(match[1], 10) : 0
+    logger.info(`  Issue created: ${url}`)
+    return { number, url }
+  } catch (err: unknown) {
+    const reason = ghErrorMessage(err)
+    logger.error(`  Failed to create issue: ${reason}`)
+    return null
+  }
+}
+
 export function setLifecycleLabel(
   issueNumber: number,
   phase: string,

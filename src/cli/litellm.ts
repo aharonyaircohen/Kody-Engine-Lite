@@ -22,7 +22,7 @@ export async function checkLitellmHealth(url: string): Promise<boolean> {
 export async function checkModelHealth(
   baseUrl: string,
   apiKey: string,
-  model: string = "claude-haiku-4-5",
+  model: string,
 ): Promise<{ ok: boolean; error?: string }> {
   try {
     const res = await fetch(`${baseUrl}/v1/messages`, {
@@ -66,7 +66,7 @@ export async function checkModelHealth(
  */
 export function generateLitellmConfig(
   provider: string,
-  modelMap: { cheap: string; mid: string; strong: string },
+  modelMap: Record<string, string>,
 ): string {
   const apiKeyVar = providerApiKeyEnvVar(provider)
   const entries: string[] = ["model_list:"]

@@ -21,9 +21,9 @@
     "runner": "claude-code",
     "defaultRunner": "claude",
     "modelMap": {
-      "cheap": "haiku",
-      "mid": "sonnet",
-      "strong": "opus"
+      "cheap": "claude-haiku-4-5-20251001",
+      "mid": "claude-sonnet-4-6",
+      "strong": "claude-opus-4-6"
     }
   }
 }

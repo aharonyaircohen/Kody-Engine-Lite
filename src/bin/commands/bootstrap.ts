@@ -184,7 +184,7 @@ ${repoContext}`
   try {
     const output = execFileSync("claude", [
       "--print",
-      "--model", "haiku",
+      "--model", "claude-haiku-4-5-20251001",
       "--dangerously-skip-permissions",
       memoryPrompt,
     ], {
@@ -299,7 +299,7 @@ REMINDER: Output the full prompt template first (unchanged), then your three app
     try {
       const output = execFileSync("claude", [
         "--print",
-        "--model", "haiku",
+        "--model", "claude-haiku-4-5-20251001",
         "--dangerously-skip-permissions",
         customizationPrompt,
       ], {

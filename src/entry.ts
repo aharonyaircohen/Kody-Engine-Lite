@@ -14,6 +14,7 @@ import { parseArgs } from "./cli/args.js"
 import { checkLitellmHealth, checkModelHealth, tryStartLitellm, generateLitellmConfig, generateLitellmConfigFromStages } from "./cli/litellm.js"
 import { generateTaskId, resolveTaskIdForCommand } from "./cli/task-resolution.js"
 import { resolveForIssue } from "./cli/task-state.js"
+import { isTaskifyRun, taskifyCommand, readTaskifyMarker } from "./cli/taskify-command.js"
 import { needsLitellmProxy, anyStageNeedsProxy, getLitellmUrl, providerApiKeyEnvVar } from "./config.js"
 import type { KodyConfig } from "./config.js"
 
@@ -175,6 +176,24 @@ async function main() {
 
   const taskDir = path.join(projectDir, ".kody", "tasks", taskId)
   fs.mkdirSync(taskDir, { recursive: true })
+
+  // Taskify approve/resume — re-dispatch to taskifyCommand with feedback
+  if (input.command === "rerun" && isTaskifyRun(taskDir)) {
+    const marker = readTaskifyMarker(taskDir)
+    if (marker) {
+      logger.info(`Resuming taskify run for ${marker.ticketId ?? marker.prdFile} with PM feedback`)
+      await taskifyCommand({
+        ticketId: marker.ticketId,
+        prdFile: marker.prdFile,
+        issueNumber: marker.issueNumber ?? input.issueNumber,
+        feedback: input.feedback,
+        local: input.local,
+        projectDir,
+        taskId,
+      })
+      return
+    }
+  }
 
   // Status command — no preflight needed
   if (input.command === "status") {

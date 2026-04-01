@@ -3,7 +3,8 @@
  * Run by the parse job in GitHub Actions.
  * Reads from env, writes to $GITHUB_OUTPUT.
  *
- * Supports all modes: full, rerun, fix, fix-ci, status, approve, review, resolve, bootstrap
+ * Supports all modes: full, rerun, fix, fix-ci, status, approve, review, resolve, bootstrap, taskify
+ * Supports flags: --from, --feedback (quoted), --complexity, --dry-run, --ci-run-id, --ticket
  * Supports flags: --from, --feedback (quoted), --complexity, --dry-run, --ci-run-id
  */
 
@@ -18,6 +19,8 @@ export interface ParseResult {
   feedback: string
   complexity: string
   ci_run_id: string
+  ticket_id: string
+  prd_file: string
   dry_run: boolean
   valid: boolean
   trigger_type: string
@@ -25,7 +28,7 @@ export interface ParseResult {
 
 const VALID_MODES = [
   "full", "rerun", "fix", "fix-ci", "status",
-  "approve", "review", "resolve", "bootstrap",
+  "approve", "review", "resolve", "bootstrap", "taskify",
 ] as const
 
 function generateTimestamp(): string {
@@ -59,6 +62,8 @@ export function parseCommentInputs(): ParseResult {
       feedback: process.env.INPUT_FEEDBACK ?? "",
       complexity: "",
       ci_run_id: "",
+      ticket_id: "",
+      prd_file: "",
       dry_run: false,
       valid: !!taskId,
       trigger_type: "dispatch",
@@ -75,7 +80,7 @@ export function parseCommentInputs(): ParseResult {
   if (!kodyMatch) {
     return {
       task_id: "", mode: "full", from_stage: "", issue_number: issueNumber,
-      pr_number: "", feedback: "", complexity: "", ci_run_id: "",
+      pr_number: "", feedback: "", complexity: "", ci_run_id: "", ticket_id: "", prd_file: "",
       dry_run: false, valid: false, trigger_type: "comment",
     }
   }
@@ -89,6 +94,8 @@ export function parseCommentInputs(): ParseResult {
   let complexity = ""
   let dryRun = false
   let ciRunId = ""
+  let ticketId = ""
+  let prdFile = ""
 
   // Extract --from
   const fromMatch = argsLine.match(/--from\s+(\S+)/)
@@ -109,6 +116,14 @@ export function parseCommentInputs(): ParseResult {
   const ciRunIdMatch = argsLine.match(/--ci-run-id\s+(\S+)/)
   if (ciRunIdMatch) ciRunId = ciRunIdMatch[1]
 
+  // Extract --ticket
+  const ticketMatch = argsLine.match(/--ticket\s+(\S+)/)
+  if (ticketMatch) ticketId = ticketMatch[1]
+
+  // Extract --file
+  const fileMatch = argsLine.match(/--file\s+(\S+)/)
+  if (fileMatch) prdFile = fileMatch[1]
+
   // ─── Strip flags to get positional args ───────────────────────────────
   const positional = argsLine
     .replace(/--from\s+\S+/g, "")
@@ -116,6 +131,8 @@ export function parseCommentInputs(): ParseResult {
     .replace(/--complexity\s+\S+/g, "")
     .replace(/--dry-run/g, "")
     .replace(/--ci-run-id\s+\S+/g, "")
+    .replace(/--ticket\s+\S+/g, "")
+    .replace(/--file\s+\S+/g, "")
     .replace(/\s+/g, " ")
     .trim()
 
@@ -179,6 +196,11 @@ export function parseCommentInputs(): ParseResult {
     taskId = `bootstrap-${generateTimestamp()}`
   }
 
+  // taskify: auto-generate task-id
+  if (mode === "taskify") {
+    taskId = `taskify-${issueNumber}-${generateTimestamp()}`
+  }
+
   // PR detection
   const prNumber = isPR ? issueNumber : ""
 
@@ -196,6 +218,15 @@ export function parseCommentInputs(): ParseResult {
   const modesWithoutTaskId = ["fix", "fix-ci", "status", "review", "resolve", "rerun"]
   const valid = !!taskId || modesWithoutTaskId.includes(mode)
 
+  // Validate taskify has a ticket id or prd file
+  if (mode === "taskify" && !ticketId && !prdFile) {
+    return {
+      task_id: taskId, mode, from_stage: fromStage, issue_number: issueNumber,
+      pr_number: "", feedback, complexity, ci_run_id: ciRunId, ticket_id: "", prd_file: "",
+      dry_run: dryRun, valid: false, trigger_type: "comment" as const,
+    }
+  }
+
   return {
     task_id: taskId,
     mode,
@@ -205,6 +236,8 @@ export function parseCommentInputs(): ParseResult {
     feedback,
     complexity,
     ci_run_id: ciRunId,
+    ticket_id: ticketId,
+    prd_file: prdFile,
     dry_run: dryRun,
     valid,
     trigger_type: "comment",
@@ -238,6 +271,8 @@ export function writeOutputs(result: ParseResult): void {
   output("feedback", result.feedback)
   output("complexity", result.complexity)
   output("ci_run_id", result.ci_run_id)
+  output("ticket_id", result.ticket_id)
+  output("prd_file", result.prd_file)
   output("dry_run", result.dry_run ? "true" : "false")
   output("valid", result.valid ? "true" : "false")
   output("trigger_type", result.trigger_type)

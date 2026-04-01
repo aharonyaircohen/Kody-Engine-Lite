@@ -1,4 +1,4 @@
-import type { McpConfig } from "./config.js"
+import type { McpConfig, KodyConfig } from "./config.js"
 
 const DEFAULT_MCP_STAGES = ["build", "verify", "review", "review-fix"]
 
@@ -51,6 +51,61 @@ export function buildMcpConfigJson(mcpConfig: McpConfig | undefined): string | u
     }
   }
   return JSON.stringify(config)
+}
+
+import type { McpServerConfig } from "./config.js"
+
+/**
+ * Resolve `${VAR}` placeholders in MCP server env values using process.env.
+ * Throws if a referenced variable is not set.
+ */
+export function resolveMcpEnvVars(
+  servers: Record<string, McpServerConfig>,
+): Record<string, McpServerConfig> {
+  const resolved: Record<string, McpServerConfig> = {}
+  for (const [name, server] of Object.entries(servers)) {
+    const env: Record<string, string> = {}
+    for (const [k, v] of Object.entries(server.env ?? {})) {
+      env[k] = v.replace(/\$\{(\w+)\}/g, (_, varName: string) => {
+        const val = process.env[varName]
+        if (!val) {
+          throw new Error(
+            `MCP env var \$\{${varName}\} is not set (required by MCP server '${name}'). ` +
+            `Add it as a GitHub secret and it will be forwarded automatically.`,
+          )
+        }
+        return val
+      })
+    }
+    resolved[name] = { ...server, ...(Object.keys(env).length > 0 ? { env } : {}) }
+  }
+  return resolved
+}
+
+/**
+ * Build the MCP config JSON string for the `kody taskify` command.
+ * Uses only the servers defined in config.mcp.servers — no defaults injected.
+ * Resolves all ${VAR} env placeholders — throws if any are missing.
+ * Throws if no MCP servers are configured (taskify requires at least one to fetch the ticket).
+ */
+export function buildTaskifyMcpConfigJson(config: KodyConfig): string {
+  const servers = config.mcp?.servers ?? {}
+  if (Object.keys(servers).length === 0) {
+    throw new Error(
+      "kody taskify requires at least one MCP server configured in kody.config.json under mcp.servers. " +
+      "Add your task management tool's MCP server there.",
+    )
+  }
+  const resolvedServers = resolveMcpEnvVars(servers)
+  const mcpServers: Record<string, unknown> = {}
+  for (const [name, server] of Object.entries(resolvedServers)) {
+    mcpServers[name] = {
+      command: server.command,
+      args: server.args ?? [],
+      ...(server.env ? { env: server.env } : {}),
+    }
+  }
+  return JSON.stringify({ mcpServers })
 }
 
 /**

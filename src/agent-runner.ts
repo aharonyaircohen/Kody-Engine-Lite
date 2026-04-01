@@ -123,11 +123,14 @@ export function createClaudeCodeRunner(): AgentRunner {
         "--print",
         "--model", model,
         "--dangerously-skip-permissions",
-        "--allowedTools", "Bash,Edit,Read,Write,Glob,Grep",
       ]
 
       if (options?.mcpConfigJson) {
+        // When MCP servers are configured, omit --allowedTools so MCP tools
+        // (whose names are dynamic) are accessible alongside built-in tools.
         args.push("--mcp-config", options.mcpConfigJson)
+      } else {
+        args.push("--allowedTools", "Bash,Edit,Read,Write,Glob,Grep")
       }
 
       if (options?.sessionId) {

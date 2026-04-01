@@ -61,6 +61,8 @@ jobs:
       pr_number: ${{ steps.parse.outputs.pr_number }}
       feedback: ${{ steps.parse.outputs.feedback }}
       ci_run_id: ${{ steps.parse.outputs.ci_run_id }}
+      ticket_id: ${{ steps.parse.outputs.ticket_id }}
+      prd_file: ${{ steps.parse.outputs.prd_file }}
       valid: ${{ steps.parse.outputs.valid }}
     steps:
       - uses: actions/setup-node@v4
@@ -106,10 +108,12 @@ jobs:
           TASK_ID=$(echo "$KODY_ARGS" | awk '{print $2}')
           FROM_STAGE=$(echo "$KODY_ARGS" | grep -oP '(?<=--from )\S+' || echo "")
           FEEDBACK=$(echo "$KODY_ARGS" | grep -oP '(?<=--feedback ")[^"]*' || echo "")
+          TICKET_ID=$(echo "$KODY_ARGS" | grep -oP '(?<=--ticket )\S+' || echo "")
+          PRD_FILE=$(echo "$KODY_ARGS" | grep -oP '(?<=--file )\S+' || echo "")
 
           # Validate mode
           case "$MODE" in
-            full|rerun|fix|fix-ci|status|approve|review) ;;
+            full|rerun|fix|fix-ci|status|approve|review|taskify) ;;
             *)
               # If first arg isn't a mode, it might be a task-id or nothing
               if [ -n "$MODE" ] && [ "$MODE" != "" ]; then
@@ -143,9 +147,19 @@ jobs:
             CI_RUN_ID=$(echo "$FIX_CI_BODY" | grep -oP 'Run ID:\s*\K\d+' || echo "")
           fi
 
+          # taskify: auto-generate task-id
+          if [ "$MODE" = "taskify" ]; then
+            TASK_ID="taskify-${ISSUE_NUM}-$(date +%y%m%d-%H%M%S)"
+            if [ -z "$TICKET_ID" ] && [ -z "$PRD_FILE" ]; then
+              echo "valid=false" >> $GITHUB_OUTPUT
+              echo "taskify requires --ticket <ticket-id> or --file <path>" >&2
+              exit 0
+            fi
+          fi
+
           # Detect if this comment is on a PR (PRs are issues in GitHub API)
           PR_NUMBER=""
-          if [ -n "${{ github.event.issue.pull_request }}" ]; then
+          if [ -n "${{ github.event.issue.pull_request.url }}" ]; then
             PR_NUMBER="$ISSUE_NUM"
           fi
 
@@ -165,6 +179,8 @@ jobs:
             echo "KODY_EOF"
           } >> $GITHUB_OUTPUT
           echo "ci_run_id=${CI_RUN_ID:-}" >> $GITHUB_OUTPUT
+          echo "ticket_id=${TICKET_ID:-}" >> $GITHUB_OUTPUT
+          echo "prd_file=${PRD_FILE:-}" >> $GITHUB_OUTPUT
           echo "valid=true" >> $GITHUB_OUTPUT
 
   # ─── Orchestrate ─────────────────────────────────────────────────────────────
@@ -225,21 +241,32 @@ jobs:
           PR_NUMBER: ${{ needs.parse.outputs.pr_number }}
           FEEDBACK: ${{ github.event.inputs.feedback || needs.parse.outputs.feedback }}
           CI_RUN_ID: ${{ needs.parse.outputs.ci_run_id }}
+          TICKET_ID: ${{ needs.parse.outputs.ticket_id }}
+          PRD_FILE: ${{ needs.parse.outputs.prd_file }}
           DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          CMD="run"
-          [ "$MODE" = "rerun" ] && CMD="rerun"
-          [ "$MODE" = "fix" ] && CMD="fix"
-          [ "$MODE" = "fix-ci" ] && CMD="fix-ci"
-          [ "$MODE" = "review" ] && CMD="review"
-          ARGS="--task-id $TASK_ID"
-          [ -n "$ISSUE_NUMBER" ] && ARGS="$ARGS --issue-number $ISSUE_NUMBER"
-          [ -n "$PR_NUMBER" ] && ARGS="$ARGS --pr-number $PR_NUMBER"
-          [ -n "$FROM_STAGE" ] && ARGS="$ARGS --from $FROM_STAGE"
-          [ -n "$FEEDBACK" ] && ARGS="$ARGS --feedback \"$FEEDBACK\""
-          [ "$DRY_RUN" = "true" ] && ARGS="$ARGS --dry-run"
-          kody-engine-lite $CMD $ARGS
+          if [ "$MODE" = "taskify" ]; then
+            ARGS=""
+            [ -n "$TICKET_ID" ] && ARGS="$ARGS --ticket $TICKET_ID"
+            [ -n "$PRD_FILE" ] && ARGS="$ARGS --file $PRD_FILE"
+            [ -n "$ISSUE_NUMBER" ] && ARGS="$ARGS --issue-number $ISSUE_NUMBER"
+            [ -n "$TASK_ID" ] && ARGS="$ARGS --task-id $TASK_ID"
+            kody-engine-lite taskify $ARGS
+          else
+            CMD="run"
+            [ "$MODE" = "rerun" ] && CMD="rerun"
+            [ "$MODE" = "fix" ] && CMD="fix"
+            [ "$MODE" = "fix-ci" ] && CMD="fix-ci"
+            [ "$MODE" = "review" ] && CMD="review"
+            ARGS="--task-id $TASK_ID"
+            [ -n "$ISSUE_NUMBER" ] && ARGS="$ARGS --issue-number $ISSUE_NUMBER"
+            [ -n "$PR_NUMBER" ] && ARGS="$ARGS --pr-number $PR_NUMBER"
+            [ -n "$FROM_STAGE" ] && ARGS="$ARGS --from $FROM_STAGE"
+            [ -n "$FEEDBACK" ] && ARGS="$ARGS --feedback \"$FEEDBACK\""
+            [ "$DRY_RUN" = "true" ] && ARGS="$ARGS --dry-run"
+            kody-engine-lite $CMD $ARGS
+          fi
 
       - name: Pipeline summary
         if: always()
