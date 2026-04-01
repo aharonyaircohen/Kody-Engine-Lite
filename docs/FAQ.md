@@ -49,10 +49,10 @@ Two mechanisms: (1) **Shared sessions** — stages in the same group (e.g., task
 ## Pipeline
 
 **Q: What if the pipeline fails?**
-Kody posts a failure comment on the issue with the failing stage and error. Rerun with `@kody rerun` or `@kody rerun --from <stage>`.
+Kody posts a failure comment on the issue with the failing stage and error. Check [Troubleshooting](TROUBLESHOOTING.md) for diagnosis classifications (fixable/infrastructure/pre-existing/retry/abort) and how to respond. Rerun with `@kody rerun` or `@kody rerun --from <stage>`.
 
 **Q: Can I skip specific stages?**
-Use `--from <stage>` to start from a specific stage. Use `--complexity low` to skip plan/review. Or rerun from a specific stage after failure.
+Use `--from <stage>` to start from a specific stage. Use `--complexity low` to skip plan/review. Or rerun from a specific stage after failure. See [Troubleshooting](TROUBLESHOOTING.md#when-to-kody-rerun-vs-kody-vs-kody-rerun---from-stage) for guidance on choosing between `@kody rerun`, `@kody`, and `--from <stage>`.
 
 **Q: What if Kody asks questions I don't want to answer?**
 Comment `@kody approve` without answers — it will proceed with its best judgment.

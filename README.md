@@ -158,7 +158,7 @@ kody-engine-lite rerun --issue-number 42 --from verify
 
 **Set up & use:** [CLI](docs/CLI.md) · [Configuration](docs/CONFIGURATION.md) · [Bootstrap](docs/BOOTSTRAP.md) · [LiteLLM](docs/LITELLM.md)
 
-**Reference:** [Architecture](docs/ARCHITECTURE.md) · [FAQ](docs/FAQ.md)
+**Reference:** [Architecture](docs/ARCHITECTURE.md) · [FAQ](docs/FAQ.md) · [Troubleshooting](docs/TROUBLESHOOTING.md)
 
 ## License
 
