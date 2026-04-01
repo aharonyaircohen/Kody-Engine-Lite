@@ -69,7 +69,7 @@ async function ensureLitellmProxy(
 }
 
 async function runModelHealthCheck(config: KodyConfig): Promise<void> {
-  const usesProxy = needsLitellmProxy(config)
+  const usesProxy = anyStageNeedsProxy(config)
   const baseUrl = usesProxy ? getLitellmUrl() : "https://api.anthropic.com"
   const apiKey = usesProxy
     ? process.env.ANTHROPIC_COMPATIBLE_API_KEY
