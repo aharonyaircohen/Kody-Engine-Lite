@@ -19,6 +19,16 @@ The product spec is provided below:
 ```
 {{/if}}
 
+{{#if ISSUE_BODY}}
+**Mode: issue**
+
+The task description from the GitHub issue is provided below. Decompose it into scoped, independently implementable sub-tasks.
+
+```
+{{ISSUE_BODY}}
+```
+{{/if}}
+
 {{#if PROJECT_CONTEXT}}
 ## Existing codebase
 

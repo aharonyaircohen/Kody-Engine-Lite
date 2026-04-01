@@ -85,13 +85,15 @@ describe("parseCommentInputs — taskify mode", () => {
     expect(result.valid).toBe(true)
   })
 
-  it("is invalid when both --ticket and --file are missing", () => {
+  it("is valid with just issue body (no --ticket or --file) — uses inline description mode", () => {
     vi.stubEnv("COMMENT_BODY", "@kody taskify")
+    vi.stubEnv("ISSUE_NUMBER", "42")
     const result = parseCommentInputs()
     expect(result.mode).toBe("taskify")
     expect(result.ticket_id).toBe("")
     expect(result.prd_file).toBe("")
-    expect(result.valid).toBe(false)
+    // Valid because issue body will be used as the description
+    expect(result.valid).toBe(true)
   })
 
   it("parses @kody taskify --file docs/prd.md", () => {

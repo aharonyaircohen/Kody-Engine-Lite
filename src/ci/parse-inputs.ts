@@ -217,14 +217,8 @@ export function parseCommentInputs(): ParseResult {
   const modesWithoutTaskId = ["fix", "fix-ci", "status", "review", "resolve", "rerun"]
   const valid = !!taskId || modesWithoutTaskId.includes(mode)
 
-  // Validate taskify has a ticket id or prd file
-  if (mode === "taskify" && !ticketId && !prdFile) {
-    return {
-      task_id: taskId, mode, from_stage: fromStage, issue_number: issueNumber,
-      pr_number: "", feedback, complexity, ci_run_id: ciRunId, ticket_id: "", prd_file: "",
-      dry_run: dryRun, valid: false, trigger_type: "comment" as const,
-    }
-  }
+  // taskify is valid with just the issue body (inline mode), ticket, or prd file
+  // No validation needed — the taskify command itself will use the issue body if no ticket/file
 
   return {
     task_id: taskId,

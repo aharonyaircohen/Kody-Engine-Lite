@@ -16,6 +16,7 @@ import { createClaudeCodeRunner } from "../agent-runner.js"
 import { buildTaskifyMcpConfigJson } from "../mcp-config.js"
 import {
   createIssue,
+  getIssue,
   postComment,
   setLifecycleLabel,
   setGhCwd,
@@ -135,10 +136,11 @@ export async function runTaskifyCommand(): Promise<void> {
   const taskIdArg = getArg(args, "--task-id") ?? process.env.TASK_ID
   const taskId = taskIdArg ?? (issueNumber ? `taskify-${issueNumber}-${generateTaskId()}` : `taskify-${generateTaskId()}`)
 
-  if (!ticketId && !prdFile) {
-    logger.error("Usage: kody taskify --ticket <ticket-id>  OR  kody taskify --file <prd.md>")
+  if (!ticketId && !prdFile && !issueNumber) {
+    logger.error("Usage: kody taskify --ticket <ticket-id>  OR  kody taskify --file <prd.md>  OR  kody taskify --issue-number <n>")
     process.exit(1)
   }
+  // If only issue-number is provided, taskify will use the issue body as the description
 
   if (prdFile && !fs.existsSync(prdFile)) {
     logger.error(`File not found: ${prdFile}`)
@@ -190,8 +192,8 @@ export async function taskifyCommand(opts: TaskifyOptions): Promise<void> {
   const taskDir = path.join(projectDir, ".kody", "tasks", taskId)
   fs.mkdirSync(taskDir, { recursive: true })
 
-  const mode = prdFile ? "file" : "ticket"
-  logger.info(`[taskify] mode=${mode} source=${ticketId ?? prdFile} issue=${issueNumber ?? "none"} task=${taskId}`)
+  const mode = prdFile ? "file" : ticketId ? "ticket" : "issue"
+  logger.info(`[taskify] mode=${mode} source=${ticketId ?? prdFile ?? `issue#${issueNumber}`} issue=${issueNumber ?? "none"} task=${taskId}`)
 
   // MCP config — only required for ticket mode
   let mcpConfigJson: string | undefined
@@ -216,6 +218,18 @@ export async function taskifyCommand(opts: TaskifyOptions): Promise<void> {
   // Read PRD file content if in file mode
   const fileContent = prdFile ? fs.readFileSync(prdFile, "utf-8") : undefined
 
+  // Fetch issue body if in issue mode (no ticket or file provided)
+  let issueBody: string | undefined
+  if (mode === "issue" && issueNumber) {
+    const issue = getIssue(issueNumber)
+    if (issue) {
+      issueBody = `# ${issue.title}\n\n${issue.body}`
+      logger.info(`  Fetched issue #${issueNumber} body (${issueBody.length} chars)`)
+    } else {
+      throw new TaskifyError(`Could not fetch issue #${issueNumber}`)
+    }
+  }
+
   // Build project context: memory file + git file tree
   let projectContext: string | undefined
   {
@@ -239,11 +253,11 @@ export async function taskifyCommand(opts: TaskifyOptions): Promise<void> {
   }
 
   // Build prompt from template
-  const prompt = buildPrompt({ ticketId, fileContent, taskDir, feedback, projectContext })
+  const prompt = buildPrompt({ ticketId, fileContent, issueBody, taskDir, feedback, projectContext })
 
   // Post starting comment
   if (issueNumber && !local) {
-    const src = mode === "file" ? `file \`${path.basename(prdFile!)}\`` : `ticket **${ticketId}**`
+    const src = mode === "file" ? `file \`${path.basename(prdFile!)}\`` : mode === "ticket" ? `ticket **${ticketId}**` : `issue #${issueNumber} description`
     const runUrl = process.env.RUN_URL ? ` ([logs](${process.env.RUN_URL}))` : ""
     postComment(issueNumber, `🚀 Kody pipeline started: \`${taskId}\`${runUrl}\n\nKody is decomposing ${src} into tasks...`)
     setLifecycleLabel(issueNumber, "planning")
@@ -295,7 +309,7 @@ export async function taskifyCommand(opts: TaskifyOptions): Promise<void> {
     throw new TaskifyError(errMsg)
   }
 
-  const sourceLabel = ticketId ?? (prdFile ? path.basename(prdFile) : "spec")
+  const sourceLabel = ticketId ?? (prdFile ? path.basename(prdFile) : issueNumber ? `issue #${issueNumber}` : "spec")
 
   if (parsed.status === "questions") {
     handleQuestions(parsed, sourceLabel, issueNumber, local ?? false)
@@ -413,13 +427,14 @@ async function handleTasks(
 interface BuildPromptOpts {
   ticketId?: string
   fileContent?: string
+  issueBody?: string
   taskDir: string
   feedback?: string
   projectContext?: string
 }
 
 function buildPrompt(opts: BuildPromptOpts): string {
-  const { ticketId, fileContent, taskDir, feedback, projectContext } = opts
+  const { ticketId, fileContent, issueBody, taskDir, feedback, projectContext } = opts
 
   const scriptDir = new URL(".", import.meta.url).pathname
   const candidates = [
@@ -454,6 +469,7 @@ function buildPrompt(opts: BuildPromptOpts): string {
   resolveBlock("PROJECT_CONTEXT", projectContext)
   resolveBlock("TICKET_ID", ticketId)
   resolveBlock("FILE_CONTENT", fileContent)
+  resolveBlock("ISSUE_BODY", issueBody)
   resolveBlock("FEEDBACK", feedback)
 
   template = template.replace(/\{\{TASK_DIR\}\}/g, taskDir)
