@@ -11,7 +11,7 @@ import * as path from "path"
 import { fileURLToPath } from "url"
 import { execSync } from "child_process"
 
-import { getProjectConfig, resolveStageConfig, setConfigDir } from "../config.js"
+import { getProjectConfig, resolveStageConfig, setConfigDir, needsLitellmProxy, anyStageNeedsProxy, getLitellmUrl, providerApiKeyEnvVar } from "../config.js"
 import { createClaudeCodeRunner } from "../agent-runner.js"
 import { buildTaskifyMcpConfigJson } from "../mcp-config.js"
 import {
@@ -22,6 +22,7 @@ import {
 } from "../github-api.js"
 import { logger } from "../logger.js"
 import { generateTaskId } from "./task-resolution.js"
+import { checkLitellmHealth, tryStartLitellm, generateLitellmConfig, generateLitellmConfigFromStages } from "./litellm.js"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -94,6 +95,8 @@ export interface TaskifyOptions {
   taskId: string
   /** Optional runner override for testing */
   runner?: import("../types.js").AgentRunner
+  /** Extra env vars to pass to the runner (e.g. ANTHROPIC_BASE_URL for LiteLLM proxy) */
+  runnerEnv?: Record<string, string>
 }
 
 function getArg(args: string[], flag: string): string | undefined {
@@ -138,7 +141,31 @@ export async function runTaskifyCommand(): Promise<void> {
   setConfigDir(projectDir)
   setGhCwd(projectDir)
 
-  await taskifyCommand({ ticketId, prdFile, issueNumber, feedback, local, projectDir, taskId })
+  // Start LiteLLM proxy if needed (e.g. ANTHROPIC_COMPATIBLE_API_KEY provider)
+  const config = getProjectConfig()
+  let litellmProcess: { kill: () => void } | null = null
+  let runnerEnv: Record<string, string> | undefined
+  if (anyStageNeedsProxy(config)) {
+    const litellmUrl = getLitellmUrl()
+    const proxyRunning = await checkLitellmHealth(litellmUrl)
+    if (!proxyRunning) {
+      let generatedConfig: string | undefined
+      if (config.agent.stages || config.agent.default) {
+        generatedConfig = generateLitellmConfigFromStages(config.agent.default, config.agent.stages)
+      } else if (config.agent.provider && config.agent.provider !== "anthropic") {
+        generatedConfig = generateLitellmConfig(config.agent.provider, config.agent.modelMap)
+      }
+      litellmProcess = await tryStartLitellm(litellmUrl, projectDir, generatedConfig)
+    }
+    runnerEnv = {
+      ANTHROPIC_BASE_URL: litellmUrl,
+      ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || "dummy",
+    }
+  }
+
+  await taskifyCommand({ ticketId, prdFile, issueNumber, feedback, local, projectDir, taskId, runnerEnv })
+
+  litellmProcess?.kill()
 }
 
 export async function taskifyCommand(opts: TaskifyOptions): Promise<void> {
@@ -216,6 +243,7 @@ export async function taskifyCommand(opts: TaskifyOptions): Promise<void> {
   const result = await runner.run("taskify", prompt, model, TASKIFY_TIMEOUT_MS, taskDir, {
     cwd: projectDir,
     mcpConfigJson,
+    env: opts.runnerEnv,
   })
 
   if (result.outcome !== "completed") {
