@@ -1,0 +1,15 @@
+```json
+{
+  "task_type": "docs",
+  "title": "Add troubleshooting guide for common pipeline issues",
+  "description": "Create comprehensive troubleshooting documentation covering: reading status.json to understand pipeline state, inspecting artifacts in .kody/tasks/, common failure modes and fixes (stuck pipeline, auth errors, timeout), diagnosis classifications with real examples, CI-specific permission/secret/timeout issues, and guidance on when to use @kody rerun vs @kody vs @kody rerun --from <stage>. Link from README docs section and FAQ.",
+  "scope": [
+    "docs/TROUBLESHOOTING.md",
+    "README.md",
+    "docs/FAQ.md"
+  ],
+  "risk_level": "low",
+  "hasUI": false,
+  "questions": []
+}
+```
