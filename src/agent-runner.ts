@@ -125,12 +125,20 @@ export function createClaudeCodeRunner(): AgentRunner {
         "--dangerously-skip-permissions",
       ]
 
+      // Built-in tools that pipeline agents need
+      const baseTools = "Bash,Edit,Read,Write,Glob,Grep"
+
       if (options?.mcpConfigJson) {
-        // When MCP servers are configured, omit --allowedTools so MCP tools
-        // (whose names are dynamic) are accessible alongside built-in tools.
         args.push("--mcp-config", options.mcpConfigJson)
+        // MCP tool names are dynamic (mcp__{server}__{tool}) and cannot be
+        // enumerated at config time. Claude Code CLI does not support wildcard
+        // patterns in --allowedTools, so we must omit the flag entirely when
+        // MCP servers are present. This gives the agent access to all tools
+        // (including Agent, WebFetch, WebSearch). The prompt controls behavior;
+        // --dangerously-skip-permissions is already in use.
+        // TODO: revisit if Claude Code CLI adds prefix/glob support for --allowedTools
       } else {
-        args.push("--allowedTools", "Bash,Edit,Read,Write,Glob,Grep")
+        args.push("--allowedTools", baseTools)
       }
 
       if (options?.sessionId) {

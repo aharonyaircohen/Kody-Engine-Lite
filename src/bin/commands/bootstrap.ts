@@ -5,6 +5,7 @@ import { execFileSync } from "child_process"
 import { detectArchitectureBasic } from "../architecture-detection.js"
 import { discoverQaContext, generateQaGuide } from "../qa-guide.js"
 import { installSkillsForProject } from "../skills.js"
+import { getProjectConfig, resolveStageConfig, setConfigDir } from "../../config.js"
 
 export const STEP_STAGES = ["taskify", "plan", "build", "autofix", "review", "review-fix"] as const
 
@@ -77,7 +78,9 @@ function ghComment(issueNumber: number, body: string, cwd: string): void {
 
 export function bootstrapCommand(opts: { force: boolean }, pkgRoot: string) {
   const cwd = process.cwd()
+  setConfigDir(cwd)
   const issueNumber = parseInt(process.env.ISSUE_NUMBER ?? "", 10) || 0
+  const bootstrapModel = resolveStageConfig(getProjectConfig(), "bootstrap", "cheap").model
   console.log(`\n🔧 Kody Bootstrap — Generating project memory + step files\n`)
 
   if (issueNumber) {
@@ -184,7 +187,7 @@ ${repoContext}`
   try {
     const output = execFileSync("claude", [
       "--print",
-      "--model", "claude-haiku-4-5-20251001",
+      "--model", bootstrapModel,
       "--dangerously-skip-permissions",
       memoryPrompt,
     ], {
@@ -299,7 +302,7 @@ REMINDER: Output the full prompt template first (unchanged), then your three app
     try {
       const output = execFileSync("claude", [
         "--print",
-        "--model", "claude-haiku-4-5-20251001",
+        "--model", bootstrapModel,
         "--dangerously-skip-permissions",
         customizationPrompt,
       ], {

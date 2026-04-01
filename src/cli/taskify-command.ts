@@ -26,6 +26,13 @@ import { checkLitellmHealth, tryStartLitellm, generateLitellmConfig, generateLit
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+export class TaskifyError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = "TaskifyError"
+  }
+}
+
 const AUTO_TRIGGER_THRESHOLD = 5
 const MAX_TASKS_GUARD = 20
 const TASKIFY_TIMEOUT_MS = 5 * 60 * 1000  // 5 minutes
@@ -163,9 +170,17 @@ export async function runTaskifyCommand(): Promise<void> {
     }
   }
 
-  await taskifyCommand({ ticketId, prdFile, issueNumber, feedback, local, projectDir, taskId, runnerEnv })
-
-  litellmProcess?.kill()
+  try {
+    await taskifyCommand({ ticketId, prdFile, issueNumber, feedback, local, projectDir, taskId, runnerEnv })
+  } catch (err) {
+    if (err instanceof TaskifyError) {
+      logger.error(`[taskify] ${err.message}`)
+      process.exit(1)
+    }
+    throw err
+  } finally {
+    litellmProcess?.kill()
+  }
 }
 
 export async function taskifyCommand(opts: TaskifyOptions): Promise<void> {
@@ -185,13 +200,12 @@ export async function taskifyCommand(opts: TaskifyOptions): Promise<void> {
       mcpConfigJson = buildTaskifyMcpConfigJson(config)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      logger.error(`[taskify] MCP config error: ${msg}`)
       if (issueNumber && !local) {
         postComment(issueNumber,
           `Kody could not start the taskify command:\n\n> ${msg}\n\nAdd the required MCP server config to \`kody.config.json\` and try again.`,
         )
       }
-      process.exit(1)
+      throw new TaskifyError(`MCP config error: ${msg}`)
     }
   }
 
@@ -251,24 +265,22 @@ export async function taskifyCommand(opts: TaskifyOptions): Promise<void> {
     const errMsg = result.outcome === "timed_out"
       ? "Taskify timed out after 5 minutes."
       : `Taskify failed: ${result.error}`
-    logger.error(`[taskify] ${errMsg}`)
     if (issueNumber && !local) {
       postComment(issueNumber, `Kody taskify failed:\n\n> ${errMsg}`)
       setLifecycleLabel(issueNumber, "failed")
     }
-    process.exit(1)
+    throw new TaskifyError(errMsg)
   }
 
   // Parse result file
   const resultPath = path.join(taskDir, RESULT_FILE)
   if (!fs.existsSync(resultPath)) {
     const errMsg = `Claude did not write ${RESULT_FILE}. Output:\n\n${result.output?.slice(0, 500) ?? "(none)"}`
-    logger.error(`[taskify] ${errMsg}`)
     if (issueNumber && !local) {
       postComment(issueNumber, `Kody taskify failed: result file not found.\n\n${errMsg}`)
       setLifecycleLabel(issueNumber, "failed")
     }
-    process.exit(1)
+    throw new TaskifyError(errMsg)
   }
 
   let parsed: TaskifyResult
@@ -276,12 +288,11 @@ export async function taskifyCommand(opts: TaskifyOptions): Promise<void> {
     parsed = JSON.parse(fs.readFileSync(resultPath, "utf-8")) as TaskifyResult
   } catch {
     const errMsg = `Could not parse ${RESULT_FILE} as JSON.`
-    logger.error(`[taskify] ${errMsg}`)
     if (issueNumber && !local) {
       postComment(issueNumber, `Kody taskify failed: ${errMsg}`)
       setLifecycleLabel(issueNumber, "failed")
     }
-    process.exit(1)
+    throw new TaskifyError(errMsg)
   }
 
   const sourceLabel = ticketId ?? (prdFile ? path.basename(prdFile) : "spec")
@@ -292,12 +303,11 @@ export async function taskifyCommand(opts: TaskifyOptions): Promise<void> {
     await handleTasks(parsed, sourceLabel, issueNumber, local ?? false)
   } else {
     const errMsg = `Unexpected status in ${RESULT_FILE}: ${JSON.stringify(parsed)}`
-    logger.error(`[taskify] ${errMsg}`)
     if (issueNumber && !local) {
       postComment(issueNumber, `Kody taskify failed: ${errMsg}`)
       setLifecycleLabel(issueNumber, "failed")
     }
-    process.exit(1)
+    throw new TaskifyError(errMsg)
   }
 }
 

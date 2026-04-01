@@ -85,19 +85,19 @@ describe("resolveModel", () => {
   afterEach(() => resetProjectConfig())
 
   it("maps tier to default model name", () => {
-    // Use empty config dir so defaults (haiku/sonnet/opus) apply
+    // Use empty config dir so defaults apply
     const emptyDir = fs.mkdtempSync(path.join(os.tmpdir(), "kody-defaults-"))
     setConfigDir(emptyDir)
-    expect(resolveModel("cheap")).toBe("haiku")
-    expect(resolveModel("mid")).toBe("sonnet")
-    expect(resolveModel("strong")).toBe("opus")
+    expect(resolveModel("cheap")).toBe("claude-haiku-4-5-20251001")
+    expect(resolveModel("mid")).toBe("claude-sonnet-4-6")
+    expect(resolveModel("strong")).toBe("claude-opus-4-6")
     fs.rmSync(emptyDir, { recursive: true, force: true })
   })
 
-  it("falls back to sonnet for unknown tier", () => {
+  it("throws for unknown tier with no config fallback", () => {
     const emptyDir = fs.mkdtempSync(path.join(os.tmpdir(), "kody-defaults-"))
     setConfigDir(emptyDir)
-    expect(resolveModel("unknown")).toBe("sonnet")
+    expect(() => resolveModel("unknown")).toThrow("No model configured for tier")
     fs.rmSync(emptyDir, { recursive: true, force: true })
   })
 

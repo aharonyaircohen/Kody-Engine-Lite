@@ -320,20 +320,13 @@ export function escalateModelTier(currentTier: string): string {
   return TIER_ESCALATION[currentTier] ?? "strong"
 }
 
-const DEFAULT_MODEL_MAP: Record<string, string> = {
-  cheap: "haiku",
-  mid: "sonnet",
-  strong: "opus",
-}
-
 export function resolveModel(modelTier: string, stageName?: string): string {
   const config = getProjectConfig()
 
   // Config modelMap is the single source of truth for model names.
-  // For non-Anthropic providers, LiteLLM maps these names to provider routes.
   const mapped = config.agent.modelMap[modelTier]
-  if (mapped) return mapped
-
-  // Fallback to defaults
-  return DEFAULT_MODEL_MAP[modelTier] ?? "sonnet"
+  if (!mapped) {
+    throw new Error(`No model configured for tier '${modelTier}'. Set agent.modelMap.${modelTier} in kody.config.json`)
+  }
+  return mapped
 }

@@ -21,7 +21,7 @@ describe("config", () => {
     setConfigDir(tmpDir)
     const config = getProjectConfig()
     expect(config.git.defaultBranch).toBe("dev")
-    expect(config.agent.modelMap.cheap).toBe("haiku")
+    expect(config.agent.modelMap.cheap).toBe("claude-haiku-4-5-20251001")
     expect(config.agent.defaultRunner).toBeUndefined()
   })
 

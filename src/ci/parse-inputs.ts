@@ -4,8 +4,7 @@
  * Reads from env, writes to $GITHUB_OUTPUT.
  *
  * Supports all modes: full, rerun, fix, fix-ci, status, approve, review, resolve, bootstrap, taskify
- * Supports flags: --from, --feedback (quoted), --complexity, --dry-run, --ci-run-id, --ticket
- * Supports flags: --from, --feedback (quoted), --complexity, --dry-run, --ci-run-id
+ * Supports flags: --from, --feedback (quoted), --complexity, --dry-run, --ci-run-id, --ticket, --file
  */
 
 import * as fs from "fs"

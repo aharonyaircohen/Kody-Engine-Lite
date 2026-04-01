@@ -8,6 +8,7 @@ import { parseCommentInputs } from "../../src/ci/parse-inputs.js"
 import { resolveMcpEnvVars, buildTaskifyMcpConfigJson } from "../../src/mcp-config.js"
 import type { McpServerConfig } from "../../src/config.js"
 import type { AgentRunner, AgentResult } from "../../src/types.js"
+import { TaskifyError } from "../../src/cli/taskify-command.js"
 
 function createMockRunner(outcome: "completed" | "failed" = "completed"): AgentRunner {
   return {
@@ -376,7 +377,7 @@ describe("taskifyCommand", () => {
     expect(result?.issueNumber).toBe(7)
   })
 
-  it("ticket mode errors when no MCP servers configured", async () => {
+  it("ticket mode throws TaskifyError when no MCP servers configured", async () => {
     const taskId = "taskify-test-no-mcp"
     const taskDir = path.join(tmpDir, ".kody", "tasks", taskId)
     fs.mkdirSync(taskDir, { recursive: true })
@@ -391,14 +392,164 @@ describe("taskifyCommand", () => {
 
     const { taskifyCommand } = await import("../../src/cli/taskify-command.js")
 
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => { throw new Error("process.exit") })
-    try {
-      await taskifyCommand({ ticketId: "ENG-1", local: true, projectDir: tmpDir, taskId, runner: createMockRunner() })
-    } catch (e: unknown) {
-      expect((e as Error).message).toBe("process.exit")
+    await expect(
+      taskifyCommand({ ticketId: "ENG-1", local: true, projectDir: tmpDir, taskId, runner: createMockRunner() })
+    ).rejects.toThrow(TaskifyError)
+  })
+
+  it("throws TaskifyError when runner fails", async () => {
+    const taskId = "taskify-test-runner-fail"
+    const taskDir = path.join(tmpDir, ".kody", "tasks", taskId)
+    fs.mkdirSync(taskDir, { recursive: true })
+
+    fs.writeFileSync(path.join(tmpDir, "kody.config.json"), JSON.stringify({
+      quality: { typecheck: "true", lint: "", lintFix: "", formatFix: "", testUnit: "true" },
+      agent: { defaultRunner: "claude" },
+      mcp: { enabled: true, servers: { tm: { command: "npx" } } },
+    }))
+    resetProjectConfig()
+    setConfigDir(tmpDir)
+
+    const { taskifyCommand } = await import("../../src/cli/taskify-command.js")
+
+    await expect(
+      taskifyCommand({ ticketId: "ENG-1", local: true, projectDir: tmpDir, taskId, runner: createMockRunner("failed") })
+    ).rejects.toThrow("Taskify failed")
+  })
+
+  it("throws TaskifyError when runner times out", async () => {
+    const taskId = "taskify-test-timeout"
+    const taskDir = path.join(tmpDir, ".kody", "tasks", taskId)
+    fs.mkdirSync(taskDir, { recursive: true })
+
+    fs.writeFileSync(path.join(tmpDir, "kody.config.json"), JSON.stringify({
+      quality: { typecheck: "true", lint: "", lintFix: "", formatFix: "", testUnit: "true" },
+      agent: { defaultRunner: "claude" },
+      mcp: { enabled: true, servers: { tm: { command: "npx" } } },
+    }))
+    resetProjectConfig()
+    setConfigDir(tmpDir)
+
+    const timedOutRunner: AgentRunner = {
+      async run(): Promise<AgentResult> { return { outcome: "timed_out" } },
+      async healthCheck() { return true },
     }
-    expect(exitSpy).toHaveBeenCalledWith(1)
-    exitSpy.mockRestore()
+
+    const { taskifyCommand } = await import("../../src/cli/taskify-command.js")
+
+    await expect(
+      taskifyCommand({ ticketId: "ENG-1", local: true, projectDir: tmpDir, taskId, runner: timedOutRunner })
+    ).rejects.toThrow("timed out")
+  })
+
+  it("throws TaskifyError when result file is missing", async () => {
+    const taskId = "taskify-test-no-result"
+    const taskDir = path.join(tmpDir, ".kody", "tasks", taskId)
+    fs.mkdirSync(taskDir, { recursive: true })
+
+    fs.writeFileSync(path.join(tmpDir, "kody.config.json"), JSON.stringify({
+      quality: { typecheck: "true", lint: "", lintFix: "", formatFix: "", testUnit: "true" },
+      agent: { defaultRunner: "claude" },
+      mcp: { enabled: true, servers: { tm: { command: "npx" } } },
+    }))
+    resetProjectConfig()
+    setConfigDir(tmpDir)
+
+    // Runner succeeds but no result file is written
+    const { taskifyCommand } = await import("../../src/cli/taskify-command.js")
+
+    await expect(
+      taskifyCommand({ ticketId: "ENG-1", local: true, projectDir: tmpDir, taskId, runner: createMockRunner() })
+    ).rejects.toThrow("did not write")
+  })
+
+  it("throws TaskifyError when result file contains invalid JSON", async () => {
+    const taskId = "taskify-test-bad-json"
+    const taskDir = path.join(tmpDir, ".kody", "tasks", taskId)
+    fs.mkdirSync(taskDir, { recursive: true })
+    fs.writeFileSync(path.join(taskDir, "taskify-result.json"), "not valid json {{{")
+
+    fs.writeFileSync(path.join(tmpDir, "kody.config.json"), JSON.stringify({
+      quality: { typecheck: "true", lint: "", lintFix: "", formatFix: "", testUnit: "true" },
+      agent: { defaultRunner: "claude" },
+      mcp: { enabled: true, servers: { tm: { command: "npx" } } },
+    }))
+    resetProjectConfig()
+    setConfigDir(tmpDir)
+
+    const { taskifyCommand } = await import("../../src/cli/taskify-command.js")
+
+    await expect(
+      taskifyCommand({ ticketId: "ENG-1", local: true, projectDir: tmpDir, taskId, runner: createMockRunner() })
+    ).rejects.toThrow("Could not parse")
+  })
+
+  it("throws TaskifyError when result has unexpected status", async () => {
+    const taskId = "taskify-test-bad-status"
+    const taskDir = path.join(tmpDir, ".kody", "tasks", taskId)
+    fs.mkdirSync(taskDir, { recursive: true })
+    fs.writeFileSync(path.join(taskDir, "taskify-result.json"), JSON.stringify({ status: "banana" }))
+
+    fs.writeFileSync(path.join(tmpDir, "kody.config.json"), JSON.stringify({
+      quality: { typecheck: "true", lint: "", lintFix: "", formatFix: "", testUnit: "true" },
+      agent: { defaultRunner: "claude" },
+      mcp: { enabled: true, servers: { tm: { command: "npx" } } },
+    }))
+    resetProjectConfig()
+    setConfigDir(tmpDir)
+
+    const { taskifyCommand } = await import("../../src/cli/taskify-command.js")
+
+    await expect(
+      taskifyCommand({ ticketId: "ENG-1", local: true, projectDir: tmpDir, taskId, runner: createMockRunner() })
+    ).rejects.toThrow("Unexpected status")
+  })
+
+  it("handles status=questions without throwing", async () => {
+    const taskId = "taskify-test-questions"
+    const taskDir = path.join(tmpDir, ".kody", "tasks", taskId)
+    fs.mkdirSync(taskDir, { recursive: true })
+    fs.writeFileSync(path.join(taskDir, "taskify-result.json"), JSON.stringify({
+      status: "questions",
+      questions: ["What database should we use?", "Should we support mobile?"],
+    }))
+
+    fs.writeFileSync(path.join(tmpDir, "kody.config.json"), JSON.stringify({
+      quality: { typecheck: "true", lint: "", lintFix: "", formatFix: "", testUnit: "true" },
+      agent: { defaultRunner: "claude" },
+      mcp: { enabled: true, servers: { tm: { command: "npx" } } },
+    }))
+    resetProjectConfig()
+    setConfigDir(tmpDir)
+
+    const { taskifyCommand } = await import("../../src/cli/taskify-command.js")
+
+    await expect(
+      taskifyCommand({ ticketId: "ENG-1", local: true, projectDir: tmpDir, taskId, runner: createMockRunner() })
+    ).resolves.not.toThrow()
+  })
+
+  it("handles >MAX_TASKS_GUARD tasks without crashing (local mode)", async () => {
+    const taskId = "taskify-test-many-tasks"
+    const taskDir = path.join(tmpDir, ".kody", "tasks", taskId)
+    fs.mkdirSync(taskDir, { recursive: true })
+
+    const tasks = Array.from({ length: 25 }, (_, i) => ({ title: `Task ${i}`, body: `Body ${i}` }))
+    fs.writeFileSync(path.join(taskDir, "taskify-result.json"), JSON.stringify({ status: "ready", tasks }))
+
+    fs.writeFileSync(path.join(tmpDir, "kody.config.json"), JSON.stringify({
+      quality: { typecheck: "true", lint: "", lintFix: "", formatFix: "", testUnit: "true" },
+      agent: { defaultRunner: "claude" },
+      mcp: { enabled: true, servers: { tm: { command: "npx" } } },
+    }))
+    resetProjectConfig()
+    setConfigDir(tmpDir)
+
+    const { taskifyCommand } = await import("../../src/cli/taskify-command.js")
+
+    await expect(
+      taskifyCommand({ ticketId: "ENG-1", local: true, projectDir: tmpDir, taskId, runner: createMockRunner() })
+    ).resolves.not.toThrow()
   })
 })
 
@@ -899,6 +1050,6 @@ function getMinimalConfig(tmpDir: string) {
     quality: { typecheck: "true", lint: "", lintFix: "", formatFix: "", testUnit: "true" },
     git: { defaultBranch: "main" },
     github: { owner: "test", repo: "test" },
-    agent: { modelMap: { cheap: "haiku", mid: "sonnet", strong: "opus" } },
+    agent: { modelMap: { cheap: "claude-haiku-4-5-20251001", mid: "claude-sonnet-4-6", strong: "claude-opus-4-6" } },
   }
 }
