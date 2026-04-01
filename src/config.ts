@@ -166,10 +166,12 @@ export function getLitellmUrl(): string {
 }
 
 /** Get the env var name for a provider's API key.
- *  Anthropic uses ANTHROPIC_API_KEY; all other providers use a single
- *  ANTHROPIC_COMPATIBLE_API_KEY (the provider field controls LiteLLM routing). */
+ *  Derives from provider name: openai→OPENAI_API_KEY, gemini→GEMINI_API_KEY, etc.
+ *  Falls back to ANTHROPIC_COMPATIBLE_API_KEY if the derived var is not set. */
 export function providerApiKeyEnvVar(provider: string): string {
-  if (provider === "anthropic") return "ANTHROPIC_API_KEY"
+  if (provider === "anthropic" || provider === "claude") return "ANTHROPIC_API_KEY"
+  const derived = `${provider.toUpperCase()}_API_KEY`
+  if (process.env[derived]) return derived
   return "ANTHROPIC_COMPATIBLE_API_KEY"
 }
 

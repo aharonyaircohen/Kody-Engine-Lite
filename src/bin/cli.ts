@@ -43,6 +43,8 @@ if (command === "init") {
   bootstrapCommand({ force: args.includes("--force") }, PKG_ROOT)
 } else if (command === "taskify") {
   import("../cli/taskify-command.js").then(({ runTaskifyCommand }) => runTaskifyCommand())
+} else if (command === "test-model") {
+  import("../cli/test-model-command.js").then(({ runTestModelCommand }) => runTestModelCommand())
 } else if (command === "ci-parse") {
   import("../ci/parse-inputs.js").then(({ runCiParse }) => runCiParse())
 } else if (command === "version" || command === "--version" || command === "-v") {
