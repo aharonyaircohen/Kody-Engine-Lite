@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="440" viewBox="0 0 720 440" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13">
+  <!-- Background -->
+  <rect width="720" height="440" fill="#ffffff" rx="8" stroke="#d0d7de" stroke-width="1"/>
+
+  <!-- Comment header -->
+  <rect width="720" height="42" fill="#f6f8fa" rx="8"/>
+  <rect y="8" width="720" height="34" fill="#f6f8fa"/>
+  <rect y="42" width="720" height="1" fill="#d0d7de"/>
+
+  <!-- Avatar -->
+  <circle cx="28" cy="21" r="10" fill="#6e40c9"/>
+  <text x="28" y="25" font-size="10" fill="#ffffff" text-anchor="middle" font-weight="600">K</text>
+
+  <!-- Header text -->
+  <text x="44" y="25" font-size="13" font-weight="600" fill="#1f2328">kody-bot</text>
+  <text x="108" y="25" font-size="13" fill="#57606a">reviewed</text>
+  <text x="158" y="25" font-size="13" fill="#57606a">just now</text>
+
+  <!-- FAIL badge -->
+  <rect x="620" y="10" width="84" height="22" rx="4" fill="#ffd7d9" stroke="#f2a3a7" stroke-width="1"/>
+  <text x="662" y="25" font-size="12" font-weight="600" fill="#82071e" text-anchor="middle">● REQUEST CHANGES</text>
+
+  <!-- Comment body -->
+  <rect x="16" y="56" width="688" height="368" rx="6" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+
+  <!-- Title -->
+  <text x="32" y="82" font-size="15" font-weight="700" fill="#1f2328">Kody Code Review</text>
+  <text x="32" y="100" font-size="12" fill="#57606a">Verdict:</text>
+  <rect x="84" y="88" width="46" height="18" rx="9" fill="#ffd7d9" stroke="#f2a3a7" stroke-width="1"/>
+  <text x="107" y="101" font-size="11" font-weight="600" fill="#82071e" text-anchor="middle">FAIL</text>
+  <text x="138" y="100" font-size="12" fill="#57606a">— 1 critical, 2 major, 3 minor findings</text>
+
+  <!-- Divider -->
+  <rect x="32" y="110" width="656" height="1" fill="#d0d7de"/>
+
+  <!-- Critical section -->
+  <rect x="32" y="120" width="656" height="62" rx="4" fill="#fff5f5"/>
+  <text x="44" y="138" font-size="12" font-weight="700" fill="#82071e">🔴 CRITICAL (1)</text>
+  <text x="44" y="158" font-size="12" font-weight="600" fill="#1f2328">SQL Injection in user search endpoint</text>
+  <text x="44" y="175" font-size="12" fill="#57606a">src/api/users/search.ts:42 — User input concatenated directly into raw SQL query.</text>
+
+  <!-- Major section -->
+  <rect x="32" y="192" width="656" height="82" rx="4" fill="#fff8e1"/>
+  <text x="44" y="210" font-size="12" font-weight="700" fill="#953800">🟡 MAJOR (2)</text>
+  <text x="44" y="228" font-size="12" font-weight="600" fill="#1f2328">Missing error handling in auth middleware</text>
+  <text x="44" y="245" font-size="12" fill="#57606a">src/middleware/auth.ts:18 — JWT verification errors bubble up as 500 instead of 401.</text>
+  <line x1="44" y1="258" x2="676" y2="258" stroke="#f0d9a8" stroke-width="1"/>
+  <text x="44" y="270" font-size="12" font-weight="600" fill="#1f2328">No rate limiting on password reset route</text>
+
+  <!-- Minor section -->
+  <rect x="32" y="284" width="656" height="82" rx="4" fill="#f6f8fa"/>
+  <text x="44" y="302" font-size="12" font-weight="700" fill="#57606a">⚪ MINOR (3)</text>
+  <text x="44" y="320" font-size="12" font-weight="600" fill="#1f2328">Unused import in auth.ts</text>
+  <text x="44" y="337" font-size="12" fill="#57606a">src/middleware/auth.ts:3 — import &#123; hashPassword &#125; is imported but not used.</text>
+  <line x1="44" y1="350" x2="676" y2="350" stroke="#d0d7de" stroke-width="1"/>
+  <text x="44" y="362" font-size="12" fill="#57606a">+ 2 more (missing JSDoc, inconsistent return types)</text>
+
+  <!-- Fix CTA -->
+  <rect x="32" y="376" width="656" height="36" rx="4" fill="#dafbe1" stroke="#aceebb" stroke-width="1"/>
+  <text x="44" y="398" font-size="12" fill="#1a7f37">To fix: comment</text>
+  <rect x="152" y="382" width="84" height="20" rx="4" fill="#ffffff" stroke="#aceebb" stroke-width="1"/>
+  <text x="194" y="396" font-size="12" font-weight="600" fill="#1a7f37" text-anchor="middle">@kody fix</text>
+  <text x="244" y="398" font-size="12" fill="#1a7f37">on this PR and Kody will address all Critical + Major findings.</text>
+</svg>

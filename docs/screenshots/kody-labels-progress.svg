@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="320" viewBox="0 0 720 320" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13">
+  <!-- Background -->
+  <rect width="720" height="320" fill="#ffffff" rx="8" stroke="#d0d7de" stroke-width="1"/>
+
+  <!-- Issue header -->
+  <rect width="720" height="52" fill="#f6f8fa" rx="8"/>
+  <rect y="8" width="720" height="44" fill="#f6f8fa"/>
+  <rect y="52" width="720" height="1" fill="#d0d7de"/>
+
+  <text x="16" y="32" font-size="16" font-weight="600" fill="#1f2328">#29 Build authentication system for the API</text>
+  <rect x="580" y="16" width="48" height="22" rx="11" fill="#dafbe1" stroke="#aceebb" stroke-width="1"/>
+  <text x="604" y="31" font-size="12" font-weight="500" fill="#1a7f37" text-anchor="middle">Open</text>
+
+  <!-- Timeline -->
+  <text x="16" y="80" font-size="13" font-weight="600" fill="#1f2328">Pipeline label progression</text>
+
+  <!-- Step 1: planning -->
+  <rect x="16" y="96" width="204" height="54" rx="6" fill="#fff8c5" stroke="#f7c948" stroke-width="1.5"/>
+  <text x="28" y="116" font-size="11" font-weight="700" fill="#4d3500">kody:planning</text>
+  <text x="28" y="134" font-size="11" fill="#57606a">Stage 2: PLAN in progress</text>
+  <text x="28" y="146" font-size="10" fill="#8c9ead">just now</text>
+
+  <!-- Arrow -->
+  <text x="232" y="126" font-size="18" fill="#57606a">→</text>
+
+  <!-- Step 2: building -->
+  <rect x="256" y="96" width="204" height="54" rx="6" fill="#fff3cd" stroke="#e89a3c" stroke-width="1.5"/>
+  <text x="268" y="116" font-size="11" font-weight="700" fill="#4d3500">kody:building</text>
+  <text x="268" y="134" font-size="11" fill="#57606a">Stage 3: BUILD in progress</text>
+  <text x="268" y="146" font-size="10" fill="#8c9ead">2 min ago</text>
+
+  <!-- Arrow -->
+  <text x="472" y="126" font-size="18" fill="#57606a">→</text>
+
+  <!-- Step 3: done -->
+  <rect x="496" y="96" width="204" height="54" rx="6" fill="#dafbe1" stroke="#aceebb" stroke-width="1.5"/>
+  <text x="508" y="116" font-size="11" font-weight="700" fill="#1a7f37">kody:done</text>
+  <text x="508" y="134" font-size="11" fill="#57606a">PR #31 created and ready</text>
+  <text x="508" y="146" font-size="10" fill="#8c9ead">6 min ago</text>
+
+  <!-- All labels row -->
+  <text x="16" y="178" font-size="12" font-weight="600" fill="#57606a">All pipeline labels:</text>
+
+  <!-- Label grid: row 1 -->
+  <rect x="16" y="188" width="88" height="20" rx="10" fill="#fff8c5" stroke="#f7c948" stroke-width="1"/>
+  <text x="60" y="202" font-size="11" fill="#4d3500" text-anchor="middle">kody:planning</text>
+
+  <rect x="112" y="188" width="84" height="20" rx="10" fill="#fff3cd" stroke="#e89a3c" stroke-width="1"/>
+  <text x="154" y="202" font-size="11" fill="#4d3500" text-anchor="middle">kody:building</text>
+
+  <rect x="204" y="188" width="78" height="20" rx="10" fill="#ffd7d9" stroke="#f2a3a7" stroke-width="1"/>
+  <text x="243" y="202" font-size="11" fill="#82071e" text-anchor="middle">kody:verifying</text>
+
+  <rect x="290" y="188" width="72" height="20" rx="10" fill="#e1d5ff" stroke="#c4aff0" stroke-width="1"/>
+  <text x="326" y="202" font-size="11" fill="#6e3dbd" text-anchor="middle">kody:reviewing</text>
+
+  <rect x="370" y="188" width="68" height="20" rx="10" fill="#dafbe1" stroke="#aceebb" stroke-width="1"/>
+  <text x="404" y="202" font-size="11" fill="#1a7f37" text-anchor="middle">kody:done</text>
+
+  <rect x="446" y="188" width="72" height="20" rx="10" fill="#ffd7d9" stroke="#f2a3a7" stroke-width="1"/>
+  <text x="482" y="202" font-size="11" fill="#82071e" text-anchor="middle">kody:paused</text>
+
+  <rect x="526" y="188" width="68" height="20" rx="10" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <text x="560" y="202" font-size="11" fill="#57606a" text-anchor="middle">kody:failed</text>
+
+  <!-- Activity timeline -->
+  <rect x="16" y="228" width="688" height="80" rx="6" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <text x="28" y="248" font-size="12" font-weight="600" fill="#1f2328">Activity</text>
+
+  <!-- Timeline items -->
+  <circle cx="34" cy="264" r="4" fill="#1a7f37"/>
+  <text x="44" y="268" font-size="11" fill="#1f2328">kody-bot</text>
+  <text x="88" y="268" font-size="11" fill="#57606a">created PR #31 feat: add authentication system</text>
+  <text x="630" y="268" font-size="10" fill="#8c9ead">6m ago</text>
+
+  <circle cx="34" cy="284" r="4" fill="#0969da"/>
+  <text x="44" y="288" font-size="11" fill="#1f2328">kody-bot</text>
+  <text x="88" y="288" font-size="11" fill="#57606a">added label</text>
+  <rect x="141" y="278" width="64" height="16" rx="8" fill="#dafbe1" stroke="#aceebb" stroke-width="1"/>
+  <text x="173" y="290" font-size="10" fill="#1a7f37" text-anchor="middle">kody:done</text>
+  <text x="630" y="288" font-size="10" fill="#8c9ead">6m ago</text>
+
+  <circle cx="34" cy="300" r="4" fill="#e89a3c"/>
+  <text x="44" y="304" font-size="11" fill="#1f2328">kody-bot</text>
+  <text x="88" y="304" font-size="11" fill="#57606a">removed label</text>
+  <rect x="152" y="294" width="78" height="16" rx="8" fill="#fff3cd" stroke="#e89a3c" stroke-width="1"/>
+  <text x="191" y="306" font-size="10" fill="#4d3500" text-anchor="middle">kody:reviewing</text>
+  <text x="630" y="304" font-size="10" fill="#8c9ead">6m ago</text>
+</svg>

@@ -141,6 +141,10 @@ Key differentiators vs Copilot Workspace, Devin, Cursor, Cline, and OpenHands:
 
 **Result:** Issue → tested, reviewed PR. Fully autonomous. Zero human intervention.
 
+**The PR Kody created:**
+
+![Kody-created PR showing rich description with What, Scope, Changes, Review, and Verify sections](screenshots/kody-pr-description.svg)
+
 ---
 
 ## Get Started

@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="480" viewBox="0 0 720 480" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13">
+  <!-- Background -->
+  <rect width="720" height="480" fill="#ffffff" rx="8" stroke="#d0d7de" stroke-width="1"/>
+
+  <!-- PR Header bar -->
+  <rect width="720" height="52" fill="#f6f8fa" rx="8"/>
+  <rect y="8" width="720" height="44" fill="#f6f8fa"/>
+  <rect y="52" width="720" height="1" fill="#d0d7de"/>
+
+  <!-- PR title row -->
+  <text x="16" y="32" font-size="16" font-weight="600" fill="#1f2328">feat: add authentication middleware to 8 API routes</text>
+  <rect x="576" y="16" width="48" height="22" rx="11" fill="#dafbe1" stroke="#aceebb" stroke-width="1"/>
+  <text x="600" y="31" font-size="12" font-weight="500" fill="#1a7f37" text-anchor="middle">Open</text>
+  <rect x="630" y="16" width="76" height="22" rx="11" fill="#f0f0f0" stroke="#d0d7de" stroke-width="1"/>
+  <text x="668" y="31" font-size="12" fill="#57606a" text-anchor="middle">Closes #29</text>
+
+  <!-- Author line -->
+  <circle cx="28" cy="70" r="10" fill="#d1d5da"/>
+  <text x="44" y="75" font-size="12" fill="#57606a">kody-bot</text>
+  <text x="100" y="75" font-size="12" fill="#57606a">wants to merge 3 commits into</text>
+  <rect x="248" y="62" width="60" height="18" rx="4" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <text x="278" y="75" font-size="11" fill="#57606a" text-anchor="middle">main</text>
+  <text x="318" y="75" font-size="12" fill="#57606a">from</text>
+  <rect x="334" y="62" width="130" height="18" rx="4" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <text x="399" y="75" font-size="11" fill="#57606a" text-anchor="middle">kody/issue-29-auth</text>
+
+  <!-- Divider -->
+  <rect y="88" width="720" height="1" fill="#d0d7de"/>
+
+  <!-- Description box -->
+  <rect x="16" y="100" width="560" height="364" rx="6" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+
+  <!-- ## What -->
+  <text x="32" y="126" font-size="14" font-weight="600" fill="#1f2328">## What</text>
+  <text x="32" y="146" font-size="13" fill="#1f2328">Add authentication middleware to 8 unprotected API routes</text>
+
+  <!-- ## Scope -->
+  <text x="32" y="174" font-size="14" font-weight="600" fill="#1f2328">## Scope</text>
+  <text x="32" y="194" font-size="12" fill="#1f2328">• </text>
+  <rect x="44" y="183" width="130" height="16" rx="3" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <text x="109" y="195" font-size="11" fill="#57606a" text-anchor="middle">src/middleware/auth.ts</text>
+  <text x="32" y="214" font-size="12" fill="#1f2328">• </text>
+  <rect x="44" y="203" width="178" height="16" rx="3" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <text x="133" y="215" font-size="11" fill="#57606a" text-anchor="middle">src/app/api/cron/route.ts</text>
+  <text x="226" y="214" font-size="12" fill="#57606a"> +6 more</text>
+
+  <!-- Type / Risk badges -->
+  <rect x="32" y="228" width="52" height="18" rx="9" fill="#fff1e0" stroke="#f0b143" stroke-width="1"/>
+  <text x="58" y="241" font-size="11" fill="#953800" text-anchor="middle">bugfix</text>
+  <rect x="92" y="228" width="48" height="18" rx="9" fill="#ffd7d9" stroke="#f2a3a7" stroke-width="1"/>
+  <text x="116" y="241" font-size="11" fill="#82071e" text-anchor="middle">high</text>
+
+  <!-- ## Changes -->
+  <text x="32" y="268" font-size="14" font-weight="600" fill="#1f2328">## Changes</text>
+  <text x="32" y="288" font-size="13" fill="#1f2328">Added auth middleware to all cron routes and copilotkit endpoint.</text>
+  <text x="32" y="306" font-size="13" fill="#1f2328">Middleware validates JWT tokens and rejects unauthenticated requests.</text>
+
+  <!-- Status badges -->
+  <text x="32" y="334" font-size="13" font-weight="500" fill="#57606a">Review:</text>
+  <rect x="90" y="322" width="48" height="18" rx="9" fill="#dafbe1" stroke="#aceebb" stroke-width="1"/>
+  <text x="114" y="335" font-size="11" fill="#1a7f37" text-anchor="middle">PASS</text>
+  <text x="32" y="358" font-size="13" font-weight="500" fill="#57606a">Verify:</text>
+  <text x="86" y="358" font-size="13" fill="#1f2328">typecheck + tests + lint passed</text>
+
+  <!-- Details summary (collapsed) -->
+  <rect x="32" y="372" width="530" height="26" rx="4" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <text x="44" y="389" font-size="12" fill="#57606a">▶ Implementation plan</text>
+
+  <!-- Closes -->
+  <text x="32" y="418" font-size="13" fill="#57606a">Closes</text>
+  <text x="73" y="418" font-size="13" fill="#0969da">#29</text>
+
+  <!-- Right sidebar -->
+  <rect x="592" y="100" width="112" height="364" rx="6" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <text x="604" y="122" font-size="12" font-weight="600" fill="#1f2328">Labels</text>
+  <rect x="604" y="130" width="88" height="18" rx="9" fill="#0075ca1a" stroke="#0075ca" stroke-width="1"/>
+  <text x="648" y="143" font-size="11" fill="#0075ca" text-anchor="middle">kody:done</text>
+  <text x="604" y="174" font-size="12" font-weight="600" fill="#1f2328">Reviewers</text>
+  <text x="604" y="192" font-size="11" fill="#57606a">kody-bot</text>
+</svg>

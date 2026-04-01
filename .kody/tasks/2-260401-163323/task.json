@@ -1,0 +1,15 @@
+```json
+{
+  "task_type": "docs",
+  "title": "Add screenshots of Kody output to documentation",
+  "description": "Add visual proof of Kody's output to the documentation to improve first impressions and conversion. Include screenshots of: (1) a Kody-created PR with rich description sections (What/Scope/Changes/Verify/Plan), (2) a @kody review comment showing Critical/Major/Minor findings, and (3) an issue with kody:planning → kody:building → kody:done labels progressing. Add to README.md after Quick Start section, ABOUT.md Real-World Example section, and FEATURES.md alongside Standalone PR Review and Rich PR Descriptions sections.",
+  "scope": [
+    "README.md",
+    "docs/ABOUT.md",
+    "docs/FEATURES.md"
+  ],
+  "risk_level": "low",
+  "hasUI": false,
+  "questions": []
+}
+```

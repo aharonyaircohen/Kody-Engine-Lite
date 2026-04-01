@@ -95,6 +95,10 @@ Kody picks up the issue and works through the pipeline autonomously. You'll see:
 
 If the task is HIGH-risk, Kody pauses after planning and asks for approval before writing code.
 
+**Labels update in real-time as the pipeline runs:**
+
+![Kody pipeline labels progressing from kody:planning to kody:done on a GitHub issue](docs/screenshots/kody-labels-progress.svg)
+
 ### Switch to a different model (optional)
 
 ```json

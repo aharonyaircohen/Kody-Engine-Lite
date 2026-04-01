@@ -282,6 +282,10 @@ kody-engine-lite review --issue-number 42  # finds the associated PR
 
 **Multi-PR resolution:** If an issue has multiple open PRs, Kody lists them and asks you to specify which one. If there's only one, it reviews automatically.
 
+**Example review comment with Critical/Major/Minor findings:**
+
+![Kody review comment showing FAIL verdict with Critical, Major, and Minor code findings](screenshots/kody-review-comment.svg)
+
 ## Rich PR Descriptions
 
 ```markdown
@@ -306,3 +310,7 @@ Added auth middleware to all cron routes and copilotkit endpoint.
 
 Closes #42
 ```
+
+**Example Kody-created PR with rich description:**
+
+![Kody-created PR showing structured description with What, Scope, Changes, Review status, and Verify status sections](screenshots/kody-pr-description.svg)
