@@ -62,7 +62,7 @@ export async function diagnoseFailure(
       "diagnosis",
       prompt,
       model,
-      30_000, // 30s timeout — this should be fast
+      90_000, // 90s timeout — MiniMax can be slow to respond
       "",
       options,
     )
@@ -100,6 +100,33 @@ export async function diagnoseFailure(
     }
   } catch (err) {
     logger.warn(`  Diagnosis error: ${err instanceof Error ? err.message : err}`)
+  }
+
+  // Heuristic fallback: if we have modified files and ALL errors reference files
+  // that were NOT modified by the build stage, classify as pre-existing.
+  if (modifiedFiles.length > 0) {
+    const errorLines = errorOutput.split("\n").filter((l) =>
+      /error|Error|ERROR|failed|Failed|FAIL/i.test(l)
+    )
+    // Extract file paths mentioned in error lines
+    const errorFilePaths = errorLines.flatMap((line) => {
+      const matches = line.match(/src\/[^\s(:]+\.[a-z]+/g)
+      return matches ?? []
+    })
+    if (errorFilePaths.length > 0) {
+      const modifiedSet = new Set(modifiedFiles)
+      const allPreExisting = errorFilePaths.every(
+        (f) => !modifiedSet.has(f) && !modifiedFiles.some((m) => m.endsWith(f))
+      )
+      if (allPreExisting) {
+        logger.warn("  Diagnosis fallback: all errors in unmodified files → pre-existing")
+        return {
+          classification: "pre-existing",
+          reason: "All errors are in files not modified by the build stage",
+          resolution: `The following files have pre-existing errors not introduced by this task: ${[...new Set(errorFilePaths)].join(", ")}`,
+        }
+      }
+    }
   }
 
   // Default: "retry" is safer than "fixable" — it re-runs the gate without
