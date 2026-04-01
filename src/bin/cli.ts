@@ -41,6 +41,8 @@ if (command === "init") {
   initCommand({ force: args.includes("--force") }, PKG_ROOT)
 } else if (command === "bootstrap") {
   bootstrapCommand({ force: args.includes("--force") }, PKG_ROOT)
+} else if (command === "ci-parse") {
+  import("../ci/parse-inputs.js").then(({ runCiParse }) => runCiParse())
 } else if (command === "version" || command === "--version" || command === "-v") {
   console.log(getVersion())
 } else {

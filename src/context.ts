@@ -315,6 +315,16 @@ function buildFullPromptTiered(
   return assembled
 }
 
+const TIER_ESCALATION: Record<string, string> = {
+  cheap: "mid",
+  mid: "strong",
+  strong: "strong",
+}
+
+export function escalateModelTier(currentTier: string): string {
+  return TIER_ESCALATION[currentTier] ?? "strong"
+}
+
 export function resolveModel(modelTier: string, stageName?: string): string {
   const config = getProjectConfig()
 

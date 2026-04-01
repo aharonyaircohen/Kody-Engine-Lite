@@ -17,13 +17,13 @@ describe("workflow template", () => {
 
   it("recognizes bootstrap as valid mode", () => {
     expect(template).toContain("bootstrap")
-    // The case statement should include bootstrap
-    expect(template).toMatch(/full\|rerun\|fix\|fix-ci\|status\|approve\|review\|resolve\|bootstrap/)
+    // The parse step invokes the TS parser via ci-parse
+    expect(template).toContain("kody-engine-lite ci-parse")
   })
 
-  it("generates bootstrap task-id", () => {
+  it("orchestrate handles bootstrap mode", () => {
     expect(template).toContain('MODE" = "bootstrap"')
-    expect(template).toContain("bootstrap-$(date")
+    expect(template).toContain("kody-engine-lite bootstrap")
   })
 
   it("runs kody-engine-lite bootstrap for bootstrap mode", () => {

@@ -7,7 +7,7 @@ import type {
   StageResult,
   PipelineContext,
 } from "../types.js"
-import { buildFullPrompt, taskHasUI } from "../context.js"
+import { buildFullPrompt, resolveModel, escalateModelTier, taskHasUI } from "../context.js"
 import { validateTaskJson, validatePlanMd, validateReviewMd, stripFences } from "../validators.js"
 import { getProjectConfig, resolveStageConfig, stageNeedsProxy, getLitellmUrl } from "../config.js"
 import { buildMcpConfigJson, isMcpEnabledForStage, withPlaywrightIfNeeded } from "../mcp-config.js"
@@ -70,6 +70,7 @@ export async function executeAgentStage(
   }
 
   const prompt = buildFullPrompt(def.name, ctx.taskId, ctx.taskDir, ctx.projectDir, ctx.input.feedback)
+  let currentModelTier: string = def.modelTier
 
   if (ctx.input.feedback && def.name === "build") {
     logger.info(`  feedback: ${ctx.input.feedback.slice(0, 200)}${ctx.input.feedback.length > 200 ? "..." : ""}`)
@@ -77,9 +78,9 @@ export async function executeAgentStage(
 
   const config = getProjectConfig()
   const sc = resolveStageConfig(config, def.name, def.modelTier)
-  const model = sc.model
+  let model = sc.model
   const useProxy = stageNeedsProxy(sc)
-
+  const escalateEnabled = config.agent.escalateOnTimeout !== false
   const runnerName =
     config.agent.stageRunners?.[def.name] ??
     config.agent.defaultRunner ??
@@ -110,16 +111,42 @@ export async function executeAgentStage(
   }
 
   const runner = getRunnerForStage(ctx, def.name)
-  const result = await runner.run(def.name, prompt, model, def.timeout, ctx.taskDir, {
+  const maxRetries = def.maxRetries ?? 0
+
+  let lastResult = await runner.run(def.name, prompt, model, def.timeout, ctx.taskDir, {
     cwd: ctx.projectDir,
     env: extraEnv,
     ...sessionInfo,
     mcpConfigJson,
   })
 
-  if (result.outcome !== "completed") {
-    return { outcome: result.outcome, error: result.error, retries: 0 }
+  let retries = 0
+  while (lastResult.outcome !== "completed" && retries < maxRetries) {
+    retries++
+    const isTimeout = lastResult.outcome === "timed_out"
+
+    if (isTimeout && escalateEnabled) {
+      const nextTier = escalateModelTier(currentModelTier)
+      if (nextTier !== currentModelTier) {
+        logger.info(`  Escalating model from ${currentModelTier} to ${nextTier} after timeout`)
+        currentModelTier = nextTier
+        model = resolveModel(currentModelTier, def.name)
+      }
+    }
+
+    logger.info(`  retry ${retries}/${maxRetries} with model=${model}`)
+    lastResult = await runner.run(def.name, prompt, model, def.timeout, ctx.taskDir, {
+      cwd: ctx.projectDir,
+      env: extraEnv,
+      mcpConfigJson,
+    })
   }
+
+  if (lastResult.outcome !== "completed") {
+    return { outcome: lastResult.outcome, error: lastResult.error, retries }
+  }
+
+  const result = lastResult
 
   if (def.outputFile && result.output) {
     fs.writeFileSync(path.join(ctx.taskDir, def.outputFile), result.output)
@@ -191,7 +218,7 @@ export async function executeAgentStage(
   // Append stage summary to accumulated context
   appendStageContext(ctx.taskDir, def.name, result.output)
 
-  return { outcome: "completed", outputFile: def.outputFile, retries: 0 }
+  return { outcome: "completed", outputFile: def.outputFile, retries }
 }
 
 function appendStageContext(taskDir: string, stageName: string, output?: string): void {

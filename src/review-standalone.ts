@@ -6,6 +6,7 @@ import { STAGES } from "./definitions.js"
 import { executeAgentStage } from "./stages/agent.js"
 import { generateTaskId } from "./cli/task-resolution.js"
 import { logger } from "./logger.js"
+import { getDiffFiles } from "./git-utils.js"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -76,10 +77,23 @@ export async function runStandaloneReview(
   fs.mkdirSync(taskDir, { recursive: true })
 
   // Write task.md from PR info, including diff instructions for the review agent
-  const diffInstruction = input.baseBranch
-    ? `\n\n## Diff Command\nRun: \`git diff origin/${input.baseBranch}...HEAD\` to see the PR changes.\nDo NOT use bare \`git diff\` — it shows only uncommitted working tree changes, not the PR diff.`
-    : ""
-  const taskContent = `# ${input.prTitle}\n\n${input.prBody ?? ""}${diffInstruction}`
+  let diffInstruction = ""
+  let filesChangedSection = ""
+  if (input.baseBranch) {
+    diffInstruction = `\n\n## Diff Command\nRun: \`git diff origin/${input.baseBranch}...HEAD\` to see the PR changes.\nDo NOT use bare \`git diff\` — it shows only uncommitted working tree changes, not the PR diff.`
+
+    const diffFiles = getDiffFiles(input.baseBranch, input.projectDir)
+    if (diffFiles.length > 0) {
+      logger.info(`[review] Review scope: git diff origin/${input.baseBranch}...HEAD (${diffFiles.length} files)`)
+      const fileList = diffFiles.map((f) => `- ${f}`).join("\n")
+      filesChangedSection = `\n\n## Files Changed\nOnly review the following ${diffFiles.length} files (these are the files changed in this PR):\n${fileList}`
+    } else {
+      logger.info(`[review] Review scope: git diff origin/${input.baseBranch}...HEAD (0 files)`)
+    }
+  } else {
+    logger.warn(`[review] No baseBranch provided — reviewing all files (no diff scope)`)
+  }
+  const taskContent = `# ${input.prTitle}\n\n${input.prBody ?? ""}${diffInstruction}${filesChangedSection}`
   fs.writeFileSync(path.join(taskDir, "task.md"), taskContent)
 
   const reviewDef = STAGES.find((s) => s.name === "review")!

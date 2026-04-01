@@ -89,6 +89,19 @@ export function closeIssue(issueNumber: number): void {
   }
 }
 
+export function getIssueComments(issueNumber: number): { body: string; created_at: string }[] {
+  try {
+    const output = gh([
+      "api",
+      `repos/{owner}/{repo}/issues/${issueNumber}/comments`,
+      "--jq", "[.[] | {body, created_at}]",
+    ])
+    return output ? JSON.parse(output) : []
+  } catch {
+    return []
+  }
+}
+
 export function getIssueLabels(issueNumber: number): string[] {
   try {
     const output = gh(["issue", "view", String(issueNumber), "--json", "labels", "--jq", ".labels[].name"])

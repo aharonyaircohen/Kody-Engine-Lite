@@ -12,7 +12,7 @@ import { runStandaloneReview, resolveReviewTarget, formatReviewComment, detectRe
 // Extracted modules
 import { parseArgs } from "./cli/args.js"
 import { checkLitellmHealth, checkModelHealth, tryStartLitellm, generateLitellmConfig, generateLitellmConfigFromStages } from "./cli/litellm.js"
-import { generateTaskId } from "./cli/task-resolution.js"
+import { generateTaskId, resolveTaskIdForCommand } from "./cli/task-resolution.js"
 import { resolveForIssue } from "./cli/task-state.js"
 import { needsLitellmProxy, anyStageNeedsProxy, getLitellmUrl, providerApiKeyEnvVar } from "./config.js"
 import type { KodyConfig } from "./config.js"
@@ -149,7 +149,17 @@ async function main() {
   // Resolve taskId
   let taskId = input.taskId
   if (!taskId) {
-    if (isPRFix) {
+    // For rerun/status: auto-resolve from .kody/tasks/ or issue comments
+    if ((input.command === "rerun" || input.command === "status") && input.issueNumber) {
+      const resolved = resolveTaskIdForCommand(input.issueNumber, projectDir)
+      if (resolved) {
+        taskId = resolved
+        logger.info(`Auto-resolved task-id: ${taskId} (from issue #${input.issueNumber})`)
+      } else {
+        console.error(`No task found for issue #${input.issueNumber}. Provide --task-id explicitly.`)
+        process.exit(1)
+      }
+    } else if (isPRFix) {
       taskId = `${input.command === "fix-ci" ? "fixci" : "fix"}-pr-${input.prNumber}-${generateTaskId()}`
     } else if (input.issueNumber) {
       taskId = `${input.issueNumber}-${generateTaskId()}`

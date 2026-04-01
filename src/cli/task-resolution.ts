@@ -1,6 +1,7 @@
 import * as fs from "fs"
 import * as path from "path"
 import { execFileSync } from "child_process"
+import { getIssueComments } from "../github-api.js"
 
 export function findLatestTaskForIssue(issueNumber: number, projectDir: string): string | null {
   const tasksDir = path.join(projectDir, ".kody", "tasks")
@@ -40,4 +41,43 @@ export function generateTaskId(): string {
   const now = new Date()
   const pad = (n: number) => String(n).padStart(2, "0")
   return `${String(now.getFullYear()).slice(2)}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+}
+
+/**
+ * Scan issue comments for "pipeline started: `<task-id>`" pattern
+ * and return the most recent task-id match.
+ */
+export function resolveTaskIdFromComments(issueNumber: number): string | null {
+  try {
+    const comments = getIssueComments(issueNumber)
+    const pattern = /pipeline started: `([^`]+)`/
+
+    let latestTaskId: string | null = null
+    for (const comment of comments) {
+      const match = comment.body.match(pattern)
+      if (match) {
+        latestTaskId = match[1]
+      }
+    }
+
+    return latestTaskId
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Auto-resolve a task-id for rerun/status commands when no explicit --task-id
+ * is provided. Prefers .kody/tasks/ directory scan, falls back to issue comments.
+ */
+export function resolveTaskIdForCommand(issueNumber: number, projectDir: string): string | null {
+  // First: scan .kody/tasks/ for the latest task matching this issue
+  const fromTasks = findLatestTaskForIssue(issueNumber, projectDir)
+  if (fromTasks) return fromTasks
+
+  // Second: scan issue comments for "pipeline started: `<task-id>`"
+  const fromComments = resolveTaskIdFromComments(issueNumber)
+  if (fromComments) return fromComments
+
+  return null
 }

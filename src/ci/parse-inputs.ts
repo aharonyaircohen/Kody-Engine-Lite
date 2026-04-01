@@ -2,87 +2,250 @@
  * Parses @kody / /kody comment body into structured inputs.
  * Run by the parse job in GitHub Actions.
  * Reads from env, writes to $GITHUB_OUTPUT.
+ *
+ * Supports all modes: full, rerun, fix, fix-ci, status, approve, review, resolve, bootstrap
+ * Supports flags: --from, --feedback (quoted), --complexity, --dry-run, --ci-run-id
  */
 
 import * as fs from "fs"
 
-const outputFile = process.env.GITHUB_OUTPUT
-const triggerType = process.env.TRIGGER_TYPE ?? "dispatch"
+export interface ParseResult {
+  task_id: string
+  mode: string
+  from_stage: string
+  issue_number: string
+  pr_number: string
+  feedback: string
+  complexity: string
+  ci_run_id: string
+  dry_run: boolean
+  valid: boolean
+  trigger_type: string
+}
 
-function output(key: string, value: string): void {
-  if (outputFile) {
-    fs.appendFileSync(outputFile, `${key}=${value}\n`)
+const VALID_MODES = [
+  "full", "rerun", "fix", "fix-ci", "status",
+  "approve", "review", "resolve", "bootstrap",
+] as const
+
+function generateTimestamp(): string {
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, "0")
+  const y = String(now.getFullYear()).slice(2)
+  const m = pad(now.getMonth() + 1)
+  const d = pad(now.getDate())
+  const H = pad(now.getHours())
+  const M = pad(now.getMinutes())
+  const S = pad(now.getSeconds())
+  return `${y}${m}${d}-${H}${M}${S}`
+}
+
+/**
+ * Pure parsing logic — reads from process.env, returns structured result.
+ * Does NOT write to GITHUB_OUTPUT (caller handles that).
+ */
+export function parseCommentInputs(): ParseResult {
+  const triggerType = process.env.TRIGGER_TYPE ?? "dispatch"
+
+  // ─── Dispatch passthrough ───────────────────────────────────────────────
+  if (triggerType === "dispatch") {
+    const taskId = process.env.INPUT_TASK_ID ?? ""
+    return {
+      task_id: taskId,
+      mode: process.env.INPUT_MODE ?? "full",
+      from_stage: process.env.INPUT_FROM_STAGE ?? "",
+      issue_number: process.env.INPUT_ISSUE_NUMBER ?? "",
+      pr_number: "",
+      feedback: process.env.INPUT_FEEDBACK ?? "",
+      complexity: "",
+      ci_run_id: "",
+      dry_run: false,
+      valid: !!taskId,
+      trigger_type: "dispatch",
+    }
   }
-  console.log(`${key}=${value}`)
-}
 
-// For workflow_dispatch, pass through inputs
-if (triggerType === "dispatch") {
-  output("task_id", process.env.INPUT_TASK_ID ?? "")
-  output("mode", process.env.INPUT_MODE ?? "full")
-  output("from_stage", process.env.INPUT_FROM_STAGE ?? "")
-  output("issue_number", process.env.INPUT_ISSUE_NUMBER ?? "")
-  output("feedback", process.env.INPUT_FEEDBACK ?? "")
-  output("valid", process.env.INPUT_TASK_ID ? "true" : "false")
-  output("trigger_type", "dispatch")
-  process.exit(0)
-}
+  // ─── Comment parsing ──────────────────────────────────────────────────
+  const commentBody = (process.env.COMMENT_BODY ?? "").replace(/\r/g, "")
+  const issueNumber = process.env.ISSUE_NUMBER ?? ""
+  const isPR = !!(process.env.ISSUE_IS_PR)
 
-// For issue_comment, parse the comment body
-// Strip carriage returns — GitHub comments may contain \r\n line endings
-const commentBody = (process.env.COMMENT_BODY ?? "").replace(/\r/g, "")
-const issueNumber = process.env.ISSUE_NUMBER ?? ""
+  // Match @kody or /kody at the start of a line (case-insensitive)
+  const kodyMatch = commentBody.match(/(?:@kody|\/kody)\s*(.*)/i)
+  if (!kodyMatch) {
+    return {
+      task_id: "", mode: "full", from_stage: "", issue_number: issueNumber,
+      pr_number: "", feedback: "", complexity: "", ci_run_id: "",
+      dry_run: false, valid: false, trigger_type: "comment",
+    }
+  }
 
-// Match: @kody [mode] [task-id] [--from stage] [--feedback "text"]
-const kodyMatch = commentBody.match(/(?:@kody|\/kody)\s*(.*)/i)
-if (!kodyMatch) {
-  output("valid", "false")
-  output("trigger_type", "comment")
-  process.exit(0)
-}
+  // The first line args after @kody
+  const argsLine = kodyMatch[1].trim()
 
-const parts = kodyMatch[1].trim().split(/\s+/)
-const validModes = ["full", "rerun", "status"]
+  // ─── Extract flags from the first line ────────────────────────────────
+  let fromStage = ""
+  let feedback = ""
+  let complexity = ""
+  let dryRun = false
+  let ciRunId = ""
 
-let mode = "full"
-let taskId = ""
-let fromStage = ""
-let feedback = ""
+  // Extract --from
+  const fromMatch = argsLine.match(/--from\s+(\S+)/)
+  if (fromMatch) fromStage = fromMatch[1]
 
-let i = 0
+  // Extract --feedback "quoted text"
+  const feedbackMatch = argsLine.match(/--feedback\s+"([^"]*)"/)
+  if (feedbackMatch) feedback = feedbackMatch[1]
 
-// First arg: mode or task-id
-if (parts[i] && validModes.includes(parts[i])) {
-  mode = parts[i]
-  i++
-}
+  // Extract --complexity
+  const complexityMatch = argsLine.match(/--complexity\s+(\S+)/)
+  if (complexityMatch) complexity = complexityMatch[1]
 
-// Second arg: task-id
-if (parts[i] && !parts[i].startsWith("--")) {
-  taskId = parts[i]
-  i++
-}
+  // Extract --dry-run
+  if (/--dry-run/.test(argsLine)) dryRun = true
 
-// Named args
-while (i < parts.length) {
-  if (parts[i] === "--from" && parts[i + 1]) {
-    fromStage = parts[i + 1]
-    i += 2
-  } else if (parts[i] === "--feedback" && parts[i + 1]) {
-    // Collect quoted feedback
-    const rest = parts.slice(i + 1).join(" ")
-    const quoted = rest.match(/^"([^"]*)"/)
-    feedback = quoted ? quoted[1] : parts[i + 1]
-    break
-  } else {
-    i++
+  // Extract --ci-run-id
+  const ciRunIdMatch = argsLine.match(/--ci-run-id\s+(\S+)/)
+  if (ciRunIdMatch) ciRunId = ciRunIdMatch[1]
+
+  // ─── Strip flags to get positional args ───────────────────────────────
+  const positional = argsLine
+    .replace(/--from\s+\S+/g, "")
+    .replace(/--feedback\s+"[^"]*"/g, "")
+    .replace(/--complexity\s+\S+/g, "")
+    .replace(/--dry-run/g, "")
+    .replace(/--ci-run-id\s+\S+/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+
+  const parts = positional ? positional.split(/\s+/) : []
+
+  // ─── Determine mode and task-id ───────────────────────────────────────
+  let mode = "full"
+  let taskId = ""
+  let idx = 0
+
+  if (parts[idx] && (VALID_MODES as readonly string[]).includes(parts[idx])) {
+    mode = parts[idx]
+    idx++
+  }
+
+  // Next positional is task-id (if it doesn't start with --)
+  if (parts[idx] && !parts[idx].startsWith("--")) {
+    taskId = parts[idx]
+    idx++
+  } else if (parts[0] && !(VALID_MODES as readonly string[]).includes(parts[0]) && !parts[0].startsWith("--")) {
+    // Unknown first word that wasn't a mode — treat as task-id
+    taskId = parts[0]
+  }
+
+  // ─── Extract body (lines after the @kody line) ───────────────────────
+  const kodyLineIdx = commentBody.search(/(?:@kody|\/kody)/i)
+  const afterKodyLine = commentBody.slice(kodyLineIdx)
+  const newlineIdx = afterKodyLine.indexOf("\n")
+  const bodyAfterCommand = newlineIdx !== -1 ? afterKodyLine.slice(newlineIdx + 1) : ""
+
+  // ─── Mode-specific transformations ────────────────────────────────────
+
+  // approve → rerun with body as feedback
+  if (mode === "approve") {
+    mode = "rerun"
+    if (bodyAfterCommand) {
+      feedback = bodyAfterCommand
+    }
+  }
+
+  // fix: extract body as feedback
+  if (mode === "fix") {
+    if (bodyAfterCommand) {
+      feedback = bodyAfterCommand
+    }
+  }
+
+  // fix-ci: extract body as feedback + ci-run-id from body
+  if (mode === "fix-ci") {
+    if (bodyAfterCommand) {
+      feedback = bodyAfterCommand
+      const runIdFromBody = bodyAfterCommand.match(/Run ID:\s*(\d+)/)
+      if (runIdFromBody) {
+        ciRunId = runIdFromBody[1]
+      }
+    }
+  }
+
+  // bootstrap: auto-generate task-id
+  if (mode === "bootstrap") {
+    taskId = `bootstrap-${generateTimestamp()}`
+  }
+
+  // PR detection
+  const prNumber = isPR ? issueNumber : ""
+
+  // Review on PR: generate review-pr task-id
+  if (mode === "review" && prNumber) {
+    taskId = `review-pr-${prNumber}-${generateTimestamp()}`
+  }
+
+  // Auto-generate task-id for full mode when not provided
+  if (!taskId && mode === "full") {
+    taskId = `${issueNumber}-${generateTimestamp()}`
+  }
+
+  // Valid if we have a task-id, or if mode is one that doesn't need one (fix, fix-ci, status, review, resolve)
+  const modesWithoutTaskId = ["fix", "fix-ci", "status", "review", "resolve", "rerun"]
+  const valid = !!taskId || modesWithoutTaskId.includes(mode)
+
+  return {
+    task_id: taskId,
+    mode,
+    from_stage: fromStage,
+    issue_number: issueNumber,
+    pr_number: prNumber,
+    feedback,
+    complexity,
+    ci_run_id: ciRunId,
+    dry_run: dryRun,
+    valid,
+    trigger_type: "comment",
   }
 }
 
-output("task_id", taskId)
-output("mode", mode)
-output("from_stage", fromStage)
-output("issue_number", issueNumber)
-output("feedback", feedback)
-output("valid", taskId ? "true" : "false")
-output("trigger_type", "comment")
+// ─── Write to GITHUB_OUTPUT ─────────────────────────────────────────────────
+
+export function writeOutputs(result: ParseResult): void {
+  const outputFile = process.env.GITHUB_OUTPUT
+
+  function output(key: string, value: string): void {
+    if (outputFile) {
+      // Use heredoc delimiter for multiline values (feedback)
+      if (value.includes("\n")) {
+        fs.appendFileSync(outputFile, `${key}<<KODY_EOF\n${value}\nKODY_EOF\n`)
+      } else {
+        fs.appendFileSync(outputFile, `${key}=${value}\n`)
+      }
+    }
+    // Log single-line summary
+    const display = value.includes("\n") ? value.split("\n")[0] + "..." : value
+    console.log(`${key}=${display}`)
+  }
+
+  output("task_id", result.task_id)
+  output("mode", result.mode)
+  output("from_stage", result.from_stage)
+  output("issue_number", result.issue_number)
+  output("pr_number", result.pr_number)
+  output("feedback", result.feedback)
+  output("complexity", result.complexity)
+  output("ci_run_id", result.ci_run_id)
+  output("dry_run", result.dry_run ? "true" : "false")
+  output("valid", result.valid ? "true" : "false")
+  output("trigger_type", result.trigger_type)
+}
+
+// ─── CLI entry point (when run directly or via ci-parse command) ────────────
+
+export function runCiParse(): void {
+  const result = parseCommentInputs()
+  writeOutputs(result)
+}

@@ -62,6 +62,8 @@ export interface KodyConfig {
   github: {
     owner: string
     repo: string
+    /** Post a pipeline summary comment on the issue after completion. Default: true in CI, false locally. */
+    postSummary?: boolean
   }
   agent: {
     modelMap: { cheap: string; mid: string; strong: string }
@@ -71,6 +73,8 @@ export interface KodyConfig {
     default?: StageConfig
     /** Per-stage provider + model. Overrides default and modelMap. */
     stages?: Record<string, StageConfig>
+    /** When true (default), escalate to a stronger model tier on timeout retries */
+    escalateOnTimeout?: boolean
     // Multi-runner (advanced)
     runners?: Record<string, RunnerConfig>
     defaultRunner?: string

@@ -231,6 +231,38 @@ export function commitAll(
   return { success: true, hash, message }
 }
 
+export function getDiffFiles(baseBranch: string, cwd?: string): string[] {
+  try {
+    const output = git(["diff", "--name-only", `origin/${baseBranch}...HEAD`], { cwd })
+    if (!output) return []
+    return output.split("\n").filter((f) => f && !f.startsWith(".kody/"))
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    logger.warn(`  Failed to get diff files: ${msg}`)
+    return []
+  }
+}
+
+export function filterFindingsByDiffFiles(
+  findings: string[],
+  diffFiles: string[],
+): string[] {
+  // When no diff files provided, return all findings (no filtering possible)
+  if (diffFiles.length === 0) return findings
+
+  return findings.filter((finding) => {
+    // Always filter out .kody/ references
+    const fileMatch = finding.match(/\*\*([^*]+)\*\*/)
+    if (fileMatch) {
+      const filePath = fileMatch[1]
+      if (filePath.startsWith(".kody/")) return false
+      return diffFiles.includes(filePath)
+    }
+    // Keep findings with no file reference (general findings)
+    return true
+  })
+}
+
 export function pushBranch(cwd?: string): void {
   try {
     git(["push", "-u", "origin", "HEAD"], { cwd, timeout: 120_000 })

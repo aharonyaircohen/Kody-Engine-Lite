@@ -8,7 +8,7 @@ import type {
 } from "./types.js"
 import { STAGES } from "./definitions.js"
 import { ensureFeatureBranch, syncWithDefault } from "./git-utils.js"
-import { setLifecycleLabel } from "./github-api.js"
+import { setLifecycleLabel, postComment } from "./github-api.js"
 import { logger, ciGroup, ciGroupEnd } from "./logger.js"
 import { loadState, writeState, initState } from "./pipeline/state.js"
 import { filterByComplexity } from "./pipeline/complexity.js"
@@ -23,6 +23,8 @@ import {
 } from "./pipeline/hooks.js"
 import { autoLearn } from "./learning/auto-learn.js"
 import { runRetrospective } from "./retrospective.js"
+import { formatPipelineSummary } from "./pipeline/summary.js"
+import { getProjectConfig } from "./config.js"
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -287,6 +289,26 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
   await runRetrospective(ctx, state, pipelineStartTime).catch((err) => {
     logger.warn(`  Retrospective failed: ${err instanceof Error ? err.message : String(err)}`)
   })
+
+  // Post pipeline summary comment on the issue
+  if (ctx.input.issueNumber && !ctx.input.dryRun) {
+    const config = getProjectConfig()
+    const isCI = !!process.env.GITHUB_ACTIONS
+    const shouldPost = config.github.postSummary ?? (isCI ? true : false)
+    if (shouldPost) {
+      try {
+        const summaryOpts: { complexity?: string; model?: string } = {}
+        if (complexity) summaryOpts.complexity = complexity
+        const modelMap = config.agent?.modelMap
+        if (modelMap?.mid) summaryOpts.model = modelMap.mid
+        const summary = formatPipelineSummary(state, summaryOpts)
+        postComment(ctx.input.issueNumber, summary)
+        logger.info("Pipeline summary posted on issue")
+      } catch (err) {
+        logger.warn(`  Failed to post pipeline summary: ${err instanceof Error ? err.message : String(err)}`)
+      }
+    }
+  }
 
   return state
 }

@@ -103,114 +103,11 @@ jobs:
         if: steps.safety.outputs.valid == 'true'
         id: parse
         env:
-          BODY: ${{ github.event.comment.body }}
-        run: |
-          # Strip carriage returns — GitHub comments may contain \r\n line endings
-          BODY=$(printf '%s' "$BODY" | tr -d '\r')
-
-          # Extract: @kody [mode] [task-id] [--from stage]
-          KODY_ARGS=$(echo "$BODY" | grep -oP '(?:@kody|/kody)\s+\K.*' || echo "")
-
-          # Extract flags first (before positional parsing)
-          FROM_STAGE=$(echo "$KODY_ARGS" | grep -oP '(?<=--from )\S+' || echo "")
-          FEEDBACK=$(echo "$KODY_ARGS" | grep -oP '(?<=--feedback ")[^"]*' || echo "")
-          COMPLEXITY=""
-          if echo "$KODY_ARGS" | grep -q -- '--complexity'; then
-            COMPLEXITY=$(echo "$KODY_ARGS" | tr ' ' '\n' | grep -A1 -- '--complexity' | tail -1)
-          fi
-          DRY_RUN="false"
-          if echo "$KODY_ARGS" | grep -q -- '--dry-run'; then
-            DRY_RUN="true"
-          fi
-
-          # Strip flags and their values for clean positional parsing
-          POSITIONAL=$(echo "$KODY_ARGS" | sed -E \
-            -e 's/--from\s+\S+//g' \
-            -e 's/--feedback\s+"[^"]*"//g' \
-            -e 's/--complexity\s+\S+//g' \
-            -e 's/--dry-run//g' \
-            -e 's/--ci-run-id\s+\S+//g' \
-            -e 's/\s+/ /g' -e 's/^ //' -e 's/ $//')
-
-          MODE=$(echo "$POSITIONAL" | awk '{print $1}')
-          TASK_ID=$(echo "$POSITIONAL" | awk '{print $2}')
-
-          # Validate mode — after flag stripping, only positional args remain
-          case "$MODE" in
-            full|rerun|fix|fix-ci|status|approve|review|resolve|bootstrap) ;;
-            *)
-              # First positional isn't a known mode — treat as task-id
-              if [ -n "$MODE" ]; then
-                TASK_ID="$MODE"
-              fi
-              MODE="full"
-              ;;
-          esac
-
-          ISSUE_NUM="${{ github.event.issue.number }}"
-
-          # For approve mode: extract answer body and convert to rerun
-          # Must run BEFORE task-id generation so we don't create a new task
-          # approve: extract answers, convert to rerun
-          if [ "$MODE" = "approve" ]; then
-            APPROVE_BODY=$(echo "$BODY" | sed -n '/\(@kody\|\/kody\)\s*approve/,$p' | tail -n +2)
-            FEEDBACK="$APPROVE_BODY"
-            MODE="rerun"
-          fi
-
-          # fix: extract description as feedback, convert to fix command
-          if [ "$MODE" = "fix" ]; then
-            FIX_BODY=$(echo "$BODY" | sed -n '/\(@kody\|\/kody\)\s*fix/,$p' | tail -n +2)
-            if [ -n "$FIX_BODY" ]; then
-              FEEDBACK="$FIX_BODY"
-            fi
-            # Leave TASK_ID empty — entry.ts finds latest task for issue
-          fi
-
-          # fix-ci: extract body as feedback + CI run ID
-          if [ "$MODE" = "fix-ci" ]; then
-            FIX_CI_BODY=$(echo "$BODY" | sed -n '/\(@kody\|\/kody\)\s*fix-ci/,$p' | tail -n +2)
-            if [ -n "$FIX_CI_BODY" ]; then
-              FEEDBACK="$FIX_CI_BODY"
-            fi
-            CI_RUN_ID=$(echo "$FIX_CI_BODY" | grep -oP 'Run ID:\s*\K\d+' || echo "")
-          fi
-
-          # Bootstrap mode: set task-id and skip normal pipeline
-          if [ "$MODE" = "bootstrap" ]; then
-            TASK_ID="bootstrap-$(date +%y%m%d-%H%M%S)"
-          fi
-
-          # Auto-generate task-id if not provided (only for full mode)
-          if [ -z "$TASK_ID" ] && [ "$MODE" = "full" ]; then
-            TASK_ID="${ISSUE_NUM}-$(date +%y%m%d-%H%M%S)"
-          fi
-
-          # Detect if this comment is on a PR (PRs are issues in GitHub API)
-          PR_NUMBER=""
-          if [ -n "${{ github.event.issue.pull_request }}" ]; then
-            PR_NUMBER="$ISSUE_NUM"
-          fi
-
-          # For review mode on a PR comment: use the PR number directly
-          if [ "$MODE" = "review" ] && [ -n "$PR_NUMBER" ]; then
-            TASK_ID="review-pr-${PR_NUMBER}-$(date +%y%m%d-%H%M%S)"
-          fi
-
-          echo "task_id=$TASK_ID" >> $GITHUB_OUTPUT
-          echo "mode=$MODE" >> $GITHUB_OUTPUT
-          echo "from_stage=$FROM_STAGE" >> $GITHUB_OUTPUT
-          echo "issue_number=$ISSUE_NUM" >> $GITHUB_OUTPUT
-          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
-          {
-            echo "feedback<<KODY_EOF"
-            echo "$FEEDBACK"
-            echo "KODY_EOF"
-          } >> $GITHUB_OUTPUT
-          echo "complexity=$COMPLEXITY" >> $GITHUB_OUTPUT
-          echo "ci_run_id=${CI_RUN_ID:-}" >> $GITHUB_OUTPUT
-          echo "dry_run=$DRY_RUN" >> $GITHUB_OUTPUT
-          echo "valid=true" >> $GITHUB_OUTPUT
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_IS_PR: ${{ github.event.issue.pull_request }}
+          TRIGGER_TYPE: comment
+        run: kody-engine-lite ci-parse
 
   # ─── Orchestrate ─────────────────────────────────────────────────────────────
   orchestrate:
@@ -360,10 +257,22 @@ jobs:
       github.event_name == 'pull_request' &&
       github.event.pull_request.merged == true
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
     steps:
+      - name: Generate App token
+        id: app-token
+        if: vars.KODY_APP_ID != ''
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.KODY_APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          repositories: ${{ github.event.repository.name }}
+
       - name: Close linked issue
         uses: actions/github-script@v7
         with:
+          github-token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
           script: |
             // Extract issue number from branch name (e.g. "42--feature-name")
             const branch = context.payload.pull_request.head.ref;
