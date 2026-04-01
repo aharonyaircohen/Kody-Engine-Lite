@@ -352,8 +352,18 @@ async function handleTasks(
       filed.push({ number: 0, url: "#", title: task.title })
       continue
     }
-    const allLabels = [...(task.labels ?? []), ...(task.priority ? [`priority:${task.priority}`] : [])]
-    const issue = createIssue(task.title, task.body, allLabels)
+    // Only apply labels known to exist in most repos (priority:*).
+    // Custom category labels (e.g. "backend") may not exist and would cause
+    // issue creation to fail entirely.
+    const safeLabels = [
+      ...(task.labels ?? []).filter((l) => l.startsWith("priority:") || l.startsWith("kody:")),
+      ...(task.priority ? [`priority:${task.priority}`] : []),
+    ]
+    let issue = createIssue(task.title, task.body, safeLabels)
+    if (!issue && safeLabels.length > 0) {
+      // Retry without labels in case any priority label is missing
+      issue = createIssue(task.title, task.body, [])
+    }
     if (issue) {
       filed.push({ number: issue.number, url: issue.url, title: task.title })
     } else {

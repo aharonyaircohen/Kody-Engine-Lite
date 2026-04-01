@@ -697,13 +697,9 @@ describe("priority label merging", () => {
     fs.mkdirSync(taskDir, { recursive: true })
     writeResult(taskDir, [{ title: "High priority task", body: "body", priority: "high" }])
 
-    const { createIssue } = await import("../../src/github-api.js")
-    const spy = vi.spyOn({ createIssue }, "createIssue")
-
-    // Run in non-local mode — but createIssue will return undefined (not mocked to return a value)
-    // We need to spy on createIssue from the module
     const githubApi = await import("../../src/github-api.js")
-    const issueSpy = vi.spyOn(githubApi, "createIssue").mockReturnValue(undefined)
+    // Return a value so the retry path is not triggered
+    const issueSpy = vi.spyOn(githubApi, "createIssue").mockReturnValue({ number: 1, url: "http://x/1" })
 
     const { taskifyCommand } = await import("../../src/cli/taskify-command.js")
 
@@ -720,7 +716,6 @@ describe("priority label merging", () => {
     const labelsArg = issueSpy.mock.calls[0][2]
     expect(labelsArg).toContain("priority:high")
     issueSpy.mockRestore()
-    spy.mockRestore()
   })
 
   it("missing priority adds no extra label", async () => {
@@ -728,10 +723,11 @@ describe("priority label merging", () => {
     const taskId = "priority-none-test"
     const taskDir = path.join(tmpDir, ".kody", "tasks", taskId)
     fs.mkdirSync(taskDir, { recursive: true })
+    // "backend" is a custom category label — gets filtered out by safe-label logic
     writeResult(taskDir, [{ title: "No priority task", body: "body", labels: ["backend"] }])
 
     const githubApi = await import("../../src/github-api.js")
-    const issueSpy = vi.spyOn(githubApi, "createIssue").mockReturnValue(undefined)
+    const issueSpy = vi.spyOn(githubApi, "createIssue").mockReturnValue({ number: 2, url: "http://x/2" })
 
     const { taskifyCommand } = await import("../../src/cli/taskify-command.js")
 
@@ -744,21 +740,24 @@ describe("priority label merging", () => {
       runner: createMockRunner(),
     })
 
+    expect(issueSpy).toHaveBeenCalledOnce()
     const labelsArg = issueSpy.mock.calls[0][2]
-    expect(labelsArg).toEqual(["backend"])
+    // "backend" is filtered out (not a priority: or kody: label)
+    expect(labelsArg).toEqual([])
     expect(labelsArg?.some((l: string) => l.startsWith("priority:"))).toBe(false)
     issueSpy.mockRestore()
   })
 
-  it("priority coexists with user-defined labels", async () => {
+  it("priority coexists with kody: labels (custom labels filtered out)", async () => {
     setupMcpConfig(tmpDir)
     const taskId = "priority-with-labels-test"
     const taskDir = path.join(tmpDir, ".kody", "tasks", taskId)
     fs.mkdirSync(taskDir, { recursive: true })
-    writeResult(taskDir, [{ title: "Task with labels", body: "body", labels: ["frontend", "ux"], priority: "medium" }])
+    // "frontend" and "ux" are custom labels — filtered out; "kody:feature" is safe
+    writeResult(taskDir, [{ title: "Task with labels", body: "body", labels: ["frontend", "ux", "kody:feature"], priority: "medium" }])
 
     const githubApi = await import("../../src/github-api.js")
-    const issueSpy = vi.spyOn(githubApi, "createIssue").mockReturnValue(undefined)
+    const issueSpy = vi.spyOn(githubApi, "createIssue").mockReturnValue({ number: 3, url: "http://x/3" })
 
     const { taskifyCommand } = await import("../../src/cli/taskify-command.js")
 
@@ -771,10 +770,13 @@ describe("priority label merging", () => {
       runner: createMockRunner(),
     })
 
+    expect(issueSpy).toHaveBeenCalledOnce()
     const labelsArg = issueSpy.mock.calls[0][2]
-    expect(labelsArg).toContain("frontend")
-    expect(labelsArg).toContain("ux")
+    // Only kody: and priority: labels survive the filter
+    expect(labelsArg).toContain("kody:feature")
     expect(labelsArg).toContain("priority:medium")
+    expect(labelsArg).not.toContain("frontend")
+    expect(labelsArg).not.toContain("ux")
     issueSpy.mockRestore()
   })
 })
