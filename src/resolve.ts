@@ -5,7 +5,7 @@ import { runQualityGates } from "./verify-runner.js"
 import { logger } from "./logger.js"
 import type { AgentRunner } from "./types.js"
 import { resolveModel } from "./context.js"
-import { getProjectConfig, needsLitellmProxy, getLitellmUrl } from "./config.js"
+import { getProjectConfig, anyStageNeedsProxy, getLitellmUrl } from "./config.js"
 
 export interface ResolveOptions {
   prNumber: number
@@ -80,7 +80,7 @@ export async function runResolve(options: ResolveOptions): Promise<ResolveResult
 
   const model = resolveModel("mid")
   const extraEnv: Record<string, string> = {}
-  if (needsLitellmProxy(config)) {
+  if (anyStageNeedsProxy(config)) {
     extraEnv.ANTHROPIC_BASE_URL = getLitellmUrl()
   }
 
