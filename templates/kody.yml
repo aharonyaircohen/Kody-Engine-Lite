@@ -215,6 +215,7 @@ jobs:
             [ "$MODE" = "fix-ci" ] && CMD="fix-ci"
             [ "$MODE" = "review" ] && CMD="review"
             [ "$MODE" = "resolve" ] && CMD="resolve"
+            [ "$MODE" = "status" ] && CMD="status"
             ARGS="--issue-number $ISSUE_NUMBER"
             [ -n "$TASK_ID" ] && ARGS="$ARGS --task-id $TASK_ID"
             [ -n "$PR_NUMBER" ] && ARGS="$ARGS --pr-number $PR_NUMBER"
