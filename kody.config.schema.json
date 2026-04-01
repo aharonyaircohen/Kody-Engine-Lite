@@ -201,6 +201,11 @@
             "readyTimeout": {
               "type": "number",
               "description": "Seconds to wait for the server to be ready. Default: 30"
+            },
+            "env": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "List of GitHub secret names to forward as environment variables for the dev server process (e.g., ['BLOB_READ_WRITE_TOKEN', 'DATABASE_URL']). These are injected into the workflow env block during 'kody init'."
             }
           },
           "required": ["command", "url"]
