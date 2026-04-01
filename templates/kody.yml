@@ -251,9 +251,6 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Install Kody Engine
-        run: npm install -g @kody-ade/kody-engine-lite
-
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code
 
@@ -283,7 +280,7 @@ jobs:
         run: |
           if [ "$MODE" = "bootstrap" ]; then
             echo "Running bootstrap..."
-            kody-engine-lite bootstrap
+            npx kody-engine-lite bootstrap
           else
             CMD="run"
             [ "$MODE" = "rerun" ] && CMD="rerun"
@@ -299,7 +296,7 @@ jobs:
             # FEEDBACK is also passed via env var (avoids shell escaping issues)
             [ -n "$FEEDBACK" ] && ARGS="$ARGS --feedback \"$FEEDBACK\""
             [ "$DRY_RUN" = "true" ] && ARGS="$ARGS --dry-run"
-            kody-engine-lite $CMD $ARGS
+            npx kody-engine-lite $CMD $ARGS
           fi
 
       - name: Pipeline summary
@@ -492,17 +489,15 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Install Kody Engine
-        run: npm install -g @kody-ade/kody-engine-lite
       - name: Typecheck
         run: pnpm tsc --noEmit
       - name: CLI loads
-        run: kody-engine-lite --help
+        run: npx kody-engine-lite --help
       - name: Dry run
         run: |
           mkdir -p .kody/tasks/smoke-test
           echo "Smoke test task" > .kody/tasks/smoke-test/task.md
-          kody-engine-lite run --task-id smoke-test --dry-run || true
+          npx kody-engine-lite run --task-id smoke-test --dry-run || true
           if [ -f ".kody/tasks/smoke-test/status.json" ]; then
             echo "✓ status.json created"
             cat .kody/tasks/smoke-test/status.json
