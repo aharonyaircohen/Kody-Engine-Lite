@@ -127,14 +127,14 @@ kody-engine-lite rerun --task-id <id> --from <stage> [options]
 
 | Flag | Required | Description |
 |------|----------|-------------|
-| `--task-id <id>` | Yes* | Task identifier |
+| `--task-id <id>` | No* | Task identifier (auto-resolved from issue comments if omitted) |
 | `--from <stage>` | Yes | Stage to resume from: `taskify`, `plan`, `build`, `verify`, `review`, `review-fix`, `ship` |
 | `--issue-number <n>` | No | GitHub issue number |
 | `--cwd <path>` | No | Working directory |
 
 **Environment variables:** `TASK_ID`, `FROM_STAGE`, `ISSUE_NUMBER`
 
-**Note:** `rerun` bypasses the "already-completed" state check, so you can re-run stages even after the pipeline has finished.
+**Note:** `rerun` bypasses the "already-completed" state check, so you can re-run stages even after the pipeline has finished. When `--task-id` is omitted, the engine auto-resolves the latest task for the issue by scanning `.kody/tasks/` or issue comments.
 
 **Example:**
 ```bash
@@ -191,13 +191,27 @@ kody-engine-lite status --task-id <id> [--cwd <path>]
 
 | Flag | Required | Description |
 |------|----------|-------------|
-| `--task-id <id>` | Yes | Task identifier |
+| `--task-id <id>` | No* | Task identifier (auto-resolved from issue if omitted) |
+| `--issue-number <n>` | No | GitHub issue number (used for auto-resolution) |
 | `--cwd <path>` | No | Working directory |
+
+When `--task-id` is omitted, the engine auto-resolves the latest task for the issue.
 
 **Example:**
 ```bash
 kody-engine-lite status --task-id 42-260327-102254
+kody-engine-lite status --issue-number 42
 ```
+
+### `ci-parse`
+
+Parse a GitHub comment into structured pipeline inputs. Used internally by the workflow template to replace the shell parser.
+
+```bash
+kody-engine-lite ci-parse
+```
+
+Reads from environment variables (`COMMENT_BODY`, `ISSUE_NUMBER`, `ISSUE_IS_PR`, `TRIGGER_TYPE`) and writes outputs to `$GITHUB_OUTPUT`.
 
 ### `version`
 

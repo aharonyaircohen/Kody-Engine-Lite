@@ -59,6 +59,11 @@
         "repo": {
           "type": "string",
           "description": "GitHub repository name (e.g., 'my-repo')"
+        },
+        "postSummary": {
+          "type": "boolean",
+          "description": "Post a structured pipeline summary comment on the issue after completion. Default: true in CI, false locally.",
+          "default": true
         }
       },
       "additionalProperties": false
@@ -139,6 +144,11 @@
             "review-fix": { "type": "string" }
           },
           "additionalProperties": false
+        },
+        "escalateOnTimeout": {
+          "type": "boolean",
+          "description": "Escalate to a stronger model tier when a stage times out and retries. Default: true.",
+          "default": true
         }
       },
       "additionalProperties": false

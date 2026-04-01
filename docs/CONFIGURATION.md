@@ -74,8 +74,16 @@ Empty string = skip that check. Commands are run via `execFileSync` with a 60-se
 | `modelMap.strong` | Model for plan, review | `"opus"` |
 
 **Partial modelMap:** You can override individual tiers without specifying all three. For example, `{ "agent": { "modelMap": { "strong": "opus" } } }` keeps the defaults for cheap and mid. The config is deep-merged.
+
+| `escalateOnTimeout` | Escalate to a stronger model tier when a stage times out and retries | `true` |
 | `defaultRunner` | Default runner name (advanced) | `"claude"` |
 | `stageRunners` | Per-stage runner overrides (advanced) | — |
+
+### `github`
+
+| Field | Description | Default |
+|-------|-------------|---------|
+| `postSummary` | Post a structured pipeline summary comment on the issue after completion | `true` in CI, `false` locally |
 
 When `provider` is set to anything other than `"anthropic"`, Kody auto-starts a LiteLLM proxy that routes Claude Code API calls to your provider. See [LiteLLM guide](LITELLM.md).
 
