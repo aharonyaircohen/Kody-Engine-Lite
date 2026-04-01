@@ -145,6 +145,37 @@
           },
           "additionalProperties": false
         },
+        "default": {
+          "type": "object",
+          "description": "Default provider + model for all stages. Overridden by per-stage entries in 'stages'.",
+          "properties": {
+            "provider": {
+              "type": "string",
+              "description": "Provider name: 'claude' for direct Anthropic API, anything else routes through LiteLLM proxy",
+              "examples": ["claude", "minimax", "openai", "google"]
+            },
+            "model": {
+              "type": "string",
+              "description": "Full model ID (e.g., 'claude-sonnet-4-6', 'gpt-4o')"
+            }
+          },
+          "required": ["provider", "model"],
+          "additionalProperties": false
+        },
+        "stages": {
+          "type": "object",
+          "description": "Per-stage provider + model overrides. Takes precedence over 'default' and 'modelMap'.",
+          "properties": {
+            "taskify": { "$ref": "#/properties/agent/properties/default" },
+            "plan": { "$ref": "#/properties/agent/properties/default" },
+            "build": { "$ref": "#/properties/agent/properties/default" },
+            "verify": { "$ref": "#/properties/agent/properties/default" },
+            "review": { "$ref": "#/properties/agent/properties/default" },
+            "review-fix": { "$ref": "#/properties/agent/properties/default" },
+            "ship": { "$ref": "#/properties/agent/properties/default" }
+          },
+          "additionalProperties": false
+        },
         "escalateOnTimeout": {
           "type": "boolean",
           "description": "Escalate to a stronger model tier when a stage times out and retries. Default: true.",
