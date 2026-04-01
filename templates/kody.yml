@@ -105,7 +105,7 @@ jobs:
         env:
           COMMENT_BODY: ${{ github.event.comment.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
-          ISSUE_IS_PR: ${{ github.event.issue.pull_request }}
+          ISSUE_IS_PR: ${{ github.event.issue.pull_request && 'true' || '' }}
           TRIGGER_TYPE: comment
         run: kody-engine-lite ci-parse
 
