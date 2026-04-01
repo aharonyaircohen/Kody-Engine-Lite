@@ -107,17 +107,42 @@ export function injectTaskContext(
   return prompt.replace("{{TASK_CONTEXT}}", context)
 }
 
+const UI_EXTENSIONS = new Set([
+  ".tsx", ".jsx", ".vue", ".svelte",
+  ".css", ".scss", ".sass", ".less",
+  ".html",
+])
+
+const UI_PATH_SEGMENTS = [
+  "/components/", "/pages/", "/layouts/", "/styles/", "/views/",
+]
+
+/**
+ * Determine if a scope array contains frontend/UI files.
+ * Returns true if any file has a UI extension or lives in a UI directory.
+ */
+export function inferHasUIFromScope(scope: string[]): boolean {
+  return scope.some((filePath) => {
+    const ext = path.extname(filePath).toLowerCase()
+    if (UI_EXTENSIONS.has(ext)) return true
+    const normalized = filePath.replace(/\\/g, "/")
+    return UI_PATH_SEGMENTS.some((seg) => normalized.includes(seg))
+  })
+}
+
 /**
  * Read task.json and check if the task involves UI.
- * Returns true if hasUI is true or absent (default: include guidance).
- * Returns false only if hasUI is explicitly false.
+ * Derives hasUI deterministically from the scope array.
+ * Returns true (safe default) when scope is empty, missing, or task.json is absent.
  */
 export function taskHasUI(taskDir: string): boolean {
   const taskJsonPath = path.join(taskDir, "task.json")
-  if (!fs.existsSync(taskJsonPath)) return true // no task.json yet → don't suppress
+  if (!fs.existsSync(taskJsonPath)) return true // no task.json yet → safe default
   try {
     const taskDef = JSON.parse(fs.readFileSync(taskJsonPath, "utf-8"))
-    return taskDef.hasUI !== false
+    const scope: string[] = Array.isArray(taskDef.scope) ? taskDef.scope : []
+    if (scope.length === 0) return true // no scope info → safe default
+    return inferHasUIFromScope(scope)
   } catch {
     return true
   }

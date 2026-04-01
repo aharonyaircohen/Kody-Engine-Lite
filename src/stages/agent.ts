@@ -171,7 +171,7 @@ export async function executeAgentStage(
                 description: plainText.slice(0, 500),
                 scope: [],
                 risk_level: "low",
-                hasUI: true,
+
                 questions: [],
               }, null, 2)
               fs.writeFileSync(outputPath, fallback)

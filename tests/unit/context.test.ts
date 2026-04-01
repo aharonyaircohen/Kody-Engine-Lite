@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import * as fs from "fs"
 import * as path from "path"
 import * as os from "os"
-import { injectTaskContext, resolveModel, buildFullPrompt } from "../../src/context.js"
+import { injectTaskContext, resolveModel, buildFullPrompt, inferHasUIFromScope, taskHasUI } from "../../src/context.js"
 import { resetProjectConfig, setConfigDir } from "../../src/config.js"
 import { readProjectMemory } from "../../src/memory.js"
 
@@ -112,6 +112,89 @@ describe("resolveModel", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true })
   })
 
+})
+
+describe("inferHasUIFromScope", () => {
+  it("returns true for frontend extensions", () => {
+    expect(inferHasUIFromScope(["src/components/Button.tsx"])).toBe(true)
+    expect(inferHasUIFromScope(["app/page.jsx"])).toBe(true)
+    expect(inferHasUIFromScope(["src/App.vue"])).toBe(true)
+    expect(inferHasUIFromScope(["src/App.svelte"])).toBe(true)
+    expect(inferHasUIFromScope(["styles/main.css"])).toBe(true)
+    expect(inferHasUIFromScope(["styles/theme.scss"])).toBe(true)
+    expect(inferHasUIFromScope(["styles/vars.sass"])).toBe(true)
+    expect(inferHasUIFromScope(["styles/utils.less"])).toBe(true)
+    expect(inferHasUIFromScope(["public/index.html"])).toBe(true)
+  })
+
+  it("returns true for UI directory paths", () => {
+    expect(inferHasUIFromScope(["src/components/Header.ts"])).toBe(true)
+    expect(inferHasUIFromScope(["src/pages/index.ts"])).toBe(true)
+    expect(inferHasUIFromScope(["src/layouts/Default.ts"])).toBe(true)
+    expect(inferHasUIFromScope(["src/styles/theme.ts"])).toBe(true)
+    expect(inferHasUIFromScope(["src/views/Dashboard.ts"])).toBe(true)
+  })
+
+  it("returns false for backend-only scope", () => {
+    expect(inferHasUIFromScope(["src/api/users.ts"])).toBe(false)
+    expect(inferHasUIFromScope(["src/utils/retry.ts"])).toBe(false)
+    expect(inferHasUIFromScope(["prisma/schema.prisma"])).toBe(false)
+    expect(inferHasUIFromScope(["src/services/auth.ts", "src/lib/db.ts"])).toBe(false)
+  })
+
+  it("returns true if any file in scope is frontend", () => {
+    expect(inferHasUIFromScope(["src/api/users.ts", "src/components/UserList.tsx"])).toBe(true)
+  })
+
+  it("returns false for empty scope", () => {
+    expect(inferHasUIFromScope([])).toBe(false)
+  })
+
+  it("is case-insensitive for extensions", () => {
+    expect(inferHasUIFromScope(["src/App.TSX"])).toBe(true)
+    expect(inferHasUIFromScope(["styles/main.CSS"])).toBe(true)
+  })
+})
+
+describe("taskHasUI", () => {
+  let tmpDir: string
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kody-hasui-test-"))
+  })
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true })
+  })
+
+  it("returns true when task.json does not exist", () => {
+    expect(taskHasUI(tmpDir)).toBe(true)
+  })
+
+  it("returns true when scope is empty", () => {
+    fs.writeFileSync(path.join(tmpDir, "task.json"), JSON.stringify({ scope: [] }))
+    expect(taskHasUI(tmpDir)).toBe(true)
+  })
+
+  it("returns true when scope is missing", () => {
+    fs.writeFileSync(path.join(tmpDir, "task.json"), JSON.stringify({ title: "test" }))
+    expect(taskHasUI(tmpDir)).toBe(true)
+  })
+
+  it("returns true when scope contains frontend files", () => {
+    fs.writeFileSync(path.join(tmpDir, "task.json"), JSON.stringify({ scope: ["src/components/Button.tsx"] }))
+    expect(taskHasUI(tmpDir)).toBe(true)
+  })
+
+  it("returns false when scope contains only backend files", () => {
+    fs.writeFileSync(path.join(tmpDir, "task.json"), JSON.stringify({ scope: ["src/api/users.ts", "src/lib/db.ts"] }))
+    expect(taskHasUI(tmpDir)).toBe(false)
+  })
+
+  it("returns true when task.json is invalid JSON", () => {
+    fs.writeFileSync(path.join(tmpDir, "task.json"), "not json")
+    expect(taskHasUI(tmpDir)).toBe(true)
+  })
 })
 
 describe("buildFullPrompt with tiered context", () => {

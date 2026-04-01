@@ -211,11 +211,11 @@ describe("MCP browser guidance in prompts", () => {
     expect(prompt).not.toContain("Browser Visual Verification")
   })
 
-  it("excludes browser guidance when hasUI is false in task.json", () => {
-    // Override task.json with hasUI: false
+  it("excludes browser guidance when scope contains only backend files", () => {
+    // Override task.json with backend-only scope
     fs.writeFileSync(
       path.join(taskDir, "task.json"),
-      JSON.stringify({ title: "Add retry util", task_type: "feature", risk_level: "low", hasUI: false }),
+      JSON.stringify({ title: "Add retry util", task_type: "feature", risk_level: "low", scope: ["src/utils/retry.ts", "src/lib/db.ts"] }),
     )
     fs.writeFileSync(
       path.join(projectDir, "kody.config.json"),
@@ -234,8 +234,8 @@ describe("MCP browser guidance in prompts", () => {
     expect(prompt).not.toContain("Browser Visual Verification")
   })
 
-  it("includes browser guidance when hasUI is absent (defaults to enabled)", () => {
-    // task.json without hasUI field — MCP guidance should still appear
+  it("includes browser guidance when scope is absent (defaults to enabled)", () => {
+    // task.json without scope field — MCP guidance should still appear (safe default)
     fs.writeFileSync(
       path.join(taskDir, "task.json"),
       JSON.stringify({ title: "Add button", task_type: "feature", risk_level: "low" }),

@@ -26,14 +26,9 @@ Required JSON format:
   "description": "Clear description of what the task requires",
   "scope": ["list", "of", "exact/file/paths", "affected"],
   "risk_level": "low | medium | high",
-  "hasUI": true,
   "existing_patterns": ["list of existing patterns found that the implementation should reuse"],
   "questions": []
 }
-
-hasUI heuristics:
-- true: task touches frontend files (.tsx, .jsx, .vue, .svelte, .css, .scss, .html), UI components, pages, layouts, or styles
-- false: task is purely backend, CLI, API, database, config, docs, or infrastructure
 
 Risk level heuristics:
 - low: single file change, no breaking changes, docs, config, isolated scripts, test additions, style changes
