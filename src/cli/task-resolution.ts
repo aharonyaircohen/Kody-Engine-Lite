@@ -67,15 +67,47 @@ export function resolveTaskIdFromComments(issueNumber: number): string | null {
 }
 
 /**
+ * Scan .kody/tasks/ for a directory that contains a taskify.marker for this
+ * issue number. This is used to resume a paused standalone taskify run even
+ * when the task-id doesn't start with the issue number (e.g. "taskify-258-...").
+ */
+export function findPausedTaskifyForIssue(issueNumber: number, projectDir: string): string | null {
+  const tasksDir = path.join(projectDir, ".kody", "tasks")
+  if (!fs.existsSync(tasksDir)) return null
+
+  const allDirs = fs.readdirSync(tasksDir, { withFileTypes: true })
+    .filter((d) => d.isDirectory())
+    .map((d) => d.name)
+    .sort()
+    .reverse()
+
+  for (const dir of allDirs) {
+    const markerPath = path.join(tasksDir, dir, "taskify.marker")
+    if (!fs.existsSync(markerPath)) continue
+    try {
+      const marker = JSON.parse(fs.readFileSync(markerPath, "utf-8"))
+      if (marker.issueNumber === issueNumber) return dir
+    } catch { /* ignore malformed markers */ }
+  }
+
+  return null
+}
+
+/**
  * Auto-resolve a task-id for rerun/status commands when no explicit --task-id
- * is provided. Prefers .kody/tasks/ directory scan, falls back to issue comments.
+ * is provided. Prefers paused taskify runs, then .kody/tasks/ directory scan,
+ * then issue comments.
  */
 export function resolveTaskIdForCommand(issueNumber: number, projectDir: string): string | null {
-  // First: scan .kody/tasks/ for the latest task matching this issue
+  // First: look for a paused standalone taskify run for this issue
+  const fromTaskify = findPausedTaskifyForIssue(issueNumber, projectDir)
+  if (fromTaskify) return fromTaskify
+
+  // Second: scan .kody/tasks/ for the latest task matching this issue
   const fromTasks = findLatestTaskForIssue(issueNumber, projectDir)
   if (fromTasks) return fromTasks
 
-  // Second: scan issue comments for "pipeline started: `<task-id>`"
+  // Third: scan issue comments for "pipeline started: `<task-id>`"
   const fromComments = resolveTaskIdFromComments(issueNumber)
   if (fromComments) return fromComments
 
