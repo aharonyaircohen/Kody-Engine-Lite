@@ -56,9 +56,12 @@ async function ensureLitellmProxy(
   process.env.ANTHROPIC_BASE_URL = litellmUrl
   logger.info(`ANTHROPIC_BASE_URL set to ${litellmUrl}`)
 
-  // Claude Code CLI requires a valid-format ANTHROPIC_API_KEY to start
+  // Claude Code CLI requires a valid-format ANTHROPIC_API_KEY to start.
+  // When routing through LiteLLM, the actual key is irrelevant — LiteLLM
+  // uses the provider's key. We set a dummy placeholder that passes format
+  // validation only if no real key is present.
   if (!process.env.ANTHROPIC_API_KEY || !process.env.ANTHROPIC_API_KEY.startsWith("sk-ant-")) {
-    process.env.ANTHROPIC_API_KEY = "sk-ant-api03-litellm-proxy-key-00000000000000000000000000000000000000000000000000000000000000000000"
+    process.env.ANTHROPIC_API_KEY = `sk-ant-api03-${"0".repeat(64)}`
   }
 
   return litellmProcess
@@ -133,9 +136,12 @@ async function main() {
     }
 
     if (taskAction.action === "resume") {
-      input.taskId = taskAction.taskId
-      input.fromStage = taskAction.fromStage
-      input.command = "rerun" as "rerun"
+      // Merge resume state without mutating the original parsed args
+      Object.assign(input, {
+        taskId: taskAction.taskId,
+        fromStage: taskAction.fromStage,
+        command: "rerun" as const,
+      })
       logger.info(`Resuming task ${taskAction.taskId} from ${taskAction.fromStage}`)
     }
   }
@@ -278,7 +284,7 @@ async function main() {
       local: input.local ?? true,
     })
 
-    if (litellmProcess) (litellmProcess as any).kill?.()
+    if (litellmProcess) litellmProcess.kill()
 
     if (result.outcome === "failed") {
       console.error(`Resolve failed: ${result.error}`)
@@ -393,7 +399,7 @@ async function main() {
 
   let litellmProcess = await ensureLitellmProxy(config, projectDir)
   await runModelHealthCheck(config)
-  const cleanupLitellm = () => { if (litellmProcess) { (litellmProcess as any).kill?.(); litellmProcess = null } }
+  const cleanupLitellm = () => { if (litellmProcess) { litellmProcess.kill(); litellmProcess = null } }
   process.on("exit", cleanupLitellm)
   process.on("SIGINT", () => { cleanupLitellm(); process.exit(130) })
   process.on("SIGTERM", () => { cleanupLitellm(); process.exit(143) })

@@ -116,7 +116,7 @@ describe("diagnoseFailure", () => {
     expect(result.classification).toBe("abort")
   })
 
-  it("defaults to fixable when diagnosis fails", async () => {
+  it("defaults to retry when diagnosis fails", async () => {
     const runner = createFailingRunner()
 
     const result = await diagnoseFailure(
@@ -127,11 +127,14 @@ describe("diagnoseFailure", () => {
       "haiku",
     )
 
-    expect(result.classification).toBe("fixable")
-    expect(result.reason).toBe("Could not diagnose failure")
+    // Defaults to "retry" (not "fixable") to avoid triggering autofix on
+    // infrastructure or pre-existing issues. The verify loop's max-attempts
+    // cap prevents infinite retries.
+    expect(result.classification).toBe("retry")
+    expect(result.reason).toContain("Could not diagnose")
   })
 
-  it("defaults to fixable when response is invalid JSON", async () => {
+  it("defaults to retry when response is invalid JSON", async () => {
     const runner: AgentRunner = {
       async run(): Promise<AgentResult> {
         return { outcome: "completed", output: "This is not JSON" }
@@ -140,10 +143,10 @@ describe("diagnoseFailure", () => {
     }
 
     const result = await diagnoseFailure("verify", "error", [], runner, "haiku")
-    expect(result.classification).toBe("fixable")
+    expect(result.classification).toBe("retry")
   })
 
-  it("defaults to fixable when classification is invalid", async () => {
+  it("defaults to retry when classification is invalid", async () => {
     const runner = createMockDiagnosisRunner({
       classification: "unknown-type",
       reason: "test",
@@ -151,7 +154,7 @@ describe("diagnoseFailure", () => {
     })
 
     const result = await diagnoseFailure("verify", "error", [], runner, "haiku")
-    expect(result.classification).toBe("fixable")
+    expect(result.classification).toBe("retry")
   })
 
   it("handles markdown-fenced JSON response", async () => {

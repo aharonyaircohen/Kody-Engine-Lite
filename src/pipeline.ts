@@ -51,7 +51,16 @@ function ensureFeatureBranchIfNeeded(ctx: PipelineContext): void {
     ensureFeatureBranch(ctx.input.issueNumber, title, ctx.projectDir)
     syncWithDefault(ctx.projectDir)
   } catch (err) {
-    logger.warn(`  Failed to create/sync feature branch: ${err}`)
+    const msg = err instanceof Error ? err.message : String(err)
+    // Feature branch creation is critical for issue-based runs — pipeline
+    // would commit to the wrong branch without it. Throw to abort, unless
+    // we're not in a git repo at all (e.g., test environment).
+    if (msg.includes("not a git repository")) {
+      logger.warn(`  Not a git repository — skipping feature branch setup`)
+    } else {
+      logger.error(`  Failed to create/sync feature branch: ${msg}`)
+      throw new Error(`Feature branch setup failed: ${msg}`)
+    }
   }
 }
 
@@ -59,19 +68,39 @@ function ensureFeatureBranchIfNeeded(ctx: PipelineContext): void {
 
 function acquireLock(taskDir: string): void {
   const lockPath = path.join(taskDir, ".lock")
+
+  // Check for existing lock and stale PID
   if (fs.existsSync(lockPath)) {
     try {
       const pid = parseInt(fs.readFileSync(lockPath, "utf-8").trim(), 10)
-      try { process.kill(pid, 0); throw new Error(`Pipeline already running (PID ${pid})`) } catch (e) {
-        if ((e as NodeJS.ErrnoException).code !== "ESRCH") throw e
-        // PID not alive — stale lock, safe to overwrite
+      if (!isNaN(pid)) {
+        try { process.kill(pid, 0); throw new Error(`Pipeline already running (PID ${pid})`) } catch (e) {
+          if ((e as NodeJS.ErrnoException).code !== "ESRCH") throw e
+          // PID not alive — stale lock, safe to overwrite
+          logger.info(`  Removing stale lock (PID ${pid} no longer running)`)
+        }
+      } else {
+        logger.warn(`  Corrupt lock file (non-numeric PID) — overwriting`)
       }
     } catch (e) {
       if (e instanceof Error && e.message.startsWith("Pipeline already")) throw e
-      // Corrupt lock file — overwrite
+      logger.warn(`  Corrupt lock file — overwriting`)
     }
+    // Remove stale/corrupt lock before creating new one
+    try { fs.unlinkSync(lockPath) } catch { /* may already be removed */ }
   }
-  fs.writeFileSync(lockPath, String(process.pid))
+
+  // Atomic lock creation using O_EXCL (fails if file exists — prevents TOCTOU race)
+  try {
+    const fd = fs.openSync(lockPath, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL)
+    fs.writeSync(fd, String(process.pid))
+    fs.closeSync(fd)
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "EEXIST") {
+      throw new Error("Pipeline already running (lock acquired by another process)")
+    }
+    throw err
+  }
 }
 
 function releaseLock(taskDir: string): void {
@@ -90,18 +119,18 @@ export async function runPipeline(ctx: PipelineContext): Promise<PipelineStatus>
     try {
       const state = loadState(ctx.taskId, ctx.taskDir)
       if (state && state.state === "running") {
-        state.state = "failed"
-        // Mark any running stages as failed
+        // Build updated stages immutably
+        const updatedStages = { ...state.stages }
         for (const stage of STAGES) {
-          if (state.stages[stage.name]?.state === "running") {
-            state.stages[stage.name] = {
-              ...state.stages[stage.name],
+          if (updatedStages[stage.name]?.state === "running") {
+            updatedStages[stage.name] = {
+              ...updatedStages[stage.name],
               state: "failed",
               error: "Pipeline crashed unexpectedly",
             }
           }
         }
-        writeState(state, ctx.taskDir)
+        writeState({ ...state, state: "failed", stages: updatedStages }, ctx.taskDir)
       }
     } catch { /* best effort */ }
     throw err
@@ -255,7 +284,9 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
     autoLearn(ctx)
   }
 
-  await runRetrospective(ctx, state, pipelineStartTime).catch(() => {})
+  await runRetrospective(ctx, state, pipelineStartTime).catch((err) => {
+    logger.warn(`  Retrospective failed: ${err instanceof Error ? err.message : String(err)}`)
+  })
 
   return state
 }

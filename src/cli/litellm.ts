@@ -138,9 +138,23 @@ export async function tryStartLitellm(
   const dotenvPath = path.join(projectDir, ".env")
   const dotenvVars: Record<string, string> = {}
   if (fs.existsSync(dotenvPath)) {
-    for (const line of fs.readFileSync(dotenvPath, "utf-8").split("\n")) {
+    for (const rawLine of fs.readFileSync(dotenvPath, "utf-8").split("\n")) {
+      const line = rawLine.trim()
+      // Skip comments and empty lines
+      if (!line || line.startsWith("#")) continue
       const match = line.match(/^([A-Z_][A-Z0-9_]*_API_KEY)=(.*)$/)
-      if (match) dotenvVars[match[1]] = match[2]
+      if (match) {
+        let value = match[2].trim()
+        // Strip surrounding quotes (single or double)
+        if ((value.startsWith('"') && value.endsWith('"')) ||
+            (value.startsWith("'") && value.endsWith("'"))) {
+          value = value.slice(1, -1)
+        }
+        // Strip inline comments (unquoted)
+        const commentIdx = value.indexOf(" #")
+        if (commentIdx !== -1) value = value.slice(0, commentIdx).trim()
+        if (value) dotenvVars[match[1]] = value
+      }
     }
     if (Object.keys(dotenvVars).length > 0) {
       logger.info(`  Loaded API keys: ${Object.keys(dotenvVars).join(", ")}`)

@@ -1,5 +1,6 @@
 import { execFileSync } from "child_process"
 import { logger } from "./logger.js"
+import { parseJsonSafe } from "./validators.js"
 import type { AgentRunner } from "./types.js"
 
 export type FailureClassification =
@@ -72,30 +73,43 @@ export async function diagnoseFailure(
         .replace(/\n?```\s*$/m, "")
         .trim()
 
-      const parsed = JSON.parse(cleaned)
+      const parseResult = parseJsonSafe<{
+        classification: string
+        reason?: string
+        resolution?: string
+      }>(cleaned, ["classification"])
 
-      const validClassifications: FailureClassification[] = [
-        "fixable", "infrastructure", "pre-existing", "retry", "abort",
-      ]
+      if (parseResult.ok) {
+        const { data } = parseResult
+        const validClassifications: FailureClassification[] = [
+          "fixable", "infrastructure", "pre-existing", "retry", "abort",
+        ]
 
-      if (validClassifications.includes(parsed.classification)) {
-        logger.info(`  Diagnosis: ${parsed.classification} — ${parsed.reason}`)
-        return {
-          classification: parsed.classification,
-          reason: parsed.reason ?? "Unknown reason",
-          resolution: parsed.resolution ?? "",
+        if (validClassifications.includes(data.classification as FailureClassification)) {
+          logger.info(`  Diagnosis: ${data.classification} — ${data.reason}`)
+          return {
+            classification: data.classification as FailureClassification,
+            reason: data.reason ?? "Unknown reason",
+            resolution: data.resolution ?? "",
+          }
         }
+        logger.warn(`  Diagnosis returned invalid classification: ${data.classification}`)
+      } else {
+        logger.warn(`  Diagnosis JSON invalid: ${parseResult.error}`)
       }
     }
   } catch (err) {
     logger.warn(`  Diagnosis error: ${err instanceof Error ? err.message : err}`)
   }
 
-  // Default: assume fixable (safest — will attempt autofix)
-  logger.warn("  Diagnosis failed — defaulting to fixable")
+  // Default: "retry" is safer than "fixable" — it re-runs the gate without
+  // triggering an autofix agent that could make the situation worse on
+  // infrastructure or pre-existing issues. The verify loop's max-attempts
+  // cap prevents infinite retries.
+  logger.warn("  Diagnosis failed — defaulting to retry")
   return {
-    classification: "fixable",
-    reason: "Could not diagnose failure",
+    classification: "retry",
+    reason: "Could not diagnose failure — retrying gate",
     resolution: errorOutput.slice(-500),
   }
 }
@@ -117,7 +131,8 @@ export function getModifiedFiles(projectDir: string): string[] {
     }).trim()
     const all = `${staged}\n${unstaged}`.split("\n").filter(Boolean)
     return [...new Set(all)]
-  } catch {
+  } catch (err) {
+    logger.warn(`  Failed to get modified files: ${err instanceof Error ? err.message : String(err)}`)
     return []
   }
 }

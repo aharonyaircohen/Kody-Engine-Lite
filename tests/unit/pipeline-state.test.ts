@@ -67,8 +67,10 @@ describe("pipeline state", () => {
       // Manually set an old timestamp to verify it gets updated
       state.updatedAt = "2020-01-01T00:00:00.000Z"
       state.stages.taskify.state = "completed"
-      writeState(state, tmpDir)
-      expect(state.updatedAt).not.toBe("2020-01-01T00:00:00.000Z")
+      const updated = writeState(state, tmpDir)
+      // writeState returns new state with updated timestamp (does not mutate original)
+      expect(updated.updatedAt).not.toBe("2020-01-01T00:00:00.000Z")
+      expect(state.updatedAt).toBe("2020-01-01T00:00:00.000Z") // original unchanged
     })
   })
 })

@@ -1,6 +1,7 @@
 import * as fs from "fs"
 import * as path from "path"
 import { logger } from "./logger.js"
+import { parseJsonSafe } from "./validators.js"
 
 export interface RunnerConfig {
   type: "claude-code"
@@ -147,7 +148,13 @@ export function getProjectConfig(): KodyConfig {
   const configPath = path.join(_configDir ?? process.cwd(), "kody.config.json")
   if (fs.existsSync(configPath)) {
     try {
-      const raw = JSON.parse(fs.readFileSync(configPath, "utf-8"))
+      const result = parseJsonSafe<Record<string, unknown>>(fs.readFileSync(configPath, "utf-8"))
+      if (!result.ok) {
+        logger.warn(`kody.config.json: ${result.error} — using defaults`)
+        _config = { ...DEFAULT_CONFIG }
+        return _config
+      }
+      const raw = result.data as Record<string, any>
       _config = {
         quality: { ...DEFAULT_CONFIG.quality, ...raw.quality },
         git: { ...DEFAULT_CONFIG.git, ...raw.git },

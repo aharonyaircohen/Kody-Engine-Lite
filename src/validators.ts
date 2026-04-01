@@ -15,6 +15,34 @@ export function stripFences(content: string): string {
   return content.replace(/^```json\s*\n?/m, "").replace(/\n?```\s*$/m, "")
 }
 
+/**
+ * Safely parse JSON with structural validation.
+ * Returns `{ ok: true, data }` on success, `{ ok: false, error }` on failure.
+ * Pass `requiredFields` to verify keys exist on the parsed object.
+ */
+export function parseJsonSafe<T = unknown>(
+  raw: string,
+  requiredFields?: string[],
+): { ok: true; data: T } | { ok: false; error: string } {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch (err) {
+    return { ok: false, error: `Invalid JSON: ${err instanceof Error ? err.message : String(err)}` }
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return { ok: false, error: `Expected JSON object, got ${Array.isArray(parsed) ? "array" : typeof parsed}` }
+  }
+  if (requiredFields) {
+    for (const field of requiredFields) {
+      if (!(field in parsed)) {
+        return { ok: false, error: `Missing required field: ${field}` }
+      }
+    }
+  }
+  return { ok: true, data: parsed as T }
+}
+
 export function validateTaskJson(content: string): ValidationResult {
   try {
     const parsed = JSON.parse(stripFences(content))

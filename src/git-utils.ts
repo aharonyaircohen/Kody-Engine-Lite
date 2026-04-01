@@ -95,11 +95,13 @@ export function ensureFeatureBranch(
     }
   }
 
-  // Fetch origin
+  // Fetch origin — log the error so permission issues don't masquerade
+  // as "branch not found" when checkout/pull fails downstream.
   try {
     git(["fetch", "origin"], { cwd, timeout: 30_000 })
-  } catch {
-    logger.warn("  Failed to fetch origin")
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    logger.warn(`  Failed to fetch origin: ${msg}`)
   }
 
   // Check if branch exists on remote
@@ -144,8 +146,9 @@ export function syncWithDefault(cwd?: string, branch?: string): void {
   // Fetch latest
   try {
     git(["fetch", "origin", defaultBranch], { cwd, timeout: 30_000 })
-  } catch {
-    logger.warn("  Failed to fetch latest from origin")
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    logger.warn(`  Failed to fetch latest from origin: ${msg}`)
     return
   }
 
@@ -155,7 +158,11 @@ export function syncWithDefault(cwd?: string, branch?: string): void {
     logger.info(`  Synced with origin/${defaultBranch}`)
   } catch {
     // Merge conflict — abort and warn
-    try { git(["merge", "--abort"], { cwd }) } catch { /* ignore */ }
+    try {
+      git(["merge", "--abort"], { cwd })
+    } catch (abortErr) {
+      logger.warn(`  Failed to abort merge: ${abortErr instanceof Error ? abortErr.message : String(abortErr)}`)
+    }
     logger.warn(`  Merge conflict with origin/${defaultBranch} — skipping sync`)
   }
 }
@@ -171,8 +178,9 @@ export function mergeDefault(cwd?: string): "clean" | "conflict" | "error" {
 
   try {
     git(["fetch", "origin", defaultBranch], { cwd, timeout: 30_000 })
-  } catch {
-    logger.warn("  Failed to fetch latest from origin")
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    logger.warn(`  Failed to fetch latest from origin: ${msg}`)
     return "error"
   }
 
@@ -185,9 +193,13 @@ export function mergeDefault(cwd?: string): "clean" | "conflict" | "error" {
     try {
       const unmerged = git(["diff", "--name-only", "--diff-filter=U"], { cwd })
       if (unmerged.trim()) return "conflict"
-    } catch { /* ignore */ }
+    } catch { /* ignore — checking for conflict marker, not critical */ }
     // Not a conflict — some other merge error
-    try { git(["merge", "--abort"], { cwd }) } catch { /* ignore */ }
+    try {
+      git(["merge", "--abort"], { cwd })
+    } catch (abortErr) {
+      logger.warn(`  Failed to abort merge: ${abortErr instanceof Error ? abortErr.message : String(abortErr)}`)
+    }
     return "error"
   }
 }

@@ -3,6 +3,31 @@ import { logger } from "./logger.js"
 
 const API_TIMEOUT_MS = 30_000
 
+interface GhExecError {
+  stderr?: Buffer | string
+  status?: number
+  message?: string
+}
+
+function isGhExecError(err: unknown): err is GhExecError {
+  return typeof err === "object" && err !== null
+}
+
+/** Extract stderr string from an exec error */
+function ghErrorMessage(err: unknown): string {
+  if (isGhExecError(err)) {
+    const stderr = err.stderr?.toString().trim()
+    if (stderr) return stderr
+  }
+  return err instanceof Error ? err.message : String(err)
+}
+
+/** Check if a gh CLI error indicates "not found" vs a real API/network error */
+function isNotFoundError(err: unknown): boolean {
+  const msg = ghErrorMessage(err).toLowerCase()
+  return msg.includes("not found") || msg.includes("no pull requests") || msg.includes("could not resolve")
+}
+
 const LIFECYCLE_LABELS = ["planning", "building", "review", "shipping", "done", "failed", "waiting", "low", "medium", "high"]
 
 let _ghCwd: string | undefined
@@ -39,9 +64,18 @@ export function getIssue(
       "issue", "view", String(issueNumber),
       "--json", "body,title",
     ])
-    return JSON.parse(output)
+    const parsed = JSON.parse(output)
+    if (!parsed || typeof parsed.title !== "string") {
+      logger.warn(`  Issue #${issueNumber}: unexpected response shape`)
+      return null
+    }
+    return { body: parsed.body ?? "", title: parsed.title }
   } catch (err) {
-    logger.error(`  Failed to get issue #${issueNumber}: ${err}`)
+    if (isNotFoundError(err)) {
+      logger.info(`  Issue #${issueNumber} not found`)
+    } else {
+      logger.error(`  Failed to get issue #${issueNumber}: ${ghErrorMessage(err)}`)
+    }
     return null
   }
 }
@@ -102,8 +136,15 @@ export function getPRForBranch(
       "--json", "number,url",
     ])
     const data = JSON.parse(output)
+    if (typeof data.number !== "number" || typeof data.url !== "string") {
+      logger.warn(`  PR for branch ${branch}: unexpected response shape`)
+      return null
+    }
     return { number: data.number, url: data.url }
-  } catch {
+  } catch (err) {
+    if (!isNotFoundError(err)) {
+      logger.warn(`  Failed to check PR for branch ${branch}: ${ghErrorMessage(err)}`)
+    }
     return null
   }
 }
@@ -145,9 +186,8 @@ export function createPR(
     const number = match ? parseInt(match[1], 10) : 0
     logger.info(`  PR created: ${url}`)
     return { number, url }
-  } catch (err: any) {
-    const stderr = err?.stderr?.toString().trim()
-    const reason = stderr || (err instanceof Error ? err.message : String(err))
+  } catch (err: unknown) {
+    const reason = ghErrorMessage(err)
     logger.error(`  Failed to create PR: ${reason}`)
     return null
   }
@@ -229,9 +269,22 @@ export function getPRDetails(
       "--json", "title,body,headRefName,baseRefName",
     ])
     const data = JSON.parse(output)
-    return { title: data.title, body: data.body, headBranch: data.headRefName, baseBranch: data.baseRefName }
+    if (typeof data.title !== "string" || typeof data.headRefName !== "string") {
+      logger.warn(`  PR #${prNumber}: unexpected response shape`)
+      return null
+    }
+    return {
+      title: data.title,
+      body: data.body ?? "",
+      headBranch: data.headRefName,
+      baseBranch: data.baseRefName ?? "main",
+    }
   } catch (err) {
-    logger.error(`  Failed to get PR #${prNumber}: ${err}`)
+    if (isNotFoundError(err)) {
+      logger.info(`  PR #${prNumber} not found`)
+    } else {
+      logger.error(`  Failed to get PR #${prNumber}: ${ghErrorMessage(err)}`)
+    }
     return null
   }
 }
@@ -281,7 +334,7 @@ export function getCIFailureLogs(
     const prefix = logsOutput.length > maxLength ? "...(earlier output truncated)\n" : ""
     return `${prefix}${truncated}`
   } catch (err) {
-    logger.warn(`  Failed to get CI failure logs for run ${runId}: ${err}`)
+    logger.warn(`  Failed to get CI failure logs for run ${runId}: ${ghErrorMessage(err)}`)
     return null
   }
 }
@@ -298,7 +351,7 @@ export function getLatestFailedRunForBranch(branch: string): string | null {
     ])
     return output.trim() || null
   } catch (err) {
-    logger.warn(`  Failed to get latest failed run for branch ${branch}: ${err}`)
+    logger.warn(`  Failed to get latest failed run for branch ${branch}: ${ghErrorMessage(err)}`)
     return null
   }
 }

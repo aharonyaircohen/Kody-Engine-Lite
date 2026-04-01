@@ -251,7 +251,12 @@ export function executeShipStage(
     return { outcome: "completed", outputFile: "ship.md", retries: 0 }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    fs.writeFileSync(shipPath, `# Ship\n\nFailed: ${msg}\n`)
+    try {
+      fs.writeFileSync(shipPath, `# Ship\n\nFailed: ${msg}\n`)
+    } catch {
+      // ship.md write failure is non-critical — don't mask the original error
+      logger.warn(`  Failed to write ship.md artifact`)
+    }
     return { outcome: "failed", retries: 0, error: msg }
   }
 }

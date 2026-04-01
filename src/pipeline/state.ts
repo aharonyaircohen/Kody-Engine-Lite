@@ -7,20 +7,29 @@ import type {
   PipelineStatus,
 } from "../types.js"
 import { STAGES } from "../definitions.js"
+import { parseJsonSafe } from "../validators.js"
+import { logger } from "../logger.js"
 
 export function loadState(taskId: string, taskDir: string): PipelineStatus | null {
   const p = path.join(taskDir, "status.json")
   if (!fs.existsSync(p)) return null
   try {
-    const raw = JSON.parse(fs.readFileSync(p, "utf-8"))
-    if (raw.taskId === taskId) return raw as PipelineStatus
-    return null
+    const result = parseJsonSafe<PipelineStatus>(
+      fs.readFileSync(p, "utf-8"),
+      ["taskId", "state", "stages", "createdAt", "updatedAt"],
+    )
+    if (!result.ok) {
+      logger.warn(`  Corrupt status.json: ${result.error}`)
+      return null
+    }
+    if (result.data.taskId !== taskId) return null
+    return result.data
   } catch {
     return null
   }
 }
 
-export function writeState(state: PipelineStatus, taskDir: string): void {
+export function writeState(state: PipelineStatus, taskDir: string): PipelineStatus {
   const updated: PipelineStatus = {
     ...state,
     updatedAt: new Date().toISOString(),
@@ -29,8 +38,8 @@ export function writeState(state: PipelineStatus, taskDir: string): void {
   const tmp = target + ".tmp"
   fs.writeFileSync(tmp, JSON.stringify(updated, null, 2))
   fs.renameSync(tmp, target)
-  // Sync the caller's reference
-  state.updatedAt = updated.updatedAt
+  // Return the new state instead of mutating the caller's reference
+  return updated
 }
 
 export function initState(taskId: string): PipelineStatus {
