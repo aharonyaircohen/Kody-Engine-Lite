@@ -169,10 +169,10 @@ export async function tryStartLitellm(
   try {
     execFileSync("which", ["litellm"], { timeout: 3000, stdio: "pipe" })
     cmd = "litellm"
-    args = ["--config", configPath, "--port", port, "--no_db"]
+    args = ["--config", configPath, "--port", port]
   } catch {
     cmd = "python3"
-    args = ["-m", "litellm", "--config", configPath, "--port", port, "--no_db"]
+    args = ["-m", "litellm", "--config", configPath, "--port", port]
   }
 
   // Load API key env vars from project .env (only *_API_KEY patterns)
