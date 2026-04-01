@@ -14,7 +14,7 @@ describe("bootstrap branch naming", () => {
 
     const __dirname = path.dirname(fileURLToPath(import.meta.url))
     const cliSource = fs.readFileSync(
-      path.resolve(__dirname, "../../src/bin/cli.ts"),
+      path.resolve(__dirname, "../../src/bin/commands/bootstrap.ts"),
       "utf-8",
     )
 

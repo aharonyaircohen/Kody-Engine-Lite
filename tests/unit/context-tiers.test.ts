@@ -8,7 +8,6 @@ import {
   generateL0,
   generateL1,
   getTieredContent,
-  invalidateCache,
   selectTier,
   resolveStagePolicy,
   readProjectMemoryTiered,
@@ -118,79 +117,28 @@ describe("generateL1", () => {
   })
 })
 
-describe("tier cache", () => {
-  let tmpDir: string
-
-  beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kody-tier-cache-"))
-  })
-
-  afterEach(() => {
-    fs.rmSync(tmpDir, { recursive: true, force: true })
-  })
-
-  it("generates and caches tiered content", () => {
-    const filePath = path.join(tmpDir, "test.md")
+describe("getTieredContent", () => {
+  it("generates tiered content", () => {
     const content = "# Test\n\nThis is test content. It has details.\n\n## Section\n- Item 1\n- Item 2\n"
-    fs.writeFileSync(filePath, content)
-
-    const cacheDir = path.join(tmpDir, ".tiers")
-    const result = getTieredContent(filePath, content, cacheDir)
+    const result = getTieredContent("/tmp/test.md", content)
 
     expect(result.L0).toBeTruthy()
     expect(result.L1).toBeTruthy()
     expect(result.L2).toBe(content)
-    expect(result.hash).toBeTruthy()
-
-    // Cache file should exist
-    expect(fs.existsSync(path.join(cacheDir, "tier-cache.json"))).toBe(true)
   })
 
-  it("returns cached content on second call", () => {
-    const filePath = path.join(tmpDir, "test.md")
+  it("returns consistent results for same input", () => {
     const content = "# Test\n\nContent here.\n"
-    fs.writeFileSync(filePath, content)
-
-    const cacheDir = path.join(tmpDir, ".tiers")
-    const first = getTieredContent(filePath, content, cacheDir)
-    const second = getTieredContent(filePath, content, cacheDir)
+    const first = getTieredContent("/tmp/test.md", content)
+    const second = getTieredContent("/tmp/test.md", content)
 
     expect(second).toEqual(first)
-  })
-
-  it("regenerates when content changes", () => {
-    const filePath = path.join(tmpDir, "test.md")
-    const cacheDir = path.join(tmpDir, ".tiers")
-
-    const content1 = "# Version 1\n\nOriginal content.\n"
-    fs.writeFileSync(filePath, content1)
-    const first = getTieredContent(filePath, content1, cacheDir)
-
-    const content2 = "# Version 2\n\nUpdated content.\n"
-    fs.writeFileSync(filePath, content2)
-    const second = getTieredContent(filePath, content2, cacheDir)
-
-    expect(second.hash).not.toBe(first.hash)
-    expect(second.L0).toContain("Version 2")
-  })
-
-  it("invalidateCache removes entry", () => {
-    const filePath = path.join(tmpDir, "test.md")
-    const content = "# Test\n\nContent.\n"
-    const cacheDir = path.join(tmpDir, ".tiers")
-
-    getTieredContent(filePath, content, cacheDir)
-    invalidateCache(filePath, cacheDir)
-
-    // Re-getting should regenerate (different object identity not testable, but no crash)
-    const result = getTieredContent(filePath, content, cacheDir)
-    expect(result.L2).toBe(content)
   })
 })
 
 describe("selectTier", () => {
   it("returns correct tier content", () => {
-    const tiered = { source: "f", hash: "h", L0: "abstract", L1: "overview", L2: "full" }
+    const tiered = { source: "f", L0: "abstract", L1: "overview", L2: "full" }
     expect(selectTier(tiered, "L0")).toBe("abstract")
     expect(selectTier(tiered, "L1")).toBe("overview")
     expect(selectTier(tiered, "L2")).toBe("full")

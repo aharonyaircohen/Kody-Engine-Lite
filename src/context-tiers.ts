@@ -1,6 +1,5 @@
 import * as fs from "fs"
 import * as path from "path"
-import * as crypto from "crypto"
 
 import type { StageName } from "./types.js"
 
@@ -10,15 +9,9 @@ export type ContextTier = "L0" | "L1" | "L2"
 
 export interface TieredContent {
   source: string
-  hash: string
   L0: string
   L1: string
   L2: string
-}
-
-export interface TierCache {
-  version: 1
-  entries: Record<string, TieredContent>
 }
 
 export interface StageContextPolicy {
@@ -40,12 +33,6 @@ export function truncateToTokens(text: string, maxTokens: number): string {
   const maxChars = maxTokens * 4
   if (text.length <= maxChars) return text
   return text.slice(0, maxChars) + "\n...(truncated)"
-}
-
-// --- Content Hashing ---
-
-function contentHash(content: string): string {
-  return crypto.createHash("sha256").update(content).digest("hex").slice(0, 16)
 }
 
 // --- Default Policies ---
@@ -226,57 +213,16 @@ function generateL1Json(content: string): string {
   }
 }
 
-// --- Tier Cache ---
-
-function readCache(cacheDir: string): TierCache {
-  const cachePath = path.join(cacheDir, "tier-cache.json")
-  if (!fs.existsSync(cachePath)) return { version: 1, entries: {} }
-  try {
-    return JSON.parse(fs.readFileSync(cachePath, "utf-8"))
-  } catch {
-    return { version: 1, entries: {} }
-  }
-}
-
-function writeCache(cacheDir: string, cache: TierCache): void {
-  fs.mkdirSync(cacheDir, { recursive: true })
-  fs.writeFileSync(path.join(cacheDir, "tier-cache.json"), JSON.stringify(cache, null, 2))
-}
-
 export function getTieredContent(
   filePath: string,
   content: string,
-  cacheDir: string,
 ): TieredContent {
-  const hash = contentHash(content)
   const key = path.basename(filePath)
-  const cache = readCache(cacheDir)
-
-  // Cache hit — hash matches
-  if (cache.entries[key] && cache.entries[key].hash === hash) {
-    return cache.entries[key]
-  }
-
-  // Generate and cache
-  const tiered: TieredContent = {
+  return {
     source: filePath,
-    hash,
     L0: generateL0(content, key),
     L1: generateL1(content, key),
     L2: content,
-  }
-
-  cache.entries[key] = tiered
-  writeCache(cacheDir, cache)
-  return tiered
-}
-
-export function invalidateCache(filePath: string, cacheDir: string): void {
-  const key = path.basename(filePath)
-  const cache = readCache(cacheDir)
-  if (cache.entries[key]) {
-    delete cache.entries[key]
-    writeCache(cacheDir, cache)
   }
 }
 
@@ -301,7 +247,6 @@ export function readProjectMemoryTiered(
     .sort()
   if (files.length === 0) return ""
 
-  const cacheDir = path.join(memoryDir, ".tiers")
   const tierLabel = tier === "L2" ? "full" : tier === "L1" ? "overview" : "abstract"
   const sections: string[] = []
 
@@ -310,7 +255,7 @@ export function readProjectMemoryTiered(
     const content = fs.readFileSync(filePath, "utf-8").trim()
     if (!content) continue
 
-    const tiered = getTieredContent(filePath, content, cacheDir)
+    const tiered = getTieredContent(filePath, content)
     const selected = selectTier(tiered, tier)
     if (selected) {
       sections.push(`## ${file.replace(".md", "")}\n${selected}`)
@@ -336,8 +281,6 @@ export function injectTaskContextTiered(
   policy: StageContextPolicy,
   feedback?: string,
 ): string {
-  const cacheDir = path.join(taskDir, ".tiers")
-
   let context = `## Task Context\n`
   context += `Task ID: ${taskId}\n`
   context += `Task Directory: ${taskDir}\n`
@@ -346,7 +289,7 @@ export function injectTaskContextTiered(
   const taskMdPath = path.join(taskDir, "task.md")
   if (fs.existsSync(taskMdPath)) {
     const content = fs.readFileSync(taskMdPath, "utf-8")
-    const selected = selectContent(taskMdPath, content, cacheDir, policy.taskDescription)
+    const selected = selectContent(taskMdPath, content, policy.taskDescription)
     const label = tierLabel("Task Description", policy.taskDescription)
     context += `\n## ${label}\n${selected}\n`
   }
@@ -367,7 +310,7 @@ export function injectTaskContextTiered(
         // Ignore
       }
     } else {
-      const selected = selectContent(taskJsonPath, content, cacheDir, policy.taskClassification)
+      const selected = selectContent(taskJsonPath, content, policy.taskClassification)
       if (selected) {
         const label = tierLabel("Task Classification", policy.taskClassification)
         context += `\n## ${label}\n${selected}\n`
@@ -379,7 +322,7 @@ export function injectTaskContextTiered(
   const specPath = path.join(taskDir, "spec.md")
   if (fs.existsSync(specPath)) {
     const content = fs.readFileSync(specPath, "utf-8")
-    const selected = selectContent(specPath, content, cacheDir, policy.spec)
+    const selected = selectContent(specPath, content, policy.spec)
     const label = tierLabel("Spec", policy.spec)
     context += `\n## ${label}\n${selected}\n`
   }
@@ -388,7 +331,7 @@ export function injectTaskContextTiered(
   const planPath = path.join(taskDir, "plan.md")
   if (fs.existsSync(planPath)) {
     const content = fs.readFileSync(planPath, "utf-8")
-    const selected = selectContent(planPath, content, cacheDir, policy.plan)
+    const selected = selectContent(planPath, content, policy.plan)
     const label = tierLabel("Plan", policy.plan)
     context += `\n## ${label}\n${selected}\n`
   }
@@ -397,7 +340,7 @@ export function injectTaskContextTiered(
   const contextMdPath = path.join(taskDir, "context.md")
   if (fs.existsSync(contextMdPath)) {
     const content = fs.readFileSync(contextMdPath, "utf-8")
-    const selected = selectContent(contextMdPath, content, cacheDir, policy.accumulatedContext)
+    const selected = selectContent(contextMdPath, content, policy.accumulatedContext)
     const label = tierLabel("Previous Stage Context", policy.accumulatedContext)
     context += `\n## ${label}\n${selected}\n`
   }
@@ -413,11 +356,10 @@ export function injectTaskContextTiered(
 function selectContent(
   filePath: string,
   content: string,
-  cacheDir: string,
   tier: ContextTier,
 ): string {
   if (tier === "L2") return content
-  const tiered = getTieredContent(filePath, content, cacheDir)
+  const tiered = getTieredContent(filePath, content)
   return selectTier(tiered, tier)
 }
 
