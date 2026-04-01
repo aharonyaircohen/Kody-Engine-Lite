@@ -30,6 +30,8 @@ export interface DevServerConfig {
   readyPattern?: string
   /** Seconds to wait for the server to be ready before giving up. Default: 30 */
   readyTimeout?: number
+  /** GitHub secret names to forward as env vars for the dev server (e.g., ["BLOB_READ_WRITE_TOKEN"]) */
+  env?: string[]
 }
 
 export interface McpConfig {
@@ -39,6 +41,11 @@ export interface McpConfig {
   stages?: string[]
   /** Dev server config — when set, browser tool guidance will include instructions to start and browse */
   devServer?: DevServerConfig
+}
+
+export interface StageConfig {
+  provider: string  // "claude" = direct Anthropic, anything else = LiteLLM
+  model: string     // e.g. "sonnet", "opus", "MiniMax-M2.7-highspeed"
 }
 
 export interface KodyConfig {
@@ -60,6 +67,10 @@ export interface KodyConfig {
     modelMap: { cheap: string; mid: string; strong: string }
     /** LLM provider name (e.g. "minimax", "openai", "google"). When set, engine auto-starts LiteLLM proxy. */
     provider?: string
+    /** Per-stage provider + model overrides. Takes precedence over modelMap. */
+    default?: StageConfig
+    /** Per-stage provider + model. Overrides default and modelMap. */
+    stages?: Record<string, StageConfig>
     // Multi-runner (advanced)
     runners?: Record<string, RunnerConfig>
     defaultRunner?: string
@@ -106,9 +117,51 @@ export const TIER_TO_ANTHROPIC_IDS: Record<string, string[]> = {
   strong: ["claude-opus-4-6-20250514", "claude-opus-4-6", "opus"],
 }
 
+/**
+ * Resolve provider + model for a specific stage.
+ * Priority: agent.stages[stageName] > agent.default > legacy agent.provider + modelMap
+ */
+export function resolveStageConfig(config: KodyConfig, stageName: string, modelTier: string): StageConfig {
+  // Per-stage override
+  const stageOverride = config.agent.stages?.[stageName]
+  if (stageOverride) return stageOverride
+
+  // Default override
+  if (config.agent.default) return config.agent.default
+
+  // Legacy fallback: derive from provider + modelMap (all names from config, nothing hardcoded)
+  const model = config.agent.modelMap[modelTier as keyof typeof config.agent.modelMap]
+  if (!model) {
+    throw new Error(`No model configured for stage '${stageName}' (tier: ${modelTier}). Set agent.stages.${stageName} or agent.default in kody.config.json`)
+  }
+  return {
+    provider: config.agent.provider ?? "claude",
+    model,
+  }
+}
+
 /** Check if a provider needs LiteLLM proxy */
 export function needsLitellmProxy(config: KodyConfig): boolean {
   return !!(config.agent.provider && config.agent.provider !== "anthropic")
+}
+
+/** Check if a specific stage needs LiteLLM proxy */
+export function stageNeedsProxy(stageConfig: StageConfig): boolean {
+  return stageConfig.provider !== "claude" && stageConfig.provider !== "anthropic"
+}
+
+/** Check if any stage uses a non-claude provider (i.e. LiteLLM is needed) */
+export function anyStageNeedsProxy(config: KodyConfig): boolean {
+  // Check per-stage configs
+  if (config.agent.stages) {
+    for (const sc of Object.values(config.agent.stages)) {
+      if (stageNeedsProxy(sc)) return true
+    }
+  }
+  // Check default
+  if (config.agent.default && stageNeedsProxy(config.agent.default)) return true
+  // Legacy fallback
+  return needsLitellmProxy(config)
 }
 
 /** Get the LiteLLM proxy URL */

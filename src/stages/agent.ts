@@ -7,9 +7,9 @@ import type {
   StageResult,
   PipelineContext,
 } from "../types.js"
-import { buildFullPrompt, resolveModel, taskHasUI } from "../context.js"
+import { buildFullPrompt, taskHasUI } from "../context.js"
 import { validateTaskJson, validatePlanMd, validateReviewMd, stripFences } from "../validators.js"
-import { getProjectConfig, needsLitellmProxy, getLitellmUrl } from "../config.js"
+import { getProjectConfig, resolveStageConfig, stageNeedsProxy, getLitellmUrl } from "../config.js"
 import { buildMcpConfigJson, isMcpEnabledForStage, withPlaywrightIfNeeded } from "../mcp-config.js"
 import { getRunnerForStage } from "../pipeline/runner-selection.js"
 import { logger } from "../logger.js"
@@ -70,22 +70,25 @@ export async function executeAgentStage(
   }
 
   const prompt = buildFullPrompt(def.name, ctx.taskId, ctx.taskDir, ctx.projectDir, ctx.input.feedback)
-  const model = resolveModel(def.modelTier, def.name)
 
   if (ctx.input.feedback && def.name === "build") {
     logger.info(`  feedback: ${ctx.input.feedback.slice(0, 200)}${ctx.input.feedback.length > 200 ? "..." : ""}`)
   }
 
   const config = getProjectConfig()
+  const sc = resolveStageConfig(config, def.name, def.modelTier)
+  const model = sc.model
+  const useProxy = stageNeedsProxy(sc)
+
   const runnerName =
     config.agent.stageRunners?.[def.name] ??
     config.agent.defaultRunner ??
     Object.keys(ctx.runners)[0] ?? "claude"
 
-  logger.info(`  runner=${runnerName} model=${model} timeout=${def.timeout / 1000}s`)
+  logger.info(`  runner=${runnerName} provider=${sc.provider} model=${model} timeout=${def.timeout / 1000}s`)
 
   const extraEnv: Record<string, string> = {}
-  if (needsLitellmProxy(config)) {
+  if (useProxy) {
     extraEnv.ANTHROPIC_BASE_URL = getLitellmUrl()
   }
 

@@ -86,6 +86,47 @@ export function generateLitellmConfig(
   return entries.join("\n") + "\n"
 }
 
+/**
+ * Generate LiteLLM config from per-stage configs.
+ * Only includes models that use non-claude providers.
+ */
+export function generateLitellmConfigFromStages(
+  defaultConfig: { provider: string; model: string } | undefined,
+  stages: Record<string, { provider: string; model: string }> | undefined,
+): string | undefined {
+  const proxyModels: { provider: string; model: string }[] = []
+
+  // Collect all non-claude models
+  if (defaultConfig && defaultConfig.provider !== "claude" && defaultConfig.provider !== "anthropic") {
+    proxyModels.push(defaultConfig)
+  }
+  if (stages) {
+    for (const sc of Object.values(stages)) {
+      if (sc.provider !== "claude" && sc.provider !== "anthropic") {
+        proxyModels.push(sc)
+      }
+    }
+  }
+
+  if (proxyModels.length === 0) return undefined
+
+  const entries: string[] = ["model_list:"]
+  const seen = new Set<string>()
+
+  for (const { provider, model } of proxyModels) {
+    const key = `${provider}/${model}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    const apiKeyVar = providerApiKeyEnvVar(provider)
+    entries.push(`  - model_name: ${model}`)
+    entries.push(`    litellm_params:`)
+    entries.push(`      model: ${provider}/${model}`)
+    entries.push(`      api_key: os.environ/${apiKeyVar}`)
+  }
+
+  return entries.join("\n") + "\n"
+}
+
 export async function tryStartLitellm(
   url: string,
   projectDir: string,
@@ -128,10 +169,10 @@ export async function tryStartLitellm(
   try {
     execFileSync("which", ["litellm"], { timeout: 3000, stdio: "pipe" })
     cmd = "litellm"
-    args = ["--config", configPath, "--port", port]
+    args = ["--config", configPath, "--port", port, "--no_db"]
   } catch {
     cmd = "python3"
-    args = ["-m", "litellm", "--config", configPath, "--port", port]
+    args = ["-m", "litellm", "--config", configPath, "--port", port, "--no_db"]
   }
 
   // Load API key env vars from project .env (only *_API_KEY patterns)

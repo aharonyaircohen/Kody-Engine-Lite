@@ -11,17 +11,18 @@ import { runStandaloneReview, resolveReviewTarget, formatReviewComment, detectRe
 
 // Extracted modules
 import { parseArgs } from "./cli/args.js"
-import { checkLitellmHealth, checkModelHealth, tryStartLitellm, generateLitellmConfig } from "./cli/litellm.js"
+import { checkLitellmHealth, checkModelHealth, tryStartLitellm, generateLitellmConfig, generateLitellmConfigFromStages } from "./cli/litellm.js"
 import { generateTaskId } from "./cli/task-resolution.js"
 import { resolveForIssue } from "./cli/task-state.js"
-import { needsLitellmProxy, getLitellmUrl, providerApiKeyEnvVar } from "./config.js"
+import { needsLitellmProxy, anyStageNeedsProxy, getLitellmUrl, providerApiKeyEnvVar } from "./config.js"
 import type { KodyConfig } from "./config.js"
 
 async function ensureLitellmProxy(
   config: KodyConfig,
   projectDir: string,
 ): Promise<{ kill: () => void } | null> {
-  if (!needsLitellmProxy(config)) return null
+  // Check if any stage needs the proxy (new per-stage config or legacy provider)
+  if (!anyStageNeedsProxy(config)) return null
 
   const litellmUrl = getLitellmUrl()
   const proxyRunning = await checkLitellmHealth(litellmUrl)
@@ -37,9 +38,11 @@ async function ensureLitellmProxy(
       }
     }
 
-    // Generate config from provider + modelMap
+    // Generate LiteLLM config: prefer per-stage configs, fall back to legacy modelMap
     let generatedConfig: string | undefined
-    if (config.agent.provider && config.agent.provider !== "anthropic") {
+    if (config.agent.stages || config.agent.default) {
+      generatedConfig = generateLitellmConfigFromStages(config.agent.default, config.agent.stages)
+    } else if (config.agent.provider && config.agent.provider !== "anthropic") {
       generatedConfig = generateLitellmConfig(config.agent.provider, config.agent.modelMap)
     }
 
@@ -52,15 +55,12 @@ async function ensureLitellmProxy(
     logger.info(`LiteLLM proxy already running at ${litellmUrl}`)
   }
 
-  // Route Claude Code through LiteLLM
-  process.env.ANTHROPIC_BASE_URL = litellmUrl
-  logger.info(`ANTHROPIC_BASE_URL set to ${litellmUrl}`)
+  // Don't set ANTHROPIC_BASE_URL globally — per-stage agent.ts sets it only when needed
+  logger.info(`LiteLLM proxy available at ${litellmUrl}`)
 
-  // Claude Code CLI requires a valid-format ANTHROPIC_API_KEY to start.
-  // When routing through LiteLLM, the actual key is irrelevant — LiteLLM
-  // uses the provider's key. We set a dummy placeholder that passes format
-  // validation only if no real key is present.
-  if (!process.env.ANTHROPIC_API_KEY || !process.env.ANTHROPIC_API_KEY.startsWith("sk-ant-")) {
+  // Claude Code CLI requires ANTHROPIC_API_KEY to start.
+  // If not set, provide a dummy so CLI launches (LiteLLM handles real auth).
+  if (!process.env.ANTHROPIC_API_KEY) {
     process.env.ANTHROPIC_API_KEY = `sk-ant-api03-${"0".repeat(64)}`
   }
 
