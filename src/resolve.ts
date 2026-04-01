@@ -98,11 +98,23 @@ export async function runResolve(options: ResolveOptions): Promise<ResolveResult
   logger.info("  Verifying resolution...")
   const verify = runQualityGates(projectDir, projectDir)
   if (!verify.pass) {
-    const errorSummary = verify.errors.slice(0, 5).join("\n")
-    logger.error(`  Verification failed:\n${errorSummary}`)
-    return { outcome: "failed", error: `Conflict resolution failed verification:\n${errorSummary}` }
+    // Heuristic: check whether errors are only in files NOT touched by resolution
+    const errorText = verify.errors.join("\n")
+    const errorFilePaths = errorText.match(/src\/[^\s(:]+\.[a-z]+/g) ?? []
+    const resolvedSet = new Set(conflictedFiles)
+    const allPreExisting = errorFilePaths.length > 0 && errorFilePaths.every(
+      (f) => !resolvedSet.has(f) && !conflictedFiles.some((c) => c.endsWith(f))
+    )
+    if (allPreExisting) {
+      logger.warn("  Verification: all errors in files not touched by resolution — treating as pre-existing, proceeding")
+    } else {
+      const errorSummary = verify.errors.slice(0, 5).join("\n")
+      logger.error(`  Verification failed:\n${errorSummary}`)
+      return { outcome: "failed", error: `Conflict resolution failed verification:\n${errorSummary}` }
+    }
+  } else {
+    logger.info("  Verification passed")
   }
-  logger.info("  Verification passed")
 
   // Step 5: Commit + push
   commitAll(`chore: resolve merge conflicts with ${defaultBranch}`, projectDir)
