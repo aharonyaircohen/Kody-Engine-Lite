@@ -107,9 +107,12 @@ export function executeShipStage(
     const head = getCurrentBranch(ctx.projectDir)
     const base = getDefaultBranch(ctx.projectDir)
 
-    // Commit task artifacts (.kody/tasks/) so they persist in the PR
+    // Commit task artifacts (.kody/tasks/) and memory updates (.kody/memory/) so they persist in the PR
     try {
-      execFileSync("git", ["add", ctx.taskDir], {
+      const memoryDir = path.join(ctx.projectDir, ".kody", "memory")
+      const addPaths = [ctx.taskDir]
+      if (fs.existsSync(memoryDir)) addPaths.push(memoryDir)
+      execFileSync("git", ["add", ...addPaths], {
         cwd: ctx.projectDir,
         env: { ...process.env, HUSKY: "0", SKIP_HOOKS: "1" },
         stdio: "pipe",

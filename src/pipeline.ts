@@ -213,6 +213,11 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
       continue
     }
 
+    // Run autoLearn before ship so memory updates are included in the commit
+    if (def.name === "ship") {
+      autoLearn(ctx)
+    }
+
     ciGroup(`Stage: ${def.name}`)
 
     state.stages[def.name] = { state: "running", startedAt: new Date().toISOString(), retries: 0 }
@@ -290,7 +295,6 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
     if (ctx.input.issueNumber && !ctx.input.local) {
       setLifecycleLabel(ctx.input.issueNumber, "done")
     }
-    autoLearn(ctx)
   }
 
   await runRetrospective(ctx, state, pipelineStartTime).catch((err) => {
