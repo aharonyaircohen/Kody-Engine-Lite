@@ -120,6 +120,23 @@ Override per-stage timeouts (in seconds). Useful if your build or verify stages 
 
 Only include stages you want to override — omitted stages use their defaults.
 
+### Watch
+
+Kody Watch — periodic health monitoring. See [Watch documentation](WATCH.md) for full details.
+
+```json
+{
+  "watch": {
+    "enabled": true
+  }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `enabled` | boolean | Enable Kody Watch periodic monitoring |
+| `digestIssue` | number | GitHub issue number for digest reports (auto-set by bootstrap) |
+
 ### PR Base Branch Behavior
 
 When running `@kody fix`, `@kody fix-ci`, or `@kody rerun` on a PR, the pipeline syncs against the PR's **actual base branch** (from the PR metadata), not the `defaultBranch` in config. This prevents pulling unrelated changes when a PR targets a branch other than the default (e.g., a PR targeting `dev` won't accidentally merge `main`).

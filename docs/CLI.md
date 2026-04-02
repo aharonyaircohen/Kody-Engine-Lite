@@ -18,7 +18,8 @@ kody-engine-lite init [--force]
 
 **What it generates:**
 - `.github/workflows/kody.yml` — GitHub Actions workflow
-- `kody.config.json` — auto-detected quality commands, git settings, GitHub config
+- `.github/workflows/kody-watch.yml` — Kody Watch health monitoring workflow
+- `kody.config.json` — auto-detected quality commands, git settings, GitHub config, watch config
 
 Then commits and pushes. Run `bootstrap` next to generate repo-aware step files.
 
@@ -212,6 +213,20 @@ kody-engine-lite ci-parse
 ```
 
 Reads from environment variables (`COMMENT_BODY`, `ISSUE_NUMBER`, `ISSUE_IS_PR`, `TRIGGER_TYPE`) and writes outputs to `$GITHUB_OUTPUT`.
+
+### `watch`
+
+Run Kody Watch health monitoring. In CI this runs automatically via the `kody-watch.yml` cron workflow. Use this command for local testing.
+
+```bash
+kody-engine-lite watch [--dry-run]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--dry-run` | Run plugins but skip executing actions (no GitHub posts) |
+
+Requires `GH_TOKEN` env var. See [Watch documentation](WATCH.md) for full details.
 
 ### `version`
 

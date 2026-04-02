@@ -125,8 +125,8 @@ Kody auto-starts the LiteLLM proxy. [Full LiteLLM guide →](docs/LITELLM.md)
 | `@kody bootstrap` | Regenerate project memory and step files |
 
 ```bash
-kody-engine-lite init [--force]          # Setup repo: workflow + config
-kody-engine-lite bootstrap [--force]     # Generate memory + step files + labels
+kody-engine-lite init [--force]          # Setup repo: workflow + config + watch
+kody-engine-lite bootstrap [--force]     # Generate memory + step files + labels + digest issue
 kody-engine-lite run --issue-number 42 --local --cwd ./project
 kody-engine-lite run --task "Add retry utility" --local
 kody-engine-lite review --pr-number 42   # Standalone PR review
@@ -134,6 +134,7 @@ kody-engine-lite fix --issue-number 42 --feedback "Use middleware pattern"
 kody-engine-lite fix-ci --pr-number 42
 kody-engine-lite resolve --pr-number 42   # Merge + resolve conflicts
 kody-engine-lite rerun --issue-number 42 --from verify
+kody-engine-lite watch [--dry-run]       # Run health monitoring locally
 ```
 
 [Full CLI reference with all flags and options →](docs/CLI.md)
@@ -151,13 +152,14 @@ kody-engine-lite rerun --issue-number 42 --from verify
 - **Decision Memory** — architectural decisions extracted from reviews persist across tasks ([details](docs/FEATURES.md#decision-memory))
 - **Auto-Learning** — extracts coding conventions from each successful run ([details](docs/FEATURES.md#auto-learning-memory))
 - **Retrospective** — analyzes each run, identifies patterns, suggests improvements ([details](docs/FEATURES.md#retrospective-system))
+- **Kody Watch** — periodic health monitoring: pipeline health, security scanning, config validation every 30 min ([setup guide](docs/WATCH.md))
 - **Anthropic-Compatible Models** — route through LiteLLM to use other providers like MiniMax, Gemini, etc. ([setup guide](docs/LITELLM.md) · [model test results](docs/model-compatibility.md))
 
 ## Documentation
 
 **Understand Kody:** [About](docs/ABOUT.md) · [Architecture](docs/ARCHITECTURE.md) · [Tech Stack](docs/TECH-STACK.md) · [Features](docs/FEATURES.md) · [Pipeline](docs/PIPELINE.md) · [Comparison](docs/COMPARISON.md)
 
-**Set up & use:** [CLI](docs/CLI.md) · [Configuration](docs/CONFIGURATION.md) · [Bootstrap](docs/BOOTSTRAP.md) · [Tools](docs/TOOLS.md) · [LiteLLM](docs/LITELLM.md)
+**Set up & use:** [CLI](docs/CLI.md) · [Configuration](docs/CONFIGURATION.md) · [Bootstrap](docs/BOOTSTRAP.md) · [Tools](docs/TOOLS.md) · [Watch](docs/WATCH.md) · [LiteLLM](docs/LITELLM.md)
 
 **Reference:** [FAQ](docs/FAQ.md) · [Model Compatibility](docs/model-compatibility.md)
 
