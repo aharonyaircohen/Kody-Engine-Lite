@@ -46,11 +46,13 @@ export async function checkModelHealth(
     }
 
     const body = await res.json()
-    // Accept Anthropic format (any text block in content array) or OpenAI format
+    // Accept Anthropic format (any text block in content array), OpenAI format,
+    // or a valid response with an empty content array (some providers return this for trivial prompts)
     const hasAnthropicContent = Array.isArray(body.content) && body.content.some((b: { type?: string }) => b.type === "text")
     const hasThinkingContent = Array.isArray(body.content) && body.content.some((b: { type?: string }) => b.type === "thinking")
     const hasOpenAIContent = !!body.choices?.[0]?.message?.content
-    if (!hasAnthropicContent && !hasThinkingContent && !hasOpenAIContent) {
+    const hasEmptyContentResponse = Array.isArray(body.content) && body.role === "assistant"
+    if (!hasAnthropicContent && !hasThinkingContent && !hasOpenAIContent && !hasEmptyContentResponse) {
       return { ok: false, error: `Unexpected response format: ${JSON.stringify(body).slice(0, 200)}` }
     }
 
@@ -81,6 +83,13 @@ export function generateLitellmConfig(
     entries.push(`    litellm_params:`)
     entries.push(`      model: ${provider}/${providerModel}`)
     entries.push(`      api_key: os.environ/${apiKeyVar}`)
+  }
+
+  // Drop unsupported params for non-Anthropic providers (e.g. context_management)
+  if (provider !== "anthropic" && provider !== "claude") {
+    entries.push("")
+    entries.push("litellm_settings:")
+    entries.push("  drop_params: true")
   }
 
   return entries.join("\n") + "\n"
@@ -122,6 +131,14 @@ export function generateLitellmConfigFromStages(
     entries.push(`    litellm_params:`)
     entries.push(`      model: ${provider}/${model}`)
     entries.push(`      api_key: os.environ/${apiKeyVar}`)
+  }
+
+  // Drop unsupported params for non-Anthropic providers (e.g. context_management)
+  const hasNonClaude = proxyModels.some(m => m.provider !== "anthropic" && m.provider !== "claude")
+  if (hasNonClaude) {
+    entries.push("")
+    entries.push("litellm_settings:")
+    entries.push("  drop_params: true")
   }
 
   return entries.join("\n") + "\n"
