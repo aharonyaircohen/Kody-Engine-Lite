@@ -266,18 +266,15 @@ export function setLifecycleLabel(
     return
   }
 
-  // Remove all other lifecycle labels
-  const othersToRemove = LIFECYCLE_LABELS
+  // Remove only lifecycle labels that actually exist on the issue
+  const currentLabels = getIssueLabels(issueNumber)
+  const toRemove = LIFECYCLE_LABELS
     .filter((l) => l !== phase)
     .map((l) => `kody:${l}`)
-    .join(",")
+    .filter((l) => currentLabels.includes(l))
 
-  if (othersToRemove) {
-    try {
-      gh(["issue", "edit", String(issueNumber), "--remove-label", othersToRemove])
-    } catch {
-      // Labels may not exist — ignore
-    }
+  for (const label of toRemove) {
+    removeLabel(issueNumber, label)
   }
 
   // Add new label

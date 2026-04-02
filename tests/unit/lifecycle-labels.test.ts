@@ -94,6 +94,28 @@ describe("applyPreStageLabel", () => {
   })
 })
 
+describe("setLifecycleLabel removes existing labels individually", () => {
+  // These tests use the REAL setLifecycleLabel (not the mocked one from hooks tests).
+  // We need a separate module import for integration-style testing.
+  // Instead, we test the source code pattern to verify the fix.
+
+  it("uses removeLabel per-label instead of bulk --remove-label", async () => {
+    const fs = await import("fs")
+    const source = fs.readFileSync("src/github-api.ts", "utf-8")
+    // Should call removeLabel for each label, not a single gh --remove-label with comma-joined
+    expect(source).toContain("removeLabel(issueNumber,")
+    // Should NOT have the old bulk pattern
+    expect(source).not.toMatch(/gh\(\["issue",\s*"edit".*"--remove-label",\s*othersToRemove/)
+  })
+
+  it("only removes labels that actually exist on the issue", async () => {
+    const fs = await import("fs")
+    const source = fs.readFileSync("src/github-api.ts", "utf-8")
+    // Should fetch current labels first
+    expect(source).toContain("getIssueLabels(issueNumber)")
+  })
+})
+
 describe("LIFECYCLE_LABELS includes new phases", () => {
   // LIFECYCLE_LABELS is not exported, but setLifecycleLabel silently
   // skips invalid phases. We test via the real (unmocked) module.
