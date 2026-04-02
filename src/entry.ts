@@ -117,12 +117,7 @@ async function main() {
     logger.info(`Task action: ${taskAction.action}`)
 
     if (taskAction.action === "already-completed") {
-      logger.info(`Issue #${input.issueNumber} already completed (task ${taskAction.taskId})`)
-      if (!input.local) {
-        try {
-          postComment(input.issueNumber, `✅ Issue #${input.issueNumber} already completed (task \`${taskAction.taskId}\`)`)
-        } catch { /* best effort */ }
-      }
+      logger.info(`Issue #${input.issueNumber} already completed (task ${taskAction.taskId}) — skipping silently`)
       process.exit(0)
     }
 
