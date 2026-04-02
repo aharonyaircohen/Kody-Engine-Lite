@@ -483,8 +483,8 @@ async function main() {
   logger.info(`Mode: ${ctx.input.mode}${ctx.input.local ? " (local)" : " (CI)"}`)
   if (ctx.input.issueNumber) logger.info(`Issue: #${ctx.input.issueNumber}`)
 
-  // Post task-id comment so user knows the ID for rerun
-  if (ctx.input.issueNumber && !ctx.input.local && ctx.input.mode === "full") {
+  // Post task-id comment so user knows the ID and can see logs
+  if (ctx.input.issueNumber && !ctx.input.local) {
     const runUrl = process.env.RUN_URL ?? ""
     const runLink = runUrl ? ` ([logs](${runUrl}))` : ""
     try {
