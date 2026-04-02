@@ -1,4 +1,6 @@
 import { execFileSync } from "child_process"
+import fs from "fs"
+import path from "path"
 import { logger } from "./logger.js"
 
 const API_TIMEOUT_MS = 30_000
@@ -56,20 +58,46 @@ function gh(args: string[], options?: { input?: string }): string {
   }).trim()
 }
 
+export interface IssueComment {
+  body: string
+  author: string
+  createdAt: string
+}
+
+export interface IssueData {
+  body: string
+  title: string
+  labels: string[]
+  comments: IssueComment[]
+  assignees: string[]
+  milestone: string | null
+}
+
 export function getIssue(
   issueNumber: number,
-): { body: string; title: string } | null {
+): IssueData | null {
   try {
     const output = gh([
       "issue", "view", String(issueNumber),
-      "--json", "body,title",
+      "--json", "body,title,labels,comments,assignees,milestone",
     ])
     const parsed = JSON.parse(output)
     if (!parsed || typeof parsed.title !== "string") {
       logger.warn(`  Issue #${issueNumber}: unexpected response shape`)
       return null
     }
-    return { body: parsed.body ?? "", title: parsed.title }
+    return {
+      body: parsed.body ?? "",
+      title: parsed.title,
+      labels: (parsed.labels ?? []).map((l: { name: string }) => l.name),
+      comments: (parsed.comments ?? []).map((c: { body: string; createdAt: string; author: { login: string } }) => ({
+        body: c.body,
+        author: c.author.login,
+        createdAt: c.createdAt,
+      })),
+      assignees: (parsed.assignees ?? []).map((a: { login: string }) => a.login),
+      milestone: parsed.milestone?.title ?? null,
+    }
   } catch (err) {
     if (isNotFoundError(err)) {
       logger.info(`  Issue #${issueNumber} not found`)
@@ -504,4 +532,54 @@ function findLastKodyActionTimestamp(comments: PRComment[]): string | null {
   if (kodyComments.length === 0) return null
   // Comments are returned chronologically, take the last one
   return kodyComments[kodyComments.length - 1].created_at
+}
+
+const ATTACHMENT_URL_PATTERN =
+  /https:\/\/(?:github\.com\/user-attachments\/assets|user-images\.githubusercontent\.com)\/[^\s)"'<>]+/g
+
+export function downloadIssueAttachments(
+  body: string,
+  taskDir: string,
+): { updatedBody: string; downloadedFiles: string[] } {
+  const matches = body.match(ATTACHMENT_URL_PATTERN)
+  if (!matches || matches.length === 0) {
+    return { updatedBody: body, downloadedFiles: [] }
+  }
+
+  const urls = [...new Set(matches)]
+  const attachDir = path.join(taskDir, "attachments")
+  fs.mkdirSync(attachDir, { recursive: true })
+
+  const downloadedFiles: string[] = []
+  let updatedBody = body
+  const usedFilenames = new Set<string>()
+
+  for (const url of urls) {
+    const basename = path.basename(new URL(url).pathname)
+    let filename = basename
+    if (usedFilenames.has(filename)) {
+      const ext = path.extname(filename)
+      const name = path.basename(filename, ext)
+      let i = 1
+      filename = `${name}_${i}${ext}`
+      while (usedFilenames.has(filename)) {
+        i++
+        filename = `${name}_${i}${ext}`
+      }
+    }
+    usedFilenames.add(filename)
+
+    const filePath = path.join(attachDir, filename)
+
+    try {
+      const data = execFileSync("curl", ["-sL", url], { timeout: API_TIMEOUT_MS })
+      fs.writeFileSync(filePath, data)
+      downloadedFiles.push(filePath)
+      updatedBody = updatedBody.split(url).join(filePath)
+    } catch {
+      logger.warn(`  Failed to download attachment: ${url}`)
+    }
+  }
+
+  return { updatedBody, downloadedFiles }
 }
