@@ -12,6 +12,7 @@ import { validateTaskJson, validatePlanMd, validateReviewMd, stripFences } from 
 import { getProjectConfig, resolveStageConfig, stageNeedsProxy, getLitellmUrl } from "../config.js"
 import { buildMcpConfigJson, isMcpEnabledForStage, withPlaywrightIfNeeded } from "../mcp-config.js"
 import { getRunnerForStage } from "../pipeline/runner-selection.js"
+import { startDevServer, type DevServerHandle } from "../dev-server.js"
 import { logger } from "../logger.js"
 
 // ─── Session Groups ─────────────────────────────────────────────────────────
@@ -110,6 +111,31 @@ export async function executeAgentStage(
     logger.info(`  MCP servers enabled for ${def.name}`)
   }
 
+  // Dev server: start from engine process with hard timeout (not from Claude)
+  let devServerHandle: DevServerHandle | null = null
+  const ds = config.mcp?.devServer
+  if (mcpConfigJson && ds && taskHasUI(ctx.taskDir)) {
+    logger.info(`  Starting dev server: ${ds.command}`)
+    const envVars: Record<string, string> = {}
+    for (const varName of ds.env ?? []) {
+      if (process.env[varName]) envVars[varName] = process.env[varName]!
+    }
+    devServerHandle = await startDevServer({
+      command: ds.command,
+      url: ds.url,
+      readyTimeout: ds.readyTimeout ?? 30,
+      envVars,
+    })
+    if (devServerHandle.ready) {
+      logger.info(`  Dev server ready at ${ds.url}`)
+      extraEnv.KODY_DEV_SERVER_URL = ds.url
+      extraEnv.KODY_DEV_SERVER_READY = "true"
+    } else {
+      logger.warn(`  Dev server not ready — Claude will work without browser verification`)
+      extraEnv.KODY_DEV_SERVER_READY = "false"
+    }
+  }
+
   const runner = getRunnerForStage(ctx, def.name)
   const maxRetries = def.maxRetries ?? 0
 
@@ -140,6 +166,12 @@ export async function executeAgentStage(
       env: extraEnv,
       mcpConfigJson,
     })
+  }
+
+  // Clean up dev server
+  if (devServerHandle) {
+    devServerHandle.stop()
+    logger.info(`  Dev server stopped`)
   }
 
   if (lastResult.outcome !== "completed") {

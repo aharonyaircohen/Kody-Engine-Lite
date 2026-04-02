@@ -158,7 +158,21 @@ function getDevServerInfo(taskDir: string): { command: string; url: string; read
 function getBrowserToolGuidance(stageName: string, taskDir: string): string {
   const devServer = getDevServerInfo(taskDir)
 
-  const devServerBlock = devServer
+  // Check if the engine already started the dev server (KODY_DEV_SERVER_READY env var)
+  const engineManagedServer = process.env.KODY_DEV_SERVER_READY !== undefined
+  const serverReady = process.env.KODY_DEV_SERVER_READY === "true"
+  const serverUrl = process.env.KODY_DEV_SERVER_URL ?? devServer?.url
+
+  const devServerBlock = engineManagedServer
+    ? (serverReady
+      ? `
+### Dev Server
+The dev server is already running at ${serverUrl}. Do NOT start it yourself.
+You can use browser tools to navigate to ${serverUrl} directly.`
+      : `
+### Dev Server
+The dev server failed to start (e.g. DB connection issues). Skip browser verification and proceed with code-only changes. Do NOT attempt to start the dev server yourself — it will hang.`)
+    : devServer
     ? `
 ### Dev Server Setup (REQUIRED before browsing)
 You MUST start the dev server before using any browser navigation tools:
