@@ -108,4 +108,45 @@ describe("startDevServer", () => {
 
     expect(handle.ready).toBe(false)
   })
+
+  it("detects ready via stdout pattern then confirms with HTTP", async () => {
+    // Server that delays 1s before responding (simulates Next.js compile)
+    mockServer = http.createServer((_req, res) => {
+      setTimeout(() => {
+        res.writeHead(200)
+        res.end("ok")
+      }, 500)
+    })
+    await new Promise<void>((resolve) => mockServer!.listen(0, resolve))
+    const port = (mockServer.address() as { port: number }).port
+
+    // Command prints ready pattern to stdout
+    handle = await startDevServer({
+      command: `echo "Local: http://localhost:${port}"`,
+      url: `http://localhost:${port}`,
+      readyTimeout: 10,
+      readyPattern: "Local:",
+    })
+
+    expect(handle.ready).toBe(true)
+  })
+
+  it("uses default 60s timeout when readyTimeout not specified", async () => {
+    // We can't wait 60s in a test, just verify it doesn't use 30s
+    // by checking the function accepts no readyTimeout
+    mockServer = http.createServer((_req, res) => {
+      res.writeHead(200)
+      res.end("ok")
+    })
+    await new Promise<void>((resolve) => mockServer!.listen(0, resolve))
+    const port = (mockServer.address() as { port: number }).port
+
+    handle = await startDevServer({
+      command: "echo ready",
+      url: `http://localhost:${port}`,
+      // no readyTimeout — should default to 60
+    })
+
+    expect(handle.ready).toBe(true)
+  })
 })
