@@ -163,8 +163,8 @@ export function detectProjectKeywords(cwd: string): string[] {
 }
 
 export function searchSkills(keywords: string[], exclude: Set<string>, limit: number): SearchedSkill[] {
-  const allResults: SearchedSkill[] = []
   const seen = new Set<string>()
+  const perKeyword: SearchedSkill[][] = []
 
   for (const keyword of keywords) {
     try {
@@ -173,21 +173,39 @@ export function searchSkills(keywords: string[], exclude: Set<string>, limit: nu
         timeout: 15_000,
         stdio: ["pipe", "pipe", "pipe"],
       })
+      const results: SearchedSkill[] = []
       for (const skill of parseSkillsSearchOutput(output)) {
-        if (!seen.has(skill.ref) && !exclude.has(skill.name)) {
-          seen.add(skill.ref)
-          allResults.push(skill)
+        if (!exclude.has(skill.name)) {
+          results.push(skill)
         }
       }
+      perKeyword.push(results)
     } catch {
       // Search failed for this keyword, continue with others
     }
   }
 
-  // Sort by installs descending, take top N
-  return allResults
-    .sort((a, b) => b.installs - a.installs)
-    .slice(0, limit)
+  // Round-robin: take top result from each keyword in turn
+  // This ensures every detected framework gets representation
+  const selected: SearchedSkill[] = []
+  let round = 0
+  while (selected.length < limit) {
+    let added = false
+    for (const results of perKeyword) {
+      if (selected.length >= limit) break
+      if (round >= results.length) continue
+      const candidate = results[round]
+      if (!seen.has(candidate.ref)) {
+        seen.add(candidate.ref)
+        selected.push(candidate)
+        added = true
+      }
+    }
+    if (!added) break
+    round++
+  }
+
+  return selected
 }
 
 function collectSkillPaths(cwd: string, skillName: string, paths: string[]): void {
