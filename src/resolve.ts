@@ -49,13 +49,18 @@ export async function runResolve(options: ResolveOptions): Promise<ResolveResult
   const mergeResult = mergeDefault(projectDir)
 
   if (mergeResult === "error") {
-    return { outcome: "failed", error: "Failed to merge default branch" }
+    const error = "Failed to merge default branch"
+    if (!local) {
+      try { postPRComment(prNumber, `❌ **Resolve failed:** ${error}`) } catch { /* best effort */ }
+    }
+    return { outcome: "failed", error }
   }
 
   if (mergeResult === "clean") {
     logger.info("  Clean merge — no conflicts")
     if (!local) {
       pushBranch(projectDir)
+      try { postPRComment(prNumber, `✅ **Clean merge** — synced with \`${defaultBranch}\`, no conflicts.`) } catch { /* best effort */ }
     }
     return { outcome: "merged" }
   }
@@ -63,7 +68,11 @@ export async function runResolve(options: ResolveOptions): Promise<ResolveResult
   // Step 2: Get conflicted files
   const conflictedFiles = getConflictedFiles(projectDir)
   if (conflictedFiles.length === 0) {
-    return { outcome: "failed", error: "Merge reported conflict but no conflicted files found" }
+    const error = "Merge reported conflict but no conflicted files found"
+    if (!local) {
+      try { postPRComment(prNumber, `❌ **Resolve failed:** ${error}`) } catch { /* best effort */ }
+    }
+    return { outcome: "failed", error }
   }
   logger.info(`  ${conflictedFiles.length} conflicted file(s): ${conflictedFiles.join(", ")}`)
 
@@ -75,7 +84,11 @@ export async function runResolve(options: ResolveOptions): Promise<ResolveResult
   const runnerName = config.agent.defaultRunner ?? Object.keys(runners)[0] ?? "claude"
   const runner = runners[runnerName]
   if (!runner) {
-    return { outcome: "failed", error: `Runner "${runnerName}" not found` }
+    const error = `Runner "${runnerName}" not found`
+    if (!local) {
+      try { postPRComment(prNumber, `❌ **Resolve failed:** ${error}`) } catch { /* best effort */ }
+    }
+    return { outcome: "failed", error }
   }
 
   const model = resolveModel("mid")
@@ -91,7 +104,11 @@ export async function runResolve(options: ResolveOptions): Promise<ResolveResult
   })
 
   if (result.outcome !== "completed") {
-    return { outcome: "failed", error: `Agent failed: ${result.error}` }
+    const error = `Agent failed: ${result.error}`
+    if (!local) {
+      try { postPRComment(prNumber, `❌ **Resolve failed:** ${error}`) } catch { /* best effort */ }
+    }
+    return { outcome: "failed", error }
   }
 
   // Step 4: Verify — typecheck scoped to conflicted files only (pre-existing
@@ -101,7 +118,11 @@ export async function runResolve(options: ResolveOptions): Promise<ResolveResult
   if (!verify.pass) {
     const errorSummary = verify.errors.slice(0, 5).join("\n")
     logger.error(`  Verification failed:\n${errorSummary}`)
-    return { outcome: "failed", error: `Conflict resolution failed verification:\n${errorSummary}` }
+    const error = `Conflict resolution failed verification:\n${errorSummary}`
+    if (!local) {
+      try { postPRComment(prNumber, `❌ **Resolve failed:** ${error}`) } catch { /* best effort */ }
+    }
+    return { outcome: "failed", error }
   }
   logger.info("  Verification passed")
 

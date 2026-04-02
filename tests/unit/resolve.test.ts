@@ -255,4 +255,121 @@ describe("runResolve", () => {
 
     expect(gitUtils.pushBranch).not.toHaveBeenCalled()
   })
+
+  // --- PR comment coverage ---
+
+  it("posts clean-merge comment on PR (non-local)", async () => {
+    await runResolve({
+      prNumber: 42,
+      projectDir: tmpDir,
+      runners: { claude: createMockRunner() },
+      local: false,
+    })
+
+    expect(githubApi.postPRComment).toHaveBeenCalledWith(
+      42,
+      expect.stringContaining("Clean merge"),
+    )
+  })
+
+  it("does NOT post clean-merge comment in local mode", async () => {
+    await runResolve({
+      prNumber: 42,
+      projectDir: tmpDir,
+      runners: { claude: createMockRunner() },
+      local: true,
+    })
+
+    expect(githubApi.postPRComment).not.toHaveBeenCalled()
+  })
+
+  it("posts failure comment when merge errors (non-local)", async () => {
+    vi.mocked(gitUtils.mergeDefault).mockReturnValue("error")
+
+    await runResolve({
+      prNumber: 42,
+      projectDir: tmpDir,
+      runners: { claude: createMockRunner() },
+      local: false,
+    })
+
+    expect(githubApi.postPRComment).toHaveBeenCalledWith(
+      42,
+      expect.stringContaining("Resolve failed"),
+    )
+  })
+
+  it("does NOT post failure comment in local mode", async () => {
+    vi.mocked(gitUtils.mergeDefault).mockReturnValue("error")
+
+    await runResolve({
+      prNumber: 42,
+      projectDir: tmpDir,
+      runners: { claude: createMockRunner() },
+      local: true,
+    })
+
+    expect(githubApi.postPRComment).not.toHaveBeenCalled()
+  })
+
+  it("posts failure comment when no conflicted files found (non-local)", async () => {
+    vi.mocked(gitUtils.mergeDefault).mockReturnValue("conflict")
+    vi.mocked(gitUtils.getConflictedFiles).mockReturnValue([])
+
+    await runResolve({
+      prNumber: 42,
+      projectDir: tmpDir,
+      runners: { claude: createMockRunner() },
+      local: false,
+    })
+
+    expect(githubApi.postPRComment).toHaveBeenCalledWith(
+      42,
+      expect.stringContaining("Resolve failed"),
+    )
+  })
+
+  it("posts failure comment when agent fails (non-local)", async () => {
+    vi.mocked(gitUtils.mergeDefault).mockReturnValue("conflict")
+    const failRunner: AgentRunner = {
+      async run(): Promise<AgentResult> {
+        return { outcome: "error", error: "Agent crashed", output: "" }
+      },
+      async healthCheck() { return true },
+    }
+
+    await runResolve({
+      prNumber: 42,
+      projectDir: tmpDir,
+      runners: { claude: failRunner },
+      local: false,
+    })
+
+    expect(githubApi.postPRComment).toHaveBeenCalledWith(
+      42,
+      expect.stringContaining("Resolve failed"),
+    )
+  })
+
+  it("posts failure comment when verification fails (non-local)", async () => {
+    vi.mocked(gitUtils.mergeDefault).mockReturnValue("conflict")
+    vi.mocked(verifyRunner.runQualityGates).mockReturnValue({
+      pass: false,
+      errors: ["Type error in src/foo.ts"],
+      summary: [],
+      rawOutputs: [],
+    })
+
+    await runResolve({
+      prNumber: 42,
+      projectDir: tmpDir,
+      runners: { claude: createMockRunner() },
+      local: false,
+    })
+
+    expect(githubApi.postPRComment).toHaveBeenCalledWith(
+      42,
+      expect.stringContaining("Resolve failed"),
+    )
+  })
 })
