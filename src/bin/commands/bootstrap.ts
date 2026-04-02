@@ -3,9 +3,10 @@ import * as path from "path"
 import { execFileSync } from "child_process"
 
 import { detectArchitectureBasic } from "../architecture-detection.js"
-import { discoverQaContext, generateQaGuide } from "../qa-guide.js"
+import { discoverQaContext, generateQaGuideFallback, serializeDiscoveryForLLM } from "../qa-guide.js"
 import { installSkillsForProject } from "../skills.js"
 import { getProjectConfig, resolveStageConfig, setConfigDir } from "../../config.js"
+import { buildExtendInstruction } from "../extend-helpers.js"
 
 export const STEP_STAGES = ["taskify", "plan", "build", "autofix", "review", "review-fix"] as const
 
@@ -144,19 +145,10 @@ export function bootstrapCommand(opts: { force: boolean }, pkgRoot: string) {
   const hasExisting = !!(existingArch || existingConv)
 
   const extendInstruction = hasExisting && !opts.force
-    ? `\n## Existing Documentation (EXTEND, do not replace)
-You are UPDATING existing documentation. Follow these rules strictly:
-- PRESERVE all existing sections and content that are still accurate
-- REMOVE only lines that reference files, patterns, or dependencies that no longer exist in the project
-- APPEND new sections or lines for newly discovered patterns, files, or conventions
-- Do NOT rewrite sections that are still correct — keep them verbatim
-
-### Existing architecture.md:
-${existingArch}
-
-### Existing conventions.md:
-${existingConv}
-`
+    ? buildExtendInstruction(
+        `### architecture.md:\n${existingArch}\n\n### conventions.md:\n${existingConv}`,
+        "project documentation",
+      )
     : ""
 
   const memoryPrompt = `You are analyzing a project to generate documentation for an autonomous SDLC pipeline.
@@ -242,12 +234,8 @@ ${repoContext}`
     }
 
     const stepOutputPath = path.join(stepsDir, `${stage}.md`)
-
-    // Skip if step file already exists (unless --force)
-    if (fs.existsSync(stepOutputPath) && !opts.force) {
-      console.log(`  ○ ${stage}.md — already exists (use --force to regenerate)`)
-      continue
-    }
+    const existingStep = fs.existsSync(stepOutputPath) ? fs.readFileSync(stepOutputPath, "utf-8") : ""
+    const isExtend = !!existingStep && !opts.force
 
     const defaultPrompt = fs.readFileSync(templatePath, "utf-8")
     const contextPlaceholder = "{{TASK_CONTEXT}}"
@@ -264,6 +252,10 @@ ${repoContext}`
     const beforePlaceholder = defaultPrompt.slice(0, placeholderIdx).trimEnd()
     const afterPlaceholder = defaultPrompt.slice(placeholderIdx)
 
+    const stepExtendBlock = isExtend
+      ? buildExtendInstruction(existingStep, `${stage} step file`)
+      : ""
+
     const customizationPrompt = `You are customizing a Kody pipeline prompt for a specific repository.
 
 ## Your Task
@@ -279,7 +271,7 @@ Take the prompt template below and APPEND repository-specific sections to it.
 4. Keep each appended section concise (10-20 lines max).
 5. Output ONLY the customized prompt markdown. No explanation before or after.
 6. Do NOT include the text "${contextPlaceholder}" — it will be appended automatically after your output.
-
+${stepExtendBlock}
 ## Stage Being Customized
 Stage: ${stage}
 
@@ -319,32 +311,129 @@ REMINDER: Output the full prompt template first (unchanged), then your three app
       const finalPrompt = cleaned + "\n\n" + afterPlaceholder
       fs.writeFileSync(stepOutputPath, finalPrompt)
       stepCount++
-      console.log(`  ✓ ${stage}.md`)
+      console.log(`  ✓ ${stage}.md (${isExtend ? "extended" : "generated"})`)
     } catch {
-      console.log(`  ⚠ ${stage}.md — customization failed, using default template`)
-      fs.copyFileSync(templatePath, stepOutputPath)
-      stepCount++
+      if (!isExtend) {
+        console.log(`  ⚠ ${stage}.md — customization failed, using default template`)
+        fs.copyFileSync(templatePath, stepOutputPath)
+        stepCount++
+      } else {
+        console.log(`  ⚠ ${stage}.md — extend failed, keeping existing`)
+      }
     }
   }
   console.log(`  ✓ Generated ${stepCount} step files in .kody/steps/`)
 
-  // ── Step 2b: Generate QA guide ──
+  // ── Step 2b: Generate QA guide (always run, extend or regenerate) ──
   console.log("\n── QA Guide ──")
   const qaGuidePath = path.join(cwd, ".kody", "qa-guide.md")
-  if (!fs.existsSync(qaGuidePath) || opts.force) {
-    const discovery = discoverQaContext(cwd)
-    if (discovery.routes.length > 0) {
-      const qaGuide = generateQaGuide(discovery)
+  const discovery = discoverQaContext(cwd)
+  const hasRoutes = discovery.routes.length > 0 || discovery.collections.length > 0
+
+  if (hasRoutes) {
+    const existingQaGuide = fs.existsSync(qaGuidePath) ? fs.readFileSync(qaGuidePath, "utf-8") : ""
+    const isQaExtend = !!existingQaGuide && !opts.force
+    const serializedDiscovery = serializeDiscoveryForLLM(discovery)
+
+    const qaExtendBlock = isQaExtend
+      ? buildExtendInstruction(existingQaGuide, "QA guide")
+      : ""
+
+    const qaPrompt = `You are generating a QA guide for an autonomous coding agent that will use Playwright browser tools to visually verify UI changes.
+
+## Discovery Data
+${serializedDiscovery}
+
+## Architecture
+${arch}
+
+## Conventions
+${conv}
+${qaExtendBlock}
+## Output Format
+Generate a markdown QA guide with EXACTLY these sections:
+
+# QA Guide
+
+## Quick Reference
+- Dev server command and URL
+- Login page URL
+- Admin panel URL (if applicable)
+
+## Authentication
+### Test Accounts
+Table with Role, Email, Password columns.
+Use env var references (QA_ADMIN_EMAIL, QA_ADMIN_PASSWORD, etc.) — NOT hardcoded credentials.
+If the existing guide has real credentials, PRESERVE them exactly.
+
+### Login Steps
+Specific steps for this project's auth system.
+
+### Auth Files
+List of auth-related source files.
+
+## Navigation Map
+### Admin Panel
+For each collection/admin page: the exact URL path, what elements to expect on the page, key fields visible in the form, any custom components.
+Example: "/admin/collections/courses — Course edit form with title, slug, description fields. Custom CourseLessonsSorter component shows drag-sortable lessons grouped by chapter."
+
+### Frontend Pages
+For each key public route: path, expected content, key interactions to test.
+
+### API Endpoints
+For each API route: path, HTTP methods, purpose.
+
+## Component Verification Patterns
+For each custom admin component: where to find it in the UI, how to navigate there, what visual elements to verify, interaction tests (click, drag, type).
+
+## Common Test Scenarios
+CRUD workflows, auth flows, specific feature verification patterns relevant to this project.
+
+## Environment Setup
+Required env vars to start the dev server successfully.
+
+## Dev Server
+Command and URL.
+
+## Rules
+- Be SPECIFIC to this project — reference actual URLs, collection names, component names
+- For admin panels (Payload CMS, etc.), include the exact /admin/collections/{slug} paths
+- Include visual assertions: "you should see X", "verify Y is visible"
+- Include interaction tests: "click button X", "fill field Y", "drag item Z"
+- Keep under 200 lines total
+- Output ONLY the markdown. No explanation before or after.`
+
+    console.log("  ⏳ Generating QA guide...")
+    try {
+      const output = execFileSync("claude", [
+        "--print",
+        "--model", bootstrapModel,
+        "--dangerously-skip-permissions",
+        qaPrompt,
+      ], {
+        encoding: "utf-8",
+        timeout: 90_000,
+        cwd,
+        stdio: ["pipe", "pipe", "pipe"],
+      }).trim()
+
+      const cleaned = output.replace(/^```(?:markdown|md)?\s*\n?/, "").replace(/\n?```\s*$/, "")
+      fs.writeFileSync(qaGuidePath, cleaned)
+      console.log(`  ✓ .kody/qa-guide.md (${isQaExtend ? "extended" : "generated"}, ${discovery.routes.length} routes, ${discovery.collections.length} collections)`)
+    } catch {
+      console.log("  ⚠ LLM QA generation failed — using template fallback")
+      const qaGuide = generateQaGuideFallback(discovery)
       fs.writeFileSync(qaGuidePath, qaGuide)
-      console.log(`  ✓ .kody/qa-guide.md (${discovery.routes.length} routes, ${discovery.roles.length} roles)`)
-      if (discovery.loginPage) console.log(`  ✓ Login page detected: ${discovery.loginPage}`)
-      if (discovery.adminPath) console.log(`  ✓ Admin panel detected: ${discovery.adminPath}`)
-      console.log("  ℹ Add QA_ADMIN_EMAIL, QA_ADMIN_PASSWORD, QA_USER_EMAIL, QA_USER_PASSWORD as GitHub secrets")
-    } else {
-      console.log("  ○ No routes detected — skipping QA guide")
+      console.log(`  ✓ .kody/qa-guide.md (fallback, ${discovery.routes.length} routes)`)
     }
+
+    if (discovery.loginPage) console.log(`  ✓ Login page detected: ${discovery.loginPage}`)
+    if (discovery.adminPath) console.log(`  ✓ Admin panel detected: ${discovery.adminPath}`)
+    if (discovery.collections.length > 0) console.log(`  ✓ ${discovery.collections.length} Payload CMS collections detected`)
+    if (discovery.adminComponents.length > 0) console.log(`  ✓ ${discovery.adminComponents.length} custom admin components detected`)
+    console.log("  ℹ Add QA_ADMIN_EMAIL, QA_ADMIN_PASSWORD, QA_USER_EMAIL, QA_USER_PASSWORD as GitHub secrets")
   } else {
-    console.log("  ○ .kody/qa-guide.md already exists (use --force to regenerate)")
+    console.log("  ○ No routes or collections detected — skipping QA guide")
   }
 
   // ── Step 3: Create labels ──
@@ -365,7 +454,9 @@ REMINDER: Output the full prompt template first (unchanged), then your three app
       const labels = [
         { name: "kody:planning", color: "c5def5", description: "Kody is analyzing and planning" },
         { name: "kody:building", color: "0e8a16", description: "Kody is building code" },
+        { name: "kody:verifying", color: "fbca04", description: "Kody is verifying (lint/test/typecheck)" },
         { name: "kody:review", color: "fbca04", description: "Kody is reviewing code" },
+        { name: "kody:fixing", color: "0e8a16", description: "Kody is applying review fixes" },
         { name: "kody:shipping", color: "1d76db", description: "Kody is creating the pull request" },
         { name: "kody:done", color: "0e8a16", description: "Kody completed successfully" },
         { name: "kody:failed", color: "d93f0b", description: "Kody pipeline failed" },

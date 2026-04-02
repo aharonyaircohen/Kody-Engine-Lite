@@ -1,5 +1,13 @@
 import * as fs from "fs"
 import * as path from "path"
+import {
+  detectFrameworks,
+  discoverPayloadCollections,
+  discoverAdminComponents,
+  scanApiRoutes,
+  scanEnvVars,
+} from "./framework-detectors.js"
+import type { FrameworkInfo, CollectionInfo, AdminComponentInfo, ApiRouteInfo } from "./framework-detectors.js"
 
 export interface QaDiscovery {
   routes: { path: string; group: string }[]
@@ -9,6 +17,13 @@ export interface QaDiscovery {
   roles: string[]
   devCommand: string
   devPort: number
+
+  // Enriched fields
+  frameworks: FrameworkInfo[]
+  collections: CollectionInfo[]
+  adminComponents: AdminComponentInfo[]
+  apiRoutes: ApiRouteInfo[]
+  envVars: string[]
 }
 
 export function discoverQaContext(cwd: string): QaDiscovery {
@@ -20,6 +35,11 @@ export function discoverQaContext(cwd: string): QaDiscovery {
     roles: [],
     devCommand: "",
     devPort: 3000,
+    frameworks: [],
+    collections: [],
+    adminComponents: [],
+    apiRoutes: [],
+    envVars: [],
   }
 
   // Detect dev command and port
@@ -92,6 +112,18 @@ export function discoverQaContext(cwd: string): QaDiscovery {
     }
   } catch { /* ignore */ }
 
+  // ── Enriched discovery ──
+  result.frameworks = detectFrameworks(cwd)
+
+  const hasPayload = result.frameworks.some(f => f.name === "payload-cms")
+  if (hasPayload) {
+    result.collections = discoverPayloadCollections(cwd)
+  }
+
+  result.adminComponents = discoverAdminComponents(cwd, result.collections.length > 0 ? result.collections : undefined)
+  result.apiRoutes = scanApiRoutes(cwd)
+  result.envVars = scanEnvVars(cwd)
+
   return result
 }
 
@@ -125,18 +157,20 @@ function scanRoutes(dir: string, baseDir: string, prefix: string, result: QaDisc
       scanRoutes(path.join(dir, entry.name), baseDir, prefix, result)
       continue
     }
-    if (segment.startsWith("[") && segment.endsWith("]")) {
-      segment = `:${segment.slice(1, -1)}`
-    }
+    // Check [[...]] before [] to avoid false match
     if (segment.startsWith("[[") && segment.endsWith("]]")) {
       segment = `:${segment.slice(2, -2)}?`
+    } else if (segment.startsWith("[") && segment.endsWith("]")) {
+      segment = `:${segment.slice(1, -1)}`
     }
 
     scanRoutes(path.join(dir, entry.name), baseDir, `${prefix}/${segment}`, result)
   }
 }
 
-export function generateQaGuide(discovery: QaDiscovery): string {
+// ─── Fallback Generator (renamed from generateQaGuide) ─────────────────────
+
+export function generateQaGuideFallback(discovery: QaDiscovery): string {
   const lines: string[] = ["# QA Guide", "", "## Authentication", ""]
 
   if (discovery.loginPage) {
@@ -193,6 +227,47 @@ export function generateQaGuide(discovery: QaDiscovery): string {
     lines.push("")
   }
 
+  // Enriched: Collections
+  if (discovery.collections.length > 0) {
+    lines.push("## Admin Collections", "")
+    for (const col of discovery.collections) {
+      lines.push(`### \`/admin/collections/${col.slug}\``)
+      lines.push(`- **Name:** ${col.name}`)
+      lines.push(`- **Fields:** ${col.fields.join(", ")}`)
+      if (col.hasAdmin) lines.push("- **Custom admin components:** yes")
+      lines.push("")
+    }
+  }
+
+  // Enriched: API routes
+  if (discovery.apiRoutes.length > 0) {
+    lines.push("## API Endpoints", "")
+    for (const route of discovery.apiRoutes) {
+      lines.push(`- \`${route.methods.join(", ")} ${route.path}\` — \`${route.filePath}\``)
+    }
+    lines.push("")
+  }
+
+  // Enriched: Admin components
+  if (discovery.adminComponents.length > 0) {
+    lines.push("## Custom Admin Components", "")
+    for (const comp of discovery.adminComponents) {
+      let line = `- **${comp.name}** (\`${comp.filePath}\`)`
+      if (comp.usedInCollection) line += ` — used in \`${comp.usedInCollection}\` collection`
+      lines.push(line)
+    }
+    lines.push("")
+  }
+
+  // Enriched: Env vars
+  if (discovery.envVars.length > 0) {
+    lines.push("## Required Environment Variables", "")
+    for (const v of discovery.envVars) {
+      lines.push(`- \`${v}\``)
+    }
+    lines.push("")
+  }
+
   lines.push(
     "## Dev Server",
     "",
@@ -202,4 +277,92 @@ export function generateQaGuide(discovery: QaDiscovery): string {
   )
 
   return lines.join("\n")
+}
+
+/** Keep backward compat — old name delegates to fallback */
+export function generateQaGuide(discovery: QaDiscovery): string {
+  return generateQaGuideFallback(discovery)
+}
+
+// ─── LLM Serialization ─────────────────────────────────────────────────────
+
+const MAX_SERIALIZED_LENGTH = 8000
+
+export function serializeDiscoveryForLLM(discovery: QaDiscovery): string {
+  const sections: string[] = []
+
+  // Dev server
+  sections.push(`Dev server: ${discovery.devCommand || "pnpm dev"} at http://localhost:${discovery.devPort}`)
+
+  // Auth
+  if (discovery.loginPage) sections.push(`Login page: ${discovery.loginPage}`)
+  if (discovery.adminPath) sections.push(`Admin panel: ${discovery.adminPath}`)
+  if (discovery.roles.length > 0) sections.push(`Roles: ${discovery.roles.join(", ")}`)
+
+  // Frameworks
+  if (discovery.frameworks.length > 0) {
+    sections.push(`\nFrameworks: ${discovery.frameworks.map(f => `${f.name}${f.version ? ` (${f.version})` : ""}`).join(", ")}`)
+  }
+
+  // Collections (cap at 15)
+  if (discovery.collections.length > 0) {
+    sections.push("\nCollections (Payload CMS):")
+    for (const col of discovery.collections.slice(0, 15)) {
+      const fields = col.fields.slice(0, 10).join(", ")
+      let line = `- ${col.slug}: fields=[${fields}]`
+      if (col.hasAdmin) line += " (has custom admin components)"
+      line += ` — ${col.filePath}`
+      sections.push(line)
+    }
+    if (discovery.collections.length > 15) {
+      sections.push(`- ... and ${discovery.collections.length - 15} more collections`)
+    }
+  }
+
+  // Admin components (cap at 10)
+  if (discovery.adminComponents.length > 0) {
+    sections.push("\nCustom Admin Components:")
+    for (const comp of discovery.adminComponents.slice(0, 10)) {
+      let line = `- ${comp.name} (${comp.filePath})`
+      if (comp.usedInCollection) line += ` → used in "${comp.usedInCollection}" collection`
+      sections.push(line)
+    }
+  }
+
+  // API routes (cap at 20)
+  if (discovery.apiRoutes.length > 0) {
+    sections.push("\nAPI Routes:")
+    for (const route of discovery.apiRoutes.slice(0, 20)) {
+      sections.push(`- ${route.methods.join("/")} ${route.path} — ${route.filePath}`)
+    }
+    if (discovery.apiRoutes.length > 20) {
+      sections.push(`- ... and ${discovery.apiRoutes.length - 20} more routes`)
+    }
+  }
+
+  // Frontend routes (cap at 30)
+  if (discovery.routes.length > 0) {
+    sections.push("\nFrontend Routes:")
+    for (const route of discovery.routes.slice(0, 30)) {
+      sections.push(`- [${route.group}] ${route.path}`)
+    }
+    if (discovery.routes.length > 30) {
+      sections.push(`- ... and ${discovery.routes.length - 30} more routes`)
+    }
+  }
+
+  // Env vars
+  if (discovery.envVars.length > 0) {
+    sections.push(`\nRequired env vars: ${discovery.envVars.join(", ")}`)
+  }
+
+  let result = sections.join("\n")
+
+  // Truncate at last newline before budget to avoid cutting mid-line
+  if (result.length > MAX_SERIALIZED_LENGTH) {
+    const cutoff = result.lastIndexOf("\n", MAX_SERIALIZED_LENGTH - 20)
+    result = result.slice(0, cutoff > 0 ? cutoff : MAX_SERIALIZED_LENGTH - 20) + "\n... (truncated)"
+  }
+
+  return result
 }
