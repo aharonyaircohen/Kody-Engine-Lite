@@ -30,7 +30,6 @@ export { checkCommand, checkFile, checkGhAuth, checkGhRepoAccess, checkGhSecret 
 export type { CheckResult } from "./health-checks.js"
 export { detectBasicConfig, buildConfig } from "./config-detection.js"
 export { detectArchitectureBasic } from "./architecture-detection.js"
-export { detectSkillsForProject } from "./skills.js"
 
 // ─── main ────────────────────────────────────────────────────────────────────
 

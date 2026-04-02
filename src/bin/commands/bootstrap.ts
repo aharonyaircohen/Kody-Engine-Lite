@@ -4,7 +4,6 @@ import { execFileSync } from "child_process"
 
 import { detectArchitectureBasic } from "../architecture-detection.js"
 import { discoverQaContext, generateQaGuideFallback, serializeDiscoveryForLLM } from "../qa-guide.js"
-import { installSkillsForProject } from "../skills.js"
 import { getProjectConfig, resolveStageConfig, setConfigDir } from "../../config.js"
 import { buildExtendInstruction } from "../extend-helpers.js"
 
@@ -514,13 +513,12 @@ Command and URL.
   if (!fs.existsSync(toolsYmlPath) || opts.force) {
     const toolsTemplate = `# Kody Tools Configuration
 # Uncomment and configure tools that your project uses.
-# The engine will detect, install, and inject tool skills into pipeline stages.
+# The engine detects tools, runs setup commands, and installs matching skills from skills.sh.
 #
 # playwright:
 #   detect: ["playwright.config.ts", "playwright.config.js"]
 #   stages: [verify]
 #   setup: "npx playwright install --with-deps chromium"
-#   skill: playwright-cli.md
 `
     fs.writeFileSync(toolsYmlPath, toolsTemplate)
     console.log("  ✓ .kody/tools.yml (template created)")
@@ -528,24 +526,14 @@ Command and URL.
     console.log("  ○ .kody/tools.yml (already exists, keeping)")
   }
 
-  // ── Step 4: Install skills ──
-  console.log("\n── Skills ──")
-  const installedSkillPaths = installSkillsForProject(cwd)
-
-  // ── Step 5: Format, commit and push ──
+  // ── Step 4: Format, commit and push ──
   console.log("\n── Git ──")
   const filesToCommit = [
     ".kody/memory/architecture.md",
     ".kody/memory/conventions.md",
     ".kody/qa-guide.md",
     ".kody/tools.yml",
-    ...installedSkillPaths,
   ].filter((f) => fs.existsSync(path.join(cwd, f)))
-
-  // Add skills-lock.json if created
-  if (fs.existsSync(path.join(cwd, "skills-lock.json"))) {
-    filesToCommit.push("skills-lock.json")
-  }
 
   for (const stage of STEP_STAGES) {
     const stepFile = `.kody/steps/${stage}.md`

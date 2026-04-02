@@ -16,6 +16,7 @@ An autonomous SDLC pipeline as an npm package. Users comment `@kody` on a GitHub
 ```
 
 **Design principles:**
+- **Engine is generic** — zero knowledge of specific tools or skills in source code. Tools are declared in `.kody/tools.yml` by the user. Skills come exclusively from [skills.sh](https://skills.sh) and are loaded natively by Claude Code. The engine never ships, hardcodes, or injects skill content.
 - Orchestrator is dumb — runs stages in order, no reasoning
 - Agent runner is a thin subprocess wrapper — spawn, pipe, timeout, return
 - All intelligence lives in Claude Code + prompt templates

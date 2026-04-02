@@ -81,7 +81,6 @@ export interface ResolvedTool {
   name: string
   stages: string[]
   setup: string
-  skillContent: string
 }
 
 export interface PipelineContext {

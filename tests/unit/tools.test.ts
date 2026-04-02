@@ -2,8 +2,15 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import * as fs from "fs"
 import * as path from "path"
 import * as os from "os"
-import { loadToolDeclarations, detectTools, getToolSkillsForStage } from "../../src/tools.js"
-import type { ResolvedTool } from "../../src/types.js"
+
+// Mock child_process before importing tools.ts
+const execSyncMock = vi.fn()
+vi.mock("child_process", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("child_process")>()
+  return { ...actual, execSync: (...args: unknown[]) => execSyncMock(...args) }
+})
+
+import { loadToolDeclarations, detectTools, runToolSetup } from "../../src/tools.js"
 
 function createTmpDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "kody-tools-"))
@@ -19,7 +26,6 @@ const SAMPLE_TOOLS_YML = `playwright:
   detect: ["playwright.config.ts", "playwright.config.js"]
   stages: [verify]
   setup: "npx playwright install --with-deps chromium"
-  skill: playwright-cli.md
 `
 
 describe("loadToolDeclarations", () => {
@@ -42,7 +48,6 @@ describe("loadToolDeclarations", () => {
       detect: ["playwright.config.ts", "playwright.config.js"],
       stages: ["verify"],
       setup: "npx playwright install --with-deps chromium",
-      skill: "playwright-cli.md",
     })
   })
 
@@ -58,12 +63,22 @@ vitest:
   detect: ["vitest.config.ts"]
   stages: [verify, review]
   setup: ""
-  skill: vitest.md
 `)
     const result = loadToolDeclarations(tmpDir)
     expect(result).toHaveLength(2)
     expect(result[1].name).toBe("vitest")
     expect(result[1].stages).toEqual(["verify", "review"])
+  })
+
+  it("ignores skill field in YAML (no longer used)", () => {
+    writeFile(tmpDir, ".kody/tools.yml", `playwright:
+  detect: ["playwright.config.ts"]
+  stages: [verify]
+  setup: ""
+  skill: custom.md
+`)
+    const result = loadToolDeclarations(tmpDir)
+    expect(result[0]).not.toHaveProperty("skill")
   })
 })
 
@@ -77,8 +92,8 @@ describe("detectTools", () => {
     writeFile(tmpDir, "playwright.config.ts", "export default {}")
 
     const declarations = [
-      { name: "playwright", detect: ["playwright.config.ts"], stages: ["verify"], setup: "", skill: "" },
-      { name: "vitest", detect: ["vitest.config.ts"], stages: ["verify"], setup: "", skill: "" },
+      { name: "playwright", detect: ["playwright.config.ts"], stages: ["verify"], setup: "" },
+      { name: "vitest", detect: ["vitest.config.ts"], stages: ["verify"], setup: "" },
     ]
 
     const result = detectTools(declarations, tmpDir)
@@ -88,90 +103,102 @@ describe("detectTools", () => {
 
   it("returns empty array when no patterns match", () => {
     const declarations = [
-      { name: "playwright", detect: ["playwright.config.ts"], stages: ["verify"], setup: "", skill: "" },
+      { name: "playwright", detect: ["playwright.config.ts"], stages: ["verify"], setup: "" },
     ]
 
     const result = detectTools(declarations, tmpDir)
     expect(result).toEqual([])
   })
 
-  it("resolves skill content from project .kody/skills/ first", () => {
-    writeFile(tmpDir, "playwright.config.ts", "export default {}")
-    writeFile(tmpDir, ".kody/skills/my-skill.md", "# Project-level skill")
-
-    const declarations = [
-      { name: "playwright", detect: ["playwright.config.ts"], stages: ["verify"], setup: "", skill: "my-skill.md" },
-    ]
-
-    const result = detectTools(declarations, tmpDir)
-    expect(result[0].skillContent).toBe("# Project-level skill")
-  })
-
-  it("resolves skill content from engine skills/ as fallback", () => {
-    writeFile(tmpDir, "playwright.config.ts", "export default {}")
-
-    const declarations = [
-      { name: "playwright", detect: ["playwright.config.ts"], stages: ["verify"], setup: "", skill: "playwright-cli.md" },
-    ]
-
-    const result = detectTools(declarations, tmpDir)
-    // Engine skill file exists at skills/playwright-cli.md
-    expect(result[0].skillContent).toContain("Playwright CLI")
-  })
-
   it("matches any detect pattern (OR logic)", () => {
     writeFile(tmpDir, "playwright.config.js", "module.exports = {}")
 
     const declarations = [
-      { name: "playwright", detect: ["playwright.config.ts", "playwright.config.js"], stages: ["verify"], setup: "", skill: "" },
+      { name: "playwright", detect: ["playwright.config.ts", "playwright.config.js"], stages: ["verify"], setup: "" },
     ]
 
     const result = detectTools(declarations, tmpDir)
     expect(result).toHaveLength(1)
   })
+
+  it("does not include skillContent in resolved tools", () => {
+    writeFile(tmpDir, "playwright.config.ts", "export default {}")
+
+    const declarations = [
+      { name: "playwright", detect: ["playwright.config.ts"], stages: ["verify"], setup: "" },
+    ]
+
+    const result = detectTools(declarations, tmpDir)
+    expect(result[0]).not.toHaveProperty("skillContent")
+  })
 })
 
-describe("getToolSkillsForStage", () => {
-  const tools: ResolvedTool[] = [
-    { name: "playwright", stages: ["verify"], setup: "", skillContent: "Use Playwright for E2E tests." },
-    { name: "vitest", stages: ["verify", "review"], setup: "", skillContent: "Use Vitest for unit tests." },
-    { name: "eslint", stages: ["review"], setup: "", skillContent: "Use ESLint for linting." },
-  ]
+describe("runToolSetup", () => {
+  let tmpDir: string
 
-  it("returns skills matching the stage", () => {
-    const result = getToolSkillsForStage(tools, "verify")
-    expect(result).toContain("## Available Tools")
-    expect(result).toContain("### playwright")
-    expect(result).toContain("Use Playwright for E2E tests.")
-    expect(result).toContain("### vitest")
-    expect(result).toContain("Use Vitest for unit tests.")
-    expect(result).not.toContain("eslint")
+  beforeEach(() => {
+    tmpDir = createTmpDir()
+    execSyncMock.mockReset()
+  })
+  afterEach(() => { fs.rmSync(tmpDir, { recursive: true, force: true }) })
+
+  it("runs setup command and installs skill from skills.sh", () => {
+    const tools = [{ name: "playwright", stages: ["verify"], setup: "echo setup" }]
+    runToolSetup(tools, tmpDir)
+
+    expect(execSyncMock).toHaveBeenCalledTimes(2)
+
+    // First call: setup command
+    expect(execSyncMock).toHaveBeenCalledWith(
+      "echo setup",
+      expect.objectContaining({ cwd: tmpDir }),
+    )
+
+    // Second call: skills.sh install
+    expect(execSyncMock).toHaveBeenCalledWith(
+      "npx skills add --skill playwright --yes",
+      expect.objectContaining({ cwd: tmpDir }),
+    )
   })
 
-  it("returns empty string when no tools match the stage", () => {
-    const result = getToolSkillsForStage(tools, "build")
-    expect(result).toBe("")
+  it("installs skill even when setup is empty", () => {
+    const tools = [{ name: "vitest", stages: ["verify"], setup: "" }]
+    runToolSetup(tools, tmpDir)
+
+    // Should only call skills install (no setup command)
+    expect(execSyncMock).toHaveBeenCalledTimes(1)
+    expect(execSyncMock).toHaveBeenCalledWith(
+      "npx skills add --skill vitest --yes",
+      expect.objectContaining({ cwd: tmpDir }),
+    )
   })
 
-  it("concatenates multiple tool skills", () => {
-    const result = getToolSkillsForStage(tools, "review")
-    expect(result).toContain("### vitest")
-    expect(result).toContain("### eslint")
-    expect(result).not.toContain("### playwright")
+  it("continues on skill install failure", () => {
+    execSyncMock.mockImplementation(() => {
+      throw new Error("npx not found")
+    })
+
+    const tools = [{ name: "playwright", stages: ["verify"], setup: "echo setup" }]
+    // Should not throw
+    expect(() => runToolSetup(tools, tmpDir)).not.toThrow()
   })
 
-  it("skips tools with empty skill content", () => {
-    const toolsWithEmpty: ResolvedTool[] = [
-      { name: "empty", stages: ["verify"], setup: "", skillContent: "" },
-      { name: "valid", stages: ["verify"], setup: "", skillContent: "Valid content." },
+  it("installs skills for multiple tools", () => {
+    const tools = [
+      { name: "playwright", stages: ["verify"], setup: "echo pw" },
+      { name: "vitest", stages: ["verify"], setup: "" },
     ]
-    const result = getToolSkillsForStage(toolsWithEmpty, "verify")
-    expect(result).toContain("### valid")
-    expect(result).not.toContain("### empty")
-  })
+    runToolSetup(tools, tmpDir)
 
-  it("returns empty string for empty tools array", () => {
-    const result = getToolSkillsForStage([], "verify")
-    expect(result).toBe("")
+    // playwright: setup + skill = 2 calls, vitest: skill only = 1 call
+    expect(execSyncMock).toHaveBeenCalledTimes(3)
+    expect(execSyncMock).toHaveBeenCalledWith(
+      "npx skills add --skill playwright --yes",
+      expect.objectContaining({ cwd: tmpDir }),
+    )
+    expect(execSyncMock).toHaveBeenCalledWith(
+      "npx skills add --skill vitest --yes",
+      expect.objectContaining({ cwd: tmpDir }),
+    )
   })
 })

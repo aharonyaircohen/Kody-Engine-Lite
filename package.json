@@ -10,7 +10,6 @@
   "files": [
     "dist",
     "prompts",
-    "skills",
     "templates",
     "kody.config.schema.json"
   ],
