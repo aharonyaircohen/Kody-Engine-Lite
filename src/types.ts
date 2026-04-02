@@ -77,12 +77,20 @@ export interface AgentRunner {
   healthCheck(): Promise<boolean>
 }
 
+export interface ResolvedTool {
+  name: string
+  stages: string[]
+  setup: string
+  skillContent: string
+}
+
 export interface PipelineContext {
   taskId: string
   taskDir: string
   projectDir: string
   runners: Record<string, AgentRunner>
   sessions?: Record<string, string>
+  tools?: ResolvedTool[]
   input: {
     mode: "full" | "rerun" | "status"
     fromStage?: string

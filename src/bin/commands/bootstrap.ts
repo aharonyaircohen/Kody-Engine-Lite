@@ -452,6 +452,7 @@ Command and URL.
 
     if (repoSlug) {
       const labels = [
+        { name: "kody:backlog", color: "e4e669", description: "Issue created, not yet assigned to Kody" },
         { name: "kody:planning", color: "c5def5", description: "Kody is analyzing and planning" },
         { name: "kody:building", color: "0e8a16", description: "Kody is building code" },
         { name: "kody:verifying", color: "fbca04", description: "Kody is verifying (lint/test/typecheck)" },
@@ -507,6 +508,26 @@ Command and URL.
     console.log("  ○ Label creation skipped")
   }
 
+  // ── Step 3b: Generate tools.yml template ──
+  console.log("\n── Tools ──")
+  const toolsYmlPath = path.join(cwd, ".kody", "tools.yml")
+  if (!fs.existsSync(toolsYmlPath) || opts.force) {
+    const toolsTemplate = `# Kody Tools Configuration
+# Uncomment and configure tools that your project uses.
+# The engine will detect, install, and inject tool skills into pipeline stages.
+#
+# playwright:
+#   detect: ["playwright.config.ts", "playwright.config.js"]
+#   stages: [verify]
+#   setup: "npx playwright install --with-deps chromium"
+#   skill: playwright-cli.md
+`
+    fs.writeFileSync(toolsYmlPath, toolsTemplate)
+    console.log("  ✓ .kody/tools.yml (template created)")
+  } else {
+    console.log("  ○ .kody/tools.yml (already exists, keeping)")
+  }
+
   // ── Step 4: Install skills ──
   console.log("\n── Skills ──")
   const installedSkillPaths = installSkillsForProject(cwd)
@@ -517,6 +538,7 @@ Command and URL.
     ".kody/memory/architecture.md",
     ".kody/memory/conventions.md",
     ".kody/qa-guide.md",
+    ".kody/tools.yml",
     ...installedSkillPaths,
   ].filter((f) => fs.existsSync(path.join(cwd, f)))
 

@@ -25,6 +25,7 @@ import { autoLearn } from "./learning/auto-learn.js"
 import { runRetrospective } from "./retrospective.js"
 import { formatPipelineSummary } from "./pipeline/summary.js"
 import { getProjectConfig } from "./config.js"
+import { runToolSetup } from "./tools.js"
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -178,6 +179,12 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
   }
 
   ensureFeatureBranchIfNeeded(ctx)
+
+  if (ctx.tools?.length) {
+    ciGroup("Tool Setup")
+    runToolSetup(ctx.tools, ctx.projectDir)
+    ciGroupEnd()
+  }
 
   let complexity = ctx.input.complexity ?? "high"
   let activeStages = filterByComplexity(STAGES, complexity)

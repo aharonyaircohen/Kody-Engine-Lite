@@ -22,7 +22,8 @@
     "release": "npm publish --access public && bash scripts/wait-for-npm.sh"
   },
   "dependencies": {
-    "dotenv": "^16.4.7"
+    "dotenv": "^16.4.7",
+    "yaml": "^2.8.3"
   },
   "devDependencies": {
     "@types/node": "^22.5.4",

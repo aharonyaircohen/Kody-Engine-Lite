@@ -78,6 +78,7 @@ Create a new GitHub issue (e.g., "Setup Kody") and comment:
 This analyzes your codebase with an LLM and generates:
 - **Project memory** (`.kody/memory/` — architecture and conventions)
 - **Customized step files** (`.kody/steps/` — repo-aware prompts for every stage)
+- **Tools template** (`.kody/tools.yml` — configure external tools like Playwright, see [Tools](docs/TOOLS.md))
 - **GitHub labels** for lifecycle tracking (14 labels)
 
 ### 4. Use
@@ -156,7 +157,7 @@ kody-engine-lite rerun --issue-number 42 --from verify
 
 **Understand Kody:** [About](docs/ABOUT.md) · [Architecture](docs/ARCHITECTURE.md) · [Tech Stack](docs/TECH-STACK.md) · [Features](docs/FEATURES.md) · [Pipeline](docs/PIPELINE.md) · [Comparison](docs/COMPARISON.md)
 
-**Set up & use:** [CLI](docs/CLI.md) · [Configuration](docs/CONFIGURATION.md) · [Bootstrap](docs/BOOTSTRAP.md) · [LiteLLM](docs/LITELLM.md)
+**Set up & use:** [CLI](docs/CLI.md) · [Configuration](docs/CONFIGURATION.md) · [Bootstrap](docs/BOOTSTRAP.md) · [Tools](docs/TOOLS.md) · [LiteLLM](docs/LITELLM.md)
 
 **Reference:** [FAQ](docs/FAQ.md) · [Model Compatibility](docs/model-compatibility.md)
 

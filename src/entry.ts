@@ -17,6 +17,7 @@ import { resolveForIssue } from "./cli/task-state.js"
 import { isTaskifyRun, taskifyCommand, readTaskifyMarker } from "./cli/taskify-command.js"
 import { needsLitellmProxy, anyStageNeedsProxy, getLitellmUrl, providerApiKeyEnvVar } from "./config.js"
 import type { KodyConfig } from "./config.js"
+import { loadToolDeclarations, detectTools } from "./tools.js"
 
 async function ensureLitellmProxy(
   config: KodyConfig,
@@ -451,12 +452,20 @@ async function main() {
     }
   }
 
+  // Detect tools from .kody/tools.yml
+  const toolDeclarations = loadToolDeclarations(projectDir)
+  const detectedTools = detectTools(toolDeclarations, projectDir)
+  if (detectedTools.length > 0) {
+    logger.info(`Tools detected: ${detectedTools.map((t) => t.name).join(", ")}`)
+  }
+
   // Build context
   const ctx: PipelineContext = {
     taskId,
     taskDir,
     projectDir,
     runners,
+    tools: detectedTools.length > 0 ? detectedTools : undefined,
     input: {
       mode: (input.command === "rerun" || input.command === "fix" || input.command === "fix-ci") ? "rerun" : "full",
       fromStage: input.fromStage,

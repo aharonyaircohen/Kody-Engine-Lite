@@ -9,6 +9,8 @@ import {
   estimateTokens,
 } from "./context-tiers.js"
 import { isMcpEnabledForStage } from "./mcp-config.js"
+import { getToolSkillsForStage } from "./tools.js"
+import type { ResolvedTool } from "./types.js"
 
 
 const MAX_TASK_CONTEXT_PLAN = 1500
@@ -255,6 +257,7 @@ export function buildFullPrompt(
   taskDir: string,
   projectDir: string,
   feedback?: string,
+  tools?: ResolvedTool[],
 ): string {
   const config = getProjectConfig()
 
@@ -277,6 +280,14 @@ export function buildFullPrompt(
     if (fs.existsSync(qaGuidePath)) {
       const qaGuide = fs.readFileSync(qaGuidePath, "utf-8").trim()
       assembled = assembled + "\n\n" + qaGuide
+    }
+  }
+
+  // Inject tool skills for this stage
+  if (tools?.length) {
+    const toolSkills = getToolSkillsForStage(tools, stageName)
+    if (toolSkills) {
+      assembled = assembled + "\n\n" + toolSkills
     }
   }
 

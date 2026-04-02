@@ -55,6 +55,14 @@ Each step file includes three repo-specific sections:
 - **Improvement Areas** — gaps and anti-patterns to fix incrementally
 - **Acceptance Criteria** — concrete checklist defining "done" for each stage
 
+### Step 2b: Generate QA Guide
+
+If the project has discoverable routes or collections (e.g., Next.js pages, Payload CMS collections), bootstrap generates a QA guide at `.kody/qa-guide.md` with authentication steps, navigation maps, and verification patterns.
+
+### Step 2c: Generate Tools Template
+
+Creates `.kody/tools.yml` with a commented-out Playwright example. Uncomment and configure tools your project uses. See [Tools](TOOLS.md) for the full reference.
+
 ### Step 3: Create Labels
 
 Creates 14 GitHub labels used for lifecycle tracking:
@@ -81,13 +89,15 @@ After bootstrap completes, your repo will have:
 ├── memory/
 │   ├── architecture.md
 │   └── conventions.md
-└── steps/
-    ├── taskify.md
-    ├── plan.md
-    ├── build.md
-    ├── autofix.md
-    ├── review.md
-    └── review-fix.md
+├── steps/
+│   ├── taskify.md
+│   ├── plan.md
+│   ├── build.md
+│   ├── autofix.md
+│   ├── review.md
+│   └── review-fix.md
+├── qa-guide.md
+└── tools.yml
 ```
 
 ## Re-running Bootstrap
