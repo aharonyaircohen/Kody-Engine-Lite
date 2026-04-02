@@ -1,12 +1,13 @@
 /**
- * State stores: JSON file (local/test) and GitHub Actions variable (CI persistence).
+ * State stores: JSON file (local/test) and issue comment (CI persistence).
  */
 
 import * as fs from "fs"
 import * as path from "path"
-import { execFileSync } from "child_process"
 
-import type { StateStore } from "./types.js"
+import type { GitHubClient, StateStore } from "./types.js"
+
+const STATE_MARKER = "<!-- KODY_WATCH_STATE:"
 
 // ============================================================================
 // JSON File State Store (local dev / testing)
@@ -70,45 +71,46 @@ export class JsonStateStore implements StateStore {
 }
 
 // ============================================================================
-// GitHub Actions Variable State Store (CI persistence)
+// Issue Comment State Store (CI persistence via digest issue)
 // ============================================================================
 
-const GH_VARIABLE_NAME = "KODY_WATCH_STATE"
-
-export class GhVariableStateStore implements StateStore {
+/**
+ * Persists state as a hidden HTML comment in the first comment of the digest issue.
+ * Format: <!-- KODY_WATCH_STATE:{"system:cycleNumber":47,...} -->
+ *
+ * Uses only issue comment APIs — works with the default github.token, no PAT needed.
+ */
+export class IssueCommentStateStore implements StateStore {
   private data: Record<string, unknown> = {}
   private dirty = false
-  private repo: string
+  private github: GitHubClient
+  private digestIssue: number
+  private commentId: number | null = null
 
-  constructor(repo: string) {
-    this.repo = repo
-    this.loadFromGh()
+  constructor(github: GitHubClient, digestIssue: number) {
+    this.github = github
+    this.digestIssue = digestIssue
+    this.loadFromComment()
   }
 
-  private loadFromGh(): void {
+  private loadFromComment(): void {
     try {
-      const output = execFileSync(
-        "gh",
-        ["variable", "get", GH_VARIABLE_NAME, "--repo", this.repo],
-        {
-          encoding: "utf-8",
-          stdio: ["pipe", "pipe", "pipe"],
-          env: { ...process.env, GH_TOKEN: process.env.GH_PAT || process.env.GH_TOKEN || "" },
-        },
-      ).trim()
-
-      if (output) {
-        const parsed = JSON.parse(output)
-        if (parsed && typeof parsed === "object") {
-          this.data = parsed as Record<string, unknown>
-          return
+      const comments = this.github.getIssueComments(this.digestIssue)
+      for (const comment of comments) {
+        if (comment.body.includes(STATE_MARKER)) {
+          this.commentId = comment.id
+          const match = comment.body.match(/<!-- KODY_WATCH_STATE:(.*?) -->/)
+          if (match) {
+            const parsed = JSON.parse(match[1])
+            if (parsed && typeof parsed === "object") {
+              this.data = parsed as Record<string, unknown>
+              return
+            }
+          }
         }
       }
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error)
-      if (!msg.includes("HTTP 404") && !msg.includes("variable not found")) {
-        console.warn(`[KodyWatch] Failed to load state: ${msg} — starting fresh`)
-      }
+    } catch {
+      // Can't read comments — start fresh
     }
     this.data = {}
   }
@@ -126,17 +128,15 @@ export class GhVariableStateStore implements StateStore {
     if (!this.dirty) return
 
     const json = JSON.stringify(this.data)
+    const cycle = this.data["system:cycleNumber"] ?? 0
+    const body = `${STATE_MARKER}${json} -->\n\n_Kody Watch state — cycle #${cycle}, updated ${new Date().toISOString()}_`
 
     try {
-      execFileSync(
-        "gh",
-        ["variable", "set", GH_VARIABLE_NAME, "--repo", this.repo, "--body", json],
-        {
-          encoding: "utf-8",
-          stdio: ["pipe", "pipe", "pipe"],
-          env: { ...process.env, GH_TOKEN: process.env.GH_PAT || process.env.GH_TOKEN || "" },
-        },
-      )
+      if (this.commentId) {
+        this.github.updateComment(this.commentId, body)
+      } else {
+        this.github.postComment(this.digestIssue, body)
+      }
       this.dirty = false
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
@@ -149,9 +149,19 @@ export class GhVariableStateStore implements StateStore {
 // Factory
 // ============================================================================
 
-export function createStateStore(repo: string, localFilePath: string): StateStore {
-  if (process.env.GITHUB_ACTIONS === "true") {
-    return new GhVariableStateStore(repo)
+/**
+ * Create the appropriate state store based on environment.
+ *
+ * - In GitHub Actions with a digest issue: uses IssueCommentStateStore
+ * - Locally: uses JsonStateStore at the given file path
+ */
+export function createStateStore(
+  localFilePath: string,
+  github?: GitHubClient,
+  digestIssue?: number,
+): StateStore {
+  if (process.env.GITHUB_ACTIONS === "true" && github && digestIssue) {
+    return new IssueCommentStateStore(github, digestIssue)
   }
   return new JsonStateStore(localFilePath)
 }

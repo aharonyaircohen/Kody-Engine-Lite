@@ -11,12 +11,12 @@ import { createConsoleLogger } from "../clients/logger.js"
 export async function runWatch(config: WatchConfig): Promise<WatchResult> {
   const { repo, dryRun, stateFile, plugins } = config
 
-  const state = createStateStore(repo, stateFile)
-  const cycleNumber = (state.get<number>("system:cycleNumber") || 0) + 1
-  state.set("system:cycleNumber", cycleNumber)
-
   const token = process.env.GH_TOKEN || ""
   const github = createGitHubClient(repo, token)
+
+  const state = createStateStore(stateFile, github, config.digestIssue)
+  const cycleNumber = (state.get<number>("system:cycleNumber") || 0) + 1
+  state.set("system:cycleNumber", cycleNumber)
   const log = createConsoleLogger()
   const timestamp = new Date().toISOString()
 

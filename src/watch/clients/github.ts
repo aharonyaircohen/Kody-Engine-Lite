@@ -4,7 +4,7 @@
 
 import { execFileSync } from "child_process"
 
-import type { GitHubClient, IssueInfo } from "../core/types.js"
+import type { GitHubClient, IssueComment, IssueInfo } from "../core/types.js"
 
 export function createGitHubClient(repo: string, token: string): GitHubClient {
   const gh = (args: string[], input?: string): string => {
@@ -38,6 +38,36 @@ export function createGitHubClient(repo: string, token: string): GitHubClient {
       } catch {
         return { body: null, title: null }
       }
+    },
+
+    getIssueComments(issueNumber: number): IssueComment[] {
+      const output = gh([
+        "api",
+        `repos/${repo}/issues/${issueNumber}/comments`,
+        "--paginate",
+        "--jq",
+        "[.[] | {id: .id, body: .body}]",
+      ])
+      if (!output) return []
+      return output
+        .split("\n")
+        .filter(Boolean)
+        .flatMap((line) => {
+          try {
+            return JSON.parse(line) as IssueComment[]
+          } catch {
+            return []
+          }
+        })
+    },
+
+    updateComment(commentId: number, body: string): void {
+      gh([
+        "api",
+        `repos/${repo}/issues/comments/${commentId}`,
+        "--method", "PATCH",
+        "--field", `body=${body}`,
+      ])
     },
 
     getOpenIssues(labels?: string[]): IssueInfo[] {

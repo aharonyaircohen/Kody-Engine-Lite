@@ -74,9 +74,16 @@ export interface Logger {
 export interface GitHubClient {
   postComment(issueNumber: number, body: string): void
   getIssue(issueNumber: number): { body: string | null; title: string | null }
+  getIssueComments(issueNumber: number): IssueComment[]
+  updateComment(commentId: number, body: string): void
   getOpenIssues(labels?: string[]): IssueInfo[]
   createIssue(title: string, body: string, labels: string[]): number | null
   searchIssues(query: string): IssueInfo[]
+}
+
+export interface IssueComment {
+  id: number
+  body: string
 }
 
 export interface IssueInfo {

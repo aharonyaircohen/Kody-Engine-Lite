@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest"
 
 import { shouldDedup, markExecuted, cleanupExpiredDedup } from "../../src/watch/core/dedup"
-import { JsonStateStore } from "../../src/watch/core/state"
+import { JsonStateStore, IssueCommentStateStore } from "../../src/watch/core/state"
 import { PluginRegistry } from "../../src/watch/plugins/registry"
 import type { ActionRequest, WatchContext, WatchPlugin } from "../../src/watch/core/types"
 
@@ -143,6 +143,81 @@ describe("JsonStateStore", () => {
     const store = new JsonStateStore("/dev/null")
     store.set("obj", { nested: { count: 42 } })
     expect(store.get<{ nested: { count: number } }>("obj")).toEqual({ nested: { count: 42 } })
+  })
+})
+
+describe("IssueCommentStateStore", () => {
+  it("loads state from comment with marker", () => {
+    const github = {
+      postComment: () => {},
+      getIssue: () => ({ body: null, title: null }),
+      getIssueComments: () => [
+        { id: 100, body: '<!-- KODY_WATCH_STATE:{"system:cycleNumber":5} -->\n\n_state_' },
+      ],
+      updateComment: () => {},
+      getOpenIssues: () => [],
+      createIssue: () => null,
+      searchIssues: () => [],
+    }
+    const store = new IssueCommentStateStore(github, 42)
+    expect(store.get<number>("system:cycleNumber")).toBe(5)
+  })
+
+  it("starts fresh when no state comment exists", () => {
+    const github = {
+      postComment: () => {},
+      getIssue: () => ({ body: null, title: null }),
+      getIssueComments: () => [
+        { id: 1, body: "Some regular comment" },
+      ],
+      updateComment: () => {},
+      getOpenIssues: () => [],
+      createIssue: () => null,
+      searchIssues: () => [],
+    }
+    const store = new IssueCommentStateStore(github, 42)
+    expect(store.get<number>("system:cycleNumber")).toBeUndefined()
+  })
+
+  it("updates existing comment on save", () => {
+    let updatedId: number | null = null
+    let updatedBody = ""
+    const github = {
+      postComment: () => {},
+      getIssue: () => ({ body: null, title: null }),
+      getIssueComments: () => [
+        { id: 100, body: '<!-- KODY_WATCH_STATE:{"system:cycleNumber":5} -->' },
+      ],
+      updateComment: (id: number, body: string) => { updatedId = id; updatedBody = body },
+      getOpenIssues: () => [],
+      createIssue: () => null,
+      searchIssues: () => [],
+    }
+    const store = new IssueCommentStateStore(github, 42)
+    store.set("system:cycleNumber", 6)
+    store.save()
+    expect(updatedId).toBe(100)
+    expect(updatedBody).toContain('"system:cycleNumber":6')
+  })
+
+  it("creates new comment when no state comment exists", () => {
+    let postedIssue: number | null = null
+    let postedBody = ""
+    const github = {
+      postComment: (issue: number, body: string) => { postedIssue = issue; postedBody = body },
+      getIssue: () => ({ body: null, title: null }),
+      getIssueComments: () => [],
+      updateComment: () => {},
+      getOpenIssues: () => [],
+      createIssue: () => null,
+      searchIssues: () => [],
+    }
+    const store = new IssueCommentStateStore(github, 42)
+    store.set("system:cycleNumber", 1)
+    store.save()
+    expect(postedIssue).toBe(42)
+    expect(postedBody).toContain("KODY_WATCH_STATE")
+    expect(postedBody).toContain('"system:cycleNumber":1')
   })
 })
 
