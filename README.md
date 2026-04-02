@@ -150,15 +150,15 @@ kody-engine-lite rerun --issue-number 42 --from verify
 - **Decision Memory** — architectural decisions extracted from reviews persist across tasks ([details](docs/FEATURES.md#decision-memory))
 - **Auto-Learning** — extracts coding conventions from each successful run ([details](docs/FEATURES.md#auto-learning-memory))
 - **Retrospective** — analyzes each run, identifies patterns, suggests improvements ([details](docs/FEATURES.md#retrospective-system))
-- **Anthropic-Compatible Models** — route through LiteLLM to use other providers like MiniMax, Gemini, etc. ([setup guide](docs/LITELLM.md))
+- **Anthropic-Compatible Models** — route through LiteLLM to use other providers like MiniMax, Gemini, etc. ([setup guide](docs/LITELLM.md) · [model test results](docs/model-compatibility.md))
 
 ## Documentation
 
-**Understand Kody:** [About](docs/ABOUT.md) · [Tech Stack](docs/TECH-STACK.md) · [Features](docs/FEATURES.md) · [Pipeline](docs/PIPELINE.md) · [Comparison](docs/COMPARISON.md)
+**Understand Kody:** [About](docs/ABOUT.md) · [Architecture](docs/ARCHITECTURE.md) · [Tech Stack](docs/TECH-STACK.md) · [Features](docs/FEATURES.md) · [Pipeline](docs/PIPELINE.md) · [Comparison](docs/COMPARISON.md)
 
 **Set up & use:** [CLI](docs/CLI.md) · [Configuration](docs/CONFIGURATION.md) · [Bootstrap](docs/BOOTSTRAP.md) · [LiteLLM](docs/LITELLM.md)
 
-**Reference:** [Architecture](docs/ARCHITECTURE.md) · [FAQ](docs/FAQ.md)
+**Reference:** [FAQ](docs/FAQ.md) · [Model Compatibility](docs/model-compatibility.md)
 
 ## License
 
