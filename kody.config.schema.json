@@ -184,6 +184,22 @@
       },
       "additionalProperties": false
     },
+    "watch": {
+      "type": "object",
+      "description": "Kody Watch — periodic health monitoring. Runs every 30 minutes via GitHub Actions to check pipeline health, security, and configuration.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable Kody Watch periodic monitoring",
+          "default": false
+        },
+        "digestIssue": {
+          "type": "number",
+          "description": "GitHub issue number for posting digest reports. Auto-created by bootstrap."
+        }
+      },
+      "additionalProperties": false
+    },
     "mcp": {
       "type": "object",
       "description": "MCP (Model Context Protocol) server configuration. Enables external tools like browser automation.",

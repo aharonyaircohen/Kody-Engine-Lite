@@ -576,6 +576,81 @@ Command and URL.
     console.log("  ○ No routes or collections detected — skipping QA guide")
   }
 
+  // ── Step 2c: Setup Kody Watch digest issue ──
+  console.log("\n── Kody Watch ──")
+  const kodyConfigPath = path.join(cwd, "kody.config.json")
+  if (fs.existsSync(kodyConfigPath)) {
+    try {
+      const config = JSON.parse(fs.readFileSync(kodyConfigPath, "utf-8"))
+      if (config.watch?.enabled && !config.watch?.digestIssue) {
+        let watchRepoSlug = ""
+        if (config.github?.owner && config.github?.repo) {
+          watchRepoSlug = `${config.github.owner}/${config.github.repo}`
+        }
+
+        if (watchRepoSlug) {
+          console.log("  ⏳ Creating Watch digest issue...")
+          try {
+            const issueUrl = execFileSync("gh", [
+              "issue", "create",
+              "--repo", watchRepoSlug,
+              "--title", "[Kody Watch] Health Digest",
+              "--body", "This issue receives periodic health reports from Kody Watch.\n\n**Plugins:** pipeline-health, security-scan, config-health\n\n_Do not close this issue — Kody Watch posts digest comments here._",
+            ], {
+              cwd,
+              encoding: "utf-8",
+              timeout: 15_000,
+              stdio: ["pipe", "pipe", "pipe"],
+            }).trim()
+
+            const digestMatch = issueUrl.match(/\/issues\/(\d+)/)
+            if (digestMatch) {
+              const digestIssueNumber = parseInt(digestMatch[1], 10)
+              config.watch.digestIssue = digestIssueNumber
+              fs.writeFileSync(kodyConfigPath, JSON.stringify(config, null, 2) + "\n")
+              console.log(`  ✓ Created digest issue #${digestIssueNumber}`)
+
+              // Pin the issue
+              try {
+                execFileSync("gh", [
+                  "issue", "pin", String(digestIssueNumber),
+                  "--repo", watchRepoSlug,
+                ], {
+                  cwd,
+                  encoding: "utf-8",
+                  timeout: 10_000,
+                  stdio: ["pipe", "pipe", "pipe"],
+                })
+                console.log(`  ✓ Pinned digest issue`)
+              } catch { /* pinning is best-effort */ }
+
+              // Also set as GitHub Actions variable for the workflow
+              try {
+                execFileSync("gh", [
+                  "variable", "set", "WATCH_DIGEST_ISSUE",
+                  "--repo", watchRepoSlug,
+                  "--body", String(digestIssueNumber),
+                ], {
+                  cwd,
+                  encoding: "utf-8",
+                  timeout: 10_000,
+                  stdio: ["pipe", "pipe", "pipe"],
+                })
+                console.log(`  ✓ Set WATCH_DIGEST_ISSUE variable`)
+              } catch { /* variable set is best-effort */ }
+            }
+          } catch (err) {
+            console.log(`  ⚠ Failed to create digest issue: ${err instanceof Error ? err.message : err}`)
+          }
+        }
+      } else if (config.watch?.digestIssue) {
+        console.log(`  ○ Digest issue already set: #${config.watch.digestIssue}`)
+      } else {
+        console.log("  ○ Watch not enabled — skipping digest issue setup")
+      }
+    } catch { /* config parse error */ }
+  }
+
   // ── Step 3: Create labels ──
   console.log("\n── Labels ──")
   try {
@@ -755,6 +830,7 @@ Command and URL.
     ".kody/memory/conventions.md",
     ".kody/qa-guide.md",
     ".kody/tools.yml",
+    "kody.config.json",
     ...installedSkillPaths,
   ].filter((f) => fs.existsSync(path.join(cwd, f)))
 

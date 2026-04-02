@@ -1,0 +1,41 @@
+name: kody-watch
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        type: boolean
+        default: false
+        description: "Run without executing actions"
+
+concurrency:
+  group: kody-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      issues: write
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Kody Engine
+        run: npm install -g @kody-ade/kody-engine-lite
+
+      - name: Run Kody Watch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          WATCH_DIGEST_ISSUE: ${{ vars.WATCH_DIGEST_ISSUE }}
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+        run: npx kody-engine-lite watch ${{ inputs.dry_run == 'true' && '--dry-run' || '' }}

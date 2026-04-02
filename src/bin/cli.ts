@@ -46,6 +46,10 @@ if (command === "init") {
   import("../cli/test-model-command.js").then(({ runTestModelCommand }) => runTestModelCommand())
 } else if (command === "ci-parse") {
   import("../ci/parse-inputs.js").then(({ runCiParse }) => runCiParse())
+} else if (command === "watch") {
+  import("../watch/index.js").then(({ runWatchCommand }) =>
+    runWatchCommand({ dryRun: args.includes("--dry-run") }),
+  )
 } else if (command === "version" || command === "--version" || command === "-v") {
   console.log(getVersion())
 } else {

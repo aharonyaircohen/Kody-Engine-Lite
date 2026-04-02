@@ -128,10 +128,43 @@ export function initCommand(opts: { force: boolean }, pkgRoot: string) {
     }
   }
 
-  // ── Step 5: Format, commit and push ──
+  // ── Step 5: Kody Watch (opt-in) ──
+  console.log("\n── Kody Watch ──")
+  const watchWorkflowSrc = path.join(templatesDir, "kody-watch.yml")
+  const watchWorkflowDest = path.join(cwd, ".github", "workflows", "kody-watch.yml")
+  if (fs.existsSync(watchWorkflowSrc)) {
+    if (fs.existsSync(watchWorkflowDest) && !opts.force) {
+      console.log("  ○ .github/workflows/kody-watch.yml (exists)")
+    } else {
+      // Install watch workflow + add config
+      fs.mkdirSync(path.dirname(watchWorkflowDest), { recursive: true })
+      fs.copyFileSync(watchWorkflowSrc, watchWorkflowDest)
+      console.log("  ✓ .github/workflows/kody-watch.yml")
+
+      // Add watch section to config
+      if (fs.existsSync(configDest)) {
+        try {
+          const config = JSON.parse(fs.readFileSync(configDest, "utf-8"))
+          if (!config.watch) {
+            config.watch = { enabled: true }
+            fs.writeFileSync(configDest, JSON.stringify(config, null, 2) + "\n")
+            console.log("  ✓ Added watch config to kody.config.json")
+          }
+        } catch { /* config parse error */ }
+      }
+
+      console.log("  ℹ Kody Watch will monitor pipeline health every 30 minutes")
+      console.log("  ℹ Digest issue will be created during bootstrap")
+    }
+  } else {
+    console.log("  ○ kody-watch.yml template not found — skipping")
+  }
+
+  // ── Step 6: Format, commit and push ──
   console.log("\n── Git ──")
   const filesToCommit = [
     ".github/workflows/kody.yml",
+    ".github/workflows/kody-watch.yml",
     "kody.config.json",
   ].filter((f) => fs.existsSync(path.join(cwd, f)))
 
