@@ -552,6 +552,43 @@ Command and URL.
     console.log("  ○ .kody/tools.yml (already exists, keeping)")
   }
 
+  // ── Step 3c: Install skills for detected tools ──
+  console.log("\n── Skills ──")
+  const installedSkillPaths: string[] = []
+  const detectedForSkills = detectToolsForBootstrap(cwd)
+  const toolsWithSkills = detectedForSkills.filter((t) => t.skill)
+  if (toolsWithSkills.length > 0) {
+    for (const tool of toolsWithSkills) {
+      try {
+        console.log(`  Installing: ${tool.skill}`)
+        execFileSync("npx", ["skills", "add", tool.skill, "--yes"], {
+          cwd,
+          encoding: "utf-8",
+          timeout: 60_000,
+          stdio: ["pipe", "pipe", "pipe"],
+        })
+        // Collect installed paths
+        for (const dir of [".claude/skills", ".agents/skills"]) {
+          const skillName = tool.skill.split("@").pop() ?? ""
+          const skillPath = path.join(dir, skillName)
+          if (fs.existsSync(path.join(cwd, skillPath))) {
+            installedSkillPaths.push(skillPath)
+          }
+        }
+        console.log(`  ✓ ${tool.name} skill installed`)
+      } catch {
+        console.log(`  ✗ ${tool.name} skill install failed`)
+      }
+    }
+  } else {
+    console.log("  ○ No tool skills to install")
+  }
+
+  // Add skills-lock.json if created
+  if (fs.existsSync(path.join(cwd, "skills-lock.json"))) {
+    installedSkillPaths.push("skills-lock.json")
+  }
+
   // ── Step 4: Format, commit and push ──
   console.log("\n── Git ──")
   const filesToCommit = [
@@ -559,6 +596,7 @@ Command and URL.
     ".kody/memory/conventions.md",
     ".kody/qa-guide.md",
     ".kody/tools.yml",
+    ...installedSkillPaths,
   ].filter((f) => fs.existsSync(path.join(cwd, f)))
 
   for (const stage of STEP_STAGES) {
