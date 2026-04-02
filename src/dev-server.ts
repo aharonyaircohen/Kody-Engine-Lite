@@ -51,8 +51,10 @@ export async function startDevServer(opts: DevServerOptions): Promise<DevServerH
     return { ready: false, url: opts.url, pid: undefined, stop: () => {} }
   }
 
-  // Capture stderr for diagnostics
+  // Capture stdout and stderr for diagnostics
+  let stdout = ""
   let stderr = ""
+  child.stdout?.on("data", (chunk: Buffer) => { stdout += chunk.toString() })
   child.stderr?.on("data", (chunk: Buffer) => { stderr += chunk.toString() })
 
   // Check if process died immediately
@@ -69,6 +71,9 @@ export async function startDevServer(opts: DevServerOptions): Promise<DevServerH
       logger.warn(`  Dev server exited before becoming ready`)
     } else {
       logger.warn(`  Dev server did not respond within ${timeout}s at ${opts.url}`)
+    }
+    if (stdout) {
+      logger.warn(`  Dev server stdout (last 500 chars): ${stdout.slice(-500)}`)
     }
     if (stderr) {
       logger.warn(`  Dev server stderr (last 500 chars): ${stderr.slice(-500)}`)
