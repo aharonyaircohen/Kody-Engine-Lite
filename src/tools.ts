@@ -12,6 +12,7 @@ export interface ToolDeclaration {
   detect: string[]
   stages: string[]
   setup: string
+  skill?: string // skills.sh package ref, e.g. "microsoft/playwright-cli@playwright-cli"
 }
 
 export function loadToolDeclarations(projectDir: string): ToolDeclaration[] {
@@ -30,6 +31,7 @@ export function loadToolDeclarations(projectDir: string): ToolDeclaration[] {
         detect: Array.isArray(v.detect) ? v.detect : [],
         stages: Array.isArray(v.stages) ? v.stages : [],
         setup: typeof v.setup === "string" ? v.setup : "",
+        skill: typeof v.skill === "string" ? v.skill : undefined,
       }
     })
   } catch (err) {
@@ -49,6 +51,7 @@ export function detectTools(declarations: ToolDeclaration[], projectDir: string)
       name: decl.name,
       stages: decl.stages,
       setup: decl.setup,
+      skill: decl.skill,
     })
   }
 
@@ -68,12 +71,14 @@ export function runToolSetup(tools: ResolvedTool[], projectDir: string): void {
     }
 
     // Install matching skill from skills.sh
-    try {
-      logger.info(`  Installing skill for ${tool.name} from skills.sh`)
-      execSync(`npx skills add --skill ${tool.name} --yes`, { cwd: projectDir, timeout: 60_000, stdio: "pipe" })
-      logger.info(`  ✓ ${tool.name} skill installed`)
-    } catch (err) {
-      logger.warn(`  ⚠ ${tool.name} skill install failed: ${err instanceof Error ? err.message : String(err)}`)
+    if (tool.skill) {
+      try {
+        logger.info(`  Installing skill: ${tool.skill}`)
+        execSync(`npx skills add ${tool.skill} --yes`, { cwd: projectDir, timeout: 60_000, stdio: "pipe" })
+        logger.info(`  ✓ ${tool.name} skill installed`)
+      } catch (err) {
+        logger.warn(`  ⚠ ${tool.name} skill install failed: ${err instanceof Error ? err.message : String(err)}`)
+      }
     }
   }
 }

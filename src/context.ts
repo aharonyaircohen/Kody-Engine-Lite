@@ -163,24 +163,52 @@ function getBrowserToolGuidance(stageName: string, taskDir: string): string {
 ### Dev Server Setup (REQUIRED before browsing)
 You MUST start the dev server before using any browser navigation tools:
 \`\`\`bash
-# Start the dev server in the background
-${devServer.command} &
-# Wait for it to be ready (look for "${devServer.readyPattern}" in output)
-sleep 5
+# Start the dev server in the background with output redirected to a log file
+nohup ${devServer.command} > /tmp/dev-server.log 2>&1 &
+DEV_PID=$!
+
+# Wait up to ${devServer.readyTimeout}s for the server to be ready
+for i in $(seq 1 ${devServer.readyTimeout}); do
+  if curl -s -o /dev/null -w "%{http_code}" ${devServer.url} 2>/dev/null | grep -qE "^[23]"; then
+    echo "Dev server is ready"
+    break
+  fi
+  if ! kill -0 $DEV_PID 2>/dev/null; then
+    echo "Dev server process died. Last 20 lines:"
+    tail -20 /tmp/dev-server.log
+    break
+  fi
+  sleep 1
+done
 \`\`\`
 The dev server URL is: ${devServer.url}
-After you are done browsing, kill the dev server: \`kill %1 2>/dev/null || true\``
+If the dev server fails to start (e.g. DB connection issues), skip browser verification and proceed with code-only changes. Do NOT hang waiting for it.
+After you are done browsing, kill the dev server: \`kill $DEV_PID 2>/dev/null || true\``
     : `
 ### Dev Server Setup (REQUIRED before browsing)
 You MUST start the project's dev server before using any browser navigation tools.
 Check package.json for the dev command (usually \`pnpm dev\` or \`npm run dev\`).
 \`\`\`bash
-# Start the dev server in the background
-pnpm dev &
-# Wait for it to be ready
-sleep 5
+# Start the dev server in the background with output redirected
+nohup pnpm dev > /tmp/dev-server.log 2>&1 &
+DEV_PID=$!
+
+# Wait up to 30s for the server to be ready
+for i in $(seq 1 30); do
+  if curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 2>/dev/null | grep -qE "^[23]"; then
+    echo "Dev server is ready"
+    break
+  fi
+  if ! kill -0 $DEV_PID 2>/dev/null; then
+    echo "Dev server process died. Last 20 lines:"
+    tail -20 /tmp/dev-server.log
+    break
+  fi
+  sleep 1
+done
 \`\`\`
-After you are done browsing, kill the dev server: \`kill %1 2>/dev/null || true\``
+If the dev server fails to start (e.g. DB connection issues), skip browser verification and proceed with code-only changes. Do NOT hang waiting for it.
+After you are done browsing, kill the dev server: \`kill $DEV_PID 2>/dev/null || true\``
 
   if (stageName === "build" || stageName === "review-fix") {
     return `## Browser Visual Verification (MANDATORY for UI tasks)

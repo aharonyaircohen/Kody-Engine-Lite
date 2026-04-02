@@ -12,7 +12,7 @@ This document captures the architecture decisions and conventions for how Kody E
 
 **What:** External executables the pipeline needs to run — test runners, linters, browser automation, etc.
 
-**Responsibility:** Detection and setup only. "Is this tool needed?" and "Install it."
+**Responsibility:** Detection, setup, and skill installation.
 
 ```yaml
 # .kody/tools.yml — lives in the target repo, sole source of truth
@@ -20,6 +20,7 @@ playwright:
   detect: ["playwright.config.ts", "playwright.config.js"]
   stages: [verify]
   setup: "npx playwright install --with-deps chromium"
+  skill: "microsoft/playwright-cli@playwright-cli"
 ```
 
 **Fields:**
@@ -29,12 +30,13 @@ playwright:
 | `detect` | Yes | File patterns to check in repo. If any exist, tool is active. |
 | `stages` | Yes | Pipeline stages where this tool is relevant. |
 | `setup` | Yes | Shell command to install/prepare the tool. Must be idempotent. |
+| `skill` | No | skills.sh package reference (`owner/repo@skill-name`). Installed via `npx skills add`. |
 
 **Runtime flow:**
 1. Engine reads `.kody/tools.yml`
 2. Checks `detect` patterns via `fs.existsSync`
 3. Runs `setup` commands before pipeline stages (120s timeout, non-fatal on failure)
-4. That's it. No skill injection, no prompt modification.
+4. If `skill` is set, runs `npx skills add <ref> --yes` (60s timeout, non-fatal on failure)
 
 ### Skills (skills.sh)
 
@@ -47,14 +49,14 @@ playwright:
 - Claude Code loads them natively — the engine does NOT inject them into prompts
 - The engine does NOT ship any skill files
 
-**Two installation triggers:**
+**Installation trigger:** The `skill` field in `.kody/tools.yml`. When a detected tool has a `skill` field, the engine runs `npx skills add <package-ref> --yes`. No `skill` field = no skill installed.
 
-| Trigger | What it detects | Example |
-|---------|----------------|---------|
-| **Bootstrap** | Repo architecture (frameworks, languages) | React detected → install React best practices skill |
-| **Tool setup** | Tool name from `tools.yml` | `playwright` tool → install `playwright` skill from skills.sh |
-
-**Skill resolution for tools:** Match by exact tool name on skills.sh. If the tool is named `playwright`, the engine runs `npx skills add --skill playwright`. No hardcoded mappings.
+**Finding the right skill:**
+```bash
+npx skills find playwright        # search by keyword
+npx skills find "react best"      # search by phrase
+```
+Use the `owner/repo@skill-name` from the results as the `skill` field value.
 
 ## What the Engine Does NOT Do
 
@@ -62,6 +64,7 @@ playwright:
 - Hardcode tool-to-skill mappings in source code
 - Inject skill content into prompts (Claude Code handles this natively)
 - Know about specific tools or skills by name
+- Auto-search skills.sh to guess which skill to install
 - Have a `defaults/tools.yml` or default tool declarations
 
 ## Decision Log
@@ -70,37 +73,36 @@ playwright:
 |----------|--------|-----|
 | Tool declarations location | `.kody/tools.yml` only | Single source of truth, no merge complexity |
 | Skill source | skills.sh exclusively | Standard ecosystem, no engine-shipped skills |
-| Skill installation | `npx skills add` | Same mechanism for all skills, generic |
-| Skill-to-tool mapping | Exact name match on skills.sh | Simple, no hardcoded lookup tables |
+| Skill installation | `npx skills add` via `skill` field | Explicit package ref, no auto-search guessing |
 | Prompt injection | None — Claude Code loads skills natively | Engine stays out of the skill business |
-| Setup failure | Log warning, continue pipeline | Optional tooling should never block work |
+| Setup/skill failure | Log warning, continue pipeline | Optional tooling should never block work |
 | Detection | `fs.existsSync` for exact paths | Simple, sufficient for v1 |
-| Bootstrap template | Commented-out example | User opts in explicitly |
-| Hardcoded `skills.ts` | Remove | Violates "engine is generic" principle |
+| Bootstrap template | Commented-out example with skill ref | User opts in explicitly |
+| Hardcoded `skills.ts` | Removed | Violated "engine is generic" principle |
 
 ## File Ownership
 
 | File | Owner | Purpose |
 |------|-------|---------|
-| `src/tools.ts` | Engine | Generic: load, detect, setup tools |
-| `src/bin/skills.ts` | **DELETE** | Was hardcoded skill mappings — replaced by tools.yml + skills.sh |
-| `skills/` | **DELETE** | Was engine-shipped skills — replaced by skills.sh |
-| `.kody/tools.yml` | Target repo | User declares their tools |
+| `src/tools.ts` | Engine | Generic: load, detect, setup tools, install skills |
+| `.kody/tools.yml` | Target repo | User declares their tools and skill refs |
 | `.claude/skills/` | Target repo | skills.sh installs skills here |
 | `.agents/skills/` | Target repo | skills.sh installs skills here |
 
 ## Adding a New Tool (User Flow)
 
-1. Edit `.kody/tools.yml`:
+1. Find the skill on skills.sh: `npx skills find cypress`
+2. Edit `.kody/tools.yml`:
    ```yaml
    cypress:
      detect: ["cypress.config.ts"]
      stages: [verify]
      setup: "npx cypress install"
+     skill: "some-org/cypress-skill@cypress"
    ```
-2. Commit and push
-3. Next pipeline run: engine detects Cypress, runs setup, installs matching skill from skills.sh
-4. No engine release needed
+3. Commit and push
+4. Next pipeline run: engine detects Cypress, runs setup, installs skill
+5. No engine release needed
 
 ## Adding a New Built-in Skill (Wrong)
 

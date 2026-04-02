@@ -81,6 +81,7 @@ export interface ResolvedTool {
   name: string
   stages: string[]
   setup: string
+  skill?: string // skills.sh package ref, e.g. "microsoft/playwright-cli@playwright-cli"
 }
 
 export interface PipelineContext {

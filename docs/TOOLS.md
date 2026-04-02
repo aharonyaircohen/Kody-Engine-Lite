@@ -9,7 +9,7 @@ Pipeline run starts
   → Engine reads .kody/tools.yml
   → Detects which tools exist in the repo (via file patterns)
   → Runs setup commands before pipeline stages
-  → Installs matching skills from skills.sh (npx skills add --skill {name})
+  → Installs skills from skills.sh (npx skills add <package-ref> --yes)
   → Claude Code loads installed skills natively
 ```
 
@@ -23,15 +23,17 @@ playwright:
   detect: ["playwright.config.ts", "playwright.config.js"]
   stages: [verify]
   setup: "npx playwright install --with-deps chromium"
+  skill: "microsoft/playwright-cli@playwright-cli"
 ```
 
 ### Fields
 
-| Field | Description |
-|-------|-------------|
-| `detect` | File patterns to check in the repo root. If any match, the tool is active. |
-| `stages` | Pipeline stages where this tool is relevant. |
-| `setup` | Shell command to run before stages begin. Must be idempotent (safe to re-run). |
+| Field | Required | Description |
+|-------|----------|-------------|
+| `detect` | Yes | File patterns to check in the repo root. If any match, the tool is active. |
+| `stages` | Yes | Pipeline stages where this tool is relevant. |
+| `setup` | Yes | Shell command to install/prepare the tool. Must be idempotent. Empty string to skip. |
+| `skill` | No | skills.sh package reference to install. Find skills at [skills.sh](https://skills.sh). |
 
 ### Multiple Tools
 
@@ -40,15 +42,25 @@ playwright:
   detect: ["playwright.config.ts"]
   stages: [verify]
   setup: "npx playwright install --with-deps chromium"
+  skill: "microsoft/playwright-cli@playwright-cli"
 
 vitest:
   detect: ["vitest.config.ts", "vite.config.ts"]
   stages: [verify, review]
+  setup: ""
 ```
 
 ## Skills from skills.sh
 
-When a tool is detected, the engine automatically installs its matching skill from [skills.sh](https://skills.sh) using `npx skills add --skill {tool-name} --yes`. Claude Code then loads these skills natively — the engine does not inject skill content into prompts.
+When a tool has a `skill` field, the engine installs it from [skills.sh](https://skills.sh) using `npx skills add <package-ref> --yes`. Claude Code loads these skills natively — the engine does not inject skill content into prompts.
+
+To find the right package reference for a tool:
+```bash
+npx skills find playwright     # search by keyword
+npx skills find "react best"   # search by phrase
+```
+
+Then use the full `owner/repo@skill-name` reference in your `skill` field.
 
 This means:
 - No skill files are shipped with the engine
@@ -60,7 +72,7 @@ This means:
 
 - **Detection** — checks if files from `detect` patterns exist via `fs.existsSync`. Only exact paths, no wildcards.
 - **Setup** — runs each tool's `setup` command with a 120-second timeout. Failures log a warning but never abort the pipeline.
-- **Skill install** — runs `npx skills add --skill {name} --yes` for each detected tool. Failures log a warning but never abort.
+- **Skill install** — runs `npx skills add <ref> --yes` for each tool with a `skill` field. Failures log a warning but never abort.
 - **No tools configured** — zero overhead. No setup runs, no skills installed.
 
 ## CI Caching

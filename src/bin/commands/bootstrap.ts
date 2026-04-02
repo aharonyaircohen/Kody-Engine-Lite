@@ -514,11 +514,13 @@ Command and URL.
     const toolsTemplate = `# Kody Tools Configuration
 # Uncomment and configure tools that your project uses.
 # The engine detects tools, runs setup commands, and installs matching skills from skills.sh.
+# Find skills at https://skills.sh
 #
 # playwright:
 #   detect: ["playwright.config.ts", "playwright.config.js"]
 #   stages: [verify]
 #   setup: "npx playwright install --with-deps chromium"
+#   skill: "microsoft/playwright-cli@playwright-cli"
 `
     fs.writeFileSync(toolsYmlPath, toolsTemplate)
     console.log("  ✓ .kody/tools.yml (template created)")
