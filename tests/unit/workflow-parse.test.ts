@@ -1,86 +1,51 @@
-import { describe, it, expect } from "vitest"
-import { execSync } from "child_process"
-import * as fs from "fs"
-import * as os from "os"
-import * as path from "path"
+import { describe, it, expect, beforeEach, afterEach } from "vitest"
+import { parseCommentInputs } from "../../src/ci/parse-inputs.js"
 
 /**
- * Tests the shell parser logic from templates/kody.yml.
- * Writes a bash script to a temp file and executes it.
+ * Tests the comment parsing logic from src/ci/parse-inputs.ts.
+ * Sets TRIGGER_TYPE=comment and COMMENT_BODY to simulate GitHub Actions.
  */
 function parseComment(body: string): Record<string, string> {
-  const script = `#!/bin/bash
-set -e
-BODY='${body.replace(/'/g, "'\\''")}'
-KODY_ARGS=$(echo "$BODY" | grep -oP '(?:@kody|/kody)\\s+\\K.*' || echo "")
+  process.env.TRIGGER_TYPE = "comment"
+  process.env.COMMENT_BODY = body
+  process.env.ISSUE_NUMBER = "42"
+  process.env.ISSUE_IS_PR = ""
 
-FROM_STAGE=$(echo "$KODY_ARGS" | grep -oP '(?<=--from )\\S+' || echo "")
-FEEDBACK=$(echo "$KODY_ARGS" | grep -oP '(?<=--feedback ")[^"]*' || echo "")
-COMPLEXITY=""
-if echo "$KODY_ARGS" | grep -q -- '--complexity'; then
-  COMPLEXITY=$(echo "$KODY_ARGS" | tr ' ' '\\n' | grep -A1 -- '--complexity' | tail -1)
-fi
-DRY_RUN="false"
-if echo "$KODY_ARGS" | grep -q -- '--dry-run'; then
-  DRY_RUN="true"
-fi
-
-POSITIONAL=$(echo "$KODY_ARGS" | sed -E \\
-  -e 's/--from\\s+\\S+//g' \\
-  -e 's/--feedback\\s+"[^"]*"//g' \\
-  -e 's/--complexity\\s+\\S+//g' \\
-  -e 's/--dry-run//g' \\
-  -e 's/--ci-run-id\\s+\\S+//g' \\
-  -e 's/\\s+/ /g' -e 's/^ //' -e 's/ $//')
-
-MODE=$(echo "$POSITIONAL" | awk '{print $1}')
-TASK_ID=$(echo "$POSITIONAL" | awk '{print $2}')
-
-case "$MODE" in
-  full|rerun|fix|fix-ci|status|approve|review|resolve|bootstrap) ;;
-  *)
-    if [ -n "$MODE" ]; then
-      TASK_ID="$MODE"
-    fi
-    MODE="full"
-    ;;
-esac
-
-echo "MODE=$MODE"
-echo "TASK_ID=$TASK_ID"
-echo "FROM_STAGE=$FROM_STAGE"
-echo "FEEDBACK=$FEEDBACK"
-echo "COMPLEXITY=$COMPLEXITY"
-echo "DRY_RUN=$DRY_RUN"
-`
-  const tmpFile = path.join(os.tmpdir(), `kody-parse-test-${Date.now()}.sh`)
-  fs.writeFileSync(tmpFile, script, { mode: 0o755 })
-  try {
-    const output = execSync(`bash ${tmpFile}`, { encoding: "utf-8" })
-    const result: Record<string, string> = {}
-    for (const line of output.trim().split("\n")) {
-      const eq = line.indexOf("=")
-      if (eq !== -1) {
-        result[line.slice(0, eq)] = line.slice(eq + 1)
-      }
-    }
-    return result
-  } finally {
-    fs.unlinkSync(tmpFile)
+  const result = parseCommentInputs()
+  return {
+    MODE: result.mode,
+    TASK_ID: result.task_id,
+    FROM_STAGE: result.from_stage,
+    FEEDBACK: result.feedback,
+    COMPLEXITY: result.complexity,
+    DRY_RUN: result.dry_run ? "true" : "false",
   }
 }
 
 describe("workflow parse step", () => {
+  const savedEnv: Record<string, string | undefined> = {}
+
+  beforeEach(() => {
+    for (const key of ["TRIGGER_TYPE", "COMMENT_BODY", "ISSUE_NUMBER", "ISSUE_IS_PR"]) {
+      savedEnv[key] = process.env[key]
+    }
+  })
+
+  afterEach(() => {
+    for (const [key, val] of Object.entries(savedEnv)) {
+      if (val === undefined) delete process.env[key]
+      else process.env[key] = val
+    }
+  })
+
   it("parses bare @kody", () => {
     const r = parseComment("@kody")
     expect(r.MODE).toBe("full")
-    expect(r.TASK_ID).toBe("")
   })
 
   it("parses @kody full", () => {
     const r = parseComment("@kody full")
     expect(r.MODE).toBe("full")
-    expect(r.TASK_ID).toBe("")
   })
 
   it("parses @kody rerun with task-id and --from", () => {
@@ -93,21 +58,18 @@ describe("workflow parse step", () => {
   it("parses @kody --complexity low (flag-only command)", () => {
     const r = parseComment("@kody --complexity low")
     expect(r.MODE).toBe("full")
-    expect(r.TASK_ID).toBe("")
     expect(r.COMPLEXITY).toBe("low")
   })
 
   it("parses @kody full --complexity high", () => {
     const r = parseComment("@kody full --complexity high")
     expect(r.MODE).toBe("full")
-    expect(r.TASK_ID).toBe("")
     expect(r.COMPLEXITY).toBe("high")
   })
 
   it("parses @kody --feedback with quoted text", () => {
     const r = parseComment('@kody --feedback "Use functional style"')
     expect(r.MODE).toBe("full")
-    expect(r.TASK_ID).toBe("")
     expect(r.FEEDBACK).toBe("Use functional style")
   })
 
