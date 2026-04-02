@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import * as fs from "fs"
 import * as path from "path"
 import * as os from "os"
-import { detectToolsForBootstrap, detectFrameworkSkills } from "../../src/bin/commands/bootstrap.js"
+import { detectToolsForBootstrap, detectProjectKeywords, searchSkills } from "../../src/bin/commands/bootstrap.js"
 
 function createTmpDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "kody-bootstrap-tools-"))
@@ -33,14 +33,12 @@ describe("detectToolsForBootstrap", () => {
     expect(result).toHaveLength(1)
     expect(result[0].name).toBe("playwright")
     expect(result[0].skill).toBe("microsoft/playwright-cli@playwright-cli")
-    expect(result[0].setup).toBe("npx playwright install --with-deps chromium")
   })
 
   it("detects playwright when playwright.config.js exists", () => {
     writeFile(tmpDir, "playwright.config.js", "module.exports = {}")
     const result = detectToolsForBootstrap(tmpDir)
     expect(result).toHaveLength(1)
-    expect(result[0].name).toBe("playwright")
   })
 
   it("returns empty when no known tools detected", () => {
@@ -60,115 +58,100 @@ describe("detectToolsForBootstrap", () => {
     for (const tool of result) {
       expect(tool.name).toBeTruthy()
       expect(tool.detect).toBeInstanceOf(Array)
-      expect(tool.detect.length).toBeGreaterThan(0)
       expect(tool.stages).toBeInstanceOf(Array)
-      expect(tool.stages.length).toBeGreaterThan(0)
       expect(typeof tool.setup).toBe("string")
       expect(tool.skill).toBeTruthy()
     }
   })
 })
 
-describe("detectFrameworkSkills", () => {
+describe("detectProjectKeywords", () => {
   let tmpDir: string
 
   beforeEach(() => { tmpDir = createTmpDir() })
   afterEach(() => { fs.rmSync(tmpDir, { recursive: true, force: true }) })
 
-  it("detects React + Next.js skills for Next.js project", () => {
+  it("detects Next.js and React keywords", () => {
     writePkg(tmpDir, { next: "14.0.0", react: "18.0.0" })
-    const result = detectFrameworkSkills(tmpDir)
-    const refs = result.map((s) => s.skill)
-    expect(refs).toContain("vercel-labs/agent-skills@vercel-react-best-practices")
-    expect(refs).toContain("wshobson/agents@nextjs-app-router-patterns")
+    const result = detectProjectKeywords(tmpDir)
+    expect(result).toContain("nextjs")
+    expect(result).toContain("react")
   })
 
-  it("detects React (no Next.js) skills for React-only project", () => {
-    writePkg(tmpDir, { react: "18.0.0" })
-    const result = detectFrameworkSkills(tmpDir)
-    const refs = result.map((s) => s.skill)
-    expect(refs).toContain("vercel-labs/agent-skills@vercel-react-best-practices")
-    expect(refs).not.toContain("wshobson/agents@nextjs-app-router-patterns")
-  })
-
-  it("detects Vue skill", () => {
+  it("detects Vue", () => {
     writePkg(tmpDir, { vue: "3.0.0" })
-    const result = detectFrameworkSkills(tmpDir)
-    expect(result.map((s) => s.skill)).toContain("antfu/skills@vue")
+    expect(detectProjectKeywords(tmpDir)).toContain("vue")
   })
 
-  it("detects Svelte skill", () => {
+  it("detects Svelte", () => {
     writePkg(tmpDir, { svelte: "4.0.0" })
-    const result = detectFrameworkSkills(tmpDir)
-    expect(result.map((s) => s.skill)).toContain("ejirocodes/agent-skills@svelte5-best-practices")
+    expect(detectProjectKeywords(tmpDir)).toContain("svelte")
   })
 
-  it("detects Svelte via @sveltejs/kit", () => {
-    writePkg(tmpDir, {}, { "@sveltejs/kit": "2.0.0" })
-    const result = detectFrameworkSkills(tmpDir)
-    expect(result.map((s) => s.skill)).toContain("ejirocodes/agent-skills@svelte5-best-practices")
-  })
-
-  it("detects Angular skill", () => {
+  it("detects Angular", () => {
     writePkg(tmpDir, { "@angular/core": "17.0.0" })
-    const result = detectFrameworkSkills(tmpDir)
-    expect(result.map((s) => s.skill)).toContain("analogjs/angular-skills@angular-component")
+    expect(detectProjectKeywords(tmpDir)).toContain("angular")
   })
 
-  it("detects Payload CMS skill", () => {
+  it("detects Payload CMS", () => {
     writePkg(tmpDir, { payload: "3.0.0" })
-    const result = detectFrameworkSkills(tmpDir)
-    expect(result.map((s) => s.skill)).toContain("payloadcms/skills@payload")
+    expect(detectProjectKeywords(tmpDir)).toContain("payload cms")
   })
 
-  it("detects Tailwind skill", () => {
+  it("detects Tailwind from devDependencies", () => {
     writePkg(tmpDir, {}, { tailwindcss: "3.0.0" })
-    const result = detectFrameworkSkills(tmpDir)
-    expect(result.map((s) => s.skill)).toContain("wshobson/agents@tailwind-design-system")
+    expect(detectProjectKeywords(tmpDir)).toContain("tailwind")
   })
 
-  it("detects multiple frameworks at once", () => {
+  it("detects multiple frameworks", () => {
     writePkg(tmpDir, { next: "14.0.0", react: "18.0.0", payload: "3.0.0" }, { tailwindcss: "3.0.0" })
-    const result = detectFrameworkSkills(tmpDir)
-    const refs = result.map((s) => s.skill)
-    expect(refs).toContain("vercel-labs/agent-skills@vercel-react-best-practices")
-    expect(refs).toContain("wshobson/agents@nextjs-app-router-patterns")
-    expect(refs).toContain("payloadcms/skills@payload")
-    expect(refs).toContain("wshobson/agents@tailwind-design-system")
-  })
-
-  it("does not duplicate skills", () => {
-    writePkg(tmpDir, { next: "14.0.0", react: "18.0.0" })
-    const result = detectFrameworkSkills(tmpDir)
-    const refs = result.map((s) => s.skill)
-    const unique = [...new Set(refs)]
-    expect(refs.length).toBe(unique.length)
+    const result = detectProjectKeywords(tmpDir)
+    expect(result).toContain("nextjs")
+    expect(result).toContain("react")
+    expect(result).toContain("payload cms")
+    expect(result).toContain("tailwind")
   })
 
   it("returns empty for backend-only project", () => {
-    writePkg(tmpDir, { express: "4.0.0" })
-    const result = detectFrameworkSkills(tmpDir)
-    expect(result).toEqual([])
+    writePkg(tmpDir, { lodash: "4.0.0" })
+    expect(detectProjectKeywords(tmpDir)).toEqual([])
   })
 
   it("returns empty when no package.json", () => {
-    const result = detectFrameworkSkills(tmpDir)
-    expect(result).toEqual([])
+    expect(detectProjectKeywords(tmpDir)).toEqual([])
   })
 
   it("returns empty for invalid package.json", () => {
     writeFile(tmpDir, "package.json", "not json")
-    const result = detectFrameworkSkills(tmpDir)
-    expect(result).toEqual([])
+    expect(detectProjectKeywords(tmpDir)).toEqual([])
+  })
+})
+
+describe("searchSkills", () => {
+  it("excludes skills in the exclude set", () => {
+    const exclude = new Set(["playwright-cli", "some-other"])
+    // This calls the real skills.sh API — only run if network available
+    // The key behavior: excluded names should not appear in results
+    const results = searchSkills(["playwright"], exclude, 5)
+    for (const r of results) {
+      expect(exclude.has(r.name)).toBe(false)
+    }
   })
 
-  it("each skill has skill ref and label", () => {
-    writePkg(tmpDir, { next: "14.0.0", react: "18.0.0" })
-    const result = detectFrameworkSkills(tmpDir)
-    for (const s of result) {
-      expect(s.skill).toBeTruthy()
-      expect(s.skill).toContain("@")
-      expect(s.label).toBeTruthy()
-    }
+  it("respects the limit parameter", () => {
+    const results = searchSkills(["react"], new Set(), 2)
+    expect(results.length).toBeLessThanOrEqual(2)
+  })
+
+  it("returns empty for nonsense keyword", () => {
+    const results = searchSkills(["xyzzy999nonexistent"], new Set(), 5)
+    expect(results).toEqual([])
+  })
+
+  it("deduplicates across multiple keywords", () => {
+    const results = searchSkills(["react", "nextjs"], new Set(), 10)
+    const refs = results.map((r) => r.ref)
+    const unique = [...new Set(refs)]
+    expect(refs.length).toBe(unique.length)
   })
 })

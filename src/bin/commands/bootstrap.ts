@@ -100,87 +100,102 @@ export function detectToolsForBootstrap(cwd: string): BootstrapToolEntry[] {
   )
 }
 
-interface SkillMapping {
-  skill: string
-  label: string
+interface SearchedSkill {
+  ref: string    // e.g. "payloadcms/skills@payload"
+  name: string   // e.g. "payload" (part after @)
+  installs: number
 }
 
-interface FrameworkSkillRule {
-  detect: (deps: Record<string, string>) => boolean
-  skills: SkillMapping[]
+const FRAMEWORK_KEYWORDS: Record<string, string> = {
+  next: "nextjs",
+  react: "react",
+  vue: "vue",
+  svelte: "svelte",
+  "@angular/core": "angular",
+  payload: "payload cms",
+  tailwindcss: "tailwind",
+  nuxt: "nuxt",
+  astro: "astro",
+  "solid-js": "solidjs",
+  express: "express",
+  fastify: "fastify",
+  prisma: "prisma",
 }
 
-const FRAMEWORK_SKILL_RULES: FrameworkSkillRule[] = [
-  {
-    detect: (deps) => "next" in deps,
-    skills: [
-      { skill: "vercel-labs/agent-skills@vercel-react-best-practices", label: "React best practices" },
-      { skill: "wshobson/agents@nextjs-app-router-patterns", label: "Next.js App Router patterns" },
-    ],
-  },
-  {
-    detect: (deps) => "react" in deps && !("next" in deps),
-    skills: [
-      { skill: "vercel-labs/agent-skills@vercel-react-best-practices", label: "React best practices" },
-    ],
-  },
-  {
-    detect: (deps) => "vue" in deps,
-    skills: [
-      { skill: "antfu/skills@vue", label: "Vue best practices" },
-    ],
-  },
-  {
-    detect: (deps) => "svelte" in deps || "@sveltejs/kit" in deps,
-    skills: [
-      { skill: "ejirocodes/agent-skills@svelte5-best-practices", label: "Svelte best practices" },
-    ],
-  },
-  {
-    detect: (deps) => "@angular/core" in deps,
-    skills: [
-      { skill: "analogjs/angular-skills@angular-component", label: "Angular component patterns" },
-    ],
-  },
-  {
-    detect: (deps) => "payload" in deps,
-    skills: [
-      { skill: "payloadcms/skills@payload", label: "Payload CMS patterns" },
-    ],
-  },
-  {
-    detect: (deps) => "tailwindcss" in deps,
-    skills: [
-      { skill: "wshobson/agents@tailwind-design-system", label: "Tailwind design system" },
-    ],
-  },
-]
+function parseSkillsSearchOutput(output: string): SearchedSkill[] {
+  const stripped = output.replace(/\x1b\[[0-9;]*m/g, "")
+  const results: SearchedSkill[] = []
 
-export function detectFrameworkSkills(cwd: string): SkillMapping[] {
+  for (const line of stripped.split("\n")) {
+    // Match lines like: "owner/repo@skill-name 12.8K installs"
+    const match = line.match(/^([a-zA-Z0-9._-]+\/[a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+)\s+([\d.]+)([KM]?)\s+installs/)
+    if (!match) continue
+
+    const ref = match[1]
+    const name = ref.split("@").pop() ?? ""
+    let installs = parseFloat(match[2])
+    if (match[3] === "K") installs *= 1000
+    if (match[3] === "M") installs *= 1_000_000
+
+    results.push({ ref, name, installs })
+  }
+
+  return results
+}
+
+export function detectProjectKeywords(cwd: string): string[] {
   const pkgPath = path.join(cwd, "package.json")
   if (!fs.existsSync(pkgPath)) return []
 
   try {
     const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"))
     const allDeps: Record<string, string> = { ...pkg.dependencies, ...pkg.devDependencies }
+    const keywords: string[] = []
 
-    const seen = new Set<string>()
-    const skills: SkillMapping[] = []
-
-    for (const rule of FRAMEWORK_SKILL_RULES) {
-      if (rule.detect(allDeps)) {
-        for (const skill of rule.skills) {
-          if (!seen.has(skill.skill)) {
-            seen.add(skill.skill)
-            skills.push(skill)
-          }
-        }
-      }
+    for (const [dep, keyword] of Object.entries(FRAMEWORK_KEYWORDS)) {
+      if (dep in allDeps) keywords.push(keyword)
     }
 
-    return skills
+    return keywords
   } catch {
     return []
+  }
+}
+
+export function searchSkills(keywords: string[], exclude: Set<string>, limit: number): SearchedSkill[] {
+  const allResults: SearchedSkill[] = []
+  const seen = new Set<string>()
+
+  for (const keyword of keywords) {
+    try {
+      const output = execFileSync("npx", ["skills", "find", keyword], {
+        encoding: "utf-8",
+        timeout: 15_000,
+        stdio: ["pipe", "pipe", "pipe"],
+      })
+      for (const skill of parseSkillsSearchOutput(output)) {
+        if (!seen.has(skill.ref) && !exclude.has(skill.name)) {
+          seen.add(skill.ref)
+          allResults.push(skill)
+        }
+      }
+    } catch {
+      // Search failed for this keyword, continue with others
+    }
+  }
+
+  // Sort by installs descending, take top N
+  return allResults
+    .sort((a, b) => b.installs - a.installs)
+    .slice(0, limit)
+}
+
+function collectSkillPaths(cwd: string, skillName: string, paths: string[]): void {
+  for (const dir of [".claude/skills", ".agents/skills"]) {
+    const skillPath = path.join(dir, skillName)
+    if (fs.existsSync(path.join(cwd, skillPath))) {
+      paths.push(skillPath)
+    }
   }
 }
 
@@ -640,51 +655,74 @@ Command and URL.
   console.log("\n── Skills ──")
   const installedSkillPaths: string[] = []
 
-  // Collect all skills to install: tool skills + framework skills
-  const allSkills: SkillMapping[] = []
-  const seen = new Set<string>()
+  // Build exclude set: already installed + tool skills (installed separately at runtime)
+  const excludeSkills = new Set<string>()
 
-  // Tool skills
-  for (const tool of detectToolsForBootstrap(cwd)) {
-    if (tool.skill && !seen.has(tool.skill)) {
-      seen.add(tool.skill)
-      allSkills.push({ skill: tool.skill, label: `${tool.name} CLI` })
-    }
-  }
-
-  // Framework skills
-  for (const mapping of detectFrameworkSkills(cwd)) {
-    if (!seen.has(mapping.skill)) {
-      seen.add(mapping.skill)
-      allSkills.push(mapping)
-    }
-  }
-
-  if (allSkills.length > 0) {
-    for (const { skill, label } of allSkills) {
-      try {
-        console.log(`  Installing: ${label} (${skill})`)
-        execFileSync("npx", ["skills", "add", skill, "--yes"], {
-          cwd,
-          encoding: "utf-8",
-          timeout: 60_000,
-          stdio: ["pipe", "pipe", "pipe"],
-        })
-        // Collect installed paths
-        const skillName = skill.split("@").pop() ?? ""
-        for (const dir of [".claude/skills", ".agents/skills"]) {
-          const skillPath = path.join(dir, skillName)
-          if (fs.existsSync(path.join(cwd, skillPath))) {
-            installedSkillPaths.push(skillPath)
-          }
-        }
-        console.log(`  ✓ ${label}`)
-      } catch {
-        console.log(`  ✗ ${label} — failed to install`)
+  // Already installed skills
+  const claudeSkillsDir = path.join(cwd, ".claude", "skills")
+  if (fs.existsSync(claudeSkillsDir)) {
+    try {
+      for (const entry of fs.readdirSync(claudeSkillsDir, { withFileTypes: true })) {
+        if (entry.isDirectory() || entry.isSymbolicLink()) excludeSkills.add(entry.name)
       }
+    } catch { /* ignore */ }
+  }
+
+  // Tool skills (will be installed by runToolSetup at pipeline runtime)
+  for (const tool of detectToolsForBootstrap(cwd)) {
+    if (tool.skill) {
+      const toolSkillName = tool.skill.split("@").pop() ?? ""
+      excludeSkills.add(toolSkillName)
+    }
+  }
+
+  // Install tool skills first (explicit from tools.yml)
+  for (const tool of detectToolsForBootstrap(cwd)) {
+    if (!tool.skill) continue
+    const skillName = tool.skill.split("@").pop() ?? ""
+    if (excludeSkills.has(skillName) && fs.existsSync(path.join(claudeSkillsDir, skillName))) continue
+    try {
+      console.log(`  Installing: ${tool.name} CLI (${tool.skill})`)
+      execFileSync("npx", ["skills", "add", tool.skill, "--yes"], {
+        cwd,
+        encoding: "utf-8",
+        timeout: 60_000,
+        stdio: ["pipe", "pipe", "pipe"],
+      })
+      collectSkillPaths(cwd, skillName, installedSkillPaths)
+      excludeSkills.add(skillName)
+      console.log(`  ✓ ${tool.name} CLI`)
+    } catch {
+      console.log(`  ✗ ${tool.name} CLI — failed to install`)
+    }
+  }
+
+  // Search skills.sh for project-relevant skills
+  const keywords = detectProjectKeywords(cwd)
+  if (keywords.length > 0) {
+    console.log(`  Searching skills.sh for: ${keywords.join(", ")}`)
+    const found = searchSkills(keywords, excludeSkills, 5)
+    if (found.length > 0) {
+      for (const skill of found) {
+        try {
+          console.log(`  Installing: ${skill.name} (${skill.ref})`)
+          execFileSync("npx", ["skills", "add", skill.ref, "--yes"], {
+            cwd,
+            encoding: "utf-8",
+            timeout: 60_000,
+            stdio: ["pipe", "pipe", "pipe"],
+          })
+          collectSkillPaths(cwd, skill.name, installedSkillPaths)
+          console.log(`  ✓ ${skill.name}`)
+        } catch {
+          console.log(`  ✗ ${skill.name} — failed to install`)
+        }
+      }
+    } else {
+      console.log("  ○ No matching skills found on skills.sh")
     }
   } else {
-    console.log("  ○ No skills to install (no frameworks detected)")
+    console.log("  ○ No frameworks detected — skipping skill search")
   }
 
   // Add skills-lock.json if created
