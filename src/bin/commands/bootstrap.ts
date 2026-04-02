@@ -100,6 +100,90 @@ export function detectToolsForBootstrap(cwd: string): BootstrapToolEntry[] {
   )
 }
 
+interface SkillMapping {
+  skill: string
+  label: string
+}
+
+interface FrameworkSkillRule {
+  detect: (deps: Record<string, string>) => boolean
+  skills: SkillMapping[]
+}
+
+const FRAMEWORK_SKILL_RULES: FrameworkSkillRule[] = [
+  {
+    detect: (deps) => "next" in deps,
+    skills: [
+      { skill: "vercel-labs/agent-skills@vercel-react-best-practices", label: "React best practices" },
+      { skill: "wshobson/agents@nextjs-app-router-patterns", label: "Next.js App Router patterns" },
+    ],
+  },
+  {
+    detect: (deps) => "react" in deps && !("next" in deps),
+    skills: [
+      { skill: "vercel-labs/agent-skills@vercel-react-best-practices", label: "React best practices" },
+    ],
+  },
+  {
+    detect: (deps) => "vue" in deps,
+    skills: [
+      { skill: "antfu/skills@vue", label: "Vue best practices" },
+    ],
+  },
+  {
+    detect: (deps) => "svelte" in deps || "@sveltejs/kit" in deps,
+    skills: [
+      { skill: "ejirocodes/agent-skills@svelte5-best-practices", label: "Svelte best practices" },
+    ],
+  },
+  {
+    detect: (deps) => "@angular/core" in deps,
+    skills: [
+      { skill: "analogjs/angular-skills@angular-component", label: "Angular component patterns" },
+    ],
+  },
+  {
+    detect: (deps) => "payload" in deps,
+    skills: [
+      { skill: "payloadcms/skills@payload", label: "Payload CMS patterns" },
+    ],
+  },
+  {
+    detect: (deps) => "tailwindcss" in deps,
+    skills: [
+      { skill: "wshobson/agents@tailwind-design-system", label: "Tailwind design system" },
+    ],
+  },
+]
+
+export function detectFrameworkSkills(cwd: string): SkillMapping[] {
+  const pkgPath = path.join(cwd, "package.json")
+  if (!fs.existsSync(pkgPath)) return []
+
+  try {
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"))
+    const allDeps: Record<string, string> = { ...pkg.dependencies, ...pkg.devDependencies }
+
+    const seen = new Set<string>()
+    const skills: SkillMapping[] = []
+
+    for (const rule of FRAMEWORK_SKILL_RULES) {
+      if (rule.detect(allDeps)) {
+        for (const skill of rule.skills) {
+          if (!seen.has(skill.skill)) {
+            seen.add(skill.skill)
+            skills.push(skill)
+          }
+        }
+      }
+    }
+
+    return skills
+  } catch {
+    return []
+  }
+}
+
 export function bootstrapCommand(opts: { force: boolean }, pkgRoot: string) {
   const cwd = process.cwd()
   setConfigDir(cwd)
@@ -552,36 +636,55 @@ Command and URL.
     console.log("  ○ .kody/tools.yml (already exists, keeping)")
   }
 
-  // ── Step 3c: Install skills for detected tools ──
+  // ── Step 3c: Install skills ──
   console.log("\n── Skills ──")
   const installedSkillPaths: string[] = []
-  const detectedForSkills = detectToolsForBootstrap(cwd)
-  const toolsWithSkills = detectedForSkills.filter((t) => t.skill)
-  if (toolsWithSkills.length > 0) {
-    for (const tool of toolsWithSkills) {
+
+  // Collect all skills to install: tool skills + framework skills
+  const allSkills: SkillMapping[] = []
+  const seen = new Set<string>()
+
+  // Tool skills
+  for (const tool of detectToolsForBootstrap(cwd)) {
+    if (tool.skill && !seen.has(tool.skill)) {
+      seen.add(tool.skill)
+      allSkills.push({ skill: tool.skill, label: `${tool.name} CLI` })
+    }
+  }
+
+  // Framework skills
+  for (const mapping of detectFrameworkSkills(cwd)) {
+    if (!seen.has(mapping.skill)) {
+      seen.add(mapping.skill)
+      allSkills.push(mapping)
+    }
+  }
+
+  if (allSkills.length > 0) {
+    for (const { skill, label } of allSkills) {
       try {
-        console.log(`  Installing: ${tool.skill}`)
-        execFileSync("npx", ["skills", "add", tool.skill, "--yes"], {
+        console.log(`  Installing: ${label} (${skill})`)
+        execFileSync("npx", ["skills", "add", skill, "--yes"], {
           cwd,
           encoding: "utf-8",
           timeout: 60_000,
           stdio: ["pipe", "pipe", "pipe"],
         })
         // Collect installed paths
+        const skillName = skill.split("@").pop() ?? ""
         for (const dir of [".claude/skills", ".agents/skills"]) {
-          const skillName = tool.skill.split("@").pop() ?? ""
           const skillPath = path.join(dir, skillName)
           if (fs.existsSync(path.join(cwd, skillPath))) {
             installedSkillPaths.push(skillPath)
           }
         }
-        console.log(`  ✓ ${tool.name} skill installed`)
+        console.log(`  ✓ ${label}`)
       } catch {
-        console.log(`  ✗ ${tool.name} skill install failed`)
+        console.log(`  ✗ ${label} — failed to install`)
       }
     }
   } else {
-    console.log("  ○ No tool skills to install")
+    console.log("  ○ No skills to install (no frameworks detected)")
   }
 
   // Add skills-lock.json if created
