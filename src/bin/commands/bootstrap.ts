@@ -76,6 +76,30 @@ function ghComment(issueNumber: number, body: string, cwd: string): void {
   } catch { /* best effort */ }
 }
 
+interface BootstrapToolEntry {
+  name: string
+  detect: string[]
+  stages: string[]
+  setup: string
+  skill: string
+}
+
+const KNOWN_TOOLS: BootstrapToolEntry[] = [
+  {
+    name: "playwright",
+    detect: ["playwright.config.ts", "playwright.config.js"],
+    stages: ["verify"],
+    setup: "npx playwright install --with-deps chromium",
+    skill: "microsoft/playwright-cli@playwright-cli",
+  },
+]
+
+export function detectToolsForBootstrap(cwd: string): BootstrapToolEntry[] {
+  return KNOWN_TOOLS.filter((tool) =>
+    tool.detect.some((pattern) => fs.existsSync(path.join(cwd, pattern))),
+  )
+}
+
 export function bootstrapCommand(opts: { force: boolean }, pkgRoot: string) {
   const cwd = process.cwd()
   setConfigDir(cwd)
@@ -507,23 +531,23 @@ Command and URL.
     console.log("  ○ Label creation skipped")
   }
 
-  // ── Step 3b: Generate tools.yml template ──
+  // ── Step 3b: Generate tools.yml ──
   console.log("\n── Tools ──")
   const toolsYmlPath = path.join(cwd, ".kody", "tools.yml")
   if (!fs.existsSync(toolsYmlPath) || opts.force) {
-    const toolsTemplate = `# Kody Tools Configuration
-# Uncomment and configure tools that your project uses.
-# The engine detects tools, runs setup commands, and installs matching skills from skills.sh.
-# Find skills at https://skills.sh
-#
-# playwright:
-#   detect: ["playwright.config.ts", "playwright.config.js"]
-#   stages: [verify]
-#   setup: "npx playwright install --with-deps chromium"
-#   skill: "microsoft/playwright-cli@playwright-cli"
-`
-    fs.writeFileSync(toolsYmlPath, toolsTemplate)
-    console.log("  ✓ .kody/tools.yml (template created)")
+    const detected = detectToolsForBootstrap(cwd)
+    const header = `# Kody Tools Configuration\n# Find skills at https://skills.sh\n`
+    if (detected.length > 0) {
+      const entries = detected.map((t) =>
+        `${t.name}:\n  detect: ${JSON.stringify(t.detect)}\n  stages: ${JSON.stringify(t.stages)}\n  setup: "${t.setup}"\n  skill: "${t.skill}"`
+      ).join("\n\n")
+      fs.writeFileSync(toolsYmlPath, `${header}\n${entries}\n`)
+      for (const t of detected) console.log(`  ✓ ${t.name} detected`)
+    } else {
+      const example = `${header}#\n# Example:\n# playwright:\n#   detect: ["playwright.config.ts", "playwright.config.js"]\n#   stages: [verify]\n#   setup: "npx playwright install --with-deps chromium"\n#   skill: "microsoft/playwright-cli@playwright-cli"\n`
+      fs.writeFileSync(toolsYmlPath, example)
+      console.log("  ○ No tools detected — template created")
+    }
   } else {
     console.log("  ○ .kody/tools.yml (already exists, keeping)")
   }
