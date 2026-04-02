@@ -145,7 +145,7 @@ export function taskHasUI(taskDir: string): boolean {
 
 function getDevServerInfo(taskDir: string): { command: string; url: string; readyPattern: string; readyTimeout: number } | undefined {
   const config = getProjectConfig()
-  const ds = config.mcp?.devServer
+  const ds = config.devServer
   if (!ds) return undefined
   return {
     command: ds.command,
@@ -224,13 +224,11 @@ done
 If the dev server fails to start (e.g. DB connection issues), skip browser verification and proceed with code-only changes. Do NOT hang waiting for it.
 After you are done browsing, kill the dev server: \`kill $DEV_PID 2>/dev/null || true\``
 
-  if (stageName === "build" || stageName === "review-fix") {
-    return `## Browser Visual Verification (MANDATORY for UI tasks)
+  // Determine if MCP Playwright is available or if we're using CLI-based tools
+  const config = getProjectConfig()
+  const hasMcpPlaywright = isMcpEnabledForStage(stageName, config.mcp)
 
-This task involves UI changes. You MUST visually verify your implementation using the browser tools.
-${devServerBlock}
-
-### Available Browser Tools
+  const mcpTools = `### Available Browser Tools
 - \`mcp__playwright__browser_navigate\` — go to a URL
 - \`mcp__playwright__browser_snapshot\` — capture accessibility tree (shows all elements, text, roles)
 - \`mcp__playwright__browser_take_screenshot\` — take a visual screenshot
@@ -242,14 +240,53 @@ ${devServerBlock}
 - \`mcp__playwright__browser_press_key\` — press keyboard keys (Enter, Escape, Tab, etc.)
 - \`mcp__playwright__browser_resize\` — resize viewport (test responsive layouts)
 - \`mcp__playwright__browser_wait_for\` — wait for text to appear/disappear
-- \`mcp__playwright__browser_evaluate\` — run JavaScript on the page
+- \`mcp__playwright__browser_evaluate\` — run JavaScript on the page`
+
+  const cliTools = `### Browser Verification via Playwright CLI
+Use the \`playwright-cli\` commands in your bash tool to interact with the browser:
+\`\`\`bash
+# Take a screenshot of a page
+playwright-cli screenshot ${serverUrl ?? "http://localhost:3000"} --output /tmp/screenshot.png
+
+# Navigate and interact
+playwright-cli open ${serverUrl ?? "http://localhost:3000"}
+
+# Run a quick verification script
+npx playwright test --grep "homepage" --reporter=list
+\`\`\`
+
+Alternatively, write and run a short Playwright script to verify the UI:
+\`\`\`bash
+node -e "
+const { chromium } = require('playwright');
+(async () => {
+  const browser = await chromium.launch();
+  const page = await browser.newPage();
+  await page.goto('${serverUrl ?? "http://localhost:3000"}');
+  await page.screenshot({ path: '/tmp/verify.png', fullPage: true });
+  console.log('Title:', await page.title());
+  await browser.close();
+})();
+"
+\`\`\`
+Use the screenshot output and page title to verify the UI is rendering correctly.`
+
+  const toolsBlock = hasMcpPlaywright ? mcpTools : cliTools
+
+  if (stageName === "build" || stageName === "review-fix") {
+    return `## Browser Visual Verification (MANDATORY for UI tasks)
+
+This task involves UI changes. You MUST visually verify your implementation using the browser tools.
+${devServerBlock}
+
+${toolsBlock}
 
 ### Verification Steps (DO ALL OF THESE)
 1. Start the dev server (see above)
-2. Use \`browser_navigate\` to go to the affected page(s)
-3. Use \`browser_snapshot\` to capture the page and verify elements are present
-4. **Test interactions**: if the task involves buttons, forms, search, toggles, or any interactive elements — click them, type into them, and verify the result with another snapshot
-5. If the task mentions responsive behavior, use \`browser_resize\` to test at different widths (e.g., 1200px, 768px, 480px) and take snapshots at each
+2. Navigate to the affected page(s)
+3. Take a screenshot or snapshot to verify elements are present
+4. **Test interactions**: if the task involves buttons, forms, search, toggles, or any interactive elements — click them, type into them, and verify the result
+5. If the task mentions responsive behavior, test at different viewport widths (e.g., 1200px, 768px, 480px)
 6. Kill the dev server when done
 
 Do NOT skip the browser verification. The visual check AND interaction testing are required parts of implementing UI changes.`
@@ -261,22 +298,14 @@ Do NOT skip the browser verification. The visual check AND interaction testing a
 This task involves UI changes. You MUST visually verify the implementation using the browser tools before giving your verdict.
 ${devServerBlock}
 
-### Available Browser Tools
-- \`mcp__playwright__browser_navigate\` — go to a URL
-- \`mcp__playwright__browser_snapshot\` — capture accessibility tree (shows all elements, text, roles)
-- \`mcp__playwright__browser_take_screenshot\` — take a visual screenshot
-- \`mcp__playwright__browser_click\` — click an element
-- \`mcp__playwright__browser_type\` — type text into an input
-- \`mcp__playwright__browser_hover\` — hover over an element
-- \`mcp__playwright__browser_resize\` — resize viewport
-- \`mcp__playwright__browser_wait_for\` — wait for text to appear/disappear
+${toolsBlock}
 
 ### Review Verification Steps (DO ALL OF THESE)
 1. Start the dev server (see above)
-2. Use \`browser_navigate\` to go to the affected page(s)
-3. Use \`browser_snapshot\` to verify elements, layout, and text content
+2. Navigate to the affected page(s)
+3. Take a screenshot or snapshot to verify elements, layout, and text content
 4. **Test interactions**: click buttons, fill forms, test search — verify the UI responds correctly
-5. If the task mentions responsive behavior, use \`browser_resize\` to test at different widths
+5. If the task mentions responsive behavior, test at different viewport widths
 6. Include your browser verification findings in the review (what you saw, what you interacted with, what worked/failed)
 7. Kill the dev server when done
 
@@ -285,10 +314,12 @@ Do NOT skip the browser verification. A review of UI changes without visual AND 
 
   return `## Browser Tools Available
 
-You have access to Playwright MCP browser tools for visual verification.
+You have access to browser tools for visual verification.
 ${devServerBlock}
 
-Use browser tools to navigate to pages and take snapshots to verify UI output.`
+${toolsBlock}
+
+Use browser tools to navigate to pages and take screenshots to verify UI output.`
 }
 
 export function buildFullPrompt(
@@ -310,8 +341,10 @@ export function buildFullPrompt(
     assembled = memory ? `${memory}\n---\n\n${prompt}` : prompt
   }
 
-  // Append browser tool guidance if MCP is enabled for this stage and task has UI
-  if (isMcpEnabledForStage(stageName, config.mcp) && taskHasUI(taskDir)) {
+  // Append browser tool guidance when browser verification is available (MCP or CLI-based)
+  const browserStages = ["build", "review", "review-fix"]
+  const hasBrowserTools = isMcpEnabledForStage(stageName, config.mcp) || (config.devServer && browserStages.includes(stageName))
+  if (hasBrowserTools && taskHasUI(taskDir)) {
     assembled = assembled + "\n\n" + getBrowserToolGuidance(stageName, taskDir)
 
     // Inject QA guide if it exists

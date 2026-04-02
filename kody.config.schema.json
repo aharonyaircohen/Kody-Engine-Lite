@@ -241,7 +241,7 @@
         },
         "devServer": {
           "type": "object",
-          "description": "Dev server configuration for browser tool verification",
+          "description": "DEPRECATED: Use top-level devServer instead. Kept for backward compatibility.",
           "properties": {
             "command": {
               "type": "string",
@@ -270,6 +270,34 @@
       },
       "required": ["enabled", "servers"],
       "additionalProperties": false
+    },
+    "devServer": {
+      "type": "object",
+      "description": "Dev server configuration for browser tool verification. Works with any provider (MCP or CLI-based).",
+      "properties": {
+        "command": {
+          "type": "string",
+          "description": "Command to start the dev server (e.g., 'pnpm dev')"
+        },
+        "url": {
+          "type": "string",
+          "description": "URL where the dev server will be accessible (e.g., 'http://localhost:3000')"
+        },
+        "readyPattern": {
+          "type": "string",
+          "description": "Regex pattern to match in stdout when server is ready. Default: 'Ready in|compiled|started server|Local:'"
+        },
+        "readyTimeout": {
+          "type": "number",
+          "description": "Seconds to wait for the server to be ready. Default: 30"
+        },
+        "env": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of GitHub secret names to forward as environment variables for the dev server process (e.g., ['BLOB_READ_WRITE_TOKEN', 'DATABASE_URL']). These are injected into the workflow env block during 'kody init'."
+        }
+      },
+      "required": ["command", "url"]
     }
   },
   "additionalProperties": false

@@ -222,7 +222,8 @@ describe("buildConfig", () => {
     expect(mcp.enabled).toBe(true)
     expect(mcp.servers).toEqual({})
     expect(mcp.stages).toEqual(["build", "review"])
-    expect(mcp.devServer.url).toBe("http://localhost:3000")
+    // devServer is now top-level, not under mcp
+    expect((config as Record<string, any>).devServer.url).toBe("http://localhost:3000")
   })
 
   it("auto-configures devServer for Next.js projects", () => {
@@ -233,10 +234,10 @@ describe("buildConfig", () => {
     const config = buildConfig(tmpDir, {
       defaultBranch: "main", owner: "o", repo: "r", pm: "pnpm",
     })
-    const mcp = (config as Record<string, any>).mcp
-    expect(mcp.devServer).toBeDefined()
-    expect(mcp.devServer.command).toBe("pnpm dev")
-    expect(mcp.devServer.url).toBe("http://localhost:3000")
+    const devServer = (config as Record<string, any>).devServer
+    expect(devServer).toBeDefined()
+    expect(devServer.command).toBe("pnpm dev")
+    expect(devServer.url).toBe("http://localhost:3000")
   })
 
   it("auto-configures MCP for React (Vite) projects", () => {
@@ -251,7 +252,8 @@ describe("buildConfig", () => {
     const mcp = (config as Record<string, any>).mcp
     expect(mcp).toBeDefined()
     expect(mcp.enabled).toBe(true)
-    expect(mcp.devServer.url).toBe("http://localhost:5173")
+    const devServer = (config as Record<string, any>).devServer
+    expect(devServer.url).toBe("http://localhost:5173")
   })
 
   it("auto-configures MCP for Vue projects", () => {
@@ -303,7 +305,7 @@ describe("buildConfig", () => {
     const viteConfig = buildConfig(tmpDir, {
       defaultBranch: "main", owner: "o", repo: "r", pm: "pnpm",
     })
-    expect((viteConfig as any).mcp.devServer.url).toBe("http://localhost:5173")
+    expect((viteConfig as any).devServer.url).toBe("http://localhost:5173")
 
     // Next.js project
     fs.writeFileSync(path.join(tmpDir, "package.json"), JSON.stringify({
@@ -313,7 +315,7 @@ describe("buildConfig", () => {
     const nextConfig = buildConfig(tmpDir, {
       defaultBranch: "main", owner: "o", repo: "r", pm: "pnpm",
     })
-    expect((nextConfig as any).mcp.devServer.url).toBe("http://localhost:3000")
+    expect((nextConfig as any).devServer.url).toBe("http://localhost:3000")
   })
 
   it("uses dev script from package.json for devServer command", () => {
@@ -324,7 +326,7 @@ describe("buildConfig", () => {
     const config = buildConfig(tmpDir, {
       defaultBranch: "main", owner: "o", repo: "r", pm: "yarn",
     })
-    expect((config as any).mcp.devServer.command).toBe("yarn dev")
+    expect((config as any).devServer.command).toBe("yarn dev")
   })
 })
 

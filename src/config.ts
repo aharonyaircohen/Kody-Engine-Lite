@@ -83,6 +83,8 @@ export interface KodyConfig {
   timeouts?: Record<string, number>
   contextTiers?: ContextTiersConfig
   mcp?: McpConfig
+  /** Dev server config — decoupled from MCP so any provider can use browser verification */
+  devServer?: DevServerConfig
 }
 
 const DEFAULT_CONFIG: KodyConfig = {
@@ -228,6 +230,8 @@ export function getProjectConfig(): KodyConfig {
               enabled: raw.mcp.enabled ?? !!raw.mcp.devServer,
             }
           : undefined,
+        // Top-level devServer takes precedence; fall back to mcp.devServer for backward compat
+        devServer: raw.devServer ?? raw.mcp?.devServer ?? undefined,
       }
     } catch {
       logger.warn("kody.config.json is invalid JSON — using defaults")

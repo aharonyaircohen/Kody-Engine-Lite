@@ -63,7 +63,32 @@ export function buildConfig(cwd: string, basic: { defaultBranch: string; owner: 
   const mcp = detectMcpConfig(cwd, basic.pm, pkg)
   if (mcp) config.mcp = mcp
 
+  // Top-level devServer (decoupled from MCP)
+  const devServer = detectDevServer(basic.pm, pkg)
+  if (devServer) config.devServer = devServer
+
   return config
+}
+
+function detectDevServer(
+  pm: string,
+  pkg: Record<string, unknown>,
+): Record<string, unknown> | undefined {
+  const allDeps = { ...(pkg.dependencies as Record<string, string> ?? {}), ...(pkg.devDependencies as Record<string, string> ?? {}) }
+  const hasFrontend = FRONTEND_DEPS.some((dep) => dep in allDeps)
+  if (!hasFrontend) return undefined
+
+  const scripts = (pkg.scripts ?? {}) as Record<string, string>
+  if (!scripts.dev) return undefined
+
+  const isNext = "next" in allDeps || "nuxt" in allDeps
+  const isVite = "vite" in allDeps
+  const defaultPort = isNext ? 3000 : isVite ? 5173 : 3000
+
+  return {
+    command: `${pm} dev`,
+    url: `http://localhost:${defaultPort}`,
+  }
 }
 
 function detectMcpConfig(
@@ -75,24 +100,10 @@ function detectMcpConfig(
   const hasFrontend = FRONTEND_DEPS.some((dep) => dep in allDeps)
   if (!hasFrontend) return undefined
 
-  const scripts = (pkg.scripts ?? {}) as Record<string, string>
-  const hasDevScript = !!scripts.dev
-
-  const isNext = "next" in allDeps || "nuxt" in allDeps
-  const isVite = "vite" in allDeps
-  const defaultPort = isNext ? 3000 : isVite ? 5173 : 3000
-
   const mcp: Record<string, unknown> = {
     enabled: true,
     servers: {},
     stages: ["build", "review"],
-  }
-
-  if (hasDevScript) {
-    mcp.devServer = {
-      command: `${pm} dev`,
-      url: `http://localhost:${defaultPort}`,
-    }
   }
 
   return mcp

@@ -112,9 +112,11 @@ export async function executeAgentStage(
   }
 
   // Dev server: start from engine process with hard timeout (not from Claude)
+  // Decoupled from MCP — works with any provider (MCP or CLI-based tools like playwright-cli)
+  const devServerStages = ["build", "review", "review-fix"]
   let devServerHandle: DevServerHandle | null = null
-  const ds = config.mcp?.devServer
-  if (mcpConfigJson && ds && taskHasUI(ctx.taskDir)) {
+  const ds = config.devServer
+  if (ds && devServerStages.includes(def.name) && taskHasUI(ctx.taskDir)) {
     logger.info(`  Starting dev server: ${ds.command}`)
     const envVars: Record<string, string> = {}
     for (const varName of ds.env ?? []) {
