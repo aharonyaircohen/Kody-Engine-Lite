@@ -11,6 +11,7 @@ import {
   runRetrospective,
 } from "../../src/retrospective.js"
 import type { RetrospectiveEntry } from "../../src/retrospective.js"
+import { setConfigDir, resetProjectConfig } from "../../src/config.js"
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -489,5 +490,47 @@ describe("runRetrospective", () => {
 
     expect(capturedPrompt).toContain("prev-task")
     expect(capturedPrompt).toContain("Previous run was clean")
+  })
+
+  it("sets ANTHROPIC_BASE_URL when per-stage provider requires proxy (anyStageNeedsProxy)", async () => {
+    // Write a config where agent.default.provider is non-anthropic (requires LiteLLM proxy).
+    // This tests the P0 fix: retrospective must use anyStageNeedsProxy, not the legacy
+    // needsLitellmProxy which only checked config.agent.provider (top-level field).
+    fs.writeFileSync(
+      path.join(projectDir, "kody.config.json"),
+      JSON.stringify({
+        quality: { typecheck: "", lint: "", lintFix: "", formatFix: "", testUnit: "" },
+        agent: {
+          default: { provider: "openai", model: "gpt-4o" },
+        },
+      }),
+    )
+    resetProjectConfig()
+    setConfigDir(projectDir)
+
+    let capturedEnv: Record<string, string> | undefined
+    const runner: AgentRunner = {
+      async run(_stage: string, _prompt: string, _model: string, _timeout: number, _cwd: string, opts?: { env?: Record<string, string> }): Promise<AgentResult> {
+        capturedEnv = opts?.env
+        return {
+          outcome: "completed",
+          output: JSON.stringify({
+            observation: "proxy test",
+            patternMatch: null,
+            suggestion: "none",
+            pipelineFlaw: null,
+          }),
+        }
+      },
+      async healthCheck() { return true },
+    }
+
+    const ctx = makeCtxWithRunner(runner)
+    const state = makeState()
+    await runRetrospective(ctx, state, Date.now())
+
+    expect(capturedEnv?.ANTHROPIC_BASE_URL).toBeDefined()
+
+    resetProjectConfig()
   })
 })

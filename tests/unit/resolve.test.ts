@@ -133,8 +133,9 @@ describe("runResolve", () => {
     )
   })
 
-  it("runs verify after conflict resolution", async () => {
+  it("runs verify after conflict resolution scoped to conflicted files", async () => {
     vi.mocked(gitUtils.mergeDefault).mockReturnValue("conflict")
+    vi.mocked(gitUtils.getConflictedFiles).mockReturnValue(["src/auth/auth.ts"])
 
     await runResolve({
       prNumber: 42,
@@ -143,7 +144,11 @@ describe("runResolve", () => {
       local: false,
     })
 
-    expect(verifyRunner.runQualityGates).toHaveBeenCalledWith(tmpDir, tmpDir)
+    expect(verifyRunner.runQualityGates).toHaveBeenCalledWith(
+      tmpDir,
+      tmpDir,
+      { onlyFailOnFiles: ["src/auth/auth.ts"] },
+    )
   })
 
   it("fails when verify fails after resolution", async () => {
@@ -164,6 +169,27 @@ describe("runResolve", () => {
 
     expect(result.outcome).toBe("failed")
     expect(result.error).toContain("verification")
+  })
+
+  it("succeeds when verify passes (pre-existing errors suppressed by onlyFailOnFiles)", async () => {
+    // runQualityGates returns pass=true because onlyFailOnFiles filtered out
+    // the pre-existing errors — resolve should succeed
+    vi.mocked(gitUtils.mergeDefault).mockReturnValue("conflict")
+    vi.mocked(verifyRunner.runQualityGates).mockReturnValue({
+      pass: true,
+      errors: [],
+      summary: ["pre-existing errors suppressed"],
+      rawOutputs: [],
+    })
+
+    const result = await runResolve({
+      prNumber: 42,
+      projectDir: tmpDir,
+      runners: { claude: createMockRunner() },
+      local: false,
+    })
+
+    expect(result.outcome).toBe("resolved")
   })
 
   it("pushes after successful resolution (non-local)", async () => {

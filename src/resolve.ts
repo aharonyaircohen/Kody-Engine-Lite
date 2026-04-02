@@ -94,27 +94,16 @@ export async function runResolve(options: ResolveOptions): Promise<ResolveResult
     return { outcome: "failed", error: `Agent failed: ${result.error}` }
   }
 
-  // Step 4: Verify — typecheck + lint + tests
+  // Step 4: Verify — typecheck scoped to conflicted files only (pre-existing
+  // errors in unrelated files are suppressed), plus full lint + tests
   logger.info("  Verifying resolution...")
-  const verify = runQualityGates(projectDir, projectDir)
+  const verify = runQualityGates(projectDir, projectDir, { onlyFailOnFiles: conflictedFiles })
   if (!verify.pass) {
-    // Heuristic: check whether errors are only in files NOT touched by resolution
-    const errorText = verify.errors.join("\n")
-    const errorFilePaths = errorText.match(/src\/[^\s(:]+\.[a-z]+/g) ?? []
-    const resolvedSet = new Set(conflictedFiles)
-    const allPreExisting = errorFilePaths.length > 0 && errorFilePaths.every(
-      (f) => !resolvedSet.has(f) && !conflictedFiles.some((c) => c.endsWith(f))
-    )
-    if (allPreExisting) {
-      logger.warn("  Verification: all errors in files not touched by resolution — treating as pre-existing, proceeding")
-    } else {
-      const errorSummary = verify.errors.slice(0, 5).join("\n")
-      logger.error(`  Verification failed:\n${errorSummary}`)
-      return { outcome: "failed", error: `Conflict resolution failed verification:\n${errorSummary}` }
-    }
-  } else {
-    logger.info("  Verification passed")
+    const errorSummary = verify.errors.slice(0, 5).join("\n")
+    logger.error(`  Verification failed:\n${errorSummary}`)
+    return { outcome: "failed", error: `Conflict resolution failed verification:\n${errorSummary}` }
   }
+  logger.info("  Verification passed")
 
   // Step 5: Commit + push
   commitAll(`chore: resolve merge conflicts with ${defaultBranch}`, projectDir)

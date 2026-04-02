@@ -1,7 +1,6 @@
 {
   "name": "@kody-ade/kody-engine-lite",
-
-  "version": "0.1.121",
+  "version": "0.1.122",
   "description": "Autonomous SDLC pipeline: Kody orchestration + Claude Code + LiteLLM",
   "license": "MIT",
   "type": "module",
@@ -19,7 +18,8 @@
     "build": "tsup",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "pnpm build"
+    "prepublishOnly": "pnpm build",
+    "release": "npm publish --access public && bash scripts/wait-for-npm.sh"
   },
   "dependencies": {
     "dotenv": "^16.4.7"

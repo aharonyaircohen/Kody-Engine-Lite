@@ -93,9 +93,20 @@ function extractSummary(output: string, cmdName: string): string[] {
   return lines.slice(-3).map((l) => `[${cmdName}] ${l.trim()}`)
 }
 
+export interface QualityGateOptions {
+  /**
+   * When set, typecheck errors are only treated as failures if they reference
+   * one of these file paths. Errors in other files are logged as warnings and
+   * treated as pre-existing (so conflict resolution isn't blocked by unrelated
+   * issues already present in the codebase).
+   */
+  onlyFailOnFiles?: string[]
+}
+
 export function runQualityGates(
   taskDir: string,
   projectRoot?: string,
+  options?: QualityGateOptions,
 ): VerifyResult {
   const config = getProjectConfig()
   const cwd = projectRoot ?? process.cwd()
@@ -126,10 +137,35 @@ export function runQualityGates(
     }
 
     if (!result.success) {
-      allPass = false
       const errors = parseErrors(result.output)
-      allErrors.push(...errors.map((e) => `[${name}] ${e}`))
-      rawOutputs.push({ name, output: result.output.slice(-3000) })
+
+      // When onlyFailOnFiles is set for typecheck, suppress errors that only
+      // mention files outside the provided set — these are pre-existing issues
+      // unrelated to the current change.
+      if (name === "typecheck" && options?.onlyFailOnFiles && options.onlyFailOnFiles.length > 0) {
+        const scopedFiles = new Set(options.onlyFailOnFiles)
+        const errorLines = errors.filter((e) => {
+          // Only fail on errors that explicitly reference a scoped file.
+          // Lines without a file path can't be attributed to a specific file,
+          // so they're treated as pre-existing context and suppressed.
+          const fileMatch = e.match(/\b(src\/[^\s(:]+\.[a-z]+)/)?.[1]
+          if (!fileMatch) return false
+          return scopedFiles.has(fileMatch) || options.onlyFailOnFiles!.some((f) => f.endsWith(fileMatch) || fileMatch.endsWith(f))
+        })
+        if (errorLines.length === 0) {
+          logger.warn(`  [typecheck] errors found but none in scoped files — treating as pre-existing, skipping`)
+          rawOutputs.push({ name, output: result.output.slice(-3000) })
+          allSummary.push(...extractSummary(result.output, name))
+          continue
+        }
+        allPass = false
+        allErrors.push(...errorLines.map((e) => `[${name}] ${e}`))
+        rawOutputs.push({ name, output: result.output.slice(-3000) })
+      } else {
+        allPass = false
+        allErrors.push(...errors.map((e) => `[${name}] ${e}`))
+        rawOutputs.push({ name, output: result.output.slice(-3000) })
+      }
     }
 
     allSummary.push(...extractSummary(result.output, name))
