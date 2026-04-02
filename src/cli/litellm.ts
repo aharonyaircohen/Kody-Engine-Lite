@@ -223,7 +223,12 @@ export async function tryStartLitellm(
   const child = spawn(cmd, args, {
     stdio: ["ignore", "pipe", "pipe"],
     detached: true,
-    env: { ...process.env, ...dotenvVars } as Record<string, string>,
+    env: {
+      ...process.env,
+      ...dotenvVars,
+      // Disable LiteLLM's Prisma DB for virtual keys/spend tracking — not needed for proxy-only mode
+      STORE_MODEL_IN_DB: "false",
+    } as Record<string, string>,
   })
 
   // Capture stderr for debugging
