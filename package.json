@@ -1,6 +1,6 @@
 {
   "name": "@kody-ade/kody-engine-lite",
-  "version": "0.1.143",
+  "version": "0.1.144",
   "description": "Autonomous SDLC pipeline: Kody orchestration + Claude Code + LiteLLM",
   "license": "MIT",
   "type": "module",
