@@ -19,8 +19,11 @@ import { logger } from "../logger.js"
 
 export function applyPreStageLabel(ctx: PipelineContext, def: StageDefinition): void {
   if (!ctx.input.issueNumber || ctx.input.local) return
+  if (def.name === "plan") setLifecycleLabel(ctx.input.issueNumber, "planning")
   if (def.name === "build") setLifecycleLabel(ctx.input.issueNumber, "building")
+  if (def.name === "verify") setLifecycleLabel(ctx.input.issueNumber, "verifying")
   if (def.name === "review") setLifecycleLabel(ctx.input.issueNumber, "review")
+  if (def.name === "review-fix") setLifecycleLabel(ctx.input.issueNumber, "fixing")
   if (def.name === "ship") setLifecycleLabel(ctx.input.issueNumber, "shipping")
 }
 
