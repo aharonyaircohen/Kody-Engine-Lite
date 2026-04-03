@@ -68,10 +68,23 @@ Comment on any GitHub issue:
 @kody
 ```
 
-Kody picks up the issue and works through the pipeline autonomously. You'll see:
-- Labels updating in real-time: `kody:planning` → `kody:building` → `kody:review` → `kody:done`
-- Progress comments on the issue at each stage
-- A PR with a rich description, passing quality checks, and `Closes #N`
+Kody picks up the issue and works through the pipeline autonomously:
+
+<p align="center">
+  <img src="assets/screenshots/kody-trigger.png" alt="GitHub issue showing @kody trigger, pipeline started comment, and complexity detection" width="700">
+</p>
+
+You'll see labels updating in real-time, progress comments at each stage, and a pipeline summary when done:
+
+<p align="center">
+  <img src="assets/screenshots/kody-summary.png" alt="Pipeline summary table showing all stages completed with duration and retries" width="700">
+</p>
+
+The result is a PR with a rich description, passing quality checks, and `Closes #N`:
+
+<p align="center">
+  <img src="assets/screenshots/kody-pr.png" alt="Pull request created by Kody with description, scope, verify status, and Closes link" width="700">
+</p>
 
 If the task is HIGH-risk, Kody pauses after planning and asks for approval before writing code.
 
@@ -99,7 +112,8 @@ flowchart TD
     Start --> ExistingPR{"Existing\nPR?"}
     Start --> Setup{"Setup /\nOnboarding?"}
 
-    NewIssue -->|Yes| Kody["**@kody**\nFull pipeline: taskify → plan →\nbuild → verify → review → ship"]:::cmd
+    NewIssue -->|"Simple/medium"| Kody["**@kody**\nFull pipeline: taskify → plan →\nbuild → verify → review → ship"]:::cmd
+    NewIssue -->|"Complex multi-area"| Decompose["**@kody decompose**\nParallel sub-tasks: analyze →\nsplit → parallel build → merge → ship"]:::cmd
 
     ExistingPR --> PRWhat{"What's wrong?"}
 
@@ -125,6 +139,8 @@ flowchart TD
 | Command | What it does |
 |---------|-------------|
 | `@kody` | Run full pipeline on an issue |
+| `@kody decompose` | Parallel sub-tasks for complex issues — analyze, split, build in parallel, merge, verify, review, ship ([details](docs/DECOMPOSE.md)) |
+| `@kody compose` | Retry merge + verify + review + ship after a decompose build succeeded |
 | `@kody review` | Review any PR — structured findings + GitHub approve/request-changes (falls back to comment if self-review blocked) |
 | `@kody fix` | Re-run from build with human PR feedback + Kody's review as context |
 | `@kody fix-ci` | Fix failing CI checks (auto-triggered with loop guard) |
@@ -143,6 +159,8 @@ kody-engine-lite review --pr-number 42   # Standalone PR review
 kody-engine-lite fix --issue-number 42 --feedback "Use middleware pattern"
 kody-engine-lite fix-ci --pr-number 42
 kody-engine-lite resolve --pr-number 42   # Merge + resolve conflicts
+kody-engine-lite decompose --issue-number 42  # Parallel sub-tasks for complex issues
+kody-engine-lite compose --task-id <id>  # Retry compose after decompose
 kody-engine-lite rerun --issue-number 42 --from verify
 kody-engine-lite watch [--dry-run]       # Run health monitoring locally
 ```
@@ -158,6 +176,7 @@ kody-engine-lite watch [--dry-run]       # Run health monitoring locally
 - **AI Failure Diagnosis** — classifies errors as fixable/infrastructure/pre-existing/abort before retry ([details](docs/FEATURES.md#ai-powered-failure-diagnosis))
 - **Question Gates** — asks product/architecture questions when the task is unclear ([details](docs/FEATURES.md#question-gates))
 - **Auto Fix-CI** — CI fails on a PR? Kody fetches logs, diagnoses, and pushes a fix ([details](docs/FEATURES.md#auto-fix-ci))
+- **Parallel Decomposition** — complex tasks auto-split into independent sub-tasks that build in parallel, then merge and verify ([details](docs/DECOMPOSE.md))
 - **Pattern Discovery** — searches for existing patterns before proposing new ones ([details](docs/FEATURES.md#pattern-discovery))
 - **Decision Memory** — architectural decisions extracted from reviews persist across tasks ([details](docs/FEATURES.md#decision-memory))
 - **Auto-Learning** — extracts coding conventions from each successful run ([details](docs/FEATURES.md#auto-learning-memory))
@@ -271,7 +290,7 @@ flowchart TB
 
 **Understand Kody:** [About](docs/ABOUT.md) · [Architecture](docs/ARCHITECTURE.md) · [Tech Stack](docs/TECH-STACK.md) · [Features](docs/FEATURES.md) · [Pipeline](docs/PIPELINE.md) · [Comparison](docs/COMPARISON.md)
 
-**Set up & use:** [CLI](docs/CLI.md) · [Configuration](docs/CONFIGURATION.md) · [Bootstrap](docs/BOOTSTRAP.md) · [Tools](docs/TOOLS.md) · [Watch](docs/WATCH.md) · [LiteLLM](docs/LITELLM.md)
+**Set up & use:** [CLI](docs/CLI.md) · [Configuration](docs/CONFIGURATION.md) · [Bootstrap](docs/BOOTSTRAP.md) · [Decompose](docs/DECOMPOSE.md) · [Tools](docs/TOOLS.md) · [Watch](docs/WATCH.md) · [LiteLLM](docs/LITELLM.md)
 
 **Reference:** [FAQ](docs/FAQ.md) · [Model Compatibility](docs/model-compatibility.md)
 
