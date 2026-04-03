@@ -161,7 +161,7 @@ jobs:
         run: npm install -g @anthropic-ai/claude-code
 
       - name: Install LiteLLM proxy
-        run: pip install 'litellm[proxy]' prisma
+        run: pip install 'litellm[proxy]' prisma && python -m prisma py fetch
 
       - name: Configure git
         run: |
