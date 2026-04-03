@@ -10,9 +10,17 @@ import { STAGES } from "./definitions.js"
 import { resolveModel } from "./context.js"
 import { getProjectConfig, anyStageNeedsProxy, getLitellmUrl } from "./config.js"
 import { getRunnerForStage } from "./pipeline/runner-selection.js"
+import { readProjectMemory } from "./memory.js"
+import { estimateTokens } from "./context-tiers.js"
 import { logger } from "./logger.js"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
+
+export interface TokenStats {
+  totalPromptTokens: number
+  memoryTokens: number
+  perStage: Record<string, number>
+}
 
 export interface RetrospectiveEntry {
   timestamp: string
@@ -34,6 +42,7 @@ export interface RetrospectiveEntry {
     issue: string
     evidence: string
   } | null
+  tokenStats?: TokenStats
 }
 
 // ─── Prompt ─────────────────────────────────────────────────────────────────
@@ -100,8 +109,9 @@ export function collectRunContext(
     const s = state.stages[def.name]
     const duration = computeStageDuration(s)
     const durationStr = duration != null ? `, ${duration}ms` : ""
+    const tokenStr = s.promptTokens != null ? `, ~${s.promptTokens} prompt tokens` : ""
     const errorStr = s.error ? ` — ${s.error}` : ""
-    lines.push(`${def.name}: ${s.state} (${s.retries} retries${durationStr})${errorStr}`)
+    lines.push(`${def.name}: ${s.state} (${s.retries} retries${durationStr}${tokenStr})${errorStr}`)
     if (s.state === "failed" || s.state === "timeout") {
       failedStage = def.name
     }
@@ -183,6 +193,33 @@ export function appendRetrospectiveEntry(projectDir: string, entry: Retrospectiv
   fs.appendFileSync(logPath, JSON.stringify(entry) + "\n")
 }
 
+// ─── Token Stats ────────────────────────────────────────────────────────
+
+function computeTokenStats(
+  state: PipelineStatus,
+  projectDir: string,
+): TokenStats | undefined {
+  const perStage: Record<string, number> = {}
+  let totalPromptTokens = 0
+  let hasAny = false
+
+  for (const def of STAGES) {
+    const s = state.stages[def.name]
+    if (s.promptTokens != null) {
+      perStage[def.name] = s.promptTokens
+      totalPromptTokens += s.promptTokens
+      hasAny = true
+    }
+  }
+
+  if (!hasAny) return undefined
+
+  const memory = readProjectMemory(projectDir)
+  const memoryTokens = memory ? estimateTokens(memory) : 0
+
+  return { totalPromptTokens, memoryTokens, perStage }
+}
+
 // ─── Main ───────────────────────────────────────────────────────────────────
 
 export async function runRetrospective(
@@ -258,6 +295,8 @@ export async function runRetrospective(
       }
     }
 
+    const tokenStats = computeTokenStats(state, ctx.projectDir)
+
     const entry: RetrospectiveEntry = {
       timestamp: new Date().toISOString(),
       taskId: state.taskId,
@@ -269,6 +308,7 @@ export async function runRetrospective(
       patternMatch,
       suggestion,
       pipelineFlaw,
+      tokenStats,
     }
 
     appendRetrospectiveEntry(ctx.projectDir, entry)

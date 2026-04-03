@@ -246,6 +246,7 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
         completedAt: new Date().toISOString(),
         retries: result.retries,
         outputFile: result.outputFile,
+        promptTokens: result.promptTokens,
       }
       logger.info(`[${def.name}] ✓ completed`)
 
@@ -272,6 +273,7 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
         state: isTimeout ? "timeout" : "failed",
         retries: result.retries,
         error: isTimeout ? "Stage timed out" : (result.error ?? "Stage failed"),
+        promptTokens: result.promptTokens,
       }
       state.state = "failed"
       state.sessions = ctx.sessions

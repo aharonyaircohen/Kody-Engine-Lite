@@ -8,6 +8,7 @@ import type {
   PipelineContext,
 } from "../types.js"
 import { buildFullPrompt, resolveModel, escalateModelTier, taskHasUI } from "../context.js"
+import { estimateTokens } from "../context-tiers.js"
 import { validateTaskJson, validatePlanMd, validateReviewMd, stripFences } from "../validators.js"
 import { getProjectConfig, resolveStageConfig, stageNeedsProxy, getLitellmUrl } from "../config.js"
 import { buildMcpConfigJson, isMcpEnabledForStage, withPlaywrightIfNeeded } from "../mcp-config.js"
@@ -71,6 +72,7 @@ export async function executeAgentStage(
   }
 
   const prompt = buildFullPrompt(def.name, ctx.taskId, ctx.taskDir, ctx.projectDir, ctx.input.feedback)
+  const promptTokens = estimateTokens(prompt)
   let currentModelTier: string = def.modelTier
 
   if (ctx.input.feedback && def.name === "build") {
@@ -179,7 +181,7 @@ export async function executeAgentStage(
   }
 
   if (lastResult.outcome !== "completed") {
-    return { outcome: lastResult.outcome, error: lastResult.error, retries }
+    return { outcome: lastResult.outcome, error: lastResult.error, retries, promptTokens }
   }
 
   const result = lastResult
@@ -254,7 +256,7 @@ export async function executeAgentStage(
   // Append stage summary to accumulated context
   appendStageContext(ctx.taskDir, def.name, result.output)
 
-  return { outcome: "completed", outputFile: def.outputFile, retries }
+  return { outcome: "completed", outputFile: def.outputFile, retries, promptTokens }
 }
 
 function appendStageContext(taskDir: string, stageName: string, output?: string): void {

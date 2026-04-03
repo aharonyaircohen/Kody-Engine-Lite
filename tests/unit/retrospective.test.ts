@@ -10,7 +10,7 @@ import {
   appendRetrospectiveEntry,
   runRetrospective,
 } from "../../src/retrospective.js"
-import type { RetrospectiveEntry } from "../../src/retrospective.js"
+import type { RetrospectiveEntry, TokenStats } from "../../src/retrospective.js"
 import { setConfigDir, resetProjectConfig } from "../../src/config.js"
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -532,5 +532,155 @@ describe("runRetrospective", () => {
     expect(capturedEnv?.ANTHROPIC_BASE_URL).toBeDefined()
 
     resetProjectConfig()
+  })
+})
+
+describe("token stats", () => {
+  let taskDir: string
+  let projectDir: string
+
+  beforeEach(() => {
+    projectDir = makeTmpDir()
+    taskDir = path.join(projectDir, ".kody/tasks", "test-1")
+    fs.mkdirSync(taskDir, { recursive: true })
+  })
+
+  afterEach(() => {
+    fs.rmSync(projectDir, { recursive: true, force: true })
+  })
+
+  function makeCtxWithRunner(runner: AgentRunner): PipelineContext {
+    return {
+      taskId: "test-task-1",
+      taskDir,
+      projectDir,
+      runners: { claude: runner },
+      input: { mode: "full" },
+    }
+  }
+
+  function makeRetroRunner(): AgentRunner {
+    return {
+      async run(): Promise<AgentResult> {
+        return {
+          outcome: "completed",
+          output: JSON.stringify({
+            observation: "test",
+            patternMatch: null,
+            suggestion: "none",
+            pipelineFlaw: null,
+          }),
+        }
+      },
+      async healthCheck() { return true },
+    }
+  }
+
+  it("collectRunContext includes prompt tokens in stage results", () => {
+    const now = new Date().toISOString()
+    const state = makeState({
+      stages: {
+        ...makeState().stages,
+        build: { state: "completed", retries: 0, startedAt: now, completedAt: now, promptTokens: 1200 },
+      },
+    })
+    const ctx = makeCtx(taskDir, projectDir)
+    const result = collectRunContext(ctx, state, Date.now() - 5000)
+
+    expect(result).toContain("~1200 prompt tokens")
+  })
+
+  it("collectRunContext omits token info when promptTokens is absent", () => {
+    const state = makeState()
+    const ctx = makeCtx(taskDir, projectDir)
+    const result = collectRunContext(ctx, state, Date.now())
+
+    expect(result).not.toContain("prompt tokens")
+  })
+
+  it("runRetrospective includes tokenStats in entry when stages have promptTokens", async () => {
+    const now = new Date().toISOString()
+    const state = makeState({
+      stages: {
+        ...makeState().stages,
+        taskify: { state: "completed", retries: 0, startedAt: now, completedAt: now, promptTokens: 500 },
+        plan: { state: "completed", retries: 0, startedAt: now, completedAt: now, promptTokens: 800 },
+        build: { state: "completed", retries: 0, startedAt: now, completedAt: now, promptTokens: 2000 },
+      },
+    })
+
+    const ctx = makeCtxWithRunner(makeRetroRunner())
+    await runRetrospective(ctx, state, Date.now() - 5000)
+
+    const logPath = path.join(projectDir, ".kody", "memory", "observer-log.jsonl")
+    const entry = JSON.parse(fs.readFileSync(logPath, "utf-8").split("\n")[0])
+
+    expect(entry.tokenStats).toBeDefined()
+    const stats: TokenStats = entry.tokenStats
+    expect(stats.totalPromptTokens).toBe(500 + 800 + 2000)
+    expect(stats.perStage.taskify).toBe(500)
+    expect(stats.perStage.plan).toBe(800)
+    expect(stats.perStage.build).toBe(2000)
+    expect(stats.memoryTokens).toBe(0) // no memory files in temp dir
+  })
+
+  it("runRetrospective measures memory tokens from .kody/memory/*.md", async () => {
+    // Create a memory file
+    const memDir = path.join(projectDir, ".kody", "memory")
+    fs.mkdirSync(memDir, { recursive: true })
+    const memoryContent = "# Architecture\n" + "x".repeat(400) // ~100 tokens
+    fs.writeFileSync(path.join(memDir, "architecture.md"), memoryContent)
+
+    const now = new Date().toISOString()
+    const state = makeState({
+      stages: {
+        ...makeState().stages,
+        build: { state: "completed", retries: 0, startedAt: now, completedAt: now, promptTokens: 1500 },
+      },
+    })
+
+    const ctx = makeCtxWithRunner(makeRetroRunner())
+    await runRetrospective(ctx, state, Date.now() - 5000)
+
+    const logPath = path.join(projectDir, ".kody", "memory", "observer-log.jsonl")
+    const entry = JSON.parse(fs.readFileSync(logPath, "utf-8").split("\n")[0])
+
+    expect(entry.tokenStats).toBeDefined()
+    expect(entry.tokenStats.memoryTokens).toBeGreaterThan(0)
+    expect(entry.tokenStats.totalPromptTokens).toBe(1500)
+  })
+
+  it("runRetrospective omits tokenStats when no stage has promptTokens", async () => {
+    const state = makeState() // no promptTokens on any stage
+    const ctx = makeCtxWithRunner(makeRetroRunner())
+    await runRetrospective(ctx, state, Date.now() - 5000)
+
+    const logPath = path.join(projectDir, ".kody", "memory", "observer-log.jsonl")
+    const entry = JSON.parse(fs.readFileSync(logPath, "utf-8").split("\n")[0])
+
+    expect(entry.tokenStats).toBeUndefined()
+  })
+
+  it("tokenStats only includes stages that ran (have promptTokens)", async () => {
+    const now = new Date().toISOString()
+    const state = makeState({
+      stages: {
+        ...makeState().stages,
+        taskify: { state: "completed", retries: 0, startedAt: now, completedAt: now, promptTokens: 300 },
+        plan: { state: "completed", retries: 0, startedAt: now, completedAt: now },
+        build: { state: "completed", retries: 0, startedAt: now, completedAt: now, promptTokens: 1800 },
+      },
+    })
+
+    const ctx = makeCtxWithRunner(makeRetroRunner())
+    await runRetrospective(ctx, state, Date.now() - 5000)
+
+    const logPath = path.join(projectDir, ".kody", "memory", "observer-log.jsonl")
+    const entry = JSON.parse(fs.readFileSync(logPath, "utf-8").split("\n")[0])
+
+    expect(entry.tokenStats.perStage).toHaveProperty("taskify")
+    expect(entry.tokenStats.perStage).toHaveProperty("build")
+    expect(entry.tokenStats.perStage).not.toHaveProperty("plan")
+    expect(entry.tokenStats.totalPromptTokens).toBe(300 + 1800)
   })
 })

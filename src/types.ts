@@ -33,6 +33,7 @@ export interface StageState {
   retries: number
   error?: string
   outputFile?: string
+  promptTokens?: number
 }
 
 export interface PipelineStatus {
@@ -49,6 +50,7 @@ export interface StageResult {
   outputFile?: string
   error?: string
   retries: number
+  promptTokens?: number
 }
 
 export interface AgentResult {
