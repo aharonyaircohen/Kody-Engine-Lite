@@ -70,21 +70,34 @@ Comment on any GitHub issue:
 
 Kody picks up the issue and works through the pipeline autonomously:
 
-<p align="center">
-  <img src="assets/screenshots/kody-trigger.png" alt="GitHub issue showing @kody trigger, pipeline started comment, and complexity detection" width="700">
-</p>
+<div align="center">
+  <picture>
+    <img src="assets/screenshots/kody-trigger.png" alt="GitHub issue showing @kody trigger, pipeline started comment, and complexity detection" width="680" style="border: 2px solid #818cf8; border-radius: 10px;">
+  </picture>
+  <br><sub>▲ Comment <code>@kody</code> on an issue — pipeline starts automatically</sub>
+</div>
+
+<br>
 
 You'll see labels updating in real-time, progress comments at each stage, and a pipeline summary when done:
 
-<p align="center">
-  <img src="assets/screenshots/kody-summary.png" alt="Pipeline summary table showing all stages completed with duration and retries" width="700">
-</p>
+<div align="center">
+  <picture>
+    <img src="assets/screenshots/kody-summary.png" alt="Pipeline summary table showing all stages completed with duration and retries" width="680" style="border: 2px solid #4ade80; border-radius: 10px;">
+  </picture>
+  <br><sub>▲ Pipeline summary — all stages completed with duration and retries</sub>
+</div>
+
+<br>
 
 The result is a PR with a rich description, passing quality checks, and `Closes #N`:
 
-<p align="center">
-  <img src="assets/screenshots/kody-pr.png" alt="Pull request created by Kody with description, scope, verify status, and Closes link" width="700">
-</p>
+<div align="center">
+  <picture>
+    <img src="assets/screenshots/kody-pr.png" alt="Pull request created by Kody with description, scope, verify status, and Closes link" width="680" style="border: 2px solid #fbbf24; border-radius: 10px;">
+  </picture>
+  <br><sub>▲ PR created by Kody — description, scope, verify status, Closes #N</sub>
+</div>
 
 If the task is HIGH-risk, Kody pauses after planning and asks for approval before writing code.
 
