@@ -118,18 +118,10 @@ export async function executeAgentStage(
   const ds = config.devServer
   if (ds && devServerStages.includes(def.name) && taskHasUI(ctx.taskDir)) {
     logger.info(`  Starting dev server: ${ds.command}`)
-    // Forward all process env vars to dev server (workflow already exports secrets).
-    // If devServer.env is configured, only forward those specific vars instead.
+    // Forward all process env vars to dev server (workflow exports all secrets dynamically).
     const envVars: Record<string, string> = {}
-    if (ds.env && ds.env.length > 0) {
-      for (const varName of ds.env) {
-        if (process.env[varName]) envVars[varName] = process.env[varName]!
-      }
-    } else {
-      // No explicit list — forward all env vars so secrets from the workflow are available
-      for (const [k, v] of Object.entries(process.env)) {
-        if (v !== undefined) envVars[k] = v
-      }
+    for (const [k, v] of Object.entries(process.env)) {
+      if (v !== undefined) envVars[k] = v
     }
     devServerHandle = await startDevServer({
       command: ds.command,

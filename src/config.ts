@@ -30,8 +30,6 @@ export interface DevServerConfig {
   readyPattern?: string
   /** Seconds to wait for the server to be ready before giving up. Default: 30 */
   readyTimeout?: number
-  /** GitHub secret names to forward as env vars for the dev server (e.g., ["BLOB_READ_WRITE_TOKEN"]) */
-  env?: string[]
 }
 
 export interface McpConfig {
