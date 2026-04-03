@@ -1,0 +1,155 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 580 370" font-family="'Segoe UI', system-ui, -apple-system, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-auto">
+      <path d="M0 0L10 3.5 0 7z" fill="#64748b"/>
+    </marker>
+    <marker id="a-l" viewBox="0 0 10 7" refX="0" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-auto">
+      <path d="M10 0L0 3.5 10 7z" fill="#64748b"/>
+    </marker>
+    <marker id="a-red" viewBox="0 0 10 7" refX="9" refY="3.5" markerWidth="9" markerHeight="7" orient="auto-start-auto">
+      <path d="M0 0.5L8 3.5 0 6.5z" fill="#f87171"/>
+    </marker>
+    <marker id="a-red-l" viewBox="0 0 10 7" refX="1" refY="3.5" markerWidth="9" markerHeight="7" orient="auto-start-auto">
+      <path d="M10 0.5L2 3.5 10 6.5z" fill="#f87171"/>
+    </marker>
+    <marker id="a-red-up" viewBox="0 0 7 10" refX="3.5" refY="0" markerWidth="7" markerHeight="9" orient="0">
+      <path d="M0 10L3.5 1 7 10z" fill="#f87171"/>
+    </marker>
+    <marker id="a-green" viewBox="0 0 10 7" refX="0" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-auto">
+      <path d="M10 0L0 3.5 10 7z" fill="#4ade80"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="580" height="370" rx="12" fill="#0f172a"/>
+
+  <!-- Title -->
+  <text x="290" y="28" text-anchor="middle" fill="#e2e8f0" font-size="13" font-weight="600">@kody on issue  →  tested, reviewed PR</text>
+
+  <!-- ═══════════ ROW 1 (left → right): Stages 1–4 ═══════════ -->
+
+  <!-- Session labels -->
+  <line x1="24" y1="50" x2="240" y2="50" stroke="#818cf8" stroke-width="2" opacity="0.5"/>
+  <text x="132" y="46" text-anchor="middle" fill="#818cf8" font-size="7.5" letter-spacing="0.5" opacity="0.7">EXPLORE SESSION</text>
+  <line x1="260" y1="50" x2="556" y2="50" stroke="#38bdf8" stroke-width="2" opacity="0.5"/>
+  <text x="408" y="46" text-anchor="middle" fill="#7dd3fc" font-size="7.5" letter-spacing="0.5" opacity="0.7">BUILD SESSION</text>
+
+  <!-- 1 TASKIFY -->
+  <rect x="24" y="58" width="106" height="56" rx="8" fill="#312e81"/>
+  <text x="77" y="74" text-anchor="middle" fill="#c7d2fe" font-size="9" opacity="0.5" font-weight="700">1</text>
+  <text x="77" y="88" text-anchor="middle" fill="#e0e7ff" font-size="11" font-weight="600">TASKIFY</text>
+  <text x="77" y="102" text-anchor="middle" fill="#818cf8" font-size="8">classify + scope</text>
+
+  <line x1="130" y1="86" x2="148" y2="86" stroke="#64748b" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <!-- 2 PLAN -->
+  <rect x="152" y="58" width="88" height="56" rx="8" fill="#3b0764"/>
+  <text x="196" y="74" text-anchor="middle" fill="#e9d5ff" font-size="9" opacity="0.5" font-weight="700">2</text>
+  <text x="196" y="88" text-anchor="middle" fill="#f3e8ff" font-size="11" font-weight="600">PLAN</text>
+  <text x="196" y="102" text-anchor="middle" fill="#a78bfa" font-size="8">TDD + reasoning</text>
+
+  <line x1="240" y1="86" x2="258" y2="86" stroke="#64748b" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <!-- 3 BUILD -->
+  <rect x="262" y="58" width="118" height="56" rx="8" fill="#0c4a6e"/>
+  <text x="321" y="74" text-anchor="middle" fill="#bae6fd" font-size="9" opacity="0.5" font-weight="700">3</text>
+  <text x="321" y="88" text-anchor="middle" fill="#e0f2fe" font-size="11" font-weight="600">BUILD</text>
+  <text x="321" y="102" text-anchor="middle" fill="#38bdf8" font-size="8">Claude Code tools</text>
+
+  <line x1="380" y1="86" x2="398" y2="86" stroke="#64748b" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <!-- 4 VERIFY -->
+  <rect x="402" y="58" width="154" height="56" rx="8" fill="#065f46"/>
+  <text x="479" y="74" text-anchor="middle" fill="#bbf7d0" font-size="9" opacity="0.5" font-weight="700">4</text>
+  <text x="479" y="88" text-anchor="middle" fill="#dcfce7" font-size="11" font-weight="600">VERIFY</text>
+  <text x="479" y="102" text-anchor="middle" fill="#4ade80" font-size="8">typecheck + tests + lint</text>
+
+  <!-- Gates (small pills below row 1) -->
+  <rect x="44" y="122" width="60" height="13" rx="7" fill="#4338ca" opacity="0.8"/>
+  <text x="74" y="131" text-anchor="middle" fill="#c7d2fe" font-size="7" font-weight="600">? QUESTIONS</text>
+
+  <rect x="162" y="122" width="68" height="13" rx="7" fill="#7c3aed" opacity="0.8"/>
+  <text x="196" y="131" text-anchor="middle" fill="#ddd6fe" font-size="7" font-weight="600">HIGH RISK</text>
+
+  <!-- Verify autofix loop -->
+  <path d="M 420 114 L 420 142 Q 420 150 412 150 L 330 150 Q 321 150 321 142 L 321 116" fill="none" stroke="#f87171" stroke-width="1.5" stroke-linecap="round" marker-end="url(#a-red-up)"/>
+  <text x="370" y="162" text-anchor="middle" fill="#f87171" font-size="8" font-weight="500">AI diagnose → autofix → retry</text>
+
+  <!-- ═══════════ CONNECTOR: Row 1 → Row 2 (right side) ═══════════ -->
+  <path d="M 556 86 L 564 86 Q 570 86 570 92 L 570 200 Q 570 206 564 206 L 556 206" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#a-l)"/>
+
+  <!-- ═══════════ ROW 2 (right → left): Stages 5–7 ═══════════ -->
+
+  <!-- Session labels row 2 -->
+  <line x1="340" y1="172" x2="556" y2="172" stroke="#fbbf24" stroke-width="2" opacity="0.5"/>
+  <text x="448" y="168" text-anchor="middle" fill="#fcd34d" font-size="7.5" letter-spacing="0.5" opacity="0.7">FRESH SESSION (no build bias)</text>
+  <line x1="130" y1="172" x2="320" y2="172" stroke="#38bdf8" stroke-width="2" opacity="0.5"/>
+  <text x="225" y="168" text-anchor="middle" fill="#7dd3fc" font-size="7.5" letter-spacing="0.5" opacity="0.7">BUILD SESSION (resume)</text>
+
+  <!-- 5 REVIEW (right side) -->
+  <rect x="450" y="180" width="106" height="56" rx="8" fill="#713f12"/>
+  <text x="503" y="196" text-anchor="middle" fill="#fef3c7" font-size="9" opacity="0.5" font-weight="700">5</text>
+  <text x="503" y="210" text-anchor="middle" fill="#fefce8" font-size="11" font-weight="600">REVIEW</text>
+  <text x="503" y="224" text-anchor="middle" fill="#fbbf24" font-size="8">PASS / FAIL</text>
+
+  <line x1="446" y1="208" x2="428" y2="208" stroke="#64748b" stroke-width="1.5" marker-end="url(#a-l)"/>
+
+  <!-- 6 REVIEW-FIX (middle) -->
+  <rect x="310" y="180" width="114" height="56" rx="8" fill="#7c2d12"/>
+  <text x="367" y="196" text-anchor="middle" fill="#fecaca" font-size="9" opacity="0.5" font-weight="700">6</text>
+  <text x="367" y="210" text-anchor="middle" fill="#fee2e2" font-size="11" font-weight="600">REVIEW-FIX</text>
+  <text x="367" y="224" text-anchor="middle" fill="#fca5a5" font-size="8">fix critical + major</text>
+
+  <line x1="306" y1="208" x2="288" y2="208" stroke="#64748b" stroke-width="1.5" marker-end="url(#a-l)"/>
+
+  <!-- 7 SHIP (left side) -->
+  <rect x="130" y="180" width="154" height="56" rx="8" fill="#14532d"/>
+  <text x="207" y="196" text-anchor="middle" fill="#bbf7d0" font-size="9" opacity="0.5" font-weight="700">7</text>
+  <text x="207" y="210" text-anchor="middle" fill="#dcfce7" font-size="11" font-weight="600">SHIP</text>
+  <text x="207" y="224" text-anchor="middle" fill="#4ade80" font-size="8">push branch, create PR, Closes #N</text>
+
+  <!-- Ship → checkmark -->
+  <line x1="126" y1="208" x2="80" y2="208" stroke="#4ade80" stroke-width="2" marker-end="url(#a-green)"/>
+  <text x="50" y="214" fill="#4ade80" font-size="18" font-weight="700">✓</text>
+  <text x="36" y="214" fill="#4ade80" font-size="12" font-weight="600">PR</text>
+
+  <!-- Review-fix → Review loop (curves up) -->
+  <path d="M 424 236 L 424 258 Q 424 266 432 266 L 495 266 Q 503 266 503 258 L 503 238" fill="none" stroke="#f87171" stroke-width="1.5" stroke-linecap="round" marker-end="url(#a-red-up)"/>
+  <text x="464" y="278" text-anchor="middle" fill="#fbbf24" font-size="8" font-weight="500">fix → re-review (max 2)</text>
+
+  <!-- ═══════════ BOTTOM PANEL ═══════════ -->
+  <rect x="24" y="290" width="532" height="68" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+
+  <!-- Complexity row -->
+  <text x="38" y="310" fill="#94a3b8" font-size="8.5" font-weight="600" letter-spacing="0.5">COMPLEXITY</text>
+
+  <rect x="120" y="298" width="126" height="18" rx="6" fill="#14532d" opacity="0.4" stroke="#22c55e" stroke-width="0.5"/>
+  <text x="130" y="310" fill="#4ade80" font-size="8" font-weight="600">LOW</text>
+  <text x="152" y="310" fill="#86efac" font-size="8">1 → 3 → 4 → 7</text>
+
+  <rect x="254" y="298" width="112" height="18" rx="6" fill="#713f12" opacity="0.4" stroke="#fbbf24" stroke-width="0.5"/>
+  <text x="264" y="310" fill="#fbbf24" font-size="8" font-weight="600">MED</text>
+  <text x="290" y="310" fill="#fde68a" font-size="8">+ plan + review</text>
+
+  <rect x="374" y="298" width="168" height="18" rx="6" fill="#7f1d1d" opacity="0.4" stroke="#ef4444" stroke-width="0.5"/>
+  <text x="384" y="310" fill="#f87171" font-size="8" font-weight="600">HIGH</text>
+  <text x="414" y="310" fill="#fca5a5" font-size="8">all 7 stages + risk gate</text>
+
+  <!-- Features row -->
+  <text x="38" y="344" fill="#94a3b8" font-size="8.5" font-weight="600" letter-spacing="0.5">FEATURES</text>
+
+  <rect x="120" y="332" width="84" height="18" rx="9" fill="#312e81" opacity="0.5"/>
+  <text x="162" y="344" text-anchor="middle" fill="#a5b4fc" font-size="8">Shared Sessions</text>
+
+  <rect x="210" y="332" width="98" height="18" rx="9" fill="#312e81" opacity="0.5"/>
+  <text x="259" y="344" text-anchor="middle" fill="#a5b4fc" font-size="8">Repo-Aware Prompts</text>
+
+  <rect x="314" y="332" width="76" height="18" rx="9" fill="#312e81" opacity="0.5"/>
+  <text x="352" y="344" text-anchor="middle" fill="#a5b4fc" font-size="8">AI Diagnosis</text>
+
+  <rect x="396" y="332" width="76" height="18" rx="9" fill="#312e81" opacity="0.5"/>
+  <text x="434" y="344" text-anchor="middle" fill="#a5b4fc" font-size="8">Auto-Learning</text>
+
+  <rect x="478" y="332" width="72" height="18" rx="9" fill="#312e81" opacity="0.5"/>
+  <text x="514" y="344" text-anchor="middle" fill="#a5b4fc" font-size="8">Quality Gates</text>
+</svg>

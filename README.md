@@ -16,30 +16,9 @@ Kody wraps Claude Code with a 7-stage autonomous pipeline — classify, plan, bu
 
 [Why Kody? →](docs/ABOUT.md) · [Full comparison →](docs/COMPARISON.md)
 
-```
-@kody on issue
-    │
-    ▼
-① TASKIFY ─── classify, scope, detect complexity, ask questions
-    │
-    ▼
-② PLAN ────── TDD implementation plan (deep reasoning)
-    │          🛑 HIGH risk? Pause for human approval
-    ▼
-③ BUILD ───── implement via Claude Code tools
-    │
-    ▼
-④ VERIFY ──── run your quality commands (typecheck, tests, lint)
-    │          ✗ fail → AI diagnosis → autofix → retry
-    ▼
-⑤ REVIEW ──── AI code review (fresh session, no build bias)
-    │
-    ▼
-⑥ REVIEW-FIX ─ fix Critical and Major findings
-    │
-    ▼
-⑦ SHIP ────── push branch, create PR with Closes #N
-```
+<p align="center">
+  <img src="assets/pipeline.svg" alt="Kody 7-stage pipeline: Taskify → Plan → Build → Verify → Review → Review-Fix → Ship" width="600">
+</p>
 
 ## Quick Start
 
@@ -110,6 +89,37 @@ ANTHROPIC_COMPATIBLE_API_KEY=your-key-here
 
 Kody auto-starts the LiteLLM proxy. [Full LiteLLM guide →](docs/LITELLM.md)
 
+## Which command should I use?
+
+```mermaid
+flowchart TD
+    Start(("What do you\nneed to do?")):::start
+
+    Start --> NewIssue{"New issue\n→ PR?"}
+    Start --> ExistingPR{"Existing\nPR?"}
+    Start --> Setup{"Setup /\nOnboarding?"}
+
+    NewIssue -->|Yes| Kody["**@kody**\nFull pipeline: taskify → plan →\nbuild → verify → review → ship"]:::cmd
+
+    ExistingPR --> PRWhat{"What's wrong?"}
+
+    PRWhat -->|"Need a code review"| Review["**@kody review**\nStandalone PR review with\nstructured findings + verdict"]:::cmd
+    PRWhat -->|"Human gave feedback"| Fix["**@kody fix**\nRe-run from build with\nPR feedback as context"]:::cmd
+    PRWhat -->|"CI is failing"| FixCI["**@kody fix-ci**\nFetch CI logs, diagnose,\nand push a fix"]:::cmd
+    PRWhat -->|"Merge conflicts"| Resolve["**@kody resolve**\nMerge default branch,\nAI-resolve conflicts, verify"]:::cmd
+    PRWhat -->|"Previous run failed\nor was paused"| Rerun["**@kody rerun**\nResume from failed/paused stage\n*--from stage* to pick stage"]:::cmd
+
+    Setup -->|"First time"| Init["**kody-engine-lite init**\nGenerate workflow + config"]:::setup
+    Init --> Bootstrap
+    Setup -->|"After major refactor"| Bootstrap["**@kody bootstrap**\nRegenerate memory +\nstep files + labels"]:::setup
+
+    Kody -.->|"Paused with\nquestions or\nrisk gate?"| Approve["**@kody approve**\nResume after pause"]:::cmd
+
+    classDef start fill:#1a1a2e,stroke:#e94560,color:#fff,stroke-width:2px
+    classDef cmd fill:#0f3460,stroke:#53d8fb,color:#fff,stroke-width:1px
+    classDef setup fill:#1a1a2e,stroke:#e9b44c,color:#fff,stroke-width:1px
+```
+
 ## Commands
 
 | Command | What it does |
@@ -155,6 +165,108 @@ kody-engine-lite watch [--dry-run]       # Run health monitoring locally
 - **Kody Watch** — periodic health monitoring: pipeline health, security scanning, config validation every 30 min ([setup guide](docs/WATCH.md))
 - **Anthropic-Compatible Models** — route through LiteLLM to use other providers like MiniMax, Gemini, etc. ([setup guide](docs/LITELLM.md) · [model test results](docs/model-compatibility.md))
 
+## Architecture
+
+<details>
+<summary>System overview (click to expand)</summary>
+
+```mermaid
+flowchart TB
+    subgraph trigger ["Trigger"]
+        direction LR
+        Comment["@kody comment\non GitHub issue"]
+        Dispatch["workflow_dispatch\n(manual)"]
+        CLI["kody-engine-lite run\n(local CLI)"]
+    end
+
+    subgraph ci ["GitHub Actions"]
+        direction LR
+        Parse["**parse**\nValidate author\nExtract mode + task ID"]
+        Orchestrate["**orchestrate**\nCheckout, install deps,\nstart LiteLLM proxy"]
+        Parse --> Orchestrate
+    end
+
+    Entry["**entry.ts**\nPreflight checks → fetch issue →\ncreate runners → build context"]
+
+    subgraph pipeline ["Pipeline  (pipeline.ts)"]
+        direction TB
+
+        subgraph explore ["Session: explore"]
+            direction LR
+            Taskify["**1 Taskify**\nClassify, scope,\ndetect complexity\n*→ task.json*"]
+            Plan["**2 Plan**\nTDD plan with\ndeep reasoning\n*→ plan.md*"]
+            Taskify --> Plan
+        end
+
+        subgraph build_session ["Session: build"]
+            direction LR
+            Build["**3 Build**\nImplement via\nClaude Code tools"]
+            Autofix["**Autofix**\nAI-diagnosed\nerror fixes"]
+            ReviewFix["**6 Review-Fix**\nFix Critical +\nMajor findings"]
+        end
+
+        subgraph verify_loop ["Quality Gate"]
+            Verify["**4 Verify**\ntypecheck + tests + lint"]
+            Diagnose{"Fail?"}
+            Verify --> Diagnose
+            Diagnose -->|"fixable"| Autofix
+            Autofix --> Verify
+            Diagnose -->|"infra/pre-existing"| Skip["Skip\n(mark passed)"]
+            Diagnose -->|"abort"| Abort["Stop pipeline"]
+        end
+
+        subgraph review_session ["Session: review  (fresh — no build bias)"]
+            Review["**5 Review**\nPASS/FAIL verdict\n+ findings\n*→ review.md*"]
+        end
+
+        Ship["**7 Ship**\nPush branch → create PR\n→ comment on issue"]
+
+        explore --> build_session
+        Build --> verify_loop
+        Skip --> review_session
+        Diagnose -->|"pass"| review_session
+        review_session -->|"FAIL"| ReviewFix
+        ReviewFix -->|"retry review\n(max 2)"| review_session
+        review_session -->|"PASS"| Ship
+    end
+
+    subgraph support ["Support Systems"]
+        direction LR
+        Memory["**.kody/memory/**\narchitecture.md\nconventions.md\nobserver-log.jsonl"]
+        Steps["**.kody/steps/**\nRepo-customized\nprompts per stage"]
+        State["**status.json**\nStage states +\nsession IDs"]
+    end
+
+    subgraph outputs ["Outputs"]
+        direction LR
+        PR["Pull Request\nwith Closes #N"]
+        Labels["GitHub Labels\nkody:planning → kody:done"]
+        Artifacts["Task Artifacts\n.kody/tasks/id/"]
+        Learn["Auto-Learn\n+ Retrospective"]
+    end
+
+    QuestionGate{"Questions?\nPause for\nhuman input"}
+    RiskGate{"HIGH risk?\nPause for\napproval"}
+
+    Comment --> ci
+    Dispatch --> Orchestrate
+    CLI --> Entry
+    Orchestrate --> Entry
+    Entry --> pipeline
+
+    Taskify -.-> QuestionGate
+    Plan -.-> RiskGate
+    QuestionGate -.->|"@kody approve"| Plan
+    RiskGate -.->|"@kody approve"| Build
+
+    pipeline <-..-> support
+    Ship --> outputs
+```
+
+</details>
+
+[Full architecture docs →](docs/ARCHITECTURE.md)
+
 ## Documentation
 
 **Understand Kody:** [About](docs/ABOUT.md) · [Architecture](docs/ARCHITECTURE.md) · [Tech Stack](docs/TECH-STACK.md) · [Features](docs/FEATURES.md) · [Pipeline](docs/PIPELINE.md) · [Comparison](docs/COMPARISON.md)
@@ -162,6 +274,16 @@ kody-engine-lite watch [--dry-run]       # Run health monitoring locally
 **Set up & use:** [CLI](docs/CLI.md) · [Configuration](docs/CONFIGURATION.md) · [Bootstrap](docs/BOOTSTRAP.md) · [Tools](docs/TOOLS.md) · [Watch](docs/WATCH.md) · [LiteLLM](docs/LITELLM.md)
 
 **Reference:** [FAQ](docs/FAQ.md) · [Model Compatibility](docs/model-compatibility.md)
+
+## Generating Demo GIFs
+
+Demo GIFs can be generated using [VHS](https://github.com/charmbracelet/vhs). Tape files are in `assets/tapes/`:
+
+```bash
+brew install vhs            # install VHS
+vhs assets/tapes/init.tape  # → assets/demo-init.gif
+vhs assets/tapes/run-local.tape  # → assets/demo-run.gif (runs a real pipeline)
+```
 
 ## License
 
