@@ -49,8 +49,8 @@ async function waitForReady(
   while (Date.now() < deadline) {
     if (stdoutMatch()) {
       logger.info("  Dev server stdout matched ready pattern")
-      // Phase 2: short HTTP confirmation (up to 15s or remaining time)
-      const httpTimeout = Math.min(15, Math.max(1, Math.floor((deadline - Date.now()) / 1000)))
+      // Phase 2: HTTP confirmation using remaining time (large Next.js apps need 60s+ for first compile)
+      const httpTimeout = Math.max(1, Math.floor((deadline - Date.now()) / 1000))
       return pollReady(url, httpTimeout)
     }
     await new Promise((r) => setTimeout(r, 500))
