@@ -151,7 +151,7 @@ function getDevServerInfo(taskDir: string): { command: string; url: string; read
     command: ds.command,
     url: ds.url,
     readyPattern: ds.readyPattern ?? "Ready in|compiled|started server|Local:",
-    readyTimeout: ds.readyTimeout ?? 30,
+    readyTimeout: ds.readyTimeout ?? 180,
   }
 }
 

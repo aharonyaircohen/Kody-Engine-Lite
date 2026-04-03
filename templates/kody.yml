@@ -181,6 +181,11 @@ jobs:
             echo "${DELIM}" >> $GITHUB_ENV
           done
 
+      - name: Warm up Next.js build cache
+        continue-on-error: true
+        run: npx next build 2>/dev/null || true
+        timeout-minutes: 15
+
       - name: Run Kody pipeline
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}

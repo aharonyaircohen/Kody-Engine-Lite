@@ -65,7 +65,7 @@ async function waitForReady(
  * The process is fully detached so it won't block the engine.
  */
 export async function startDevServer(opts: DevServerOptions): Promise<DevServerHandle> {
-  const timeout = opts.readyTimeout ?? 60
+  const timeout = opts.readyTimeout ?? 180
   const patternStr = opts.readyPattern ?? DEFAULT_READY_PATTERN
   const pattern = new RegExp(patternStr, "i")
   const useStdoutDetection = Boolean(opts.readyPattern)

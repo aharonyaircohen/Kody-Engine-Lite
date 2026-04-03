@@ -262,7 +262,7 @@
             },
             "readyTimeout": {
               "type": "number",
-              "description": "Seconds to wait for the server to be ready. Default: 30"
+              "description": "Seconds to wait for the server to be ready. Default: 180"
             },
             "env": {
               "type": "array",
@@ -294,7 +294,7 @@
         },
         "readyTimeout": {
           "type": "number",
-          "description": "Seconds to wait for the server to be ready. Default: 30"
+          "description": "Seconds to wait for the server to be ready. Default: 180"
         },
         "env": {
           "type": "array",

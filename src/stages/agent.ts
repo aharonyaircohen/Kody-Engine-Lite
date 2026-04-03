@@ -134,7 +134,7 @@ export async function executeAgentStage(
     devServerHandle = await startDevServer({
       command: ds.command,
       url: ds.url,
-      readyTimeout: ds.readyTimeout ?? 60,
+      readyTimeout: ds.readyTimeout ?? 180,
       readyPattern: ds.readyPattern ?? "Ready in|compiled|started server|Local:|localhost:",
       envVars,
     })
