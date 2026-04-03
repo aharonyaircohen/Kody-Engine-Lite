@@ -226,8 +226,9 @@ export async function tryStartLitellm(
     env: {
       ...process.env,
       ...dotenvVars,
-      // Disable LiteLLM's Prisma DB for virtual keys/spend tracking — not needed for proxy-only mode
-      STORE_MODEL_IN_DB: "false",
+      // Remove DATABASE_URL so LiteLLM doesn't try to set up Prisma DB
+      // (DATABASE_URL may be set for the project's dev server, not for LiteLLM)
+      DATABASE_URL: "",
     } as Record<string, string>,
   })
 
