@@ -489,6 +489,49 @@
 
     .commands-table td:last-child { color: var(--text-muted); }
 
+    /* ═══ DEMO TERMINAL ═══ */
+    .demo-terminal {
+      background: #0D1117;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      max-width: 620px;
+      margin: 4rem auto 0;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.5), 0 0 40px rgba(124,58,237,0.1);
+    }
+
+    .demo-bar {
+      background: #161B22;
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .demo-body {
+      padding: 1.5rem 1.75rem;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      line-height: 2;
+      min-height: 280px;
+    }
+
+    .demo-line {
+      white-space: nowrap;
+      overflow: hidden;
+    }
+
+    .demo-stage-name {
+      display: inline-block;
+      width: 80px;
+      margin-left: 10px;
+    }
+
+    @media (max-width: 768px) {
+      .demo-body { padding: 1.25rem 1rem; font-size: 0.78rem; min-height: 260px; }
+      .demo-stage-name { width: 70px; }
+    }
+
     /* ═══ CTA SECTION ═══ */
     .cta-section {
       text-align: center;
@@ -602,8 +645,14 @@
       <a href="https://www.npmjs.com/package/@kody-ade/kody-engine-lite" class="btn btn-secondary">npm install</a>
     </div>
 
-    <div class="pipeline-wrap reveal">
-      <img src="https://raw.githubusercontent.com/aharonyaircohen/Kody-Engine-Lite/main/assets/pipeline.svg" alt="Kody 7-stage pipeline: Taskify, Plan, Build, Verify, Review, Review-Fix, Ship" loading="lazy">
+    <div class="demo-terminal reveal" id="demo-terminal">
+      <div class="demo-bar">
+        <div class="terminal-dot" style="background: #FF5F57;"></div>
+        <div class="terminal-dot" style="background: #FFBD2E;"></div>
+        <div class="terminal-dot" style="background: #28C840;"></div>
+        <span style="color: var(--text-muted); font-size: 0.75rem; margin-left: 0.5rem; font-family: var(--font-mono);">kody pipeline</span>
+      </div>
+      <div class="demo-body" id="demo-body"></div>
     </div>
   </section>
 
@@ -915,7 +964,7 @@
 
   <!-- SCROLL REVEAL -->
   <script>
-    const observer = new IntersectionObserver((entries) => {
+    const revealObserver = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           entry.target.classList.add('visible');
@@ -923,7 +972,121 @@
       });
     }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
 
-    document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
+    document.querySelectorAll('.reveal').forEach((el) => revealObserver.observe(el));
+  </script>
+
+  <!-- DEMO ANIMATION -->
+  <script>
+    (function () {
+      const body = document.getElementById('demo-body');
+      if (!body) return;
+
+      const STAGES = [
+        { name: 'Taskify', desc: 'complexity: LOW', wait: 1100 },
+        { name: 'Plan', desc: 'implementation plan ready', wait: 1400 },
+        { name: 'Build', desc: '4 files changed, 127 additions', wait: 2200 },
+        { name: 'Verify', desc: 'typecheck \u2713  tests \u2713  lint \u2713', wait: 1800 },
+        { name: 'Review', desc: '0 findings', wait: 1200 },
+        { name: 'Ship', desc: 'PR #142 created', wait: 1200 },
+      ];
+
+      const SPIN = ['\u280B', '\u2819', '\u2839', '\u2838', '\u283C', '\u2834', '\u2826', '\u2827', '\u2807', '\u280F'];
+
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+      function el(tag, styles, text) {
+        var node = document.createElement(tag);
+        if (styles) Object.assign(node.style, styles);
+        if (text) node.textContent = text;
+        return node;
+      }
+
+      async function typeText(node, text, speed) {
+        for (var i = 0; i < text.length; i++) {
+          node.textContent += text[i];
+          await sleep(speed || 35);
+        }
+      }
+
+      async function runDemo() {
+        body.innerHTML = '';
+        body.style.opacity = '1';
+        body.style.transition = 'none';
+
+        // Issue trigger line
+        var trigger = el('div');
+        var triggerLabel = el('span', { color: '#6B7280' }, 'issue \u2192 ');
+        var triggerCmd = el('span', { color: 'var(--text)' });
+        trigger.appendChild(triggerLabel);
+        trigger.appendChild(triggerCmd);
+        body.appendChild(trigger);
+
+        await typeText(triggerCmd, '@kody implement user authentication', 30);
+        await sleep(700);
+
+        body.appendChild(el('br'));
+
+        // Run stages
+        for (var i = 0; i < STAGES.length; i++) {
+          var stage = STAGES[i];
+
+          var line = el('div', {}, '');
+          var spinner = el('span', { color: 'var(--amber)' }, SPIN[0]);
+          var name = el('span', {
+            color: 'var(--cyan-light)',
+            display: 'inline-block',
+            width: '80px',
+            marginLeft: '10px'
+          }, stage.name);
+          var desc = el('span', { color: 'var(--text-muted)' }, '');
+
+          line.appendChild(spinner);
+          line.appendChild(name);
+          line.appendChild(desc);
+          body.appendChild(line);
+
+          // Spin
+          var spinIdx = 0;
+          var spinTimer = setInterval(function (sp) {
+            spinIdx = (spinIdx + 1) % SPIN.length;
+            sp.textContent = SPIN[spinIdx];
+          }, 80, spinner);
+
+          await sleep(stage.wait);
+
+          clearInterval(spinTimer);
+          spinner.textContent = '\u2713';
+          spinner.style.color = 'var(--green)';
+          desc.textContent = stage.desc;
+        }
+
+        await sleep(600);
+
+        // Result
+        var result = el('div', { marginTop: '8px' });
+        result.innerHTML = '<span style="color: var(--green); font-weight: 600;">\u2713 Pipeline complete</span> <span style="color: var(--text-muted);">\u2014 ready to merge</span>';
+        body.appendChild(result);
+
+        await sleep(4000);
+
+        // Fade and restart
+        body.style.transition = 'opacity 0.6s';
+        body.style.opacity = '0';
+        await sleep(700);
+
+        runDemo();
+      }
+
+      // Start when terminal scrolls into view
+      var demoObs = new IntersectionObserver(function (entries) {
+        if (entries[0].isIntersecting) {
+          demoObs.disconnect();
+          runDemo();
+        }
+      }, { threshold: 0.3 });
+
+      demoObs.observe(document.getElementById('demo-terminal'));
+    })();
   </script>
 </body>
 </html>
