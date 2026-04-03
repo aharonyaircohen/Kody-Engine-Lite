@@ -4,7 +4,7 @@ import { createRunners } from "./agent-runner.js"
 import { runPipeline, printStatus } from "./pipeline.js"
 import { runPreflight } from "./preflight.js"
 import { setConfigDir, getProjectConfig } from "./config.js"
-import { setGhCwd, getIssue, postComment, getPRDetails, getPRsForIssue, postPRComment, submitPRReview, getLatestKodyReviewComment, getCIFailureLogs, getLatestFailedRunForBranch, getPRFeedbackSinceLastKodyAction } from "./github-api.js"
+import { setGhCwd, getIssue, postComment, getPRDetails, getPRsForIssue, postPRComment, submitPRReview, getLatestKodyReviewComment, getCIFailureLogs, getLatestFailedRunForBranch, getPRFeedbackSinceLastKodyAction, setLifecycleLabel } from "./github-api.js"
 import { logger } from "./logger.js"
 import type { PipelineContext } from "./types.js"
 import { runStandaloneReview, resolveReviewTarget, formatReviewComment, detectReviewVerdict } from "./review-standalone.js"
@@ -18,6 +18,19 @@ import { isTaskifyRun, taskifyCommand, readTaskifyMarker } from "./cli/taskify-c
 import { needsLitellmProxy, anyStageNeedsProxy, getLitellmUrl, providerApiKeyEnvVar } from "./config.js"
 import type { KodyConfig } from "./config.js"
 import { loadToolDeclarations, detectTools } from "./tools.js"
+
+// Handle SIGTERM (sent by GitHub Actions on job cancel/timeout)
+// Post a failure comment and update labels before dying
+process.on("SIGTERM", () => {
+  const issueStr = process.argv.find((_, i, a) => a[i - 1] === "--issue-number") ?? process.env.ISSUE_NUMBER
+  const isLocal = process.argv.includes("--local") || !process.env.GITHUB_ACTIONS
+  if (issueStr && !isLocal) {
+    const issueNumber = parseInt(issueStr, 10)
+    try { postComment(issueNumber, "❌ Pipeline killed (job timeout or cancellation)") } catch { /* best effort */ }
+    try { setLifecycleLabel(issueNumber, "failed") } catch { /* best effort */ }
+  }
+  process.exit(143)
+})
 
 async function ensureLitellmProxy(
   config: KodyConfig,
