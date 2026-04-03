@@ -223,13 +223,13 @@ export async function tryStartLitellm(
   const child = spawn(cmd, args, {
     stdio: ["ignore", "pipe", "pipe"],
     detached: true,
-    env: {
-      ...process.env,
-      ...dotenvVars,
-      // Remove DATABASE_URL so LiteLLM doesn't try to set up Prisma DB
-      // (DATABASE_URL may be set for the project's dev server, not for LiteLLM)
-      DATABASE_URL: "",
-    } as Record<string, string>,
+    env: (() => {
+      // Build env without DATABASE_URL — it may be set for the project's dev server
+      // but causes LiteLLM to try initializing Prisma DB which is not needed for proxy mode
+      const env = { ...process.env, ...dotenvVars } as Record<string, string>
+      delete env.DATABASE_URL
+      return env
+    })(),
   })
 
   // Capture stderr for debugging
