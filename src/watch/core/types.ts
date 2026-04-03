@@ -94,6 +94,36 @@ export interface IssueInfo {
 }
 
 // ============================================================================
+// Watch Agents — LLM-powered autonomous agents loaded from .kody/watch/agents/
+// ============================================================================
+
+export interface WatchAgentSchedule {
+  /** Run every N cycles (default: 1 = every cycle) */
+  every: number
+}
+
+export interface WatchAgentConfig {
+  name: string
+  description: string
+  schedule: WatchAgentSchedule
+}
+
+export interface WatchAgentDefinition {
+  config: WatchAgentConfig
+  /** System prompt content from agent.md */
+  systemPrompt: string
+  /** Absolute path to the agent folder */
+  dirPath: string
+}
+
+export interface WatchAgentRunResult {
+  agentName: string
+  outcome: "completed" | "failed" | "timed_out"
+  output?: string
+  error?: string
+}
+
+// ============================================================================
 // Config & Result
 // ============================================================================
 
@@ -103,6 +133,14 @@ export interface WatchConfig {
   stateFile: string
   plugins: WatchPlugin[]
   digestIssue?: number
+  /** LLM-powered watch agents loaded from .kody/watch/agents/ */
+  agents: WatchAgentDefinition[]
+  /** Model for watch agents (e.g. "claude-sonnet-4-6"). Falls back to agent.modelMap.cheap */
+  model: string
+  /** LLM provider (e.g. "claude", "minimax"). When non-claude, routes through LiteLLM proxy */
+  provider?: string
+  /** Absolute path to the project directory */
+  projectDir: string
 }
 
 export interface WatchResult {
@@ -111,5 +149,7 @@ export interface WatchResult {
   actionsProduced: number
   actionsExecuted: number
   actionsDeduplicated: number
+  agentsRun: number
+  agentResults: WatchAgentRunResult[]
   errors: string[]
 }

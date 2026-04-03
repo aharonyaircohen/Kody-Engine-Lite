@@ -156,6 +156,27 @@ export function initCommand(opts: { force: boolean }, pkgRoot: string) {
       console.log("  ℹ Kody Watch will monitor pipeline health every 30 minutes")
       console.log("  ℹ Digest issue will be created during bootstrap")
     }
+
+    // Install template watch agents
+    const agentTemplatesDir = path.join(templatesDir, "watch-agents")
+    const watchAgentsDir = path.join(cwd, ".kody", "watch", "agents")
+    if (fs.existsSync(agentTemplatesDir)) {
+      const agentDirs = fs.readdirSync(agentTemplatesDir, { withFileTypes: true })
+        .filter((d) => d.isDirectory())
+      for (const agentDir of agentDirs) {
+        const destDir = path.join(watchAgentsDir, agentDir.name)
+        if (fs.existsSync(destDir) && !opts.force) {
+          console.log(`  ○ .kody/watch/agents/${agentDir.name} (exists)`)
+          continue
+        }
+        fs.mkdirSync(destDir, { recursive: true })
+        const srcDir = path.join(agentTemplatesDir, agentDir.name)
+        for (const file of fs.readdirSync(srcDir)) {
+          fs.copyFileSync(path.join(srcDir, file), path.join(destDir, file))
+        }
+        console.log(`  ✓ .kody/watch/agents/${agentDir.name}`)
+      }
+    }
   } else {
     console.log("  ○ kody-watch.yml template not found — skipping")
   }

@@ -1,0 +1,7 @@
+{
+  "name": "todo-scanner",
+  "description": "Scans source code for TODO, FIXME, and HACK comments and creates tracking issues",
+  "schedule": {
+    "every": 48
+  }
+}

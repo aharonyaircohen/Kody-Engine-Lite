@@ -196,6 +196,11 @@
         "digestIssue": {
           "type": "number",
           "description": "GitHub issue number for posting digest reports. Auto-created by bootstrap."
+        },
+        "model": {
+          "type": "string",
+          "description": "Model for watch agents. When provider is set in agent config, this should be the provider's model name. Falls back to agent.modelMap.cheap if not set.",
+          "examples": ["claude-sonnet-4-6", "claude-haiku-4-5-20251001", "MiniMax-M1"]
         }
       },
       "additionalProperties": false

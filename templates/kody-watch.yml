@@ -17,7 +17,7 @@ concurrency:
 jobs:
   watch:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     permissions:
       issues: write
       contents: read
@@ -28,6 +28,10 @@ jobs:
         with:
           node-version: 22
 
+      - name: Install Claude Code
+        if: hashFiles('.kody/watch/agents/*/agent.json') != ''
+        run: npm install -g @anthropic-ai/claude-code
+
       - name: Install Kody Engine
         run: npm install -g @kody-ade/kody-engine-lite
 
@@ -36,5 +40,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           WATCH_DIGEST_ISSUE: ${{ vars.WATCH_DIGEST_ISSUE }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DRY_RUN: ${{ inputs.dry_run || 'false' }}
         run: npx kody-engine-lite watch ${{ inputs.dry_run == 'true' && '--dry-run' || '' }}

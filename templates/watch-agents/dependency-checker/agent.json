@@ -1,0 +1,7 @@
+{
+  "name": "dependency-checker",
+  "description": "Checks for outdated or vulnerable dependencies and creates tracking issues",
+  "schedule": {
+    "every": 96
+  }
+}

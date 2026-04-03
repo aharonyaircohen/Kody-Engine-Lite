@@ -85,6 +85,12 @@ export interface KodyConfig {
   mcp?: McpConfig
   /** Dev server config — decoupled from MCP so any provider can use browser verification */
   devServer?: DevServerConfig
+  watch?: {
+    enabled?: boolean
+    digestIssue?: number
+    /** Model for watch agents. Falls back to agent.modelMap.cheap */
+    model?: string
+  }
 }
 
 const DEFAULT_CONFIG: KodyConfig = {
@@ -232,6 +238,13 @@ export function getProjectConfig(): KodyConfig {
           : undefined,
         // Top-level devServer takes precedence; fall back to mcp.devServer for backward compat
         devServer: raw.devServer ?? raw.mcp?.devServer ?? undefined,
+        watch: raw.watch
+          ? {
+              enabled: raw.watch.enabled ?? false,
+              digestIssue: raw.watch.digestIssue,
+              model: raw.watch.model,
+            }
+          : undefined,
       }
     } catch {
       logger.warn("kody.config.json is invalid JSON — using defaults")

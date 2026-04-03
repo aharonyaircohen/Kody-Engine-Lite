@@ -1,0 +1,7 @@
+{
+  "name": "stale-pr-reviewer",
+  "description": "Finds pull requests with no recent activity and creates tracking issues",
+  "schedule": {
+    "every": 48
+  }
+}

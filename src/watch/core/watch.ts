@@ -1,15 +1,16 @@
 /**
- * Main Watch loop — orchestrates plugins, dedup, execution, and state.
+ * Main Watch loop — orchestrates plugins, agents, dedup, execution, and state.
  */
 
-import type { ActionRequest, WatchConfig, WatchContext, WatchResult } from "./types.js"
+import type { ActionRequest, WatchConfig, WatchContext, WatchResult, WatchAgentRunResult } from "./types.js"
 import { createStateStore } from "./state.js"
 import { shouldDedup, markExecuted, cleanupExpiredDedup } from "./dedup.js"
 import { createGitHubClient } from "../clients/github.js"
 import { createConsoleLogger } from "../clients/logger.js"
+import { runWatchAgent } from "../agents/run-agent.js"
 
 export async function runWatch(config: WatchConfig): Promise<WatchResult> {
-  const { repo, dryRun, stateFile, plugins } = config
+  const { repo, dryRun, stateFile, plugins, agents } = config
 
   const token = process.env.GH_TOKEN || ""
   const github = createGitHubClient(repo, token)
@@ -39,7 +40,8 @@ export async function runWatch(config: WatchConfig): Promise<WatchResult> {
   const errors: string[] = []
   const allActions: ActionRequest[] = []
 
-  // Filter plugins by schedule
+  // ── Deterministic plugins ──────────────────────────────────────────────────
+
   const scheduledPlugins = plugins.filter((plugin) => {
     if (!plugin.schedule || !plugin.schedule.every) return true
     return cycleNumber % plugin.schedule.every === 0
@@ -79,7 +81,7 @@ export async function runWatch(config: WatchConfig): Promise<WatchResult> {
     dedupedActions.push(action)
   }
 
-  // Execute
+  // Execute plugin actions
   let actionsExecuted = 0
 
   if (!dryRun) {
@@ -106,6 +108,54 @@ export async function runWatch(config: WatchConfig): Promise<WatchResult> {
     log.info({ actionCount: dedupedActions.length }, "Dry run — skipping action execution")
   }
 
+  // ── Watch agents (LLM-powered) ────────────────────────────────────────────
+
+  const scheduledAgents = agents.filter((agent) => {
+    return cycleNumber % agent.config.schedule.every === 0
+  })
+
+  const agentResults: WatchAgentRunResult[] = []
+
+  if (scheduledAgents.length > 0 && !dryRun) {
+    log.info(
+      { agentsTotal: agents.length, agentsScheduled: scheduledAgents.length },
+      "Running watch agents",
+    )
+
+    // Provider comes from agent.provider in kody.config.json (via WatchConfig)
+    const provider = config.provider
+
+    for (const agent of scheduledAgents) {
+      try {
+        log.info({ agent: agent.config.name }, "Running watch agent")
+        const result = await runWatchAgent(agent, ctx, {
+          model: config.model,
+          provider,
+          projectDir: config.projectDir,
+        })
+        agentResults.push(result)
+
+        if (result.outcome === "completed") {
+          log.info({ agent: agent.config.name }, "Watch agent completed")
+        } else {
+          const errMsg = `Agent ${agent.config.name}: ${result.outcome}${result.error ? ` — ${result.error}` : ""}`
+          errors.push(errMsg)
+          log.warn({ agent: agent.config.name, outcome: result.outcome }, "Watch agent did not complete")
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        errors.push(`Agent ${agent.config.name}: ${message}`)
+        log.error({ agent: agent.config.name, error: message }, "Watch agent failed")
+        agentResults.push({ agentName: agent.config.name, outcome: "failed", error: message })
+      }
+    }
+  } else if (scheduledAgents.length > 0 && dryRun) {
+    log.info(
+      { agentCount: scheduledAgents.length },
+      "Dry run — skipping watch agent execution",
+    )
+  }
+
   state.save()
 
   const result: WatchResult = {
@@ -114,6 +164,8 @@ export async function runWatch(config: WatchConfig): Promise<WatchResult> {
     actionsProduced: allActions.length,
     actionsExecuted,
     actionsDeduplicated,
+    agentsRun: scheduledAgents.length,
+    agentResults,
     errors,
   }
 
@@ -124,6 +176,7 @@ export async function runWatch(config: WatchConfig): Promise<WatchResult> {
       actionsProduced: result.actionsProduced,
       actionsExecuted: result.actionsExecuted,
       actionsDeduplicated: result.actionsDeduplicated,
+      agentsRun: result.agentsRun,
       errors: result.errors.length,
     },
     "Watch cycle completed",
