@@ -798,22 +798,31 @@ Command and URL.
     if (found.length > 0) {
       // LLM relevance filter: ask the model which skills actually match this project
       const candidateList = found.map((s) => `- ${s.name} (${s.ref})`).join("\n")
-      const relevancePrompt = `You are filtering skills for a project bootstrap. Only keep skills that are DIRECTLY relevant to this project's actual tech stack and use cases.
+      const relevancePrompt = `You are a strict filter. For each skill below, decide: KEEP or REJECT.
 
-## Project Context
-${repoContext}
+## This project uses
+${pkgJson ? `package.json dependencies: ${Object.keys(JSON.parse(pkgJson).dependencies ?? {}).join(", ")}` : "Unknown"}
+${claudeMd ? `\nCLAUDE.md (first 1500 chars):\n${claudeMd.slice(0, 1500)}` : ""}
 
-## Candidate Skills
+## Candidate skills to evaluate
 ${candidateList}
 
-## Rules
-- ONLY keep skills for technologies this project actually uses
-- REJECT skills for technologies not in the project (e.g., reject Clerk skills if the project uses its own auth, reject Django skills for a Node.js project)
-- REJECT generic "best practices" collections that overlap with the project's existing CLAUDE.md or conventions
-- When in doubt, REJECT — fewer focused skills are better than many generic ones
-- Output ONLY a JSON array of skill refs to KEEP, e.g.: ["owner/repo@name", "owner/repo@name2"]
-- If NO skills are relevant, output: []
-- Output ONLY the JSON array. No explanation.`
+## Evaluate EACH skill — REJECT unless it passes ALL checks:
+1. Does this project import/use the skill's specific library? (e.g., "clerk" skill → is "@clerk/nextjs" in package.json? If NO → REJECT)
+2. Is this a generic "best practices" or "patterns" collection? (e.g., "react-best-practices", "vercel-react-best-practices") → REJECT (the project's CLAUDE.md already defines conventions)
+3. Does the skill duplicate what CLAUDE.md already covers? → REJECT
+4. Is the skill for a SPECIFIC library this project actually depends on? (e.g., "payload" skill for a project using "payload" package) → KEEP
+
+## Examples
+- Project has "payload" in dependencies → "payload" skill → KEEP
+- Project has NO "@clerk/nextjs" → "clerk-nextjs-patterns" skill → REJECT
+- Any "best-practices" or "patterns" collection → REJECT (CLAUDE.md exists)
+- Project has "playwright" in devDependencies → "playwright-cli" skill → KEEP
+- Project has "tailwindcss" → "tailwind-design-system" skill → could KEEP if no design system in CLAUDE.md
+
+Output ONLY a JSON array of refs to KEEP. Example: ["owner/repo@name"]
+If nothing passes, output: []
+NO explanation. ONLY the JSON array.`
 
       let filteredRefs: Set<string> | null = null
       try {
