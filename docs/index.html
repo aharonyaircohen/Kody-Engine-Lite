@@ -501,6 +501,95 @@
 
     .commands-table td:last-child { color: var(--text-muted); }
 
+    /* ═══ COMPARISON STRIP ═══ */
+    .compare-strip {
+      max-width: 580px;
+      margin: 2.5rem auto 0;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      line-height: 2.2;
+    }
+
+    .compare-line {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .compare-label {
+      width: 110px;
+      flex-shrink: 0;
+      text-align: right;
+      font-weight: 600;
+    }
+
+    .compare-flow {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+    }
+
+    .compare-flow .step {
+      padding: 0.2rem 0.55rem;
+      border-radius: 4px;
+      font-size: 0.78rem;
+      white-space: nowrap;
+    }
+
+    .compare-flow .arrow {
+      color: var(--text-muted);
+      font-size: 0.7rem;
+    }
+
+    @media (max-width: 768px) {
+      .compare-label { width: 80px; font-size: 0.75rem; }
+      .compare-flow .step { font-size: 0.72rem; padding: 0.15rem 0.4rem; }
+    }
+
+    /* ═══ COMPARISON TABLE ═══ */
+    .compare-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    .compare-table th {
+      text-align: left;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .compare-table th:first-child { color: var(--text-muted); }
+    .compare-table th:nth-child(2) { color: var(--text-muted); }
+    .compare-table th:nth-child(3) { color: var(--primary-light); }
+
+    .compare-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid rgba(30,41,59,0.5);
+      vertical-align: top;
+    }
+
+    .compare-table td:first-child {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .compare-table td:nth-child(2) { color: var(--text-muted); }
+    .compare-table td:nth-child(3) { color: var(--text); }
+
+    .compare-table tr:hover { background: rgba(124,58,237,0.05); }
+
+    .compare-check { color: var(--green); }
+    .compare-x { color: var(--text-muted); }
+
     /* ═══ DEMO TERMINAL ═══ */
     .demo-terminal {
       background: #0D1117;
@@ -637,6 +726,7 @@
     <a href="#" class="nav-brand">kody</a>
     <div class="nav-links">
       <a href="#how-it-works">How It Works</a>
+      <a href="#why-kody">Why Kody?</a>
       <a href="#stack">Stack</a>
       <a href="#features">Features</a>
       <a href="#commands">Commands</a>
@@ -655,6 +745,37 @@
     <div class="hero-buttons">
       <a href="https://github.com/aharonyaircohen/Kody-Engine-Lite#quick-start" class="btn btn-primary">Get Started</a>
       <a href="https://www.npmjs.com/package/@kody-ade/kody-engine-lite" class="btn btn-secondary">npm install</a>
+    </div>
+
+    <div class="compare-strip reveal">
+      <div class="compare-line">
+        <span class="compare-label" style="color: var(--text-muted);">Other agents</span>
+        <div class="compare-flow">
+          <span class="step" style="background: rgba(148,163,184,0.1); color: var(--text-muted);">prompt</span>
+          <span class="arrow">&rarr;</span>
+          <span class="step" style="background: rgba(148,163,184,0.1); color: var(--text-muted);">code</span>
+          <span class="arrow">&rarr;</span>
+          <span class="step" style="background: rgba(148,163,184,0.1); color: var(--text-muted);">pray</span>
+        </div>
+      </div>
+      <div class="compare-line">
+        <span class="compare-label" style="color: var(--primary-light);">Kody</span>
+        <div class="compare-flow">
+          <span class="step" style="background: rgba(124,58,237,0.15); color: var(--primary-light);">research</span>
+          <span class="arrow">&rarr;</span>
+          <span class="step" style="background: rgba(124,58,237,0.15); color: var(--primary-light);">plan</span>
+          <span class="arrow">&rarr;</span>
+          <span class="step" style="background: rgba(124,58,237,0.15); color: var(--primary-light);">build</span>
+          <span class="arrow">&rarr;</span>
+          <span class="step" style="background: rgba(6,182,212,0.15); color: var(--cyan-light);">test</span>
+          <span class="arrow">&rarr;</span>
+          <span class="step" style="background: rgba(6,182,212,0.15); color: var(--cyan-light);">review</span>
+          <span class="arrow">&rarr;</span>
+          <span class="step" style="background: rgba(6,182,212,0.15); color: var(--cyan-light);">fix</span>
+          <span class="arrow">&rarr;</span>
+          <span class="step" style="background: rgba(74,222,128,0.15); color: var(--green);">ship</span>
+        </div>
+      </div>
     </div>
 
     <div class="demo-terminal reveal" id="demo-terminal">
@@ -707,6 +828,72 @@
           <img src="https://raw.githubusercontent.com/aharonyaircohen/Kody-Engine-Lite/main/assets/screenshots/kody-pr.png" alt="Pull request created by Kody with description and passing checks" loading="lazy">
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- WHY KODY -->
+  <section id="why-kody">
+    <div class="section-label">Why Kody?</div>
+    <div class="section-title">Not just another coding agent</div>
+    <div class="section-desc">Most agents generate code. Kody engineers it.</div>
+
+    <div class="reveal" style="overflow-x: auto;">
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Typical agents</th>
+            <th>Kody ADE</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Execution</td>
+            <td class="compare-x">Single-shot prompt</td>
+            <td>7-stage pipeline with quality gates</td>
+          </tr>
+          <tr>
+            <td>Testing</td>
+            <td class="compare-x">None or optional</td>
+            <td>Runs typecheck, tests, lint between stages</td>
+          </tr>
+          <tr>
+            <td>Code review</td>
+            <td class="compare-x">None</td>
+            <td>AI review in a fresh session, no build bias</td>
+          </tr>
+          <tr>
+            <td>Failure handling</td>
+            <td class="compare-x">Blind retry or abort</td>
+            <td>AI diagnosis &mdash; classifies, fixes, retries</td>
+          </tr>
+          <tr>
+            <td>Learning</td>
+            <td class="compare-x">Starts from scratch</td>
+            <td>Learns conventions from each run</td>
+          </tr>
+          <tr>
+            <td>Tool access</td>
+            <td class="compare-x">Sandboxed VM</td>
+            <td>Your CLI, build tools, MCP servers</td>
+          </tr>
+          <tr>
+            <td>Models</td>
+            <td class="compare-x">Locked to one provider</td>
+            <td>Any LLM, per-stage selection, auto-escalation</td>
+          </tr>
+          <tr>
+            <td>Price</td>
+            <td class="compare-x">$500+/mo or per-seat</td>
+            <td>Free &amp; open source</td>
+          </tr>
+          <tr>
+            <td>Runs on</td>
+            <td class="compare-x">Hosted service</td>
+            <td>Your CI, your infra, no data leaves</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </section>
 
