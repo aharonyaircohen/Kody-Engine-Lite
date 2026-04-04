@@ -353,7 +353,7 @@ ${archContext}`
       archPrompt,
     ], {
       encoding: "utf-8",
-      timeout: 180_000,
+      timeout: 300_000,
       cwd,
       stdio: ["pipe", "pipe", "pipe"],
     }).trim()
@@ -497,7 +497,7 @@ REMINDER: Output the full prompt template first (unchanged), then your three app
         customizationPrompt,
       ], {
         encoding: "utf-8",
-        timeout: 180_000,
+        timeout: 300_000,
         cwd,
         stdio: ["pipe", "pipe", "pipe"],
       }).trim()
@@ -609,7 +609,7 @@ Command and URL.
         qaPrompt,
       ], {
         encoding: "utf-8",
-        timeout: 180_000,
+        timeout: 300_000,
         cwd,
         stdio: ["pipe", "pipe", "pipe"],
       }).trim()
