@@ -115,7 +115,7 @@ const DEFAULT_CONFIG: KodyConfig = {
     repo: "",
   },
   agent: {
-    modelMap: { cheap: "claude-haiku-4-5-20251001", mid: "claude-sonnet-4-6", strong: "claude-opus-4-6" },
+    modelMap: {},
   },
   contextTiers: {
     enabled: true,
