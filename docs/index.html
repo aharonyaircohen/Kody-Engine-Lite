@@ -646,9 +646,15 @@
 
   <!-- HERO -->
   <section class="hero">
-    <div class="hero-badge">
-      <span style="color: var(--green);">&#9679;</span>
-      Free &amp; Open Source &middot; MIT License
+    <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; margin-bottom: 2rem;">
+      <div class="hero-badge" style="margin-bottom: 0;">
+        <span style="color: var(--green);">&#9679;</span>
+        Free &amp; Open Source &middot; MIT License
+      </div>
+      <a href="https://www.npmjs.com/package/@kody-ade/kody-engine-lite" class="hero-badge" id="npm-badge" style="margin-bottom: 0; text-decoration: none; display: none;">
+        <span style="color: var(--cyan-light);">&#8595;</span>
+        <span id="npm-downloads"></span> weekly downloads
+      </a>
     </div>
     <h1>The free, autonomous<br><span class="gradient">SDLC pipeline</span></h1>
     <p>Comment <code style="background: rgba(124,58,237,0.2); padding: 0.1em 0.4em; border-radius: 4px; font-family: var(--font-mono); font-size: 0.95em;">@kody</code> on a GitHub issue. Get back a tested, reviewed PR. 7 stages, quality gates, AI diagnosis. No babysitting.</p>
@@ -1098,6 +1104,21 @@
       }, { threshold: 0.3 });
 
       demoObs.observe(document.getElementById('demo-terminal'));
+    })();
+  </script>
+
+  <!-- NPM DOWNLOADS BADGE -->
+  <script>
+    (function () {
+      fetch('https://api.npmjs.org/downloads/point/last-week/@kody-ade/kody-engine-lite')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data && data.downloads) {
+            document.getElementById('npm-downloads').textContent = data.downloads.toLocaleString();
+            document.getElementById('npm-badge').style.display = 'inline-flex';
+          }
+        })
+        .catch(function () {});
     })();
   </script>
 </body>
