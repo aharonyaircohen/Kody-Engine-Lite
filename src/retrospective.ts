@@ -43,6 +43,8 @@ export interface RetrospectiveEntry {
     evidence: string
   } | null
   tokenStats?: TokenStats
+  decomposed?: boolean
+  subTaskCount?: number
 }
 
 // ─── Prompt ─────────────────────────────────────────────────────────────────
@@ -127,6 +129,19 @@ export function collectRunContext(
     ["review.md", 500],
     ["ship.md", 300],
   ]
+
+  // Decompose info
+  const decomposeStatePath = path.join(ctx.taskDir, "decompose-state.json")
+  if (fs.existsSync(decomposeStatePath)) {
+    try {
+      const ds = JSON.parse(fs.readFileSync(decomposeStatePath, "utf-8"))
+      lines.push(`### Decompose`)
+      lines.push(`Decomposed: ${ds.decompose?.decomposable ?? false}`)
+      lines.push(`Sub-tasks: ${ds.subPipelines?.length ?? 0}`)
+      lines.push(`Merge outcome: ${ds.mergeOutcome ?? "n/a"}`)
+      lines.push(``)
+    } catch { /* ignore */ }
+  }
 
   lines.push(`### Artifacts`)
   for (const [filename, maxChars] of artifacts) {
@@ -297,6 +312,18 @@ export async function runRetrospective(
 
     const tokenStats = computeTokenStats(state, ctx.projectDir)
 
+    // Read decompose info if available
+    let decomposed: boolean | undefined
+    let subTaskCount: number | undefined
+    const dsPath = path.join(ctx.taskDir, "decompose-state.json")
+    if (fs.existsSync(dsPath)) {
+      try {
+        const ds = JSON.parse(fs.readFileSync(dsPath, "utf-8"))
+        decomposed = ds.decompose?.decomposable ?? false
+        subTaskCount = ds.subPipelines?.length ?? 0
+      } catch { /* ignore */ }
+    }
+
     const entry: RetrospectiveEntry = {
       timestamp: new Date().toISOString(),
       taskId: state.taskId,
@@ -309,6 +336,8 @@ export async function runRetrospective(
       suggestion,
       pipelineFlaw,
       tokenStats,
+      decomposed,
+      subTaskCount,
     }
 
     appendRetrospectiveEntry(ctx.projectDir, entry)

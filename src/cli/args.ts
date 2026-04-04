@@ -1,5 +1,5 @@
 export interface CliInput {
-  command: "run" | "rerun" | "fix" | "fix-ci" | "status" | "review" | "resolve"
+  command: "run" | "rerun" | "fix" | "fix-ci" | "status" | "review" | "resolve" | "decompose" | "compose"
   taskId?: string
   task?: string
   fromStage?: string
@@ -11,6 +11,7 @@ export interface CliInput {
   local?: boolean
   complexity?: "low" | "medium" | "high"
   ciRunId?: string
+  noCompose?: boolean
 }
 
 const isCI = !!process.env.GITHUB_ACTIONS
@@ -32,19 +33,21 @@ export function parseArgs(): CliInput {
 
   if (hasFlag(args, "--help") || hasFlag(args, "-h") || args.length === 0) {
     console.log(`Usage:
-  kody run    --task-id <id> [--task "<desc>"] [--cwd <path>] [--issue-number <n>] [--complexity low|medium|high] [--feedback "<text>"] [--local] [--dry-run]
-  kody rerun  --task-id <id> --from <stage> [--cwd <path>] [--issue-number <n>]
-  kody fix    --task-id <id> [--cwd <path>] [--issue-number <n>] [--feedback "<text>"]
-  kody fix-ci [--pr-number <n>] [--ci-run-id <id>] [--cwd <path>] [--issue-number <n>] [--feedback "<text>"]
-  kody review [--pr-number <n>] [--issue-number <n>] [--cwd <path>] [--local]
-  kody resolve --pr-number <n> [--cwd <path>] [--local]
-  kody status --task-id <id> [--cwd <path>]
+  kody run       --task-id <id> [--task "<desc>"] [--cwd <path>] [--issue-number <n>] [--complexity low|medium|high] [--feedback "<text>"] [--local] [--dry-run]
+  kody rerun     --task-id <id> --from <stage> [--cwd <path>] [--issue-number <n>]
+  kody fix       --task-id <id> [--cwd <path>] [--issue-number <n>] [--feedback "<text>"]
+  kody fix-ci    [--pr-number <n>] [--ci-run-id <id>] [--cwd <path>] [--issue-number <n>] [--feedback "<text>"]
+  kody review    [--pr-number <n>] [--issue-number <n>] [--cwd <path>] [--local]
+  kody resolve   --pr-number <n> [--cwd <path>] [--local]
+  kody decompose --issue-number <n> [--cwd <path>] [--local] [--no-compose]
+  kody compose   --task-id <id> [--issue-number <n>] [--cwd <path>] [--local]
+  kody status    --task-id <id> [--cwd <path>]
   kody --help`)
     process.exit(0)
   }
 
-  const command = args[0] as "run" | "rerun" | "fix" | "fix-ci" | "status" | "review" | "resolve"
-  if (!["run", "rerun", "fix", "fix-ci", "status", "review", "resolve"].includes(command)) {
+  const command = args[0] as CliInput["command"]
+  if (!["run", "rerun", "fix", "fix-ci", "status", "review", "resolve", "decompose", "compose"].includes(command)) {
     console.error(`Unknown command: ${command}`)
     process.exit(1)
   }
@@ -66,5 +69,6 @@ export function parseArgs(): CliInput {
     local: localFlag || (!isCI && !hasFlag(args, "--no-local")),
     complexity: (getArg(args, "--complexity") ?? process.env.COMPLEXITY) as "low" | "medium" | "high" | undefined,
     ciRunId: getArg(args, "--ci-run-id") ?? process.env.CI_RUN_ID,
+    noCompose: hasFlag(args, "--no-compose"),
   }
 }

@@ -125,7 +125,7 @@ async function main() {
   // State machine: check issue state before doing anything
   // Skip for review/resolve/rerun commands and for PR-based fix (these don't need issue resolution)
   const isPRFix = (input.command === "fix" || input.command === "fix-ci") && !!input.prNumber
-  const skipStateCheck = input.command === "review" || input.command === "resolve" || input.command === "rerun" || input.command === "status"
+  const skipStateCheck = input.command === "review" || input.command === "resolve" || input.command === "rerun" || input.command === "status" || input.command === "compose"
   if (input.issueNumber && !skipStateCheck && !isPRFix) {
     const taskAction = resolveForIssue(input.issueNumber, projectDir)
     logger.info(`Task action: ${taskAction.action}`)
@@ -330,6 +330,107 @@ async function main() {
     }
 
     console.log(`Resolve: ${result.outcome}`)
+    process.exit(0)
+  }
+
+  // Decompose command — parallel sub-task execution
+  if (input.command === "decompose") {
+    if (!input.issueNumber) {
+      console.error("--issue-number is required for decompose command")
+      process.exit(1)
+    }
+
+    runPreflight()
+
+    // Fetch issue body as task.md
+    const taskMdPathD = path.join(taskDir, "task.md")
+    if (!fs.existsSync(taskMdPathD)) {
+      const issue = getIssue(input.issueNumber)
+      if (issue) {
+        fs.writeFileSync(taskMdPathD, `# ${issue.title}\n\n${issue.body ?? ""}`)
+        logger.info(`  Task loaded from issue #${input.issueNumber}: ${issue.title}`)
+      }
+    }
+
+    const config = getProjectConfig()
+    if (config.timeouts) {
+      const { applyTimeoutOverrides } = await import("./definitions.js")
+      applyTimeoutOverrides(config.timeouts)
+    }
+    const litellmProcess = await ensureLitellmProxy(config, projectDir)
+    await runModelHealthCheck(config)
+
+    const runners = createRunners(config)
+    const defaultRunnerName = config.agent.defaultRunner ?? Object.keys(runners)[0] ?? "claude"
+    const defaultRunner = runners[defaultRunnerName]
+    if (!defaultRunner) { console.error(`Default runner "${defaultRunnerName}" not configured`); process.exit(1) }
+    const healthy = await defaultRunner.healthCheck()
+    if (!healthy) { console.error(`Runner "${defaultRunnerName}" health check failed`); process.exit(1) }
+
+    const { runDecompose } = await import("./commands/decompose.js")
+    const result = await runDecompose({
+      issueNumber: input.issueNumber,
+      projectDir,
+      runners,
+      taskId,
+      taskDir,
+      local: input.local,
+      autoCompose: !input.noCompose,
+    })
+
+    if (litellmProcess) litellmProcess.kill()
+
+    if (result.state === "failed") {
+      console.error("Decompose failed")
+      process.exit(1)
+    }
+
+    console.log(`Decompose completed: ${result.subPipelines.length} sub-task(s)`)
+    process.exit(0)
+  }
+
+  // Compose command — retry merge + verify + review + ship
+  if (input.command === "compose") {
+    if (!taskId) {
+      console.error("--task-id is required for compose command")
+      process.exit(1)
+    }
+
+    runPreflight()
+
+    const config = getProjectConfig()
+    if (config.timeouts) {
+      const { applyTimeoutOverrides } = await import("./definitions.js")
+      applyTimeoutOverrides(config.timeouts)
+    }
+    const litellmProcess = await ensureLitellmProxy(config, projectDir)
+    await runModelHealthCheck(config)
+
+    const runners = createRunners(config)
+    const defaultRunnerName = config.agent.defaultRunner ?? Object.keys(runners)[0] ?? "claude"
+    const defaultRunner = runners[defaultRunnerName]
+    if (!defaultRunner) { console.error(`Default runner "${defaultRunnerName}" not configured`); process.exit(1) }
+    const healthy = await defaultRunner.healthCheck()
+    if (!healthy) { console.error(`Runner "${defaultRunnerName}" health check failed`); process.exit(1) }
+
+    const { runCompose } = await import("./commands/compose.js")
+    const result = await runCompose({
+      projectDir,
+      runners,
+      taskId,
+      taskDir,
+      issueNumber: input.issueNumber,
+      local: input.local,
+    })
+
+    if (litellmProcess) litellmProcess.kill()
+
+    if (result.state === "failed") {
+      console.error("Compose failed")
+      process.exit(1)
+    }
+
+    console.log("Compose completed successfully")
     process.exit(0)
   }
 

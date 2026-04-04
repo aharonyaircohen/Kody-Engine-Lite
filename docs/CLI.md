@@ -142,6 +142,53 @@ kody-engine-lite rerun --task-id <id> --from <stage> [options]
 kody-engine-lite rerun --issue-number 42 --from verify
 ```
 
+### `decompose`
+
+Split a complex issue into independent sub-tasks, build them in parallel (in git worktrees), then merge, verify, review, and ship. Falls back to the normal pipeline if the task isn't complex enough. See [Decompose documentation](DECOMPOSE.md) for full details.
+
+```bash
+kody-engine-lite decompose --issue-number <n> [options]
+```
+
+| Flag | Required | Description |
+|------|----------|-------------|
+| `--issue-number <n>` | Yes | GitHub issue to decompose |
+| `--no-compose` | No | Stop after parallel builds (don't auto-merge/verify/ship) |
+| `--cwd <path>` | No | Working directory |
+| `--local` | No | Run locally (auto-enabled outside CI) |
+
+Also available as `@kody decompose` on GitHub.
+
+**Example:**
+```bash
+kody-engine-lite decompose --issue-number 42 --local
+kody-engine-lite decompose --issue-number 42 --no-compose  # build only, inspect before merging
+```
+
+### `compose`
+
+Retry the compose phase (merge + verify + review + ship) after a decompose run's parallel builds succeeded. Reads `decompose-state.json` from the task directory.
+
+```bash
+kody-engine-lite compose --task-id <id> [options]
+```
+
+| Flag | Required | Description |
+|------|----------|-------------|
+| `--task-id <id>` | Yes | Task ID from the decompose run |
+| `--issue-number <n>` | No | GitHub issue number |
+| `--cwd <path>` | No | Working directory |
+| `--local` | No | Run locally |
+
+Also available as `@kody compose` on GitHub.
+
+Compose is **re-runnable** — if it fails at verify or review, run it again. It skips the merge phase if branches are already merged and retries from verification.
+
+**Example:**
+```bash
+kody-engine-lite compose --task-id 42-260403-221500 --issue-number 42
+```
+
 ### `resolve`
 
 Merge the default branch into a PR branch and AI-resolve any merge conflicts. Runs quality gates after resolution.
@@ -245,6 +292,8 @@ These commands are triggered by commenting on a GitHub issue or PR:
 | Command | Description |
 |---------|-------------|
 | `@kody` | Run the full pipeline on an issue |
+| `@kody decompose` | Split into parallel sub-tasks, build concurrently, merge, verify, review, ship |
+| `@kody compose` | Retry compose phase (merge + verify + review + ship) after successful decompose builds |
 | `@kody review` | Run a standalone code review on a PR — posts structured findings and submits a GitHub review (approve or request-changes). Falls back to a plain PR comment if the review submission fails (e.g., self-review not allowed) |
 | `@kody approve` | Resume after questions or risk gate pause |
 | `@kody fix` | Re-run from build stage. Reads human PR review comments + Kody's review as context. Additional feedback in the comment body is also injected |

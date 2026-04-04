@@ -89,6 +89,14 @@ export interface KodyConfig {
     /** Model for watch agents. Falls back to agent.modelMap.cheap */
     model?: string
   }
+  decompose?: {
+    /** Enable decompose command. Default: true */
+    enabled?: boolean
+    /** Max concurrent sub-task builds. Default: 3 */
+    maxParallelSubTasks?: number
+    /** Minimum complexity score (1-10) to decompose. Default: 6 */
+    minComplexityScore?: number
+  }
 }
 
 const DEFAULT_CONFIG: KodyConfig = {
@@ -241,6 +249,13 @@ export function getProjectConfig(): KodyConfig {
               enabled: raw.watch.enabled ?? false,
               digestIssue: raw.watch.digestIssue,
               model: raw.watch.model,
+            }
+          : undefined,
+        decompose: raw.decompose
+          ? {
+              enabled: raw.decompose.enabled ?? true,
+              maxParallelSubTasks: raw.decompose.maxParallelSubTasks ?? 3,
+              minComplexityScore: raw.decompose.minComplexityScore ?? 6,
             }
           : undefined,
       }

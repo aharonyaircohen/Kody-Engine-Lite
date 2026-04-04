@@ -95,6 +95,21 @@ export function injectTaskContext(
     context += `\n## Previous Stage Context\n${prefix}${truncated}\n`
   }
 
+  // File scope constraints (from decompose sub-tasks)
+  const constraintsPath = path.join(taskDir, "constraints.json")
+  if (fs.existsSync(constraintsPath)) {
+    try {
+      const c = JSON.parse(fs.readFileSync(constraintsPath, "utf-8"))
+      if (Array.isArray(c.allowedFiles) && c.allowedFiles.length > 0) {
+        context += `\n## File Scope Constraints (MANDATORY)\n`
+        context += `You MUST only modify files in: ${c.allowedFiles.join(", ")}\n`
+        if (Array.isArray(c.forbiddenFiles) && c.forbiddenFiles.length > 0) {
+          context += `You MUST NOT modify: ${c.forbiddenFiles.join(", ")}\n`
+        }
+      }
+    } catch { /* ignore parse errors */ }
+  }
+
   if (feedback) {
     context += `\n## Human Feedback\n${feedback}\n`
   }

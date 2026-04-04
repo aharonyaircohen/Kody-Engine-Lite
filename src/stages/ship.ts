@@ -76,6 +76,21 @@ export function buildPrBody(ctx: PipelineContext): string {
     }
   }
 
+  // Decompose info (if this was a decomposed task)
+  const decomposeStatePath = path.join(ctx.taskDir, "decompose-state.json")
+  if (fs.existsSync(decomposeStatePath)) {
+    try {
+      const ds = JSON.parse(fs.readFileSync(decomposeStatePath, "utf-8"))
+      if (ds.decompose?.decomposable && Array.isArray(ds.decompose?.sub_tasks)) {
+        const subList = ds.decompose.sub_tasks
+          .map((st: { id: string; title: string; scope: string[] }) =>
+            `- **${st.id}:** ${st.title} (${st.scope.length} files)`)
+          .join("\n")
+        sections.push(`\n## Decomposed Implementation\nThis task was split into ${ds.decompose.sub_tasks.length} parallel sub-tasks:\n${subList}`)
+      }
+    } catch { /* ignore parse errors */ }
+  }
+
   // Closes issue
   if (ctx.input.issueNumber) {
     sections.push(`\nCloses #${ctx.input.issueNumber}`)

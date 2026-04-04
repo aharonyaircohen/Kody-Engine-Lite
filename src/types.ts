@@ -105,3 +105,43 @@ export interface PipelineContext {
     complexity?: "low" | "medium" | "high"
   }
 }
+
+// ─── Decompose Types ─────────────────────────────────────────────────────────
+
+export interface SubTaskDefinition {
+  id: string              // "part-1", "part-2"
+  title: string
+  description: string
+  scope: string[]         // exclusive file ownership
+  plan_steps: number[]    // which plan step numbers this sub-task implements
+  depends_on: string[]    // sub-task IDs (empty = independent)
+  shared_context: string  // info this sub-task needs from parent context
+}
+
+export interface DecomposeOutput {
+  decomposable: boolean
+  reason: string
+  complexity_score: number     // 1-10
+  recommended_subtasks: number
+  sub_tasks: SubTaskDefinition[]
+}
+
+export interface SubPipelineResult {
+  subTaskId: string
+  outcome: "completed" | "failed"
+  branchName: string
+  error?: string
+}
+
+export interface DecomposeState {
+  taskId: string
+  state: "running" | "completed" | "failed"
+  decompose: DecomposeOutput
+  subPipelines: SubPipelineResult[]
+  mergeOutcome?: "merged" | "conflict" | "fallback"
+  compose?: {
+    verify: "completed" | "failed"
+    review: "completed" | "failed"
+    ship: "completed" | "failed"
+  }
+}
