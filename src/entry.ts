@@ -125,7 +125,7 @@ async function main() {
   // State machine: check issue state before doing anything
   // Skip for review/resolve/rerun commands and for PR-based fix (these don't need issue resolution)
   const isPRFix = (input.command === "fix" || input.command === "fix-ci") && !!input.prNumber
-  const skipStateCheck = input.command === "review" || input.command === "resolve" || input.command === "rerun" || input.command === "status" || input.command === "compose"
+  const skipStateCheck = input.command === "review" || input.command === "resolve" || input.command === "rerun" || input.command === "status" || input.command === "compose" || input.command === "ask"
   if (input.issueNumber && !skipStateCheck && !isPRFix) {
     const taskAction = resolveForIssue(input.issueNumber, projectDir)
     logger.info(`Task action: ${taskAction.action}`)
@@ -177,6 +177,8 @@ async function main() {
       taskId = generateTaskId()
     } else if (input.command === "review") {
       taskId = input.prNumber ? `review-pr-${input.prNumber}-${generateTaskId()}` : `review-${generateTaskId()}`
+    } else if (input.command === "ask") {
+      taskId = `ask-${input.issueNumber ?? generateTaskId()}`
     } else {
       console.error("--task-id is required (or provide --issue-number to auto-generate)")
       process.exit(1)
@@ -289,6 +291,41 @@ async function main() {
           postPRComment(prNumber, comment)
         }
       }
+    }
+
+    process.exit(0)
+  }
+
+  // Ask command — research and answer a question
+  if (input.command === "ask") {
+    runPreflight()
+
+    const config = getProjectConfig()
+    const litellmProcess = await ensureLitellmProxy(config, projectDir)
+    await runModelHealthCheck(config)
+
+    const runners = createRunners(config)
+    const defaultRunnerName = config.agent.defaultRunner ?? Object.keys(runners)[0] ?? "claude"
+    const defaultRunner = runners[defaultRunnerName]
+    if (!defaultRunner) { console.error(`Default runner "${defaultRunnerName}" not configured`); process.exit(1) }
+    const healthy = await defaultRunner.healthCheck()
+    if (!healthy) { console.error(`Runner "${defaultRunnerName}" health check failed`); process.exit(1) }
+
+    const { runAsk } = await import("./commands/ask.js")
+    const result = await runAsk({
+      issueNumber: input.issueNumber,
+      question: input.feedback ?? "",
+      projectDir,
+      runners,
+      taskId,
+      local: input.local,
+    })
+
+    if (litellmProcess) litellmProcess.kill()
+
+    if (result.outcome === "failed") {
+      console.error(`Ask failed: ${result.error}`)
+      process.exit(1)
     }
 
     process.exit(0)

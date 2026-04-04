@@ -306,4 +306,42 @@ describe("parseCommentInputs", () => {
     const r = parseCommentInputs()
     expect(r.issue_number).toBe("77")
   })
+
+  // ─── Ask mode ──────────────────────────────────────────────────────────────
+
+  it("parses @kody ask", () => {
+    process.env.COMMENT_BODY = "@kody ask"
+    const r = parseCommentInputs()
+    expect(r.mode).toBe("ask")
+    expect(r.valid).toBe(true)
+    expect(r.task_id).toMatch(/^ask-42-\d{6}-\d{6}$/)
+  })
+
+  it("ask mode extracts body as feedback (the question)", () => {
+    process.env.COMMENT_BODY = "@kody ask\nWhat testing framework does this project use?"
+    const r = parseCommentInputs()
+    expect(r.mode).toBe("ask")
+    expect(r.feedback).toBe("What testing framework does this project use?")
+  })
+
+  it("ask mode extracts multiline body as feedback", () => {
+    process.env.COMMENT_BODY = "@kody ask\nHow does auth work?\nWhat patterns does it use?"
+    const r = parseCommentInputs()
+    expect(r.mode).toBe("ask")
+    expect(r.feedback).toBe("How does auth work?\nWhat patterns does it use?")
+  })
+
+  it("ask mode auto-generates task-id", () => {
+    process.env.COMMENT_BODY = "@kody ask\nSome question"
+    process.env.ISSUE_NUMBER = "99"
+    const r = parseCommentInputs()
+    expect(r.task_id).toMatch(/^ask-99-\d{6}-\d{6}$/)
+  })
+
+  it("/kody ask works same as @kody ask", () => {
+    process.env.COMMENT_BODY = "/kody ask\nWhat is this?"
+    const r = parseCommentInputs()
+    expect(r.mode).toBe("ask")
+    expect(r.feedback).toBe("What is this?")
+  })
 })

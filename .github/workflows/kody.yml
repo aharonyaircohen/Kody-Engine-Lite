@@ -113,7 +113,7 @@ jobs:
 
           # Validate mode
           case "$MODE" in
-            full|rerun|fix|fix-ci|status|approve|review|taskify) ;;
+            full|rerun|fix|fix-ci|status|approve|review|taskify|ask) ;;
             *)
               # If first arg isn't a mode, it might be a task-id or nothing
               if [ -n "$MODE" ] && [ "$MODE" != "" ]; then
@@ -145,6 +145,22 @@ jobs:
               FEEDBACK="$FIX_CI_BODY"
             fi
             CI_RUN_ID=$(echo "$FIX_CI_BODY" | grep -oP 'Run ID:\s*\K\d+' || echo "")
+          fi
+
+          # ask: extract everything after @kody ask as the question
+          if [ "$MODE" = "ask" ]; then
+            TASK_ID="ask-${ISSUE_NUM}-$(date +%y%m%d-%H%M%S)"
+            # First line remainder after "@kody ask" plus all subsequent lines
+            ASK_INLINE=$(echo "$KODY_ARGS" | sed 's/^ask\s*//')
+            ASK_BODY=$(echo "$BODY" | sed -n '/\(@kody\|\/kody\)\s*ask/,$p' | tail -n +2)
+            if [ -n "$ASK_INLINE" ] && [ -n "$ASK_BODY" ]; then
+              FEEDBACK="${ASK_INLINE}
+${ASK_BODY}"
+            elif [ -n "$ASK_INLINE" ]; then
+              FEEDBACK="$ASK_INLINE"
+            elif [ -n "$ASK_BODY" ]; then
+              FEEDBACK="$ASK_BODY"
+            fi
           fi
 
           # taskify: auto-generate task-id
@@ -253,6 +269,11 @@ jobs:
             [ -n "$ISSUE_NUMBER" ] && ARGS="$ARGS --issue-number $ISSUE_NUMBER"
             [ -n "$TASK_ID" ] && ARGS="$ARGS --task-id $TASK_ID"
             kody-engine-lite taskify $ARGS
+          elif [ "$MODE" = "ask" ]; then
+            ARGS="--issue-number $ISSUE_NUMBER"
+            [ -n "$TASK_ID" ] && ARGS="$ARGS --task-id $TASK_ID"
+            [ -n "$FEEDBACK" ] && ARGS="$ARGS --feedback \"$FEEDBACK\""
+            kody-engine-lite ask $ARGS
           else
             CMD="run"
             [ "$MODE" = "rerun" ] && CMD="rerun"

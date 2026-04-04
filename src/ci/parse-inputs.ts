@@ -27,7 +27,7 @@ export interface ParseResult {
 
 const VALID_MODES = [
   "full", "rerun", "fix", "fix-ci", "status",
-  "approve", "review", "resolve", "bootstrap", "taskify",
+  "approve", "review", "resolve", "bootstrap", "taskify", "ask",
 ] as const
 
 function generateTimestamp(): string {
@@ -193,6 +193,14 @@ export function parseCommentInputs(): ParseResult {
   // bootstrap: auto-generate task-id
   if (mode === "bootstrap") {
     taskId = `bootstrap-${generateTimestamp()}`
+  }
+
+  // ask: extract body as the question, auto-generate task-id
+  if (mode === "ask") {
+    taskId = `ask-${issueNumber}-${generateTimestamp()}`
+    if (bodyAfterCommand) {
+      feedback = bodyAfterCommand
+    }
   }
 
   // taskify: auto-generate task-id

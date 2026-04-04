@@ -1,5 +1,5 @@
 export interface CliInput {
-  command: "run" | "rerun" | "fix" | "fix-ci" | "status" | "review" | "resolve" | "decompose" | "compose"
+  command: "run" | "rerun" | "fix" | "fix-ci" | "status" | "review" | "resolve" | "decompose" | "compose" | "ask"
   taskId?: string
   task?: string
   fromStage?: string
@@ -31,8 +31,24 @@ function hasFlag(args: string[], flag: string): boolean {
 export function parseArgs(): CliInput {
   const args = process.argv.slice(2)
 
+  // --ask "question" shorthand — no subcommand needed
+  const askQuestion = getArg(args, "--ask")
+  if (askQuestion) {
+    return {
+      command: "ask",
+      feedback: askQuestion,
+      cwd: getArg(args, "--cwd"),
+      issueNumber: (() => {
+        const s = getArg(args, "--issue-number") ?? process.env.ISSUE_NUMBER
+        return s ? parseInt(s, 10) : undefined
+      })(),
+      local: hasFlag(args, "--local") || (!isCI && !hasFlag(args, "--no-local")),
+    }
+  }
+
   if (hasFlag(args, "--help") || hasFlag(args, "-h") || args.length === 0) {
     console.log(`Usage:
+  kody --ask "<question>" [--issue-number <n>] [--cwd <path>]
   kody run       --task-id <id> [--task "<desc>"] [--cwd <path>] [--issue-number <n>] [--complexity low|medium|high] [--feedback "<text>"] [--local] [--dry-run]
   kody rerun     --task-id <id> --from <stage> [--cwd <path>] [--issue-number <n>]
   kody fix       --task-id <id> [--cwd <path>] [--issue-number <n>] [--feedback "<text>"]
@@ -47,7 +63,7 @@ export function parseArgs(): CliInput {
   }
 
   const command = args[0] as CliInput["command"]
-  if (!["run", "rerun", "fix", "fix-ci", "status", "review", "resolve", "decompose", "compose"].includes(command)) {
+  if (!["run", "rerun", "fix", "fix-ci", "status", "review", "resolve", "decompose", "compose", "ask"].includes(command)) {
     console.error(`Unknown command: ${command}`)
     process.exit(1)
   }
