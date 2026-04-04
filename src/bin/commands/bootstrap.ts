@@ -14,6 +14,84 @@ import { readProjectMemory } from "../../memory.js"
 
 export const STEP_STAGES = ["taskify", "plan", "build", "autofix", "review", "review-fix"] as const
 
+/* ── Digest issue resolution ─────────────────────────────────── */
+
+export interface DigestIssueGateway {
+  /** Return "OPEN" | "CLOSED" or throw if issue doesn't exist */
+  getIssueState(issueNum: number): string
+  /** Return the WATCH_DIGEST_ISSUE repo variable value, or null */
+  getVariable(): string | null
+  /** Search for an open issue by title, return its number or null */
+  searchIssue(): number | null
+  /** Create the digest issue, return its number or null */
+  createIssue(): number | null
+  /** Pin an issue (best-effort) */
+  pinIssue(issueNum: number): void
+}
+
+export interface DigestIssueResult {
+  issueNumber: number | null
+  source: "config" | "variable" | "search" | "created" | null
+  warnings: string[]
+}
+
+/**
+ * Resolve the digest issue number through a priority chain:
+ * 1. Config value (validated open)
+ * 2. GitHub Actions variable (validated open)
+ * 3. Search by title
+ * 4. Create new
+ */
+export function resolveDigestIssue(
+  configDigestIssue: number | undefined,
+  gateway: DigestIssueGateway,
+): DigestIssueResult {
+  const warnings: string[] = []
+
+  // 1. Check config value and validate it exists & is open
+  if (configDigestIssue) {
+    try {
+      const state = gateway.getIssueState(configDigestIssue)
+      if (state === "OPEN") {
+        return { issueNumber: configDigestIssue, source: "config", warnings }
+      }
+      warnings.push(`Config digestIssue #${configDigestIssue} is ${state || "missing"} — will re-resolve`)
+    } catch {
+      warnings.push(`Config digestIssue #${configDigestIssue} not found — will re-resolve`)
+    }
+  }
+
+  // 2. Check GitHub Actions variable and validate
+  const varValue = gateway.getVariable()
+  if (varValue && !isNaN(parseInt(varValue, 10))) {
+    const candidate = parseInt(varValue, 10)
+    try {
+      const state = gateway.getIssueState(candidate)
+      if (state === "OPEN") {
+        return { issueNumber: candidate, source: "variable", warnings }
+      }
+      warnings.push(`Variable WATCH_DIGEST_ISSUE #${candidate} is ${state || "missing"} — will re-resolve`)
+    } catch {
+      warnings.push(`Variable WATCH_DIGEST_ISSUE #${candidate} not found — will re-resolve`)
+    }
+  }
+
+  // 3. Search for existing open digest issue
+  const found = gateway.searchIssue()
+  if (found) {
+    return { issueNumber: found, source: "search", warnings }
+  }
+
+  // 4. Create only if none exists
+  const created = gateway.createIssue()
+  if (created) {
+    gateway.pinIssue(created)
+    return { issueNumber: created, source: "created", warnings }
+  }
+
+  return { issueNumber: null, source: null, warnings }
+}
+
 function gatherSampleSourceFiles(cwd: string, maxFiles = 3, maxCharsEach = 2000): string {
   const srcDir = path.join(cwd, "src")
   const baseDir = fs.existsSync(srcDir) ? srcDir : cwd
@@ -643,104 +721,90 @@ Command and URL.
   if (fs.existsSync(kodyConfigPath)) {
     try {
       const config = JSON.parse(fs.readFileSync(kodyConfigPath, "utf-8"))
-      if (config.watch?.enabled && !config.watch?.digestIssue) {
+      if (config.watch?.enabled) {
         let watchRepoSlug = ""
         if (config.github?.owner && config.github?.repo) {
           watchRepoSlug = `${config.github.owner}/${config.github.repo}`
         }
 
         if (watchRepoSlug) {
-          // Check GitHub Actions variable first (persists across branches/runs)
-          let digestIssueNumber: number | null = null
-          try {
-            const varResult = execFileSync("gh", [
-              "variable", "get", "WATCH_DIGEST_ISSUE",
-              "--repo", watchRepoSlug,
-            ], {
-              cwd,
-              encoding: "utf-8",
-              timeout: 10_000,
-              stdio: ["pipe", "pipe", "pipe"],
-            }).trim()
-            if (varResult && !isNaN(parseInt(varResult, 10))) {
-              digestIssueNumber = parseInt(varResult, 10)
-              console.log(`  ✓ Digest issue from variable: #${digestIssueNumber}`)
-            }
-          } catch { /* variable not set */ }
+          const ghOpts = { cwd, encoding: "utf-8" as const, timeout: 10_000, stdio: ["pipe", "pipe", "pipe"] as ["pipe", "pipe", "pipe"] }
 
-          // Search for existing digest issue if variable not set
-          if (!digestIssueNumber) {
-            try {
-              const searchResult = execFileSync("gh", [
-                "issue", "list",
+          const gateway: DigestIssueGateway = {
+            getIssueState(issueNum) {
+              return execFileSync("gh", [
+                "issue", "view", String(issueNum),
                 "--repo", watchRepoSlug,
-                "--search", "[Kody Watch] Health Digest in:title",
-                "--state", "open",
-                "--json", "number",
-                "--jq", ".[0].number",
-              ], {
-                cwd,
-                encoding: "utf-8",
-                timeout: 15_000,
-                stdio: ["pipe", "pipe", "pipe"],
-              }).trim()
-              if (searchResult && !isNaN(parseInt(searchResult, 10))) {
-                digestIssueNumber = parseInt(searchResult, 10)
-                console.log(`  ✓ Found existing digest issue: #${digestIssueNumber}`)
-              }
-            } catch { /* search failed */ }
+                "--json", "state", "--jq", ".state",
+              ], ghOpts).trim()
+            },
+            getVariable() {
+              try {
+                return execFileSync("gh", [
+                  "variable", "get", "WATCH_DIGEST_ISSUE",
+                  "--repo", watchRepoSlug,
+                ], ghOpts).trim() || null
+              } catch { return null }
+            },
+            searchIssue() {
+              try {
+                const r = execFileSync("gh", [
+                  "issue", "list", "--repo", watchRepoSlug,
+                  "--search", "[Kody Watch] Health Digest in:title",
+                  "--state", "open", "--json", "number", "--jq", ".[0].number",
+                ], { ...ghOpts, timeout: 15_000 }).trim()
+                return r && !isNaN(parseInt(r, 10)) ? parseInt(r, 10) : null
+              } catch { return null }
+            },
+            createIssue() {
+              try {
+                const url = execFileSync("gh", [
+                  "issue", "create", "--repo", watchRepoSlug,
+                  "--title", "[Kody Watch] Health Digest",
+                  "--body", "This issue receives periodic health reports from Kody Watch.\n\n**Plugins:** pipeline-health, security-scan, config-health\n\n_Do not close this issue — Kody Watch posts digest comments here._",
+                ], { ...ghOpts, timeout: 15_000 }).trim()
+                const m = url.match(/\/issues\/(\d+)/)
+                return m ? parseInt(m[1], 10) : null
+              } catch { return null }
+            },
+            pinIssue(issueNum) {
+              try {
+                execFileSync("gh", [
+                  "issue", "pin", String(issueNum), "--repo", watchRepoSlug,
+                ], ghOpts)
+              } catch { /* best-effort */ }
+            },
           }
 
-          // Create only if none exists
-          if (!digestIssueNumber) {
-            console.log("  ⏳ Creating Watch digest issue...")
-            try {
-              const issueUrl = execFileSync("gh", [
-                "issue", "create",
-                "--repo", watchRepoSlug,
-                "--title", "[Kody Watch] Health Digest",
-                "--body", "This issue receives periodic health reports from Kody Watch.\n\n**Plugins:** pipeline-health, security-scan, config-health\n\n_Do not close this issue — Kody Watch posts digest comments here._",
-              ], {
-                cwd,
-                encoding: "utf-8",
-                timeout: 15_000,
-                stdio: ["pipe", "pipe", "pipe"],
-              }).trim()
+          const result = resolveDigestIssue(config.watch?.digestIssue, gateway)
 
-              const digestMatch = issueUrl.match(/\/issues\/(\d+)/)
-              if (digestMatch) {
-                digestIssueNumber = parseInt(digestMatch[1], 10)
-                console.log(`  ✓ Created digest issue #${digestIssueNumber}`)
-
-                // Pin the issue (best-effort)
-                try {
-                  execFileSync("gh", [
-                    "issue", "pin", String(digestIssueNumber),
-                    "--repo", watchRepoSlug,
-                  ], { cwd, encoding: "utf-8", timeout: 10_000, stdio: ["pipe", "pipe", "pipe"] })
-                  console.log(`  ✓ Pinned digest issue`)
-                } catch { /* best-effort */ }
-              }
-            } catch (err) {
-              console.log(`  ⚠ Failed to create digest issue: ${err instanceof Error ? err.message : err}`)
+          for (const w of result.warnings) console.log(`  ⚠ ${w}`)
+          if (result.issueNumber && result.source) {
+            const labels: Record<string, string> = {
+              config: "Digest issue from config",
+              variable: "Digest issue from variable",
+              search: "Found existing digest issue",
+              created: "Created digest issue",
             }
+            console.log(`  ✓ ${labels[result.source]}: #${result.issueNumber}`)
+            if (result.source === "created") console.log(`  ✓ Pinned digest issue`)
           }
 
-          // Persist to GitHub Actions variable (source of truth across branches)
-          if (digestIssueNumber) {
-            config.watch.digestIssue = digestIssueNumber
+          // Persist to config and GitHub Actions variable
+          if (result.issueNumber) {
+            config.watch.digestIssue = result.issueNumber
             fs.writeFileSync(kodyConfigPath, JSON.stringify(config, null, 2) + "\n")
             try {
               execFileSync("gh", [
                 "variable", "set", "WATCH_DIGEST_ISSUE",
                 "--repo", watchRepoSlug,
-                "--body", String(digestIssueNumber),
+                "--body", String(result.issueNumber),
               ], { cwd, encoding: "utf-8", timeout: 10_000, stdio: ["pipe", "pipe", "pipe"] })
               console.log(`  ✓ Set WATCH_DIGEST_ISSUE variable`)
             } catch { /* best-effort */ }
           }
         }
-      } else if (!config.watch?.enabled) {
+      } else {
         console.log("  ○ Watch not enabled — skipping digest issue setup")
       }
     } catch { /* config parse error */ }
