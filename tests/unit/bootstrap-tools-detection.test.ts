@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import * as fs from "fs"
 import * as path from "path"
 import * as os from "os"
-import { detectToolsForBootstrap, detectProjectKeywords, searchSkills } from "../../src/bin/commands/bootstrap.js"
+import { detectToolsForBootstrap, detectProjectKeywords, extractDependencyNames, searchSkills } from "../../src/bin/commands/bootstrap.js"
 
 function createTmpDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "kody-bootstrap-tools-"))
@@ -124,6 +124,38 @@ describe("detectProjectKeywords", () => {
   it("returns empty for invalid package.json", () => {
     writeFile(tmpDir, "package.json", "not json")
     expect(detectProjectKeywords(tmpDir)).toEqual([])
+  })
+})
+
+describe("extractDependencyNames", () => {
+  it("extracts dependency names from valid package.json", () => {
+    const pkg = JSON.stringify({ dependencies: { next: "14.0.0", react: "18.0.0" } })
+    expect(extractDependencyNames(pkg)).toBe("next, react")
+  })
+
+  it("returns 'Unknown' for null input", () => {
+    expect(extractDependencyNames(null)).toBe("Unknown")
+  })
+
+  it("returns 'none' when dependencies object is empty", () => {
+    expect(extractDependencyNames(JSON.stringify({ dependencies: {} }))).toBe("none")
+  })
+
+  it("returns 'none' when dependencies key is missing", () => {
+    expect(extractDependencyNames(JSON.stringify({ devDependencies: { vitest: "1.0.0" } }))).toBe("none")
+  })
+
+  it("handles truncated JSON without crashing", () => {
+    const fullPkg = JSON.stringify({
+      dependencies: { next: "14.0.0", react: "18.0.0", payload: "3.0.0" },
+      devDependencies: { vitest: "1.0.0", tailwindcss: "3.0.0" },
+    })
+    const truncated = fullPkg.slice(0, 80)
+    expect(extractDependencyNames(truncated)).toBe("unknown (parse error)")
+  })
+
+  it("handles completely invalid JSON without crashing", () => {
+    expect(extractDependencyNames("not json at all")).toBe("unknown (parse error)")
   })
 })
 

@@ -143,6 +143,15 @@ function parseSkillsSearchOutput(output: string): SearchedSkill[] {
   return results
 }
 
+export function extractDependencyNames(pkgJsonStr: string | null): string {
+  if (!pkgJsonStr) return "Unknown"
+  try {
+    return Object.keys(JSON.parse(pkgJsonStr).dependencies ?? {}).join(", ") || "none"
+  } catch {
+    return "unknown (parse error)"
+  }
+}
+
 export function detectProjectKeywords(cwd: string): string[] {
   const pkgPath = path.join(cwd, "package.json")
   if (!fs.existsSync(pkgPath)) return []
@@ -835,7 +844,7 @@ Command and URL.
       const relevancePrompt = `You are a strict filter. For each skill below, decide: KEEP or REJECT.
 
 ## This project uses
-${pkgJson ? `package.json dependencies: ${Object.keys(JSON.parse(pkgJson).dependencies ?? {}).join(", ")}` : "Unknown"}
+${`package.json dependencies: ${extractDependencyNames(pkgJson)}`}
 ${claudeMd ? `\nCLAUDE.md (first 1500 chars):\n${claudeMd.slice(0, 1500)}` : ""}
 
 ## Candidate skills to evaluate
