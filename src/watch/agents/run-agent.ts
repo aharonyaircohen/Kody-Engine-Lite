@@ -3,7 +3,7 @@
  */
 
 import { createClaudeCodeRunner } from "../../agent-runner.js"
-import { getLitellmUrl, stageNeedsProxy } from "../../config.js"
+import { getLitellmUrl, stageNeedsProxy, getAnthropicApiKeyOrDummy } from "../../config.js"
 import type { WatchAgentDefinition, WatchAgentRunResult, WatchContext } from "../core/types.js"
 import { buildWatchAgentPrompt } from "./prompt-builder.js"
 
@@ -37,11 +37,7 @@ export async function runWatchAgent(
   const stageConfig = { provider: provider ?? "claude", model }
   if (stageNeedsProxy(stageConfig)) {
     extraEnv.ANTHROPIC_BASE_URL = getLitellmUrl()
-    // Claude Code CLI requires ANTHROPIC_API_KEY to start.
-    // Provide a dummy so CLI launches — LiteLLM handles real auth.
-    if (!process.env.ANTHROPIC_API_KEY) {
-      extraEnv.ANTHROPIC_API_KEY = `sk-ant-api03-${"0".repeat(64)}`
-    }
+    extraEnv.ANTHROPIC_API_KEY = getAnthropicApiKeyOrDummy()
   }
 
   const result = await runner.run(

@@ -11,7 +11,7 @@ import * as path from "path"
 import { fileURLToPath } from "url"
 import { execSync } from "child_process"
 
-import { getProjectConfig, resolveStageConfig, setConfigDir, needsLitellmProxy, anyStageNeedsProxy, getLitellmUrl, providerApiKeyEnvVar } from "../config.js"
+import { getProjectConfig, resolveStageConfig, setConfigDir, needsLitellmProxy, anyStageNeedsProxy, getLitellmUrl, providerApiKeyEnvVar, getAnthropicApiKeyOrDummy } from "../config.js"
 import { createClaudeCodeRunner } from "../agent-runner.js"
 import { buildTaskifyMcpConfigJson } from "../mcp-config.js"
 import {
@@ -168,7 +168,7 @@ export async function runTaskifyCommand(): Promise<void> {
     }
     runnerEnv = {
       ANTHROPIC_BASE_URL: litellmUrl,
-      ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || "dummy",
+      ANTHROPIC_API_KEY: getAnthropicApiKeyOrDummy(),
     }
   }
 

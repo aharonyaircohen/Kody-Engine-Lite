@@ -15,7 +15,7 @@ import { checkLitellmHealth, checkModelHealth, tryStartLitellm, generateLitellmC
 import { generateTaskId, resolveTaskIdForCommand } from "./cli/task-resolution.js"
 import { resolveForIssue } from "./cli/task-state.js"
 import { isTaskifyRun, taskifyCommand, readTaskifyMarker } from "./cli/taskify-command.js"
-import { needsLitellmProxy, anyStageNeedsProxy, getLitellmUrl, providerApiKeyEnvVar } from "./config.js"
+import { needsLitellmProxy, anyStageNeedsProxy, getLitellmUrl, providerApiKeyEnvVar, getAnthropicApiKeyOrDummy } from "./config.js"
 import type { KodyConfig } from "./config.js"
 import { loadToolDeclarations, detectTools } from "./tools.js"
 
@@ -76,7 +76,7 @@ async function ensureLitellmProxy(
   // Claude Code CLI requires ANTHROPIC_API_KEY to start.
   // If not set, provide a dummy so CLI launches (LiteLLM handles real auth).
   if (!process.env.ANTHROPIC_API_KEY) {
-    process.env.ANTHROPIC_API_KEY = `sk-ant-api03-${"0".repeat(64)}`
+    process.env.ANTHROPIC_API_KEY = getAnthropicApiKeyOrDummy()
   }
 
   return litellmProcess

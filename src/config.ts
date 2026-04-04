@@ -128,6 +128,15 @@ export const LITELLM_DEFAULT_PORT = 4000
 export const LITELLM_DEFAULT_URL = `http://localhost:${LITELLM_DEFAULT_PORT}`
 
 /**
+ * Claude Code CLI requires ANTHROPIC_API_KEY to start, even when routing
+ * through LiteLLM. Returns the real key if set, otherwise a dummy key
+ * that satisfies CLI validation while LiteLLM handles actual auth.
+ */
+export function getAnthropicApiKeyOrDummy(): string {
+  return process.env.ANTHROPIC_API_KEY || `sk-ant-api03-${"0".repeat(64)}`
+}
+
+/**
  * Resolve provider + model for a specific stage.
  * Priority: agent.stages[stageName] > agent.default > legacy agent.provider + modelMap
  */

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import * as fs from "fs"
 import * as path from "path"
 import * as os from "os"
-import { getProjectConfig, resetProjectConfig, setConfigDir } from "../../src/config.js"
+import { getProjectConfig, resetProjectConfig, setConfigDir, getAnthropicApiKeyOrDummy, resolveStageConfig } from "../../src/config.js"
 
 describe("config", () => {
   let tmpDir: string
@@ -21,7 +21,7 @@ describe("config", () => {
     setConfigDir(tmpDir)
     const config = getProjectConfig()
     expect(config.git.defaultBranch).toBe("dev")
-    expect(config.agent.modelMap.cheap).toBe("claude-haiku-4-5-20251001")
+    expect(config.agent.modelMap).toEqual({})
     expect(config.agent.defaultRunner).toBeUndefined()
   })
 
@@ -78,5 +78,60 @@ describe("config", () => {
     expect(config.agent.defaultRunner).toBe("claude")
     expect(config.agent.runners?.claude.type).toBe("claude-code")
     expect(config.agent.stageRunners?.plan).toBe("backup")
+  })
+})
+
+describe("getAnthropicApiKeyOrDummy", () => {
+  const originalKey = process.env.ANTHROPIC_API_KEY
+
+  afterEach(() => {
+    if (originalKey !== undefined) {
+      process.env.ANTHROPIC_API_KEY = originalKey
+    } else {
+      delete process.env.ANTHROPIC_API_KEY
+    }
+  })
+
+  it("returns real key when ANTHROPIC_API_KEY is set", () => {
+    process.env.ANTHROPIC_API_KEY = "sk-ant-real-key-123"
+    expect(getAnthropicApiKeyOrDummy()).toBe("sk-ant-real-key-123")
+  })
+
+  it("returns dummy key when ANTHROPIC_API_KEY is not set", () => {
+    delete process.env.ANTHROPIC_API_KEY
+    const key = getAnthropicApiKeyOrDummy()
+    expect(key).toMatch(/^sk-ant-api03-0{64}$/)
+  })
+
+  it("returns dummy key when ANTHROPIC_API_KEY is empty string", () => {
+    process.env.ANTHROPIC_API_KEY = ""
+    const key = getAnthropicApiKeyOrDummy()
+    expect(key).toMatch(/^sk-ant-api03-0{64}$/)
+  })
+})
+
+describe("resolveStageConfig", () => {
+  it("throws when model tier is missing from empty modelMap", () => {
+    const config = {
+      quality: { typecheck: "", lint: "", lintFix: "", formatFix: "", testUnit: "" },
+      git: { defaultBranch: "main" },
+      github: { owner: "", repo: "" },
+      agent: { modelMap: {} },
+    }
+    expect(() => resolveStageConfig(config, "build", "cheap")).toThrow(
+      /No model configured for stage 'build'/,
+    )
+  })
+
+  it("resolves model from modelMap when configured", () => {
+    const config = {
+      quality: { typecheck: "", lint: "", lintFix: "", formatFix: "", testUnit: "" },
+      git: { defaultBranch: "main" },
+      github: { owner: "", repo: "" },
+      agent: { modelMap: { cheap: "minimax/MiniMax-M2.7-highspeed" }, provider: "minimax" },
+    }
+    const result = resolveStageConfig(config, "build", "cheap")
+    expect(result.model).toBe("minimax/MiniMax-M2.7-highspeed")
+    expect(result.provider).toBe("minimax")
   })
 })
