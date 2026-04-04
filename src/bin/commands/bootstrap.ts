@@ -910,7 +910,11 @@ Command and URL.
     const found = searchSkills(keywords, excludeSkills, 10)
     if (found.length > 0) {
       // Deterministic relevance filter: match skill names against project dependencies
-      const { kept: skillsToInstall, rejected } = filterSkillsByDependencies(found, pkgJson)
+      // Read full package.json (pkgJson may be truncated at 3000 chars for LLM context)
+      const fullPkgJson = fs.existsSync(path.join(cwd, "package.json"))
+        ? fs.readFileSync(path.join(cwd, "package.json"), "utf-8")
+        : pkgJson
+      const { kept: skillsToInstall, rejected } = filterSkillsByDependencies(found, fullPkgJson)
       for (const r of rejected) {
         console.log(`  ✗ ${r.name} — rejected (${r.reason})`)
       }
