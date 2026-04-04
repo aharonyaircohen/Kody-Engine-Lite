@@ -32,8 +32,8 @@ Required JSON format:
 
 Risk level heuristics:
 - low: single file change, no breaking changes, docs, config, isolated scripts, test additions, style changes
-- medium: multiple files, possible side effects, API changes, new dependencies, refactoring existing logic
-- high: core business logic, data migrations, security, authentication, payment processing, database schema changes
+- medium: 2-3 files, possible side effects, API changes, new dependencies, refactoring existing logic, adding a new utility/middleware with tests
+- high: 4+ files across multiple directories, core business logic, data migrations, security, authentication, payment processing, database schema changes, cross-cutting concerns, system redesigns
 
 existing_patterns rules:
 - List patterns found in the codebase that are relevant to this task
