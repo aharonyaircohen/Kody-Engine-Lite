@@ -871,31 +871,23 @@ Command and URL.
     if (found.length > 0) {
       // LLM relevance filter: ask the model which skills actually match this project
       const candidateList = found.map((s) => `- ${s.name} (${s.ref})`).join("\n")
-      const relevancePrompt = `You are a strict filter. For each skill below, decide: KEEP or REJECT.
+      const relevancePrompt = `Filter skills for this project. For each skill, decide KEEP or REJECT.
 
-## This project uses
-${`package.json dependencies: ${extractDependencyNames(pkgJson)}`}
-${claudeMd ? `\nCLAUDE.md (first 1500 chars):\n${claudeMd.slice(0, 1500)}` : ""}
+## Project dependencies
+${extractDependencyNames(pkgJson)}
 
-## Candidate skills to evaluate
+## Candidate skills
 ${candidateList}
 
-## Evaluate EACH skill — REJECT unless it passes ALL checks:
-1. Does this project import/use the skill's specific library? (e.g., "clerk" skill → is "@clerk/nextjs" in package.json? If NO → REJECT)
-2. Is this a generic "best practices" or "patterns" collection? (e.g., "react-best-practices", "vercel-react-best-practices") → REJECT (the project's CLAUDE.md already defines conventions)
-3. Does the skill duplicate what CLAUDE.md already covers? → REJECT
-4. Is the skill for a SPECIFIC library this project actually depends on? (e.g., "payload" skill for a project using "payload" package) → KEEP
+## Rules (apply in order, stop at first match):
+1. Skill name matches a package in dependencies? → KEEP (e.g., "payload" skill + "payload" in deps → KEEP)
+2. Skill name contains "best-practices" or "patterns" or "standards"? → REJECT
+3. Skill is for a library NOT in dependencies? → REJECT (e.g., "clerk" skill but no "@clerk/*" in deps → REJECT)
+4. Everything else → REJECT
 
-## Examples
-- Project has "payload" in dependencies → "payload" skill → KEEP
-- Project has NO "@clerk/nextjs" → "clerk-nextjs-patterns" skill → REJECT
-- Any "best-practices" or "patterns" collection → REJECT (CLAUDE.md exists)
-- Project has "playwright" in devDependencies → "playwright-cli" skill → KEEP
-- Project has "tailwindcss" → "tailwind-design-system" skill → could KEEP if no design system in CLAUDE.md
-
-Output ONLY a JSON array of refs to KEEP. Example: ["owner/repo@name"]
-If nothing passes, output: []
-NO explanation. ONLY the JSON array.`
+Output a JSON array of refs to KEEP. Example: ["payloadcms/skills@payload"]
+If nothing passes: []
+ONLY the JSON array, no explanation.`
 
       let filteredRefs: Set<string> | null = null
       try {
