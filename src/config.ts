@@ -247,8 +247,8 @@ export function getProjectConfig(): KodyConfig {
               servers: {},
               stages: ["build", "verify", "review", "review-fix"],
               ...raw.mcp,
-              // Auto-enable when devServer is configured (user can still set enabled: false to override)
-              enabled: raw.mcp.enabled ?? !!raw.mcp.devServer,
+              // Only auto-enable when explicit MCP servers are configured (devServer alone is not MCP)
+              enabled: raw.mcp.enabled ?? (!!raw.mcp.servers && Object.keys(raw.mcp.servers).length > 0),
             }
           : undefined,
         // Top-level devServer takes precedence; fall back to mcp.devServer for backward compat
