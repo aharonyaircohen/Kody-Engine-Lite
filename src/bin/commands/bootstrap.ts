@@ -2,10 +2,13 @@ import * as fs from "fs"
 import * as path from "path"
 import { execFileSync } from "child_process"
 
+import type { ChildProcess } from "child_process"
+
 import { detectArchitectureBasic } from "../architecture-detection.js"
 import { discoverQaContext, generateQaGuideFallback, serializeDiscoveryForLLM } from "../qa-guide.js"
-import { getProjectConfig, resolveStageConfig, setConfigDir } from "../../config.js"
+import { getProjectConfig, resolveStageConfig, setConfigDir, stageNeedsProxy, getLitellmUrl, getAnthropicApiKeyOrDummy } from "../../config.js"
 import { buildExtendInstruction } from "../extend-helpers.js"
+import { checkLitellmHealth, tryStartLitellm, generateLitellmConfig } from "../../cli/litellm.js"
 
 export const STEP_STAGES = ["taskify", "plan", "build", "autofix", "review", "review-fix"] as const
 
@@ -226,15 +229,38 @@ function collectSkillPaths(cwd: string, skillName: string, paths: string[]): voi
   }
 }
 
-export function bootstrapCommand(opts: { force: boolean }, pkgRoot: string) {
+export async function bootstrapCommand(opts: { force: boolean }, pkgRoot: string) {
   const cwd = process.cwd()
   setConfigDir(cwd)
   const issueNumber = parseInt(process.env.ISSUE_NUMBER ?? "", 10) || 0
-  const bootstrapModel = resolveStageConfig(getProjectConfig(), "bootstrap", "cheap").model
+  const config = getProjectConfig()
+  const bootstrapStageConfig = resolveStageConfig(config, "bootstrap", "cheap")
+  const bootstrapModel = bootstrapStageConfig.model
+  let litellmProcess: ChildProcess | null = null
+  const llmErrors: string[] = []
   console.log(`\n🔧 Kody Bootstrap — Generating project memory + step files\n`)
+  console.log(`  Model: ${bootstrapModel} (provider: ${bootstrapStageConfig.provider})`)
 
   if (issueNumber) {
     ghComment(issueNumber, "🔧 **Bootstrap started** — analyzing project and generating configuration...", cwd)
+  }
+
+  // ── Start LiteLLM proxy if needed ──
+  if (stageNeedsProxy(bootstrapStageConfig)) {
+    const litellmUrl = getLitellmUrl()
+    const isHealthy = await checkLitellmHealth(litellmUrl)
+    if (!isHealthy) {
+      const generatedConfig = generateLitellmConfig(bootstrapStageConfig.provider, config.agent.modelMap)
+      console.log(`  Starting LiteLLM proxy for ${bootstrapStageConfig.provider}...`)
+      litellmProcess = await tryStartLitellm(litellmUrl, cwd, generatedConfig)
+      if (litellmProcess) {
+        console.log(`  LiteLLM proxy started`)
+      } else {
+        console.warn(`  ⚠ LiteLLM proxy failed to start — LLM calls will fail`)
+      }
+    }
+    process.env.ANTHROPIC_BASE_URL = litellmUrl
+    process.env.ANTHROPIC_API_KEY = getAnthropicApiKeyOrDummy()
   }
 
   // ── Gather project context ──
@@ -352,8 +378,10 @@ ${repoContext}`
       const lineCount = parsed.conventions.split("\n").length
       console.log(`  ✓ .kody/memory/conventions.md (${lineCount} lines)`)
     }
-  } catch {
+  } catch (llmErr) {
+    const errMsg = llmErr instanceof Error ? llmErr.message : String(llmErr)
     console.log("  ⚠ LLM analysis failed — creating basic memory files")
+    llmErrors.push(`Memory generation: ${errMsg}`)
     // Fallback: basic detection
     const detected = detectArchitectureBasic(cwd)
     if (detected.length > 0) {
@@ -461,7 +489,8 @@ REMINDER: Output the full prompt template first (unchanged), then your three app
       fs.writeFileSync(stepOutputPath, finalPrompt)
       stepCount++
       console.log(`  ✓ ${stage}.md (${isExtend ? "extended" : "generated"})`)
-    } catch {
+    } catch (stepErr) {
+      const errMsg = stepErr instanceof Error ? stepErr.message : String(stepErr)
       if (!isExtend) {
         console.log(`  ⚠ ${stage}.md — customization failed, using default template`)
         fs.copyFileSync(templatePath, stepOutputPath)
@@ -469,6 +498,7 @@ REMINDER: Output the full prompt template first (unchanged), then your three app
       } else {
         console.log(`  ⚠ ${stage}.md — extend failed, keeping existing`)
       }
+      llmErrors.push(`Step ${stage}: ${errMsg}`)
     }
   }
   console.log(`  ✓ Generated ${stepCount} step files in .kody/steps/`)
@@ -1039,7 +1069,23 @@ NO explanation. ONLY the JSON array.`
     }
   }
 
+  // ── Cleanup ──
+  if (litellmProcess) {
+    litellmProcess.kill("SIGTERM")
+  }
+
   console.log("\n── Done ──")
-  console.log("  ✓ Project bootstrap complete!")
-  console.log("  Kody now has project-specific memory and customized step files.\n")
+  if (llmErrors.length > 0) {
+    console.log(`  ⚠ Bootstrap completed with ${llmErrors.length} LLM error(s):`)
+    for (const err of llmErrors) {
+      console.log(`    • ${err}`)
+    }
+    if (issueNumber) {
+      const errorList = llmErrors.map((e) => `- ${e}`).join("\n")
+      ghComment(issueNumber, `⚠️ **Bootstrap completed with LLM errors** — some files used fallback templates instead of project-specific customization.\n\n**Errors:**\n${errorList}\n\nRe-run \`@kody bootstrap\` to retry.`, cwd)
+    }
+  } else {
+    console.log("  ✓ Project bootstrap complete!")
+    console.log("  Kody now has project-specific memory and customized step files.\n")
+  }
 }

@@ -39,7 +39,10 @@ const command = args[0]
 if (command === "init") {
   initCommand({ force: args.includes("--force") }, PKG_ROOT)
 } else if (command === "bootstrap") {
-  bootstrapCommand({ force: args.includes("--force") }, PKG_ROOT)
+  bootstrapCommand({ force: args.includes("--force") }, PKG_ROOT).catch((err) => {
+    console.error(`Bootstrap failed: ${err instanceof Error ? err.message : err}`)
+    process.exit(1)
+  })
 } else if (command === "taskify") {
   import("../cli/taskify-command.js").then(({ runTaskifyCommand }) => runTaskifyCommand())
 } else if (command === "test-model") {
