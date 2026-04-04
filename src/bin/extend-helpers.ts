@@ -5,8 +5,13 @@ const MAX_EXISTING_CONTENT_LENGTH = 6000
  * When existing content is provided, instructs the LLM to preserve manual edits
  * and extend with new findings. Returns empty string when no existing content.
  */
+const MIN_MEANINGFUL_CONTENT_LENGTH = 200
+
 export function buildExtendInstruction(existingContent: string, fileDescription: string): string {
   if (!existingContent.trim()) return ""
+  // If existing content is too short (fallback/template), skip extend — regenerate from scratch
+  const stripped = existingContent.replace(/<!--.*?-->/gs, "").replace(/^#.*$/gm, "").trim()
+  if (stripped.length < MIN_MEANINGFUL_CONTENT_LENGTH) return ""
 
   let content = existingContent
   if (content.length > MAX_EXISTING_CONTENT_LENGTH) {
