@@ -105,9 +105,9 @@ describe("isMcpEnabledForStage", () => {
     expect(isMcpEnabledForStage("build", mcp)).toBe(false)
   })
 
-  it("returns true when enabled even with no explicit servers (Playwright auto-injected at runtime)", () => {
+  it("returns false when enabled but no servers configured", () => {
     const mcp: McpConfig = { enabled: true, servers: {} }
-    expect(isMcpEnabledForStage("build", mcp)).toBe(true)
+    expect(isMcpEnabledForStage("build", mcp)).toBe(false)
   })
 
   it("uses default stages when stages not specified", () => {

@@ -117,6 +117,8 @@ export function isMcpEnabledForStage(
   mcpConfig: McpConfig | undefined,
 ): boolean {
   if (!mcpConfig?.enabled) return false
+  // No actual MCP servers configured — nothing to load
+  if (!mcpConfig.servers || Object.keys(mcpConfig.servers).length === 0) return false
   const allowedStages = mcpConfig.stages ?? DEFAULT_MCP_STAGES
   return allowedStages.includes(stageName)
 }

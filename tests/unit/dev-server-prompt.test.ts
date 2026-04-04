@@ -152,7 +152,7 @@ describe("dev server prompt instructions", () => {
     expect(prompt).toContain("playwright-cli")
   })
 
-  it("uses fallback instructions when no devServer configured", () => {
+  it("no browser guidance when mcp enabled but no servers or devServer configured", () => {
     fs.writeFileSync(
       path.join(projectDir, "kody.config.json"),
       JSON.stringify({ agent: { modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" } }, mcp: { enabled: true } }),
@@ -160,9 +160,10 @@ describe("dev server prompt instructions", () => {
     setConfigDir(projectDir)
     const prompt = buildFullPrompt("build", "test-task", taskDir, projectDir)
 
-    // Fallback should also use nohup, not bare backgrounding
-    expect(prompt).toContain("nohup")
-    expect(prompt).not.toMatch(/^pnpm dev &$/m)
+    // No servers and no devServer means no browser guidance at all
+    expect(prompt).not.toContain("Browser Visual Verification")
+    expect(prompt).not.toContain("mcp__playwright")
+    expect(prompt).not.toContain("playwright-cli")
   })
 })
 
