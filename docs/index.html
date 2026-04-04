@@ -563,8 +563,19 @@
 
     .compare-table tr:hover { background: rgba(124,58,237,0.05); }
 
-    .compare-check { color: var(--green); }
+    .compare-check { color: var(--green); font-weight: 600; }
     .compare-x { color: var(--text-muted); }
+
+    .compare-table td:nth-child(3) .check-icon {
+      color: var(--green);
+      margin-right: 0.4rem;
+    }
+
+    .compare-table td:nth-child(2) .x-icon {
+      color: var(--rose);
+      margin-right: 0.4rem;
+      opacity: 0.7;
+    }
 
     /* ═══ DEMO TERMINAL ═══ */
     .demo-terminal {
@@ -782,16 +793,11 @@
     <div class="section-title">Not just another coding agent</div>
     <div class="section-desc" style="max-width: 750px;">Most coding agents are single-shot: prompt, generate, hope it works. Kody runs a full engineering pipeline &mdash; every PR is researched, planned, built, tested, reviewed, and fixed before you ever see it. The same discipline a senior engineer follows, fully automated.</div>
 
-    <div class="compare-strip reveal" style="margin-bottom: 3rem;">
-      <div><span class="dim">Other agents: prompt &rarr; code &rarr; pray</span></div>
-      <div><span class="lit">Kody: research &rarr; plan &rarr; build &rarr; test &rarr; review &rarr; fix &rarr; ship</span></div>
-    </div>
-
     <div class="reveal" style="overflow-x: auto;">
       <table class="compare-table">
         <thead>
           <tr>
-            <th></th>
+            <th>Capability</th>
             <th>Typical agents</th>
             <th>Kody ADE</th>
           </tr>
@@ -799,48 +805,48 @@
         <tbody>
           <tr>
             <td>Execution</td>
-            <td class="compare-x">Single-shot prompt</td>
-            <td>7-stage pipeline with quality gates</td>
+            <td class="compare-x"><span class="x-icon">&#10005;</span> Single-shot prompt</td>
+            <td><span class="check-icon">&#10003;</span> 7-stage pipeline with quality gates</td>
           </tr>
           <tr>
             <td>Testing</td>
-            <td class="compare-x">None or optional</td>
-            <td>Runs typecheck, tests, lint between stages</td>
+            <td class="compare-x"><span class="x-icon">&#10005;</span> None or optional</td>
+            <td><span class="check-icon">&#10003;</span> Typecheck, tests, lint between stages</td>
           </tr>
           <tr>
             <td>Code review</td>
-            <td class="compare-x">None</td>
-            <td>AI review in a fresh session, no build bias</td>
+            <td class="compare-x"><span class="x-icon">&#10005;</span> None</td>
+            <td><span class="check-icon">&#10003;</span> AI review in a fresh session, no build bias</td>
           </tr>
           <tr>
             <td>Failure handling</td>
-            <td class="compare-x">Blind retry or abort</td>
-            <td>AI diagnosis &mdash; classifies, fixes, retries</td>
+            <td class="compare-x"><span class="x-icon">&#10005;</span> Blind retry or abort</td>
+            <td><span class="check-icon">&#10003;</span> AI diagnosis &mdash; classifies, fixes, retries</td>
           </tr>
           <tr>
             <td>Learning</td>
-            <td class="compare-x">Starts from scratch</td>
-            <td>Learns conventions from each run</td>
+            <td class="compare-x"><span class="x-icon">&#10005;</span> Starts from scratch</td>
+            <td><span class="check-icon">&#10003;</span> Learns conventions from each run</td>
           </tr>
           <tr>
             <td>Tool access</td>
-            <td class="compare-x">Sandboxed VM</td>
-            <td>Your CLI, build tools, MCP servers</td>
+            <td class="compare-x"><span class="x-icon">&#10005;</span> Sandboxed VM</td>
+            <td><span class="check-icon">&#10003;</span> Your CLI, build tools, MCP servers</td>
           </tr>
           <tr>
             <td>Models</td>
-            <td class="compare-x">Locked to one provider</td>
-            <td>Any LLM, per-stage selection, auto-escalation</td>
+            <td class="compare-x"><span class="x-icon">&#10005;</span> Locked to one provider</td>
+            <td><span class="check-icon">&#10003;</span> Any LLM, per-stage selection, auto-escalation</td>
           </tr>
           <tr>
             <td>Price</td>
-            <td class="compare-x">$500+/mo or per-seat</td>
-            <td>Free &amp; open source</td>
+            <td class="compare-x"><span class="x-icon">&#10005;</span> $500+/mo or per-seat</td>
+            <td><span class="check-icon">&#10003;</span> Free &amp; open source</td>
           </tr>
           <tr>
             <td>Runs on</td>
-            <td class="compare-x">Hosted service</td>
-            <td>Your CI, your infra, no data leaves</td>
+            <td class="compare-x"><span class="x-icon">&#10005;</span> Hosted service</td>
+            <td><span class="check-icon">&#10003;</span> Your CI, your infra, no data leaves</td>
           </tr>
         </tbody>
       </table>
