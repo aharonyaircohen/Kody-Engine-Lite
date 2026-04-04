@@ -6,7 +6,7 @@ Kody runs a 7-stage pipeline that transforms a GitHub issue into a tested, revie
 
 | Stage | Tier | Default Model | Timeout | What It Does | Output |
 |-------|------|--------------|---------|-------------|--------|
-| **taskify** | cheap | haiku | 10 min | Classify task, detect complexity, ask questions | `task.json` |
+| **taskify** | cheap | haiku | 10 min | Research codebase and classify task: scope, risk, questions | `task.json` |
 | **plan** | strong | opus | 10 min | TDD implementation plan with deep reasoning | `plan.md` |
 | **build** | mid | sonnet | 40 min | Implement code via Claude Code tools | code changes |
 | **verify** | gate | — | 5 min | runs configured quality commands, auto-retry with AI diagnosis | `verify.md` |
@@ -36,7 +36,7 @@ Stages in the same **session group** share a Claude Code session — the agent r
 
 | Group | Stages | Why together |
 |-------|--------|-------------|
-| **explore** | taskify → plan | Both explore the codebase; plan builds on taskify's understanding |
+| **explore** | taskify → plan | Taskify researches the codebase; plan builds on that understanding |
 | **build** | build → autofix → review-fix | Implementation context; autofix needs to know what build wrote |
 | **review** | review (alone) | Fresh perspective — no build bias in the review |
 
@@ -48,7 +48,7 @@ Additionally, each stage appends a summary to `context.md` which is injected int
 
 ### 1. Taskify
 
-Reads the issue body, explores the codebase with tools, and outputs structured classification:
+Researches the codebase (structure, patterns, existing solutions) then classifies the task into structured JSON:
 
 ```json
 {

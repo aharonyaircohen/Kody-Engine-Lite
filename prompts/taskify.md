@@ -1,6 +1,6 @@
 ---
 name: taskify
-description: Classify and structure a task from free-text description
+description: Research codebase and classify task from free-text description
 mode: primary
 tools: [read, glob, grep]
 ---
