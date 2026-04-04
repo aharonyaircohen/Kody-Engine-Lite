@@ -47,6 +47,7 @@ permissions:
   issues: write
   pull-requests: write
   contents: write
+  workflows: write
 
 jobs:
   # ─── Parse (issue_comment trigger only) ──────────────────────────────────────
