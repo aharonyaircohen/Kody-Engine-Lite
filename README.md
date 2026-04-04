@@ -123,7 +123,10 @@ flowchart TD
 
     Start --> NewIssue{"New issue\n→ PR?"}
     Start --> ExistingPR{"Existing\nPR?"}
+    Start --> Question{"Have a\nquestion?"}
     Start --> Setup{"Setup /\nOnboarding?"}
+
+    Question --> Ask["**@kody ask**\nResearch codebase and reply\nNo code changes, no PRs"]:::cmd
 
     NewIssue -->|"Simple/medium"| Kody["**@kody**\nFull pipeline: taskify → plan →\nbuild → verify → review → ship"]:::cmd
     NewIssue -->|"Complex multi-area"| Decompose["**@kody decompose**\nParallel sub-tasks: analyze →\nsplit → parallel build → merge → ship"]:::cmd
@@ -160,6 +163,7 @@ flowchart TD
 | `@kody resolve` | Merge default branch into PR, AI-resolve conflicts, verify, push |
 | `@kody rerun` | Resume from failed or paused stage |
 | `@kody rerun --from <stage>` | Resume from a specific stage |
+| `@kody ask` | Research the codebase and reply with an answer — no code changes, no PRs |
 | `@kody approve` | Resume after questions or risk gate |
 | `@kody bootstrap` | Regenerate project memory and step files |
 
@@ -172,6 +176,7 @@ kody-engine review --pr-number 42   # Standalone PR review
 kody-engine fix --issue-number 42 --feedback "Use middleware pattern"
 kody-engine fix-ci --pr-number 42
 kody-engine resolve --pr-number 42   # Merge + resolve conflicts
+kody-engine --ask "How does auth work?" # Ask a question about the codebase
 kody-engine decompose --issue-number 42  # Parallel sub-tasks for complex issues
 kody-engine compose --task-id <id>  # Retry compose after decompose
 kody-engine rerun --issue-number 42 --from verify
