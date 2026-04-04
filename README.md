@@ -1,11 +1,11 @@
-# Kody ADE Engine
+# Kody ADE — Autonomous Development Engine
 
-[![npm](https://img.shields.io/npm/v/@kody-ade/kody-engine-lite)](https://www.npmjs.com/package/@kody-ade/kody-engine-lite)
+[![npm](https://img.shields.io/npm/v/@kody-ade/engine)](https://www.npmjs.com/package/@kody-ade/engine)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**Comment `@kody` on a GitHub issue. Get back a tested, reviewed PR. Free and open source.**
+**The free, autonomous coding agent. Comment `@kody` on a GitHub issue. Get back a planned, built, verified, and reviewed PR.**
 
-Kody wraps Claude Code with a 7-stage autonomous pipeline — classify, plan, build, verify, review, fix, ship — with quality gates between every stage. If verify catches a bug, it gets fixed before review ever sees it. No blind retries, no context drift, no babysitting.
+Kody wraps Claude Code with a 7-stage autonomous pipeline — research, plan, build, test, review, fix, ship — with quality gates between every stage. If verify catches a bug, it gets fixed before review ever sees it. No blind retries, no context drift, no babysitting.
 
 - **Repo-aware prompts** — `bootstrap` analyzes your codebase and generates customized instructions for every stage, not generic "write clean code" prompts
 - **Quality gates** — runs your repo's typecheck, tests, and lint between stages + AI code review in a fresh session
@@ -41,9 +41,9 @@ Then in GitHub: **Settings → Actions → General → "Allow GitHub Actions to 
 Copy the [workflow template](templates/kody.yml) to `.github/workflows/kody.yml` and add a `kody.config.json` to your repo root. Or use the CLI to auto-generate both:
 
 ```bash
-npm install -g @kody-ade/kody-engine-lite
+npm install -g @kody-ade/engine
 cd your-project
-kody-engine-lite init
+kody-engine init
 ```
 
 ### 3. Bootstrap
@@ -136,7 +136,7 @@ flowchart TD
     PRWhat -->|"Merge conflicts"| Resolve["**@kody resolve**\nMerge default branch,\nAI-resolve conflicts, verify"]:::cmd
     PRWhat -->|"Previous run failed\nor was paused"| Rerun["**@kody rerun**\nResume from failed/paused stage\n*--from stage* to pick stage"]:::cmd
 
-    Setup -->|"First time"| Init["**kody-engine-lite init**\nGenerate workflow + config"]:::setup
+    Setup -->|"First time"| Init["**kody-engine init**\nGenerate workflow + config"]:::setup
     Init --> Bootstrap
     Setup -->|"After major refactor"| Bootstrap["**@kody bootstrap**\nRegenerate memory +\nstep files + labels"]:::setup
 
@@ -164,18 +164,18 @@ flowchart TD
 | `@kody bootstrap` | Regenerate project memory and step files |
 
 ```bash
-kody-engine-lite init [--force]          # Setup repo: workflow + config + watch
-kody-engine-lite bootstrap [--force]     # Generate memory + step files + labels + digest issue
-kody-engine-lite run --issue-number 42 --local --cwd ./project
-kody-engine-lite run --task "Add retry utility" --local
-kody-engine-lite review --pr-number 42   # Standalone PR review
-kody-engine-lite fix --issue-number 42 --feedback "Use middleware pattern"
-kody-engine-lite fix-ci --pr-number 42
-kody-engine-lite resolve --pr-number 42   # Merge + resolve conflicts
-kody-engine-lite decompose --issue-number 42  # Parallel sub-tasks for complex issues
-kody-engine-lite compose --task-id <id>  # Retry compose after decompose
-kody-engine-lite rerun --issue-number 42 --from verify
-kody-engine-lite watch [--dry-run]       # Run health monitoring locally
+kody-engine init [--force]          # Setup repo: workflow + config + watch
+kody-engine bootstrap [--force]     # Generate memory + step files + labels + digest issue
+kody-engine run --issue-number 42 --local --cwd ./project
+kody-engine run --task "Add retry utility" --local
+kody-engine review --pr-number 42   # Standalone PR review
+kody-engine fix --issue-number 42 --feedback "Use middleware pattern"
+kody-engine fix-ci --pr-number 42
+kody-engine resolve --pr-number 42   # Merge + resolve conflicts
+kody-engine decompose --issue-number 42  # Parallel sub-tasks for complex issues
+kody-engine compose --task-id <id>  # Retry compose after decompose
+kody-engine rerun --issue-number 42 --from verify
+kody-engine watch [--dry-run]       # Run health monitoring locally
 ```
 
 [Full CLI reference with all flags and options →](docs/CLI.md)
@@ -208,7 +208,7 @@ flowchart TB
         direction LR
         Comment["@kody comment\non GitHub issue"]
         Dispatch["workflow_dispatch\n(manual)"]
-        CLI["kody-engine-lite run\n(local CLI)"]
+        CLI["kody-engine run\n(local CLI)"]
     end
 
     subgraph ci ["GitHub Actions"]
