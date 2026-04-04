@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import * as fs from "fs"
 import * as path from "path"
 import * as os from "os"
-import { detectToolsForBootstrap, detectProjectKeywords, extractDependencyNames, searchSkills } from "../../src/bin/commands/bootstrap.js"
+import { detectToolsForBootstrap, detectProjectKeywords, extractDependencyNames, searchSkills, filterSkillsByDependencies } from "../../src/bin/commands/bootstrap.js"
 
 function createTmpDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "kody-bootstrap-tools-"))
@@ -185,5 +185,93 @@ describe("searchSkills", () => {
     const refs = results.map((r) => r.ref)
     const unique = [...new Set(refs)]
     expect(refs.length).toBe(unique.length)
+  })
+})
+
+describe("filterSkillsByDependencies", () => {
+  const makeSkill = (name: string, ref?: string): { ref: string; name: string; installs: number } => ({
+    ref: ref ?? `owner/repo@${name}`,
+    name,
+    installs: 100,
+  })
+
+  const makePkg = (deps: Record<string, string>, devDeps?: Record<string, string>) =>
+    JSON.stringify({ dependencies: deps, devDependencies: devDeps ?? {} })
+
+  it("keeps skill matching a direct dependency", () => {
+    const pkg = makePkg({ payload: "3.81.0" })
+    const { kept, rejected } = filterSkillsByDependencies([makeSkill("payload")], pkg)
+    expect(kept).toHaveLength(1)
+    expect(kept[0].name).toBe("payload")
+    expect(rejected).toHaveLength(0)
+  })
+
+  it("keeps skill matching a scoped dependency base name", () => {
+    // @payloadcms/db-postgres → base name "payloadcms" → matches "payload" via includes
+    const pkg = makePkg({ "@payloadcms/db-postgres": "3.0.0", payload: "3.81.0" })
+    const { kept } = filterSkillsByDependencies([makeSkill("payload")], pkg)
+    expect(kept).toHaveLength(1)
+  })
+
+  it("rejects skill with 'best-practices' in name", () => {
+    const pkg = makePkg({ react: "19.0.0" })
+    const { kept, rejected } = filterSkillsByDependencies(
+      [makeSkill("vercel-react-best-practices")],
+      pkg,
+    )
+    expect(kept).toHaveLength(0)
+    expect(rejected).toHaveLength(1)
+    expect(rejected[0].reason).toBe("generic pattern collection")
+  })
+
+  it("rejects skill with 'patterns' in name", () => {
+    const pkg = makePkg({ next: "15.0.0" })
+    const { kept, rejected } = filterSkillsByDependencies(
+      [makeSkill("nextjs-app-router-patterns")],
+      pkg,
+    )
+    expect(kept).toHaveLength(0)
+    expect(rejected[0].reason).toBe("generic pattern collection")
+  })
+
+  it("rejects skill for library not in dependencies", () => {
+    const pkg = makePkg({ payload: "3.81.0" })
+    const { kept, rejected } = filterSkillsByDependencies(
+      [makeSkill("clerk-nextjs-patterns"), makeSkill("django")],
+      pkg,
+    )
+    expect(kept).toHaveLength(0)
+    expect(rejected).toHaveLength(2)
+  })
+
+  it("filters mixed candidates correctly", () => {
+    const pkg = makePkg(
+      { payload: "3.81.0", next: "15.0.0", react: "19.0.0" },
+      { playwright: "1.57.0", tailwindcss: "4.0.0" },
+    )
+    const candidates = [
+      makeSkill("payload"),
+      makeSkill("vercel-react-best-practices"),
+      makeSkill("clerk-nextjs-patterns"),
+      makeSkill("tailwind-design-system"),
+      makeSkill("nextjs-app-router-patterns"),
+    ]
+    const { kept, rejected } = filterSkillsByDependencies(candidates, pkg)
+    expect(kept.map((s) => s.name)).toContain("payload")
+    expect(kept.map((s) => s.name)).toContain("tailwind-design-system")
+    expect(rejected.map((r) => r.name)).toContain("vercel-react-best-practices")
+    expect(rejected.map((r) => r.name)).toContain("clerk-nextjs-patterns")
+    expect(rejected.map((r) => r.name)).toContain("nextjs-app-router-patterns")
+  })
+
+  it("handles null pkgJson", () => {
+    const { kept, rejected } = filterSkillsByDependencies([makeSkill("payload")], null)
+    expect(kept).toHaveLength(0)
+    expect(rejected).toHaveLength(1)
+  })
+
+  it("handles invalid JSON", () => {
+    const { kept } = filterSkillsByDependencies([makeSkill("payload")], "not json")
+    expect(kept).toHaveLength(0)
   })
 })

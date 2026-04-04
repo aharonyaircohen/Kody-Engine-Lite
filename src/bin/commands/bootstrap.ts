@@ -155,6 +155,46 @@ export function extractDependencyNames(pkgJsonStr: string | null): string {
   }
 }
 
+const REJECT_PATTERNS = ["best-practices", "patterns", "standards", "conventions", "coding-style"]
+
+export function filterSkillsByDependencies(skills: SearchedSkill[], pkgJson: string | null): { kept: SearchedSkill[]; rejected: { name: string; reason: string }[] } {
+  const depNames = new Set<string>()
+  if (pkgJson) {
+    try {
+      const pkg = JSON.parse(pkgJson)
+      for (const name of Object.keys({ ...pkg.dependencies, ...pkg.devDependencies })) {
+        depNames.add(name.toLowerCase())
+        const base = name.replace(/^@[^/]+\//, "").split("-")[0]
+        if (base) depNames.add(base.toLowerCase())
+      }
+    } catch { /* ignore */ }
+  }
+
+  const kept: SearchedSkill[] = []
+  const rejected: { name: string; reason: string }[] = []
+
+  // Also extract first segment of each skill name for matching (e.g., "tailwind-design-system" → "tailwind")
+  for (const skill of skills) {
+    const nameLower = skill.name.toLowerCase()
+    if (REJECT_PATTERNS.some((p) => nameLower.includes(p))) {
+      rejected.push({ name: skill.name, reason: "generic pattern collection" })
+    } else {
+      const skillSegments = nameLower.split("-")
+      const matched = depNames.has(nameLower)
+        || [...depNames].some((d) => nameLower.includes(d) || d.includes(nameLower))
+        || skillSegments.some((seg) => seg.length >= 4 && depNames.has(seg))
+        || [...depNames].some((d) => skillSegments.some((seg) => seg.length >= 4 && d.includes(seg)))
+      if (matched) {
+        kept.push(skill)
+      } else {
+        rejected.push({ name: skill.name, reason: "no matching dependency" })
+      }
+    }
+  }
+
+  return { kept, rejected }
+}
+
 export function detectProjectKeywords(cwd: string): string[] {
   const pkgPath = path.join(cwd, "package.json")
   if (!fs.existsSync(pkgPath)) return []
@@ -869,55 +909,14 @@ Command and URL.
     console.log(`  Searching skills.sh for: ${keywords.join(", ")}`)
     const found = searchSkills(keywords, excludeSkills, 10)
     if (found.length > 0) {
-      // LLM relevance filter: ask the model which skills actually match this project
-      const candidateList = found.map((s) => `- ${s.name} (${s.ref})`).join("\n")
-      const relevancePrompt = `Filter skills for this project. For each skill, decide KEEP or REJECT.
-
-## Project dependencies
-${extractDependencyNames(pkgJson)}
-
-## Candidate skills
-${candidateList}
-
-## Rules (apply in order, stop at first match):
-1. Skill name matches a package in dependencies? → KEEP (e.g., "payload" skill + "payload" in deps → KEEP)
-2. Skill name contains "best-practices" or "patterns" or "standards"? → REJECT
-3. Skill is for a library NOT in dependencies? → REJECT (e.g., "clerk" skill but no "@clerk/*" in deps → REJECT)
-4. Everything else → REJECT
-
-Output a JSON array of refs to KEEP. Example: ["payloadcms/skills@payload"]
-If nothing passes: []
-ONLY the JSON array, no explanation.`
-
-      let filteredRefs: Set<string> | null = null
-      try {
-        console.log("  ⏳ Filtering skills for relevance...")
-        const filterOutput = execFileSync("claude", [
-          "--print",
-          "--model", bootstrapModel,
-          "--dangerously-skip-permissions",
-          relevancePrompt,
-        ], {
-          encoding: "utf-8",
-          timeout: 60_000,
-          cwd,
-          stdio: ["pipe", "pipe", "pipe"],
-        }).trim()
-
-        const cleaned = filterOutput.replace(/^```json\s*\n?/m, "").replace(/\n?```\s*$/m, "")
-        const parsed = JSON.parse(cleaned)
-        if (Array.isArray(parsed)) {
-          filteredRefs = new Set(parsed)
-          const rejected = found.length - filteredRefs.size
-          if (rejected > 0) console.log(`  ✓ Filtered: kept ${filteredRefs.size}/${found.length} skills (rejected ${rejected} as irrelevant)`)
-        }
-      } catch {
-        console.log("  ⚠ Skill relevance filter failed — installing all candidates")
+      // Deterministic relevance filter: match skill names against project dependencies
+      const { kept: skillsToInstall, rejected } = filterSkillsByDependencies(found, pkgJson)
+      for (const r of rejected) {
+        console.log(`  ✗ ${r.name} — rejected (${r.reason})`)
       }
-
-      const skillsToInstall = filteredRefs
-        ? found.filter((s) => filteredRefs!.has(s.ref))
-        : found.slice(0, 5)
+      if (rejected.length > 0) {
+        console.log(`  ✓ Filtered: kept ${skillsToInstall.length}/${found.length} skills`)
+      }
 
       for (const skill of skillsToInstall) {
         try {

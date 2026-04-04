@@ -16,11 +16,15 @@ import { checkLitellmHealth, tryStartLitellm, generateLitellmConfig } from "../c
 import { LITELLM_DEFAULT_URL } from "../config.js"
 import type { WatchConfig } from "./core/types.js"
 
-export async function runWatchCommand(opts: { dryRun: boolean }): Promise<void> {
-  const cwd = process.cwd()
-  let litellmProcess: ChildProcess | null = null
+export interface WatchConfigParsed {
+  repo: string
+  digestIssue?: number
+  watchModel?: string
+  agentProvider?: string
+  agentModelMap?: Record<string, string>
+}
 
-  // Read repo from config
+export function parseWatchConfig(cwd: string): WatchConfigParsed {
   const configPath = path.join(cwd, "kody.config.json")
   let repo = process.env.REPO || ""
   let digestIssue: number | undefined
@@ -55,6 +59,16 @@ export async function runWatchCommand(opts: { dryRun: boolean }): Promise<void> 
   if (process.env.WATCH_DIGEST_ISSUE) {
     digestIssue = parseInt(process.env.WATCH_DIGEST_ISSUE, 10) || undefined
   }
+
+  return { repo, digestIssue, watchModel, agentProvider, agentModelMap }
+}
+
+export async function runWatchCommand(opts: { dryRun: boolean }): Promise<void> {
+  const cwd = process.cwd()
+  let litellmProcess: ChildProcess | null = null
+
+  const { repo: parsedRepo, digestIssue, watchModel, agentProvider, agentModelMap } = parseWatchConfig(cwd)
+  let repo = parsedRepo
 
   if (!repo) {
     console.error("Missing repo — set REPO env var or configure github.owner/repo in kody.config.json")
