@@ -503,48 +503,24 @@
 
     /* ═══ COMPARISON STRIP ═══ */
     .compare-strip {
-      max-width: 580px;
+      max-width: 680px;
       margin: 2.5rem auto 0;
       font-family: var(--font-mono);
       font-size: 0.82rem;
-      line-height: 2.2;
+      line-height: 2.4;
+      text-align: center;
     }
 
-    .compare-line {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .compare-label {
-      width: 110px;
-      flex-shrink: 0;
-      text-align: right;
-      font-weight: 600;
-    }
-
-    .compare-flow {
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-      flex-wrap: wrap;
-    }
-
-    .compare-flow .step {
-      padding: 0.2rem 0.55rem;
-      border-radius: 4px;
-      font-size: 0.78rem;
-      white-space: nowrap;
-    }
-
-    .compare-flow .arrow {
+    .compare-strip .dim {
       color: var(--text-muted);
-      font-size: 0.7rem;
+    }
+
+    .compare-strip .lit {
+      color: var(--cyan-light);
     }
 
     @media (max-width: 768px) {
-      .compare-label { width: 80px; font-size: 0.75rem; }
-      .compare-flow .step { font-size: 0.72rem; padding: 0.15rem 0.4rem; }
+      .compare-strip { font-size: 0.72rem; }
     }
 
     /* ═══ COMPARISON TABLE ═══ */
@@ -748,34 +724,8 @@
     </div>
 
     <div class="compare-strip reveal">
-      <div class="compare-line">
-        <span class="compare-label" style="color: var(--text-muted);">Other agents</span>
-        <div class="compare-flow">
-          <span class="step" style="background: rgba(148,163,184,0.1); color: var(--text-muted);">prompt</span>
-          <span class="arrow">&rarr;</span>
-          <span class="step" style="background: rgba(148,163,184,0.1); color: var(--text-muted);">code</span>
-          <span class="arrow">&rarr;</span>
-          <span class="step" style="background: rgba(148,163,184,0.1); color: var(--text-muted);">pray</span>
-        </div>
-      </div>
-      <div class="compare-line">
-        <span class="compare-label" style="color: var(--primary-light);">Kody</span>
-        <div class="compare-flow">
-          <span class="step" style="background: rgba(124,58,237,0.15); color: var(--primary-light);">research</span>
-          <span class="arrow">&rarr;</span>
-          <span class="step" style="background: rgba(124,58,237,0.15); color: var(--primary-light);">plan</span>
-          <span class="arrow">&rarr;</span>
-          <span class="step" style="background: rgba(124,58,237,0.15); color: var(--primary-light);">build</span>
-          <span class="arrow">&rarr;</span>
-          <span class="step" style="background: rgba(6,182,212,0.15); color: var(--cyan-light);">test</span>
-          <span class="arrow">&rarr;</span>
-          <span class="step" style="background: rgba(6,182,212,0.15); color: var(--cyan-light);">review</span>
-          <span class="arrow">&rarr;</span>
-          <span class="step" style="background: rgba(6,182,212,0.15); color: var(--cyan-light);">fix</span>
-          <span class="arrow">&rarr;</span>
-          <span class="step" style="background: rgba(74,222,128,0.15); color: var(--green);">ship</span>
-        </div>
-      </div>
+      <div><span class="dim">Other agents: prompt &rarr; code &rarr; pray</span></div>
+      <div><span class="lit">Kody: research &rarr; plan &rarr; build &rarr; test &rarr; review &rarr; fix &rarr; ship</span></div>
     </div>
 
     <div class="demo-terminal reveal" id="demo-terminal">
