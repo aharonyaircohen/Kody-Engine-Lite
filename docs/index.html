@@ -716,6 +716,7 @@
       <a href="#why-kody">Why Kody?</a>
       <a href="#stack">Stack</a>
       <a href="#features">Features</a>
+      <a href="#commands">Commands</a>
       <a href="https://github.com/aharonyaircohen/Kody-Engine-Lite" class="btn btn-secondary" style="padding: 0.4rem 1rem; font-size: 0.8rem;">GitHub</a>
     </div>
   </nav>
@@ -986,11 +987,58 @@
         <p>Periodic health monitoring. Pipeline health, security scanning, config validation. Posts findings as GitHub issues.</p>
       </div>
 
-      <div class="feature-card reveal">
-        <div class="feature-icon" style="background: rgba(6,182,212,0.15); color: var(--cyan-light);">&#62;&gt;</div>
-        <h3>8 Commands</h3>
-        <p><code>@kody</code> runs the full pipeline. <code>review</code> for standalone PR review. <code>fix-ci</code> to auto-fix CI failures. <code>resolve</code> for merge conflicts. <a href="https://github.com/aharonyaircohen/Kody-Engine-Lite/blob/main/docs/CLI.md" style="color: var(--cyan-light);">See all &rarr;</a></p>
-      </div>
+    </div>
+  </section>
+
+  <!-- COMMANDS -->
+  <section id="commands">
+    <div class="section-label">Commands</div>
+    <div class="section-title">One tool for every situation</div>
+    <div class="section-desc">Comment on GitHub or run from your terminal.</div>
+
+    <div class="reveal" style="overflow-x: auto;">
+      <table class="commands-table">
+        <thead>
+          <tr>
+            <th>Command</th>
+            <th>What it does</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>@kody</code></td>
+            <td>Run full pipeline on an issue</td>
+          </tr>
+          <tr>
+            <td><code>@kody review</code></td>
+            <td>Standalone PR review with structured findings + GitHub approve/request-changes</td>
+          </tr>
+          <tr>
+            <td><code>@kody fix</code></td>
+            <td>Re-run from build with human PR feedback as context</td>
+          </tr>
+          <tr>
+            <td><code>@kody fix-ci</code></td>
+            <td>Fetch CI failure logs, diagnose, and push a fix</td>
+          </tr>
+          <tr>
+            <td><code>@kody resolve</code></td>
+            <td>Merge default branch into PR, AI-resolve conflicts, verify</td>
+          </tr>
+          <tr>
+            <td><code>@kody rerun</code></td>
+            <td>Resume from failed or paused stage</td>
+          </tr>
+          <tr>
+            <td><code>@kody bootstrap</code></td>
+            <td>Analyze repo, generate memory + step files + labels</td>
+          </tr>
+          <tr>
+            <td><code>@kody approve</code></td>
+            <td>Resume after questions or risk gate pause</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </section>
 
