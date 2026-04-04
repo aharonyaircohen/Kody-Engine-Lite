@@ -9,6 +9,8 @@ import { discoverQaContext, generateQaGuideFallback, serializeDiscoveryForLLM } 
 import { getProjectConfig, resolveStageConfig, setConfigDir, stageNeedsProxy, getLitellmUrl, getAnthropicApiKeyOrDummy } from "../../config.js"
 import { buildExtendInstruction } from "../extend-helpers.js"
 import { checkLitellmHealth, tryStartLitellm, generateLitellmConfig } from "../../cli/litellm.js"
+import { gatherArchitectureContext, execClaudeAsync, MEMORY_FILES, ROUND2_TASKS } from "../bootstrap-context.js"
+import { readProjectMemory } from "../../memory.js"
 
 export const STEP_STAGES = ["taskify", "plan", "build", "autofix", "review", "review-fix"] as const
 
@@ -303,134 +305,121 @@ export async function bootstrapCommand(opts: { force: boolean }, pkgRoot: string
     process.env.ANTHROPIC_API_KEY = getAnthropicApiKeyOrDummy()
   }
 
-  // ── Gather project context ──
+  // ── Gather project context (repoContext used by step files + QA guide) ──
   const readIfExists = (rel: string, maxChars = 3000) => {
     const p = path.join(cwd, rel)
     if (fs.existsSync(p)) return fs.readFileSync(p, "utf-8").slice(0, maxChars)
     return null
   }
 
-  let repoContext = ""
   const pkgJson = readIfExists("package.json")
-  if (pkgJson) repoContext += `## package.json\n${pkgJson}\n\n`
-  const tsconfig = readIfExists("tsconfig.json", 1000)
-  if (tsconfig) repoContext += `## tsconfig.json\n${tsconfig}\n\n`
-  const readme = readIfExists("README.md", 2000)
-  if (readme) repoContext += `## README.md (first 2000 chars)\n${readme}\n\n`
-  const claudeMd = readIfExists("CLAUDE.md", 3000)
-  if (claudeMd) repoContext += `## CLAUDE.md\n${claudeMd}\n\n`
-  const agentsMd = readIfExists("AGENTS.md", 3000)
-  if (agentsMd) repoContext += `## AGENTS.md\n${agentsMd}\n\n`
 
-  // Sample source files
-  const sampleFiles = gatherSampleSourceFiles(cwd)
-  if (sampleFiles) repoContext += `## Sample Source Files\n${sampleFiles}\n\n`
-
-  // Directory structure
-  try {
-    const topDirs = fs.readdirSync(cwd, { withFileTypes: true })
-      .filter(e => e.isDirectory() && !e.name.startsWith(".") && e.name !== "node_modules")
-      .map(e => e.name)
-    repoContext += `## Top-level directories\n${topDirs.join(", ")}\n\n`
-
-    const srcDir = path.join(cwd, "src")
-    if (fs.existsSync(srcDir)) {
-      const srcDirs = fs.readdirSync(srcDir, { withFileTypes: true })
-        .filter(e => e.isDirectory()).map(e => e.name)
-      if (srcDirs.length > 0) repoContext += `## src/ subdirectories\n${srcDirs.join(", ")}\n\n`
-    }
-  } catch { /* ignore */ }
-
-  // Existing config files
-  const existingFiles: string[] = []
-  for (const f of [".env.example", "CLAUDE.md", ".ai-docs", "vitest.config.ts", "vitest.config.mts", "jest.config.ts", "playwright.config.ts", ".eslintrc.js", "eslint.config.mjs", ".prettierrc"]) {
-    if (fs.existsSync(path.join(cwd, f))) existingFiles.push(f)
-  }
-  if (existingFiles.length) repoContext += `## Config files present\n${existingFiles.join(", ")}\n\n`
-
-  // ── Step 1: Generate project memory via LLM ──
+  // ── Step 1: Generate project memory (2 rounds) ──
   console.log("── Project Memory ──")
   const memoryDir = path.join(cwd, ".kody", "memory")
   fs.mkdirSync(memoryDir, { recursive: true })
   const archPath = path.join(memoryDir, "architecture.md")
-  const conventionsPath = path.join(memoryDir, "conventions.md")
 
+  // ── Round 1: Architecture (solo, focused structural context) ──
+  console.log("  Round 1: Architecture...")
+  const archContext = gatherArchitectureContext(cwd)
   const existingArch = fs.existsSync(archPath) ? fs.readFileSync(archPath, "utf-8") : ""
-  const existingConv = fs.existsSync(conventionsPath) ? fs.readFileSync(conventionsPath, "utf-8") : ""
-  const hasExisting = !!(existingArch || existingConv)
-
-  const extendInstruction = hasExisting && !opts.force
-    ? buildExtendInstruction(
-        `### architecture.md:\n${existingArch}\n\n### conventions.md:\n${existingConv}`,
-        "project documentation",
-      )
+  const archExtend = existingArch && !opts.force
+    ? buildExtendInstruction(existingArch, "architecture document")
     : ""
 
-  const memoryPrompt = `You are analyzing a project to generate documentation for an autonomous SDLC pipeline.
+  const archPrompt = `You are analyzing a project to generate an architecture document for an autonomous SDLC pipeline.
 
-Given this project context, output ONLY a JSON object with EXACTLY this structure:
+Given this project context, output a markdown document.
 
-{
-  "architecture": "# Architecture\\n\\n<markdown content>",
-  "conventions": "# Conventions\\n\\n<markdown content>"
-}
-
-Rules for architecture (markdown string):
+Rules:
 - Be specific about THIS project
-- Include: framework, language, database, testing, key directories, data flow
+- Include: framework, language, database, testing framework, key directories, data flow
 - Reference CLAUDE.md and .ai-docs/ if they exist
-- Keep under 50 lines
+- Document the module/layer structure (e.g., controllers → services → repositories)
+- Note infrastructure details (Docker, CI, deployment)
+- Keep under 60 lines
+${archExtend}
+Output ONLY the markdown. No fences. No explanation.
 
-Rules for conventions (markdown string):
-- Extract actual patterns from the project
-- If CLAUDE.md exists, reference it
-- Keep under 30 lines
-${extendInstruction}
-Output ONLY valid JSON. No markdown fences. No explanation.
+${archContext}`
 
-${repoContext}`
-
-  console.log("  ⏳ Analyzing project...")
+  let archContent = ""
   try {
     const output = execFileSync("claude", [
       "--print",
       "--model", bootstrapModel,
       "--dangerously-skip-permissions",
-      memoryPrompt,
+      archPrompt,
     ], {
       encoding: "utf-8",
-      timeout: 90_000,
+      timeout: 180_000,
       cwd,
       stdio: ["pipe", "pipe", "pipe"],
     }).trim()
 
-    const cleaned = output.replace(/^```json\s*\n?/m, "").replace(/\n?```\s*$/m, "")
-    const parsed = JSON.parse(cleaned)
-
-    if (parsed.architecture) {
-      fs.writeFileSync(archPath, parsed.architecture)
-      const lineCount = parsed.architecture.split("\n").length
-      console.log(`  ✓ .kody/memory/architecture.md (${lineCount} lines)`)
-    }
-
-    if (parsed.conventions) {
-      fs.writeFileSync(conventionsPath, parsed.conventions)
-      const lineCount = parsed.conventions.split("\n").length
-      console.log(`  ✓ .kody/memory/conventions.md (${lineCount} lines)`)
-    }
+    archContent = output.replace(/^```(?:markdown|md)?\s*\n?/, "").replace(/\n?```\s*$/, "")
+    fs.writeFileSync(archPath, archContent)
+    const lineCount = archContent.split("\n").length
+    console.log(`  ✓ .kody/memory/architecture.md (${lineCount} lines)`)
   } catch (llmErr) {
     const errMsg = llmErr instanceof Error ? llmErr.message : String(llmErr)
-    console.log("  ⚠ LLM analysis failed — creating basic memory files")
-    llmErrors.push(`Memory generation: ${errMsg}`)
-    // Fallback: basic detection
+    console.log("  ⚠ Architecture LLM call failed — using basic detection")
+    llmErrors.push(`Architecture generation: ${errMsg}`)
     const detected = detectArchitectureBasic(cwd)
     if (detected.length > 0) {
       const timestamp = new Date().toISOString().slice(0, 10)
-      fs.writeFileSync(archPath, `# Architecture (auto-detected ${timestamp})\n\n## Overview\n${detected.join("\n")}\n`)
+      archContent = `# Architecture (auto-detected ${timestamp})\n\n## Overview\n${detected.join("\n")}\n`
+      fs.writeFileSync(archPath, archContent)
       console.log(`  ✓ .kody/memory/architecture.md (${detected.length} items, basic detection)`)
     }
-    fs.writeFileSync(conventionsPath, "# Conventions\n\n<!-- Auto-learned conventions will be appended here -->\n")
-    console.log("  ✓ .kody/memory/conventions.md (seed)")
+  }
+
+  // ── Round 2: Conventions + Patterns + Domain + Testing (parallel) ──
+  console.log("  Round 2: Generating 4 memory files in parallel...")
+  const round2Promises = ROUND2_TASKS.map(async (task) => {
+    const filePath = path.join(memoryDir, `${task.name}.md`)
+    const existing = fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf-8") : ""
+    const extendBlock = existing && !opts.force
+      ? buildExtendInstruction(existing, `${task.name} document`)
+      : ""
+
+    const context = task.gatherContext(cwd)
+    const prompt = `You are analyzing a project to generate a ${task.name} document for an autonomous SDLC pipeline.
+
+## Project Architecture (already analyzed)
+${archContent || "(not available)"}
+
+## Targeted Context
+${context}
+
+${task.promptRules}
+${extendBlock}
+Output ONLY the markdown. No fences. No explanation.`
+
+    const output = await execClaudeAsync(prompt, bootstrapModel, cwd, 90_000)
+    const cleaned = output.replace(/^```(?:markdown|md)?\s*\n?/, "").replace(/\n?```\s*$/, "")
+
+    if (!cleaned || cleaned.length < 20) {
+      throw new Error("LLM returned empty or too-short output")
+    }
+
+    return { name: task.name, content: cleaned, filePath }
+  })
+
+  const round2Results = await Promise.allSettled(round2Promises)
+  for (let i = 0; i < round2Results.length; i++) {
+    const result = round2Results[i]
+    const taskName = ROUND2_TASKS[i].name
+    if (result.status === "fulfilled") {
+      fs.writeFileSync(result.value.filePath, result.value.content)
+      const lineCount = result.value.content.split("\n").length
+      console.log(`  ✓ .kody/memory/${taskName}.md (${lineCount} lines)`)
+    } else {
+      const errMsg = result.reason instanceof Error ? result.reason.message : String(result.reason)
+      console.log(`  ✗ .kody/memory/${taskName}.md — ${errMsg}`)
+      llmErrors.push(`${taskName}: ${errMsg}`)
+    }
   }
 
   // ── Step 2: Generate step files via LLM ──
@@ -438,8 +427,8 @@ ${repoContext}`
   const stepsDir = path.join(cwd, ".kody", "steps")
   fs.mkdirSync(stepsDir, { recursive: true })
 
-  const arch = fs.existsSync(archPath) ? fs.readFileSync(archPath, "utf-8") : ""
-  const conv = fs.existsSync(conventionsPath) ? fs.readFileSync(conventionsPath, "utf-8") : ""
+  // Read all generated memory as unified context for step files and QA guide
+  const projectMemory = readProjectMemory(cwd)
 
   console.log("  ⏳ Customizing step files...")
   let stepCount = 0
@@ -495,16 +484,8 @@ Stage: ${stage}
 ## Prompt Template (output this EXACTLY, then append your sections)
 ${beforePlaceholder}
 
-## Repository Context
-
-### Architecture
-${arch}
-
-### Conventions
-${conv}
-
-### Project Details
-${repoContext}
+## Project Memory (architecture, conventions, patterns, domain, testing)
+${projectMemory}
 
 REMINDER: Output the full prompt template first (unchanged), then your three appended sections. Do NOT include "${contextPlaceholder}".`
 
@@ -516,7 +497,7 @@ REMINDER: Output the full prompt template first (unchanged), then your three app
         customizationPrompt,
       ], {
         encoding: "utf-8",
-        timeout: 90_000,
+        timeout: 180_000,
         cwd,
         stdio: ["pipe", "pipe", "pipe"],
       }).trim()
@@ -563,11 +544,8 @@ REMINDER: Output the full prompt template first (unchanged), then your three app
 ## Discovery Data
 ${serializedDiscovery}
 
-## Architecture
-${arch}
-
-## Conventions
-${conv}
+## Project Memory
+${projectMemory}
 ${qaExtendBlock}
 ## Output Format
 Generate a markdown QA guide with EXACTLY these sections:
@@ -631,7 +609,7 @@ Command and URL.
         qaPrompt,
       ], {
         encoding: "utf-8",
-        timeout: 90_000,
+        timeout: 180_000,
         cwd,
         stdio: ["pipe", "pipe", "pipe"],
       }).trim()
@@ -952,8 +930,7 @@ Command and URL.
   // ── Step 4: Format, commit and push ──
   console.log("\n── Git ──")
   const filesToCommit = [
-    ".kody/memory/architecture.md",
-    ".kody/memory/conventions.md",
+    ...MEMORY_FILES.map(f => `.kody/memory/${f}.md`),
     ".kody/qa-guide.md",
     ".kody/tools.yml",
     "kody.config.json",
