@@ -1,11 +1,11 @@
 {
-  "name": "@kody-ade/kody-engine-lite",
-  "version": "0.1.152",
-  "description": "Autonomous SDLC pipeline: Kody orchestration + Claude Code + LiteLLM",
+  "name": "@kody-ade/engine",
+  "version": "0.1.0",
+  "description": "Kody ADE — the free, autonomous development engine. Issue to tested, reviewed PR.",
   "license": "MIT",
   "type": "module",
   "bin": {
-    "kody-engine-lite": "./dist/bin/cli.js"
+    "kody-engine": "./dist/bin/cli.js"
   },
   "files": [
     "dist",
@@ -15,6 +15,7 @@
   ],
   "scripts": {
     "kody": "tsx src/entry.ts",
+    "claude": "tsx scripts/kody.ts",
     "build": "tsup",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
