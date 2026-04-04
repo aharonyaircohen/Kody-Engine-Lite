@@ -266,10 +266,15 @@ describe("runRetrospective", () => {
     projectDir = makeTmpDir()
     taskDir = path.join(projectDir, ".kody/tasks", "test-1")
     fs.mkdirSync(taskDir, { recursive: true })
+    fs.writeFileSync(path.join(projectDir, "kody.config.json"), JSON.stringify({
+      agent: { modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" } },
+    }))
+    setConfigDir(projectDir)
   })
 
   afterEach(() => {
     fs.rmSync(projectDir, { recursive: true, force: true })
+    resetProjectConfig()
   })
 
   function makeCtxWithRunner(runner: AgentRunner): PipelineContext {
@@ -502,6 +507,7 @@ describe("runRetrospective", () => {
         quality: { typecheck: "", lint: "", lintFix: "", formatFix: "", testUnit: "" },
         agent: {
           default: { provider: "openai", model: "gpt-4o" },
+          modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" },
         },
       }),
     )
@@ -543,10 +549,15 @@ describe("token stats", () => {
     projectDir = makeTmpDir()
     taskDir = path.join(projectDir, ".kody/tasks", "test-1")
     fs.mkdirSync(taskDir, { recursive: true })
+    fs.writeFileSync(path.join(projectDir, "kody.config.json"), JSON.stringify({
+      agent: { modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" } },
+    }))
+    setConfigDir(projectDir)
   })
 
   afterEach(() => {
     fs.rmSync(projectDir, { recursive: true, force: true })
+    resetProjectConfig()
   })
 
   function makeCtxWithRunner(runner: AgentRunner): PipelineContext {

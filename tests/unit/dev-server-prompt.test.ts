@@ -48,7 +48,7 @@ describe("dev server prompt instructions", () => {
     fs.writeFileSync(
       path.join(projectDir, "kody.config.json"),
       JSON.stringify({
-        agent: {},
+        agent: { modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" } },
         mcp: { devServer },
       }),
     )
@@ -148,13 +148,14 @@ describe("dev server prompt instructions", () => {
     })
 
     expect(prompt).toContain("Browser Visual Verification")
-    expect(prompt).toContain("mcp__playwright__browser_navigate")
+    // devServer alone uses CLI-based Playwright tools, not MCP
+    expect(prompt).toContain("playwright-cli")
   })
 
   it("uses fallback instructions when no devServer configured", () => {
     fs.writeFileSync(
       path.join(projectDir, "kody.config.json"),
-      JSON.stringify({ agent: {}, mcp: { enabled: true } }),
+      JSON.stringify({ agent: { modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" } }, mcp: { enabled: true } }),
     )
     setConfigDir(projectDir)
     const prompt = buildFullPrompt("build", "test-task", taskDir, projectDir)
@@ -188,7 +189,7 @@ describe("engine-managed dev server prompt", () => {
     fs.writeFileSync(
       path.join(projectDir, "kody.config.json"),
       JSON.stringify({
-        agent: {},
+        agent: { modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" } },
         mcp: { devServer: { command: "pnpm dev", url: "http://localhost:3000" } },
       }),
     )

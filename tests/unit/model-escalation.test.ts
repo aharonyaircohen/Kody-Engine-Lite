@@ -51,7 +51,7 @@ describe("model escalation on timeout", () => {
       path.join(tmpDir, "kody.config.json"),
       JSON.stringify({
         quality: { typecheck: "true", lint: "", lintFix: "", formatFix: "", testUnit: "true" },
-        agent: { defaultRunner: "claude" },
+        agent: { defaultRunner: "claude", modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" } },
       }),
     )
     setConfigDir(tmpDir)
@@ -106,8 +106,8 @@ describe("model escalation on timeout", () => {
     expect(result.outcome).toBe("completed")
     expect(calls).toHaveLength(2)
     // First call uses cheap model, second uses mid model (escalated on timeout)
-    expect(calls[0].model).toBe("claude-haiku-4-5-20251001")
-    expect(calls[1].model).toBe("claude-sonnet-4-6")
+    expect(calls[0].model).toBe("test-model-cheap")
+    expect(calls[1].model).toBe("test-model-mid")
   })
 
   it("does not escalate when stage succeeds", async () => {
@@ -142,7 +142,7 @@ describe("model escalation on timeout", () => {
     const result = await executeAgentStage(ctx, def)
     expect(result.outcome).toBe("completed")
     expect(calls).toHaveLength(1)
-    expect(calls[0].model).toBe("claude-haiku-4-5-20251001")
+    expect(calls[0].model).toBe("test-model-cheap")
   })
 
   it("does not escalate on non-timeout failure (normal retry with same model)", async () => {
@@ -181,8 +181,8 @@ describe("model escalation on timeout", () => {
     expect(result.outcome).toBe("completed")
     expect(calls).toHaveLength(2)
     // Both calls use same model — no escalation for non-timeout
-    expect(calls[0].model).toBe("claude-haiku-4-5-20251001")
-    expect(calls[1].model).toBe("claude-haiku-4-5-20251001")
+    expect(calls[0].model).toBe("test-model-cheap")
+    expect(calls[1].model).toBe("test-model-cheap")
   })
 
   it("stays on strong tier when already at strongest", async () => {
@@ -221,8 +221,8 @@ describe("model escalation on timeout", () => {
     expect(result.outcome).toBe("completed")
     expect(calls).toHaveLength(2)
     // Both calls use strong model — no further escalation
-    expect(calls[0].model).toBe("claude-opus-4-6")
-    expect(calls[1].model).toBe("claude-opus-4-6")
+    expect(calls[0].model).toBe("test-model-strong")
+    expect(calls[1].model).toBe("test-model-strong")
   })
 
   it("respects escalateOnTimeout: false config", async () => {
@@ -232,7 +232,7 @@ describe("model escalation on timeout", () => {
       path.join(tmpDir, "kody.config.json"),
       JSON.stringify({
         quality: { typecheck: "true", lint: "", lintFix: "", formatFix: "", testUnit: "true" },
-        agent: { defaultRunner: "claude", escalateOnTimeout: false },
+        agent: { defaultRunner: "claude", escalateOnTimeout: false, modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" } },
       }),
     )
     setConfigDir(tmpDir)
@@ -272,8 +272,8 @@ describe("model escalation on timeout", () => {
     expect(result.outcome).toBe("completed")
     expect(calls).toHaveLength(2)
     // Escalation disabled — both calls use same model
-    expect(calls[0].model).toBe("claude-haiku-4-5-20251001")
-    expect(calls[1].model).toBe("claude-haiku-4-5-20251001")
+    expect(calls[0].model).toBe("test-model-cheap")
+    expect(calls[1].model).toBe("test-model-cheap")
   })
 
   it("fails after exhausting all retries on timeout", async () => {
@@ -309,7 +309,7 @@ describe("model escalation on timeout", () => {
     expect(result.outcome).toBe("timed_out")
     expect(calls).toHaveLength(2) // original + 1 retry
     // Should have escalated: cheap → mid
-    expect(calls[0].model).toBe("claude-haiku-4-5-20251001")
-    expect(calls[1].model).toBe("claude-sonnet-4-6")
+    expect(calls[0].model).toBe("test-model-cheap")
+    expect(calls[1].model).toBe("test-model-mid")
   })
 })

@@ -29,7 +29,7 @@ describe("getArg", () => {
   })
 
   it("handles equals form with complex values", () => {
-    expect(getArg(["bootstrap", "--model=claude-opus-4-6"], "--model")).toBe("claude-opus-4-6")
+    expect(getArg(["bootstrap", "--model=test-model-strong"], "--model")).toBe("test-model-strong")
   })
 
   it("prefers equals form when both present", () => {

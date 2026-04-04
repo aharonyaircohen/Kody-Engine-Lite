@@ -84,21 +84,26 @@ describe("resolveModel", () => {
   beforeEach(() => resetProjectConfig())
   afterEach(() => resetProjectConfig())
 
-  it("maps tier to default model name", () => {
-    // Use empty config dir so defaults apply
-    const emptyDir = fs.mkdtempSync(path.join(os.tmpdir(), "kody-defaults-"))
-    setConfigDir(emptyDir)
-    expect(resolveModel("cheap")).toBe("claude-haiku-4-5-20251001")
-    expect(resolveModel("mid")).toBe("claude-sonnet-4-6")
-    expect(resolveModel("strong")).toBe("claude-opus-4-6")
-    fs.rmSync(emptyDir, { recursive: true, force: true })
+  it("maps tier to configured model name", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "kody-defaults-"))
+    fs.writeFileSync(path.join(dir, "kody.config.json"), JSON.stringify({
+      agent: { modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" } }
+    }))
+    setConfigDir(dir)
+    expect(resolveModel("cheap")).toBe("test-model-cheap")
+    expect(resolveModel("mid")).toBe("test-model-mid")
+    expect(resolveModel("strong")).toBe("test-model-strong")
+    fs.rmSync(dir, { recursive: true, force: true })
   })
 
   it("throws for unknown tier with no config fallback", () => {
-    const emptyDir = fs.mkdtempSync(path.join(os.tmpdir(), "kody-defaults-"))
-    setConfigDir(emptyDir)
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "kody-defaults-"))
+    fs.writeFileSync(path.join(dir, "kody.config.json"), JSON.stringify({
+      agent: { modelMap: { cheap: "test-cheap" } }
+    }))
+    setConfigDir(dir)
     expect(() => resolveModel("unknown")).toThrow("No model configured for tier")
-    fs.rmSync(emptyDir, { recursive: true, force: true })
+    fs.rmSync(dir, { recursive: true, force: true })
   })
 
   it("uses config modelMap when available", () => {

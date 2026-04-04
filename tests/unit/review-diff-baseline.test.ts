@@ -105,7 +105,7 @@ describe("review diff baseline in task.md", () => {
           formatFix: "",
           testUnit: "true",
         },
-        agent: { defaultRunner: "claude" },
+        agent: { defaultRunner: "claude", modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" } },
       }),
     )
     setConfigDir(tmpDir)

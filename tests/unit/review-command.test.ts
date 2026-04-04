@@ -82,7 +82,7 @@ describe("runStandaloneReview", () => {
       path.join(tmpDir, "kody.config.json"),
       JSON.stringify({
         quality: { typecheck: "true", lint: "", lintFix: "", formatFix: "", testUnit: "true" },
-        agent: { defaultRunner: "claude" },
+        agent: { defaultRunner: "claude", modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" } },
       }),
     )
     setConfigDir(tmpDir)
