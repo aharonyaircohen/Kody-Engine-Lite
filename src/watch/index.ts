@@ -27,12 +27,11 @@ export async function runWatchCommand(opts: { dryRun: boolean }): Promise<void> 
   let watchModel: string | undefined
   let agentProvider: string | undefined
   let agentModelMap: Record<string, string> | undefined
-  let defaultCheapModel = "claude-haiku-4-5-20251001"
 
-  if (!repo && fs.existsSync(configPath)) {
+  if (fs.existsSync(configPath)) {
     try {
       const config = JSON.parse(fs.readFileSync(configPath, "utf-8"))
-      if (config.github?.owner && config.github?.repo) {
+      if (!repo && config.github?.owner && config.github?.repo) {
         repo = `${config.github.owner}/${config.github.repo}`
       }
       if (config.watch?.digestIssue) {
@@ -46,9 +45,6 @@ export async function runWatchCommand(opts: { dryRun: boolean }): Promise<void> 
       }
       if (config.agent?.modelMap) {
         agentModelMap = config.agent.modelMap
-      }
-      if (config.agent?.modelMap?.cheap) {
-        defaultCheapModel = config.agent.modelMap.cheap
       }
     } catch {
       // Can't read config
@@ -82,7 +78,11 @@ export async function runWatchCommand(opts: { dryRun: boolean }): Promise<void> 
     console.warn(`  Agent warning: ${w}`)
   }
 
-  const model = watchModel ?? defaultCheapModel
+  if (agents.length > 0 && !watchModel) {
+    console.error("No watch model configured — set watch.model or agent.modelMap in kody.config.json")
+    process.exit(1)
+  }
+  const model = watchModel ?? ""
   const needsProxy = agentProvider && agentProvider !== "claude" && agentProvider !== "anthropic"
 
   if (agents.length > 0) {
