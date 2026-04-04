@@ -716,7 +716,6 @@
       <a href="#why-kody">Why Kody?</a>
       <a href="#stack">Stack</a>
       <a href="#features">Features</a>
-      <a href="#commands">Commands</a>
       <a href="https://github.com/aharonyaircohen/Kody-Engine-Lite" class="btn btn-secondary" style="padding: 0.4rem 1rem; font-size: 0.8rem;">GitHub</a>
     </div>
   </nav>
@@ -960,19 +959,7 @@
       <div class="feature-card reveal">
         <div class="feature-icon" style="background: rgba(124,58,237,0.15); color: var(--primary-light);">&#9881;</div>
         <h3>Repo-Aware Prompts</h3>
-        <p><code>bootstrap</code> analyzes your codebase and generates customized instructions for every stage. Not generic prompts&mdash;your patterns, your gaps, your conventions.</p>
-      </div>
-
-      <div class="feature-card reveal">
-        <div class="feature-icon" style="background: rgba(74,222,128,0.15); color: var(--green);">&#9745;</div>
-        <h3>Quality Gates</h3>
-        <p>Runs your typecheck, tests, and lint between stages. Plus an AI code review in a fresh session with no build bias. Findings get fixed before shipping.</p>
-      </div>
-
-      <div class="feature-card reveal">
-        <div class="feature-icon" style="background: rgba(6,182,212,0.15); color: var(--cyan-light);">&#9889;</div>
-        <h3>AI Failure Diagnosis</h3>
-        <p>When verify fails, Kody doesn't blindly retry. It classifies: fixable, infrastructure, pre-existing, or abort. Then applies the right fix strategy.</p>
+        <p><code>bootstrap</code> analyzes your codebase and generates customized instructions for every stage. Not generic prompts&mdash;your patterns, your conventions.</p>
       </div>
 
       <div class="feature-card reveal">
@@ -984,19 +971,7 @@
       <div class="feature-card reveal">
         <div class="feature-icon" style="background: rgba(244,63,94,0.15); color: var(--rose);">&#128257;</div>
         <h3>Shared Sessions</h3>
-        <p>Stages share Claude Code sessions. The build agent already knows the codebase from taskify. No cold-start re-exploration between stages.</p>
-      </div>
-
-      <div class="feature-card reveal">
-        <div class="feature-icon" style="background: rgba(167,139,250,0.15); color: var(--primary-light);">&#128218;</div>
-        <h3>Auto-Learning</h3>
-        <p>After each successful run, Kody extracts coding conventions, patterns, and architectural decisions. The next run is smarter than the last.</p>
-      </div>
-
-      <div class="feature-card reveal">
-        <div class="feature-icon" style="background: rgba(6,182,212,0.15); color: var(--cyan-light);">&#127760;</div>
-        <h3>Any LLM Provider</h3>
-        <p>Anthropic natively. MiniMax, Gemini, OpenAI, and others via LiteLLM proxy. Per-stage model selection. Auto-starts the proxy when needed.</p>
+        <p>Stages share Claude Code sessions. The build agent already knows the codebase from planning. No cold-start re-exploration between stages.</p>
       </div>
 
       <div class="feature-card reveal">
@@ -1008,7 +983,13 @@
       <div class="feature-card reveal">
         <div class="feature-icon" style="background: rgba(251,191,36,0.15); color: var(--amber);">&#128065;</div>
         <h3>Kody Watch</h3>
-        <p>Periodic health monitoring every 30 minutes. Pipeline health, security scanning, config validation. Posts findings as GitHub issues.</p>
+        <p>Periodic health monitoring. Pipeline health, security scanning, config validation. Posts findings as GitHub issues.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background: rgba(6,182,212,0.15); color: var(--cyan-light);">&#62;&gt;</div>
+        <h3>8 Commands</h3>
+        <p><code>@kody</code> runs the full pipeline. <code>review</code> for standalone PR review. <code>fix-ci</code> to auto-fix CI failures. <code>resolve</code> for merge conflicts. <a href="https://github.com/aharonyaircohen/Kody-Engine-Lite/blob/main/docs/CLI.md" style="color: var(--cyan-light);">See all &rarr;</a></p>
       </div>
     </div>
   </section>
@@ -1046,57 +1027,6 @@
     </div>
   </section>
 
-  <!-- COMMANDS -->
-  <section id="commands">
-    <div class="section-label">Commands</div>
-    <div class="section-title">One tool for every situation</div>
-    <div class="section-desc">Comment on GitHub or run from your terminal.</div>
-
-    <div class="reveal" style="overflow-x: auto;">
-      <table class="commands-table">
-        <thead>
-          <tr>
-            <th>Command</th>
-            <th>What it does</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><code>@kody</code></td>
-            <td>Run full pipeline on an issue</td>
-          </tr>
-          <tr>
-            <td><code>@kody review</code></td>
-            <td>Standalone PR review with structured findings + GitHub approve/request-changes</td>
-          </tr>
-          <tr>
-            <td><code>@kody fix</code></td>
-            <td>Re-run from build with human PR feedback as context</td>
-          </tr>
-          <tr>
-            <td><code>@kody fix-ci</code></td>
-            <td>Fetch CI failure logs, diagnose, and push a fix</td>
-          </tr>
-          <tr>
-            <td><code>@kody resolve</code></td>
-            <td>Merge default branch into PR, AI-resolve conflicts, verify</td>
-          </tr>
-          <tr>
-            <td><code>@kody rerun</code></td>
-            <td>Resume from failed or paused stage</td>
-          </tr>
-          <tr>
-            <td><code>@kody bootstrap</code></td>
-            <td>Analyze repo, generate memory + step files + labels</td>
-          </tr>
-          <tr>
-            <td><code>@kody approve</code></td>
-            <td>Resume after questions or risk gate pause</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
 
   <!-- CTA -->
   <section class="cta-section">
