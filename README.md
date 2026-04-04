@@ -1,4 +1,4 @@
-# Kody Engine Lite
+# Kody ADE Engine
 
 [![npm](https://img.shields.io/npm/v/@kody-ade/kody-engine-lite)](https://www.npmjs.com/package/@kody-ade/kody-engine-lite)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
