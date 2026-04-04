@@ -28,6 +28,16 @@ kody-engine-lite bootstrap
 
 Typically runs inside GitHub Actions. Can also run locally if `gh` CLI is authenticated.
 
+### Override Model
+
+Use `--provider` and `--model` flags to override the configured LLM for bootstrap:
+
+```bash
+kody-engine-lite bootstrap --provider=claude --model=claude-opus-4-6
+```
+
+This overrides the model resolved from `kody.config.json` for this run only.
+
 ## What It Does
 
 ### Step 1: Generate Project Memory

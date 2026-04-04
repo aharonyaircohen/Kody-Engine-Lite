@@ -271,12 +271,16 @@ function collectSkillPaths(cwd: string, skillName: string, paths: string[]): voi
   }
 }
 
-export async function bootstrapCommand(opts: { force: boolean }, pkgRoot: string) {
+export async function bootstrapCommand(opts: { force: boolean; provider?: string; model?: string }, pkgRoot: string) {
   const cwd = process.cwd()
   setConfigDir(cwd)
   const issueNumber = parseInt(process.env.ISSUE_NUMBER ?? "", 10) || 0
   const config = getProjectConfig()
-  const bootstrapStageConfig = resolveStageConfig(config, "bootstrap", "cheap")
+  const bootstrapStageConfig = {
+    ...resolveStageConfig(config, "bootstrap", "cheap"),
+    ...(opts.provider ? { provider: opts.provider } : {}),
+    ...(opts.model ? { model: opts.model } : {}),
+  }
   const bootstrapModel = bootstrapStageConfig.model
   let litellmProcess: ChildProcess | null = null
   const llmErrors: string[] = []

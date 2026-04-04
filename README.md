@@ -169,7 +169,7 @@ flowchart TD
 
 ```bash
 kody-engine init [--force]          # Setup repo: workflow + config + watch
-kody-engine bootstrap [--force]     # Generate memory + step files + labels + digest issue
+kody-engine bootstrap [--force] [--provider=claude --model=opus-4-6]  # Generate memory + step files + labels + digest issue
 kody-engine run --issue-number 42 --local --cwd ./project
 kody-engine run --task "Add retry utility" --local
 kody-engine review --pr-number 42   # Standalone PR review

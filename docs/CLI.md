@@ -28,12 +28,16 @@ Then commits and pushes. Run `bootstrap` next to generate repo-aware step files.
 Generate project memory, customized step files, and GitHub labels by analyzing your codebase with an LLM. Required after `init` for a complete setup. Also useful after major refactors.
 
 ```bash
-kody-engine-lite bootstrap [--force]
+kody-engine-lite bootstrap [--force] [--provider=<name>] [--model=<name>]
 ```
 
 | Flag | Description |
 |------|-------------|
 | `--force` | Overwrite existing memory and step files |
+| `--provider <name>` | Override the LLM provider from config (e.g., `claude`, `minimax`) |
+| `--model <name>` | Override the LLM model from config (e.g., `claude-opus-4-6`) |
+
+Flags accept both `--flag=value` and `--flag value` forms.
 
 Also available as `@kody bootstrap` on GitHub.
 
