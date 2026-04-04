@@ -794,9 +794,58 @@ Command and URL.
   const keywords = detectProjectKeywords(cwd)
   if (keywords.length > 0) {
     console.log(`  Searching skills.sh for: ${keywords.join(", ")}`)
-    const found = searchSkills(keywords, excludeSkills, 5)
+    const found = searchSkills(keywords, excludeSkills, 10)
     if (found.length > 0) {
-      for (const skill of found) {
+      // LLM relevance filter: ask the model which skills actually match this project
+      const candidateList = found.map((s) => `- ${s.name} (${s.ref})`).join("\n")
+      const relevancePrompt = `You are filtering skills for a project bootstrap. Only keep skills that are DIRECTLY relevant to this project's actual tech stack and use cases.
+
+## Project Context
+${repoContext}
+
+## Candidate Skills
+${candidateList}
+
+## Rules
+- ONLY keep skills for technologies this project actually uses
+- REJECT skills for technologies not in the project (e.g., reject Clerk skills if the project uses its own auth, reject Django skills for a Node.js project)
+- REJECT generic "best practices" collections that overlap with the project's existing CLAUDE.md or conventions
+- When in doubt, REJECT — fewer focused skills are better than many generic ones
+- Output ONLY a JSON array of skill refs to KEEP, e.g.: ["owner/repo@name", "owner/repo@name2"]
+- If NO skills are relevant, output: []
+- Output ONLY the JSON array. No explanation.`
+
+      let filteredRefs: Set<string> | null = null
+      try {
+        console.log("  ⏳ Filtering skills for relevance...")
+        const filterOutput = execFileSync("claude", [
+          "--print",
+          "--model", bootstrapModel,
+          "--dangerously-skip-permissions",
+          relevancePrompt,
+        ], {
+          encoding: "utf-8",
+          timeout: 60_000,
+          cwd,
+          stdio: ["pipe", "pipe", "pipe"],
+        }).trim()
+
+        const cleaned = filterOutput.replace(/^```json\s*\n?/m, "").replace(/\n?```\s*$/m, "")
+        const parsed = JSON.parse(cleaned)
+        if (Array.isArray(parsed)) {
+          filteredRefs = new Set(parsed)
+          const rejected = found.length - filteredRefs.size
+          if (rejected > 0) console.log(`  ✓ Filtered: kept ${filteredRefs.size}/${found.length} skills (rejected ${rejected} as irrelevant)`)
+        }
+      } catch {
+        console.log("  ⚠ Skill relevance filter failed — installing all candidates")
+      }
+
+      const skillsToInstall = filteredRefs
+        ? found.filter((s) => filteredRefs!.has(s.ref))
+        : found.slice(0, 5)
+
+      for (const skill of skillsToInstall) {
         try {
           console.log(`  Installing: ${skill.name} (${skill.ref})`)
           execFileSync("npx", ["skills", "add", skill.ref, "--yes"], {
