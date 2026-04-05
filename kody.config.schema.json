@@ -301,7 +301,7 @@
           "type": "array",
           "items": { "type": "string" },
           "description": "Labels to add to the release PR. Default: [\"release\"]",
-          "default": ["release"]
+          "default": ["kody:release"]
         },
         "draftRelease": {
           "type": "boolean",

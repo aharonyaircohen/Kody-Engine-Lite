@@ -844,6 +844,7 @@ Command and URL.
         { name: "kody:refactor", color: "fbca04", description: "Code refactoring" },
         { name: "kody:docs", color: "0075ca", description: "Documentation" },
         { name: "kody:chore", color: "e4e669", description: "Maintenance task" },
+        { name: "kody:release", color: "0e8a16", description: "Release PR" },
       ]
 
       for (const label of labels) {

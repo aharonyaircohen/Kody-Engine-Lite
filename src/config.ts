@@ -317,7 +317,7 @@ export function getProjectConfig(): KodyConfig {
               publishCommand: raw.release.publishCommand ?? "",
               notifyCommand: raw.release.notifyCommand ?? "",
               releaseBranch: raw.release.releaseBranch ?? undefined,
-              labels: raw.release.labels ?? ["release"],
+              labels: raw.release.labels ?? ["kody:release"],
               draftRelease: raw.release.draftRelease ?? false,
             }
           : undefined,

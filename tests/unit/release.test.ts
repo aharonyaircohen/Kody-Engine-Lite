@@ -288,7 +288,7 @@ describe("getReleaseConfig", () => {
     expect(rc.publishCommand).toBe("")
     expect(rc.notifyCommand).toBe("")
     expect(rc.releaseBranch).toBe("main")
-    expect(rc.labels).toEqual(["release"])
+    expect(rc.labels).toEqual(["kody:release"])
     expect(rc.draftRelease).toBe(false)
   })
 

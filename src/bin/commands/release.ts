@@ -88,7 +88,7 @@ export function getReleaseConfig(config: KodyConfig): ReleaseConfig {
     publishCommand: "",
     notifyCommand: "",
     releaseBranch: config.git.defaultBranch,
-    labels: ["release"],
+    labels: ["kody:release"],
     draftRelease: false,
   }
   if (!config.release) return defaults
