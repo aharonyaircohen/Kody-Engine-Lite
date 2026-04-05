@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import * as fs from "fs"
 import * as path from "path"
 import * as os from "os"
-import { getProjectConfig, resetProjectConfig, setConfigDir, getAnthropicApiKeyOrDummy, resolveStageConfig } from "../../src/config.js"
+import { getProjectConfig, resetProjectConfig, setConfigDir, getAnthropicApiKeyOrDummy, resolveStageConfig, applyModelOverrides } from "../../src/config.js"
 
 describe("config", () => {
   let tmpDir: string
@@ -133,5 +133,82 @@ describe("resolveStageConfig", () => {
     const result = resolveStageConfig(config, "build", "cheap")
     expect(result.model).toBe("minimax/MiniMax-M2.7-highspeed")
     expect(result.provider).toBe("minimax")
+  })
+})
+
+describe("applyModelOverrides", () => {
+  function makeConfig(overrides?: Record<string, unknown>) {
+    return {
+      quality: { typecheck: "", lint: "", lintFix: "", formatFix: "", testUnit: "" },
+      git: { defaultBranch: "main" },
+      github: { owner: "", repo: "" },
+      agent: {
+        modelMap: { cheap: "model-cheap", mid: "model-mid", strong: "model-strong" },
+        provider: "minimax",
+        ...overrides,
+      },
+    } as ReturnType<typeof getProjectConfig>
+  }
+
+  it("does nothing when neither provider nor model specified", () => {
+    const config = makeConfig()
+    applyModelOverrides(config, undefined, undefined)
+    expect(config.agent.default).toBeUndefined()
+    expect(config.agent.modelMap.mid).toBe("model-mid")
+  })
+
+  it("overrides model for all tiers and sets default", () => {
+    const config = makeConfig()
+    applyModelOverrides(config, undefined, "gpt-4o")
+    expect(config.agent.default).toEqual({ provider: "minimax", model: "gpt-4o" })
+    expect(config.agent.modelMap.cheap).toBe("gpt-4o")
+    expect(config.agent.modelMap.mid).toBe("gpt-4o")
+    expect(config.agent.modelMap.strong).toBe("gpt-4o")
+  })
+
+  it("overrides provider and sets default", () => {
+    const config = makeConfig()
+    applyModelOverrides(config, "anthropic", undefined)
+    expect(config.agent.default?.provider).toBe("anthropic")
+    expect(config.agent.provider).toBe("anthropic")
+    // model falls back to mid tier
+    expect(config.agent.default?.model).toBe("model-mid")
+    // modelMap tiers unchanged since only provider was overridden
+    expect(config.agent.modelMap.cheap).toBe("model-cheap")
+  })
+
+  it("overrides both provider and model", () => {
+    const config = makeConfig()
+    applyModelOverrides(config, "anthropic", "claude-sonnet-4-6")
+    expect(config.agent.default).toEqual({ provider: "anthropic", model: "claude-sonnet-4-6" })
+    expect(config.agent.provider).toBe("anthropic")
+    expect(config.agent.modelMap.mid).toBe("claude-sonnet-4-6")
+  })
+
+  it("clears per-stage overrides so CLI flag applies uniformly", () => {
+    const config = makeConfig({
+      stages: {
+        build: { provider: "openai", model: "gpt-4o" },
+        review: { provider: "google", model: "gemini-2.5-flash" },
+      },
+    })
+    applyModelOverrides(config, "anthropic", "claude-sonnet-4-6")
+    expect(config.agent.stages).toBeUndefined()
+    // resolveStageConfig should now return the override for any stage
+    const buildConfig = resolveStageConfig(config, "build", "mid")
+    expect(buildConfig.provider).toBe("anthropic")
+    expect(buildConfig.model).toBe("claude-sonnet-4-6")
+    const reviewConfig = resolveStageConfig(config, "review", "strong")
+    expect(reviewConfig.provider).toBe("anthropic")
+    expect(reviewConfig.model).toBe("claude-sonnet-4-6")
+  })
+
+  it("preserves existing default when only model is overridden", () => {
+    const config = makeConfig({
+      default: { provider: "google", model: "gemini-2.5-flash" },
+    })
+    applyModelOverrides(config, undefined, "gpt-4o")
+    expect(config.agent.default?.provider).toBe("google")
+    expect(config.agent.default?.model).toBe("gpt-4o")
   })
 })

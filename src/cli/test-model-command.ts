@@ -11,6 +11,7 @@ import * as path from "path"
 import { execFileSync } from "child_process"
 
 import { logger } from "../logger.js"
+import { providerApiKeyEnvVar } from "../config.js"
 import { checkLitellmHealth } from "./litellm.js"
 import { ALL_TESTS } from "./test-model-tests.js"
 import { formatReport } from "./test-model-report.js"
@@ -113,7 +114,7 @@ function generateConfig(provider: string, model: string, dropParams: boolean): s
   lines.push(`  - model_name: ${model}`)
   lines.push("    litellm_params:")
   lines.push(`      model: ${provider}/${model}`)
-  lines.push("      api_key: os.environ/ANTHROPIC_COMPATIBLE_API_KEY")
+  lines.push(`      api_key: os.environ/${providerApiKeyEnvVar(provider)}`)
   return lines.join("\n") + "\n"
 }
 
@@ -209,8 +210,9 @@ export async function runTestModelCommand(): Promise<void> {
 
   try {
     if (!opts.skipProxy) {
-      // Set API key for LiteLLM
-      process.env.ANTHROPIC_COMPATIBLE_API_KEY = opts.apiKey
+      // Set API key for LiteLLM (provider-specific env var)
+      const apiKeyVar = providerApiKeyEnvVar(opts.provider)
+      process.env[apiKeyVar] = opts.apiKey
 
       // Phase 1: Try without drop_params
       logger.info("Starting LiteLLM proxy (without drop_params)...")

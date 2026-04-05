@@ -88,6 +88,70 @@ describe("parseCommentInputs", () => {
     expect(r.mode).toBe("rerun")
   })
 
+  // ─── Provider / Model flags ─────────────────────────────────────────────
+
+  it("parses --provider flag", () => {
+    process.env.COMMENT_BODY = "@kody fix --provider anthropic"
+    const r = parseCommentInputs()
+    expect(r.mode).toBe("fix")
+    expect(r.provider).toBe("anthropic")
+    expect(r.model).toBe("")
+  })
+
+  it("parses --model flag", () => {
+    process.env.COMMENT_BODY = "@kody fix --model claude-sonnet-4-6"
+    const r = parseCommentInputs()
+    expect(r.mode).toBe("fix")
+    expect(r.model).toBe("claude-sonnet-4-6")
+    expect(r.provider).toBe("")
+  })
+
+  it("parses --provider and --model together", () => {
+    process.env.COMMENT_BODY = "@kody fix --provider anthropic --model claude-sonnet-4-6"
+    const r = parseCommentInputs()
+    expect(r.mode).toBe("fix")
+    expect(r.provider).toBe("anthropic")
+    expect(r.model).toBe("claude-sonnet-4-6")
+  })
+
+  it("parses --provider and --model with other flags", () => {
+    process.env.COMMENT_BODY = "@kody rerun task-123 --from build --provider minimax --model MiniMax-M2.7-highspeed"
+    const r = parseCommentInputs()
+    expect(r.mode).toBe("rerun")
+    expect(r.task_id).toBe("task-123")
+    expect(r.from_stage).toBe("build")
+    expect(r.provider).toBe("minimax")
+    expect(r.model).toBe("MiniMax-M2.7-highspeed")
+  })
+
+  it("parses --provider=value and --model=value (equals syntax)", () => {
+    process.env.COMMENT_BODY = "@kody fix --provider=claude --model=claude-opus-4-6"
+    const r = parseCommentInputs()
+    expect(r.mode).toBe("fix")
+    expect(r.provider).toBe("claude")
+    expect(r.model).toBe("claude-opus-4-6")
+  })
+
+  it("parses mixed equals and space syntax", () => {
+    process.env.COMMENT_BODY = "@kody rerun task-1 --from=build --provider claude --model=claude-sonnet-4-6"
+    const r = parseCommentInputs()
+    expect(r.mode).toBe("rerun")
+    expect(r.task_id).toBe("task-1")
+    expect(r.from_stage).toBe("build")
+    expect(r.provider).toBe("claude")
+    expect(r.model).toBe("claude-sonnet-4-6")
+  })
+
+  it("--provider and --model do not pollute task-id", () => {
+    process.env.COMMENT_BODY = "@kody full --provider openai --model gpt-4o"
+    const r = parseCommentInputs()
+    expect(r.mode).toBe("full")
+    expect(r.provider).toBe("openai")
+    expect(r.model).toBe("gpt-4o")
+    // task_id should be auto-generated, not "openai" or "gpt-4o"
+    expect(r.task_id).toMatch(/^42-\d{6}-\d{6}$/)
+  })
+
   // ─── Flags ────────────────────────────────────────────────────────────────
 
   it("parses --from flag", () => {
@@ -107,6 +171,13 @@ describe("parseCommentInputs", () => {
 
   it("parses --complexity flag", () => {
     process.env.COMMENT_BODY = "@kody full --complexity high"
+    const r = parseCommentInputs()
+    expect(r.mode).toBe("full")
+    expect(r.complexity).toBe("high")
+  })
+
+  it("parses --complexity=value (equals syntax)", () => {
+    process.env.COMMENT_BODY = "@kody full --complexity=high"
     const r = parseCommentInputs()
     expect(r.mode).toBe("full")
     expect(r.complexity).toBe("high")
@@ -280,6 +351,16 @@ describe("parseCommentInputs", () => {
     expect(r.feedback).toBe("some feedback")
     expect(r.trigger_type).toBe("dispatch")
     expect(r.valid).toBe(true)
+  })
+
+  it("dispatch trigger passes through provider and model", () => {
+    process.env.TRIGGER_TYPE = "dispatch"
+    process.env.INPUT_TASK_ID = "dispatch-task"
+    process.env.INPUT_PROVIDER = "openai"
+    process.env.INPUT_MODEL = "gpt-4o"
+    const r = parseCommentInputs()
+    expect(r.provider).toBe("openai")
+    expect(r.model).toBe("gpt-4o")
   })
 
   it("dispatch trigger with no task_id is invalid", () => {

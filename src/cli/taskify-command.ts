@@ -150,7 +150,7 @@ export async function runTaskifyCommand(): Promise<void> {
   setConfigDir(projectDir)
   setGhCwd(projectDir)
 
-  // Start LiteLLM proxy if needed (e.g. ANTHROPIC_COMPATIBLE_API_KEY provider)
+  // Start LiteLLM proxy if needed (e.g. non-Anthropic provider)
   const config = getProjectConfig()
   let litellmProcess: { kill: () => void } | null = null
   let runnerEnv: Record<string, string> | undefined

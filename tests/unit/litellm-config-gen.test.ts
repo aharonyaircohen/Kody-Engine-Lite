@@ -11,8 +11,7 @@ describe("generateLitellmConfig", () => {
 
     expect(yaml).toContain("model_list:")
     expect(yaml).toContain("model: minimax/MiniMax-M2.7-highspeed")
-    // providerApiKeyEnvVar returns MINIMAX_API_KEY if set in env, else ANTHROPIC_COMPATIBLE_API_KEY
-    expect(yaml).toMatch(/api_key: os\.environ\/(MINIMAX_API_KEY|ANTHROPIC_COMPATIBLE_API_KEY)/)
+    expect(yaml).toContain("api_key: os.environ/MINIMAX_API_KEY")
     // Config model name is the single source of truth
     expect(yaml).toContain("model_name: MiniMax-M2.7-highspeed")
     // Deduped: same model across all tiers → single entry
@@ -33,8 +32,7 @@ describe("generateLitellmConfig", () => {
     expect(yaml).toContain("model: openai/gpt-4o")
     expect(yaml).toContain("model_name: o3")
     expect(yaml).toContain("model: openai/o3")
-    // providerApiKeyEnvVar returns OPENAI_API_KEY if set in env, else ANTHROPIC_COMPATIBLE_API_KEY
-    expect(yaml).toMatch(/api_key: os\.environ\/(OPENAI_API_KEY|ANTHROPIC_COMPATIBLE_API_KEY)/)
+    expect(yaml).toContain("api_key: os.environ/OPENAI_API_KEY")
   })
 
   it("deduplicates when multiple tiers use the same model", () => {

@@ -21,6 +21,12 @@ on:
       dry_run:
         type: boolean
         default: false
+      provider:
+        type: string
+        default: ""
+      model:
+        type: string
+        default: ""
 
   issue_comment:
     types: [created]
@@ -63,6 +69,8 @@ jobs:
       ci_run_id: ${{ steps.parse.outputs.ci_run_id }}
       ticket_id: ${{ steps.parse.outputs.ticket_id }}
       prd_file: ${{ steps.parse.outputs.prd_file }}
+      provider: ${{ steps.parse.outputs.provider }}
+      model: ${{ steps.parse.outputs.model }}
       valid: ${{ steps.parse.outputs.valid }}
     steps:
       - uses: actions/setup-node@v4
@@ -110,6 +118,8 @@ jobs:
           FEEDBACK=$(echo "$KODY_ARGS" | grep -oP '(?<=--feedback ")[^"]*' || echo "")
           TICKET_ID=$(echo "$KODY_ARGS" | grep -oP '(?<=--ticket )\S+' || echo "")
           PRD_FILE=$(echo "$KODY_ARGS" | grep -oP '(?<=--file )\S+' || echo "")
+          PROVIDER=$(echo "$KODY_ARGS" | grep -oP '(?<=--provider )\S+' || echo "")
+          MODEL=$(echo "$KODY_ARGS" | grep -oP '(?<=--model )\S+' || echo "")
 
           # Validate mode
           case "$MODE" in
@@ -197,6 +207,8 @@ ${ASK_BODY}"
           echo "ci_run_id=${CI_RUN_ID:-}" >> $GITHUB_OUTPUT
           echo "ticket_id=${TICKET_ID:-}" >> $GITHUB_OUTPUT
           echo "prd_file=${PRD_FILE:-}" >> $GITHUB_OUTPUT
+          echo "provider=${PROVIDER:-}" >> $GITHUB_OUTPUT
+          echo "model=${MODEL:-}" >> $GITHUB_OUTPUT
           echo "valid=true" >> $GITHUB_OUTPUT
 
   # ─── Orchestrate ─────────────────────────────────────────────────────────────
@@ -260,8 +272,13 @@ ${ASK_BODY}"
           TICKET_ID: ${{ needs.parse.outputs.ticket_id }}
           PRD_FILE: ${{ needs.parse.outputs.prd_file }}
           DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+          PROVIDER: ${{ github.event.inputs.provider || needs.parse.outputs.provider }}
+          MODEL: ${{ github.event.inputs.model || needs.parse.outputs.model }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
+          # Common flags for --provider / --model (picked up via env by args.ts)
+          # PROVIDER and MODEL env vars are read directly by the CLI arg parser,
+          # so no need to pass them explicitly as CLI flags.
           if [ "$MODE" = "taskify" ]; then
             ARGS=""
             [ -n "$TICKET_ID" ] && ARGS="$ARGS --ticket $TICKET_ID"

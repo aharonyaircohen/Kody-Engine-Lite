@@ -3,7 +3,7 @@ import * as path from "path"
 import { createRunners } from "./agent-runner.js"
 import { runPipeline, printStatus } from "./pipeline.js"
 import { runPreflight } from "./preflight.js"
-import { setConfigDir, getProjectConfig } from "./config.js"
+import { setConfigDir, getProjectConfig, applyModelOverrides } from "./config.js"
 import { setGhCwd, getIssue, postComment, getPRDetails, getPRsForIssue, postPRComment, submitPRReview, getLatestKodyReviewComment, getCIFailureLogs, getLatestFailedRunForBranch, getPRFeedbackSinceLastKodyAction, setLifecycleLabel } from "./github-api.js"
 import { logger } from "./logger.js"
 import type { PipelineContext } from "./types.js"
@@ -85,12 +85,11 @@ async function ensureLitellmProxy(
 async function runModelHealthCheck(config: KodyConfig): Promise<void> {
   const usesProxy = anyStageNeedsProxy(config)
   const baseUrl = usesProxy ? getLitellmUrl() : "https://api.anthropic.com"
-  const apiKey = usesProxy
-    ? process.env.ANTHROPIC_COMPATIBLE_API_KEY
-    : process.env.ANTHROPIC_API_KEY
+  const provider = config.agent.default?.provider ?? config.agent.provider ?? "anthropic"
+  const keyName = providerApiKeyEnvVar(provider)
+  const apiKey = process.env[keyName]
 
   if (!apiKey) {
-    const keyName = usesProxy ? "ANTHROPIC_COMPATIBLE_API_KEY" : "ANTHROPIC_API_KEY"
     logger.warn(`Skipping model health check — ${keyName} not set`)
     return
   }
@@ -120,6 +119,13 @@ async function main() {
     setConfigDir(projectDir)
     setGhCwd(projectDir)
     logger.info(`Working directory: ${projectDir}`)
+  }
+
+  // Apply CLI --provider / --model overrides before any command branch reads config
+  if (input.provider || input.model) {
+    const config = getProjectConfig()
+    applyModelOverrides(config, input.provider, input.model)
+    logger.info(`CLI override: provider=${config.agent.default?.provider} model=${config.agent.default?.model}`)
   }
 
   // State machine: check issue state before doing anything

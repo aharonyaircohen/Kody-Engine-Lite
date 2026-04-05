@@ -167,7 +167,7 @@ See [Features — Repo-Aware Step Files](FEATURES.md#repo-aware-step-files-kodys
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `ANTHROPIC_API_KEY` | When `provider` is `"anthropic"` (default) | Claude API key (set as GitHub secret) |
-| `ANTHROPIC_COMPATIBLE_API_KEY` | When using non-Anthropic provider | Single key for any provider (minimax, openai, google, etc.) |
+| `{PROVIDER}_API_KEY` | When using non-Anthropic provider | Provider-specific key (e.g. `MINIMAX_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`) |
 | `GH_TOKEN` | Auto | Provided by GitHub Actions |
 | `LOG_LEVEL` | No | `debug`, `info`, `warn`, `error` |
 

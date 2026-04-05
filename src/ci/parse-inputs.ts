@@ -20,6 +20,8 @@ export interface ParseResult {
   ci_run_id: string
   ticket_id: string
   prd_file: string
+  provider: string
+  model: string
   dry_run: boolean
   valid: boolean
   trigger_type: string
@@ -63,6 +65,8 @@ export function parseCommentInputs(): ParseResult {
       ci_run_id: "",
       ticket_id: "",
       prd_file: "",
+      provider: process.env.INPUT_PROVIDER ?? "",
+      model: process.env.INPUT_MODEL ?? "",
       dry_run: false,
       valid: !!taskId,
       trigger_type: "dispatch",
@@ -80,6 +84,7 @@ export function parseCommentInputs(): ParseResult {
     return {
       task_id: "", mode: "full", from_stage: "", issue_number: issueNumber,
       pr_number: "", feedback: "", complexity: "", ci_run_id: "", ticket_id: "", prd_file: "",
+      provider: "", model: "",
       dry_run: false, valid: false, trigger_type: "comment",
     }
   }
@@ -95,43 +100,55 @@ export function parseCommentInputs(): ParseResult {
   let ciRunId = ""
   let ticketId = ""
   let prdFile = ""
+  let provider = ""
+  let model = ""
 
-  // Extract --from
-  const fromMatch = argsLine.match(/--from\s+(\S+)/)
+  // Extract --from (supports --from value and --from=value)
+  const fromMatch = argsLine.match(/--from[=\s]+(\S+)/)
   if (fromMatch) fromStage = fromMatch[1]
 
-  // Extract --feedback "quoted text"
-  const feedbackMatch = argsLine.match(/--feedback\s+"([^"]*)"/)
+  // Extract --feedback "quoted text" (supports --feedback="text" and --feedback "text")
+  const feedbackMatch = argsLine.match(/--feedback[=\s]+"([^"]*)"/)
   if (feedbackMatch) feedback = feedbackMatch[1]
 
   // Extract --complexity
-  const complexityMatch = argsLine.match(/--complexity\s+(\S+)/)
+  const complexityMatch = argsLine.match(/--complexity[=\s]+(\S+)/)
   if (complexityMatch) complexity = complexityMatch[1]
 
   // Extract --dry-run
   if (/--dry-run/.test(argsLine)) dryRun = true
 
   // Extract --ci-run-id
-  const ciRunIdMatch = argsLine.match(/--ci-run-id\s+(\S+)/)
+  const ciRunIdMatch = argsLine.match(/--ci-run-id[=\s]+(\S+)/)
   if (ciRunIdMatch) ciRunId = ciRunIdMatch[1]
 
   // Extract --ticket
-  const ticketMatch = argsLine.match(/--ticket\s+(\S+)/)
+  const ticketMatch = argsLine.match(/--ticket[=\s]+(\S+)/)
   if (ticketMatch) ticketId = ticketMatch[1]
 
   // Extract --file
-  const fileMatch = argsLine.match(/--file\s+(\S+)/)
+  const fileMatch = argsLine.match(/--file[=\s]+(\S+)/)
   if (fileMatch) prdFile = fileMatch[1]
+
+  // Extract --provider
+  const providerMatch = argsLine.match(/--provider[=\s]+(\S+)/)
+  if (providerMatch) provider = providerMatch[1]
+
+  // Extract --model
+  const modelMatch = argsLine.match(/--model[=\s]+(\S+)/)
+  if (modelMatch) model = modelMatch[1]
 
   // ─── Strip flags to get positional args ───────────────────────────────
   const positional = argsLine
-    .replace(/--from\s+\S+/g, "")
-    .replace(/--feedback\s+"[^"]*"/g, "")
-    .replace(/--complexity\s+\S+/g, "")
+    .replace(/--from[=\s]+\S+/g, "")
+    .replace(/--feedback[=\s]+"[^"]*"/g, "")
+    .replace(/--complexity[=\s]+\S+/g, "")
     .replace(/--dry-run/g, "")
-    .replace(/--ci-run-id\s+\S+/g, "")
-    .replace(/--ticket\s+\S+/g, "")
-    .replace(/--file\s+\S+/g, "")
+    .replace(/--ci-run-id[=\s]+\S+/g, "")
+    .replace(/--ticket[=\s]+\S+/g, "")
+    .replace(/--file[=\s]+\S+/g, "")
+    .replace(/--provider[=\s]+\S+/g, "")
+    .replace(/--model[=\s]+\S+/g, "")
     .replace(/\s+/g, " ")
     .trim()
 
@@ -239,6 +256,8 @@ export function parseCommentInputs(): ParseResult {
     ci_run_id: ciRunId,
     ticket_id: ticketId,
     prd_file: prdFile,
+    provider,
+    model,
     dry_run: dryRun,
     valid,
     trigger_type: "comment",
@@ -274,6 +293,8 @@ export function writeOutputs(result: ParseResult): void {
   output("ci_run_id", result.ci_run_id)
   output("ticket_id", result.ticket_id)
   output("prd_file", result.prd_file)
+  output("provider", result.provider)
+  output("model", result.model)
   output("dry_run", result.dry_run ? "true" : "false")
   output("valid", result.valid ? "true" : "false")
   output("trigger_type", result.trigger_type)

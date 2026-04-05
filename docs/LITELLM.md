@@ -45,14 +45,16 @@ To use different models per tier, configure `modelMap`:
 
 ### Set API Keys
 
-**Local:** Add to `.env` in your project root:
+**Local:** Add to `.env` in your project root (use your provider's key name):
 ```
-ANTHROPIC_COMPATIBLE_API_KEY=your-key-here
+MINIMAX_API_KEY=your-key-here      # for minimax provider
+OPENAI_API_KEY=your-key-here       # for openai provider
+GEMINI_API_KEY=your-key-here       # for google/gemini provider
 ```
 
 **CI:** Add as a GitHub secret:
 ```bash
-gh secret set ANTHROPIC_COMPATIBLE_API_KEY --repo owner/repo
+gh secret set MINIMAX_API_KEY --repo owner/repo
 ```
 
 ### CI Workflow
@@ -69,7 +71,7 @@ When using a non-Anthropic provider, ensure LiteLLM is installed and API keys ar
 - name: Run Kody pipeline
   env:
     ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-    ANTHROPIC_COMPATIBLE_API_KEY: ${{ secrets.ANTHROPIC_COMPATIBLE_API_KEY }}
+    MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}  # match your provider
 ```
 
 > Use a venv to avoid system package conflicts. The symlink makes `litellm` available on PATH for Kody's auto-start.

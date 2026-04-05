@@ -159,6 +159,38 @@ export function resolveStageConfig(config: KodyConfig, stageName: string, modelT
   }
 }
 
+/** Apply CLI --provider / --model overrides to all stages.
+ *  Mutates the cached config so every downstream resolveStageConfig / resolveModel picks it up. */
+export function applyModelOverrides(config: KodyConfig, provider?: string, model?: string): void {
+  if (!provider && !model) return
+
+  const fallbackProvider = config.agent.default?.provider ?? config.agent.provider ?? "claude"
+  const fallbackModel = config.agent.default?.model
+    ?? config.agent.modelMap.mid ?? config.agent.modelMap.cheap
+    ?? Object.values(config.agent.modelMap)[0] ?? ""
+
+  const overrideProvider = provider ?? fallbackProvider
+  const overrideModel = model ?? fallbackModel
+
+  // Set default (covers resolveStageConfig path)
+  config.agent.default = { provider: overrideProvider, model: overrideModel }
+
+  // Clear per-stage overrides so CLI flag applies uniformly
+  config.agent.stages = undefined
+
+  // Override all modelMap tiers (covers resolveModel path used by escalation + verify)
+  if (model) {
+    for (const tier of Object.keys(config.agent.modelMap)) {
+      config.agent.modelMap[tier] = model
+    }
+  }
+
+  // Set legacy provider field for proxy detection
+  if (provider) {
+    config.agent.provider = overrideProvider
+  }
+}
+
 /** Check if a provider needs LiteLLM proxy */
 export function needsLitellmProxy(config: KodyConfig): boolean {
   return !!(config.agent.provider && config.agent.provider !== "anthropic")
@@ -190,12 +222,10 @@ export function getLitellmUrl(): string {
 
 /** Get the env var name for a provider's API key.
  *  Derives from provider name: openai→OPENAI_API_KEY, gemini→GEMINI_API_KEY, etc.
- *  Falls back to ANTHROPIC_COMPATIBLE_API_KEY if the derived var is not set. */
+ *  Returns the provider-specific env var name (e.g. MINIMAX_API_KEY for "minimax"). */
 export function providerApiKeyEnvVar(provider: string): string {
   if (provider === "anthropic" || provider === "claude") return "ANTHROPIC_API_KEY"
-  const derived = `${provider.toUpperCase()}_API_KEY`
-  if (process.env[derived]) return derived
-  return "ANTHROPIC_COMPATIBLE_API_KEY"
+  return `${provider.toUpperCase()}_API_KEY`
 }
 
 // Pipeline constants

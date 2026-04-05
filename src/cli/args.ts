@@ -12,11 +12,16 @@ export interface CliInput {
   complexity?: "low" | "medium" | "high"
   ciRunId?: string
   noCompose?: boolean
+  provider?: string
+  model?: string
 }
 
 const isCI = !!process.env.GITHUB_ACTIONS
 
 function getArg(args: string[], flag: string): string | undefined {
+  for (const a of args) {
+    if (a.startsWith(`${flag}=`)) return a.slice(flag.length + 1)
+  }
   const idx = args.indexOf(flag)
   if (idx !== -1 && args[idx + 1] && !args[idx + 1].startsWith("--")) {
     return args[idx + 1]
@@ -86,5 +91,7 @@ export function parseArgs(): CliInput {
     complexity: (getArg(args, "--complexity") ?? process.env.COMPLEXITY) as "low" | "medium" | "high" | undefined,
     ciRunId: getArg(args, "--ci-run-id") ?? process.env.CI_RUN_ID,
     noCompose: hasFlag(args, "--no-compose"),
+    provider: getArg(args, "--provider") ?? process.env.PROVIDER ?? undefined,
+    model: getArg(args, "--model") ?? process.env.MODEL ?? undefined,
   }
 }

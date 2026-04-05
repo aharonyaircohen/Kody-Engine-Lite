@@ -18,6 +18,8 @@ function parseComment(body: string): Record<string, string> {
     FROM_STAGE: result.from_stage,
     FEEDBACK: result.feedback,
     COMPLEXITY: result.complexity,
+    PROVIDER: result.provider,
+    MODEL: result.model,
     DRY_RUN: result.dry_run ? "true" : "false",
   }
 }
@@ -112,6 +114,36 @@ describe("workflow parse step", () => {
     expect(r.MODE).toBe("rerun")
     expect(r.TASK_ID).toBe("")
     expect(r.FROM_STAGE).toBe("build")
+  })
+
+  it("parses --provider and --model flags", () => {
+    const r = parseComment("@kody fix --provider anthropic --model claude-sonnet-4-6")
+    expect(r.MODE).toBe("fix")
+    expect(r.PROVIDER).toBe("anthropic")
+    expect(r.MODEL).toBe("claude-sonnet-4-6")
+  })
+
+  it("parses --model alone", () => {
+    const r = parseComment("@kody full --model MiniMax-M2.7-highspeed")
+    expect(r.MODE).toBe("full")
+    expect(r.MODEL).toBe("MiniMax-M2.7-highspeed")
+    expect(r.PROVIDER).toBe("")
+  })
+
+  it("parses --provider and --model with other flags", () => {
+    const r = parseComment("@kody full --complexity high --provider minimax --model MiniMax-M2.7-highspeed --dry-run")
+    expect(r.MODE).toBe("full")
+    expect(r.COMPLEXITY).toBe("high")
+    expect(r.PROVIDER).toBe("minimax")
+    expect(r.MODEL).toBe("MiniMax-M2.7-highspeed")
+    expect(r.DRY_RUN).toBe("true")
+  })
+
+  it("parses --flag=value equals syntax", () => {
+    const r = parseComment("@kody fix --provider=claude --model=claude-opus-4-6")
+    expect(r.MODE).toBe("fix")
+    expect(r.PROVIDER).toBe("claude")
+    expect(r.MODEL).toBe("claude-opus-4-6")
   })
 
   it("treats unknown first positional as task-id", () => {

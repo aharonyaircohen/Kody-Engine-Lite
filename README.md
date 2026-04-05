@@ -110,7 +110,7 @@ If the task is HIGH-risk, Kody pauses after planning and asks for approval befor
 
 ```
 # .env
-ANTHROPIC_COMPATIBLE_API_KEY=your-key-here
+MINIMAX_API_KEY=your-key-here   # or OPENAI_API_KEY, GEMINI_API_KEY, etc.
 ```
 
 Kody auto-starts the LiteLLM proxy. [Full LiteLLM guide →](docs/LITELLM.md)
