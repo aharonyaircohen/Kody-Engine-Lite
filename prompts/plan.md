@@ -48,7 +48,7 @@ Questions rules:
 - Recommend an approach with rationale — don't just ask open-ended questions
 - Do NOT ask about requirements — those should be clear from task.json
 - Do NOT ask about things you can determine from the codebase
-- If no questions, omit the Questions section entirely
+- If no questions, omit the Questions section entirely — do NOT write "None" or "N/A" as a bullet point
 - Maximum 3 questions — only decisions with real impact
 
 Good questions: "Recommend middleware pattern vs wrapper — middleware is simpler but wrapper allows caching. Approve middleware?"
