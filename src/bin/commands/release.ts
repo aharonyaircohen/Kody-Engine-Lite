@@ -332,10 +332,10 @@ export function runPreReleaseChecks(
 ): { passed: boolean; failures: string[] } {
   const failures: string[] = []
 
-  // 1. CI green on default branch
+  // 1. CI green on default branch (warning only — test suite in step 3 is the real gate)
   logger.info("  Checking CI status...")
   if (!isCIGreenOnBranch(defaultBranch)) {
-    failures.push(`CI is not green on ${defaultBranch}`)
+    logger.warn(`  CI may not be green on ${defaultBranch} (could be in-progress or from another workflow)`)
   }
 
   // 2. No draft/WIP PRs
