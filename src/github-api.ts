@@ -553,15 +553,18 @@ export function createGitHubRelease(
 
 export function isCIGreenOnBranch(branch: string): boolean {
   try {
+    // Use --status success to find only successful completed runs.
+    // --status completed includes cancelled runs which aren't meaningful.
     const output = gh([
       "run", "list",
       "--branch", branch,
-      "--status", "completed",
+      "--status", "success",
       "--limit", "1",
-      "--json", "conclusion",
-      "--jq", ".[0].conclusion",
+      "--json", "conclusion,updatedAt",
+      "--jq", ".[0].updatedAt",
     ])
-    return output.trim() === "success"
+    // If we found a successful run, CI is green
+    return !!output.trim()
   } catch {
     return false
   }
