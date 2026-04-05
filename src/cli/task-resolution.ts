@@ -20,7 +20,7 @@ export function findLatestTaskForIssue(issueNumber: number, projectDir: string):
   if (direct) return direct
 
   // Fallback for PR comments: extract issue number from current git branch
-  // Branch format: <issueNum>--<slug> (e.g., 1031--security-8x-route)
+  // Branch format: <issueNum>-<slug> (e.g., 1031-security-8x-route)
   try {
     const branch = execFileSync("git", ["branch", "--show-current"], {
       encoding: "utf-8", cwd: projectDir, timeout: 5000, stdio: ["pipe", "pipe", "pipe"],
