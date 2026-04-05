@@ -531,6 +531,110 @@ function findLastKodyActionTimestamp(comments: PRComment[]): string | null {
   return kodyComments[kodyComments.length - 1].created_at
 }
 
+// ─── Release helpers ────────────────────────────────────────────────────────
+
+export function createGitHubRelease(
+  tag: string,
+  title: string,
+  body: string,
+  draft?: boolean,
+): string | null {
+  try {
+    const args = ["release", "create", tag, "--title", title, "--notes-file", "-"]
+    if (draft) args.push("--draft")
+    const output = gh(args, { input: body })
+    logger.info(`  GitHub Release created: ${output.trim()}`)
+    return output.trim()
+  } catch (err: unknown) {
+    logger.error(`  Failed to create GitHub Release: ${ghErrorMessage(err)}`)
+    return null
+  }
+}
+
+export function isCIGreenOnBranch(branch: string): boolean {
+  try {
+    const output = gh([
+      "run", "list",
+      "--branch", branch,
+      "--limit", "1",
+      "--json", "conclusion",
+      "--jq", ".[0].conclusion",
+    ])
+    return output.trim() === "success"
+  } catch {
+    return false
+  }
+}
+
+export function getBlockingPRs(
+  targetBranch: string,
+): { number: number; title: string; isDraft: boolean }[] {
+  try {
+    const output = gh([
+      "pr", "list",
+      "--base", targetBranch,
+      "--state", "open",
+      "--json", "number,title,isDraft",
+    ])
+    const prs = JSON.parse(output) as { number: number; title: string; isDraft: boolean }[]
+    return prs.filter(
+      (pr) => pr.isDraft || /\bwip\b/i.test(pr.title),
+    )
+  } catch {
+    return []
+  }
+}
+
+export function deleteRemoteBranch(branch: string): void {
+  try {
+    gh(["api", `repos/{owner}/{repo}/git/refs/heads/${branch}`, "-X", "DELETE"])
+    logger.info(`  Deleted remote branch: ${branch}`)
+  } catch (err: unknown) {
+    logger.warn(`  Failed to delete remote branch ${branch}: ${ghErrorMessage(err)}`)
+  }
+}
+
+export function findMergedPRByHead(
+  headBranch: string,
+): { number: number; url: string; body: string } | null {
+  try {
+    const output = gh([
+      "pr", "list",
+      "--head", headBranch,
+      "--state", "merged",
+      "--json", "number,url,body",
+      "--limit", "1",
+    ])
+    const prs = JSON.parse(output) as { number: number; url: string; body: string }[]
+    return prs.length > 0 ? prs[0] : null
+  } catch {
+    return null
+  }
+}
+
+export function getMergedPRsSinceDate(
+  sinceDate: string,
+): { number: number; title: string; author: string; labels: string[] }[] {
+  try {
+    const output = gh([
+      "pr", "list",
+      "--state", "merged",
+      "--search", `merged:>=${sinceDate}`,
+      "--json", "number,title,author,labels",
+      "--limit", "100",
+    ])
+    const prs = JSON.parse(output) as { number: number; title: string; author: { login: string }; labels: { name: string }[] }[]
+    return prs.map((pr) => ({
+      number: pr.number,
+      title: pr.title,
+      author: pr.author.login,
+      labels: pr.labels.map((l) => l.name),
+    }))
+  } catch {
+    return []
+  }
+}
+
 const ATTACHMENT_URL_PATTERN =
   /https:\/\/(?:github\.com\/user-attachments\/assets|user-images\.githubusercontent\.com)\/[^\s)"'<>]+/g
 

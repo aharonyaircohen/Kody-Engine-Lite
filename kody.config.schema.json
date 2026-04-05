@@ -271,6 +271,46 @@
       "required": ["enabled", "servers"],
       "additionalProperties": false
     },
+    "release": {
+      "type": "object",
+      "description": "Release automation configuration. Used by 'kody-engine release' command.",
+      "properties": {
+        "versionFiles": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Files containing version strings to update on release. Default: [\"package.json\"]",
+          "default": ["package.json"]
+        },
+        "publishCommand": {
+          "type": "string",
+          "description": "Shell command to run after tagging for publishing. Empty = skip. NOT hardcoded to any registry.",
+          "default": "",
+          "examples": ["npm publish --access public", "cargo publish", "make publish"]
+        },
+        "notifyCommand": {
+          "type": "string",
+          "description": "Shell command for post-release notifications. $VERSION is interpolated at runtime. Empty = skip.",
+          "default": "",
+          "examples": ["curl -X POST $SLACK_WEBHOOK -d '{\"text\": \"Released v$VERSION\"}'"]
+        },
+        "releaseBranch": {
+          "type": "string",
+          "description": "Target branch for release PRs. Defaults to git.defaultBranch if not set."
+        },
+        "labels": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Labels to add to the release PR. Default: [\"release\"]",
+          "default": ["release"]
+        },
+        "draftRelease": {
+          "type": "boolean",
+          "description": "Create GitHub Releases as drafts. Default: false",
+          "default": false
+        }
+      },
+      "additionalProperties": false
+    },
     "devServer": {
       "type": "object",
       "description": "Dev server configuration for browser tool verification. Works with any provider (MCP or CLI-based).",

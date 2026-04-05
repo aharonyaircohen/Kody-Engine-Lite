@@ -97,6 +97,20 @@ export interface KodyConfig {
     /** Minimum complexity score (1-10) to decompose. Default: 6 */
     minComplexityScore?: number
   }
+  release?: {
+    /** Files containing version strings to update. Default: ["package.json"] */
+    versionFiles?: string[]
+    /** Shell command to publish after tagging. Empty = skip. */
+    publishCommand?: string
+    /** Shell command for post-release notifications. $VERSION is interpolated. Empty = skip. */
+    notifyCommand?: string
+    /** Target branch for release PRs. Defaults to git.defaultBranch. */
+    releaseBranch?: string
+    /** Labels to add to the release PR. Default: ["release"] */
+    labels?: string[]
+    /** Create GitHub Releases as drafts. Default: false */
+    draftRelease?: boolean
+  }
 }
 
 const DEFAULT_CONFIG: KodyConfig = {
@@ -295,6 +309,16 @@ export function getProjectConfig(): KodyConfig {
               enabled: raw.decompose.enabled ?? true,
               maxParallelSubTasks: raw.decompose.maxParallelSubTasks ?? 3,
               minComplexityScore: raw.decompose.minComplexityScore ?? 6,
+            }
+          : undefined,
+        release: raw.release
+          ? {
+              versionFiles: raw.release.versionFiles ?? ["package.json"],
+              publishCommand: raw.release.publishCommand ?? "",
+              notifyCommand: raw.release.notifyCommand ?? "",
+              releaseBranch: raw.release.releaseBranch ?? undefined,
+              labels: raw.release.labels ?? ["release"],
+              draftRelease: raw.release.draftRelease ?? false,
             }
           : undefined,
       }

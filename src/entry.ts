@@ -477,6 +477,18 @@ async function main() {
     process.exit(0)
   }
 
+  // Post "pipeline started" comment as early as possible (before heavy init)
+  if (input.issueNumber && !input.local) {
+    const runUrl = process.env.RUN_URL ?? ""
+    const runLink = runUrl ? ` ([logs](${runUrl}))` : ""
+    try {
+      postComment(
+        input.issueNumber,
+        `🚀 Kody pipeline started: \`${taskId}\`${runLink}\n\nTo rerun: \`@kody rerun ${taskId} --from <stage>\``,
+      )
+    } catch { /* best effort */ }
+  }
+
   // Preflight
   logger.info("Preflight checks:")
   runPreflight()
@@ -639,18 +651,6 @@ async function main() {
   logger.info(`Task: ${taskId}`)
   logger.info(`Mode: ${ctx.input.mode}${ctx.input.local ? " (local)" : " (CI)"}`)
   if (ctx.input.issueNumber) logger.info(`Issue: #${ctx.input.issueNumber}`)
-
-  // Post task-id comment so user knows the ID and can see logs
-  if (ctx.input.issueNumber && !ctx.input.local) {
-    const runUrl = process.env.RUN_URL ?? ""
-    const runLink = runUrl ? ` ([logs](${runUrl}))` : ""
-    try {
-      postComment(
-        ctx.input.issueNumber,
-        `🚀 Kody pipeline started: \`${taskId}\`${runLink}\n\nTo rerun: \`@kody rerun ${taskId} --from <stage>\``,
-      )
-    } catch { /* best effort */ }
-  }
 
   // Run pipeline
   const state = await runPipeline(ctx)

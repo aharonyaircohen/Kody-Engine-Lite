@@ -5,6 +5,7 @@
  *   init      — Setup target repo: workflow, config, labels, bootstrap issue
  *   bootstrap — Generate project memory + step files (runs in GH Actions)
  *   run       — Run the Kody pipeline (default when no command given)
+ *   release   — Automate version bump, changelog, release PR, tagging, publish
  *   version   — Print package version
  */
 
@@ -70,6 +71,21 @@ if (command === "init") {
   import("../watch/index.js").then(({ runWatchCommand }) =>
     runWatchCommand({ dryRun: args.includes("--dry-run") }),
   )
+} else if (command === "release") {
+  import("./commands/release.js").then(({ releaseCommand, releaseFinalizeCommand }) => {
+    const input = {
+      bump: getArg(args, "--bump") as "major" | "minor" | "patch" | undefined,
+      dryRun: args.includes("--dry-run"),
+      finalize: args.includes("--finalize"),
+      noPublish: args.includes("--no-publish"),
+      noNotify: args.includes("--no-notify"),
+      cwd: getArg(args, "--cwd"),
+    }
+    return input.finalize ? releaseFinalizeCommand(input) : releaseCommand(input)
+  }).catch((err) => {
+    console.error(`Release failed: ${err instanceof Error ? err.message : err}`)
+    process.exit(1)
+  })
 } else if (command === "version" || command === "--version" || command === "-v") {
   console.log(getVersion())
 } else {

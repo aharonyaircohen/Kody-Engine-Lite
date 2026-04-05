@@ -263,6 +263,42 @@ export function filterFindingsByDiffFiles(
   })
 }
 
+// ─── Release helpers ────────────────────────────────────────────────────────
+
+export function getLatestTag(cwd?: string, pattern: string = "v*"): string | null {
+  try {
+    return git(["describe", "--tags", "--abbrev=0", "--match", pattern], { cwd })
+  } catch {
+    return null
+  }
+}
+
+export function getLogSince(ref: string | null, cwd?: string): string[] {
+  const range = ref ? `${ref}..HEAD` : "HEAD"
+  try {
+    const output = git(["log", range, "--pretty=format:%h %s"], { cwd })
+    return output ? output.split("\n") : []
+  } catch {
+    return []
+  }
+}
+
+export function createTag(tag: string, message: string, cwd?: string): void {
+  git(["tag", "-a", tag, "-m", message], { cwd })
+}
+
+export function pushTags(cwd?: string): void {
+  git(["push", "origin", "--tags"], { cwd, timeout: 60_000 })
+}
+
+export function createBranch(name: string, cwd?: string): void {
+  git(["checkout", "-b", name], { cwd })
+}
+
+export function checkoutBranch(name: string, cwd?: string): void {
+  git(["checkout", name], { cwd })
+}
+
 export function pushBranch(cwd?: string): void {
   try {
     git(["push", "-u", "origin", "HEAD"], { cwd, timeout: 120_000 })
