@@ -556,6 +556,7 @@ export function isCIGreenOnBranch(branch: string): boolean {
     const output = gh([
       "run", "list",
       "--branch", branch,
+      "--status", "completed",
       "--limit", "1",
       "--json", "conclusion",
       "--jq", ".[0].conclusion",
