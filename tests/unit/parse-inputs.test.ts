@@ -449,4 +449,69 @@ describe("parseCommentInputs", () => {
     expect(r.mode).toBe("ask")
     expect(r.feedback).toBe("What is this?")
   })
+
+  // ─── Hotfix mode ────────────────────────────────────────────────────────
+
+  it("parses @kody hotfix", () => {
+    process.env.COMMENT_BODY = "@kody hotfix"
+    const r = parseCommentInputs()
+    expect(r.mode).toBe("hotfix")
+    expect(r.valid).toBe(true)
+    expect(r.task_id).toMatch(/^hotfix-42-\d{6}-\d{6}$/)
+  })
+
+  it("hotfix with --dry-run", () => {
+    process.env.COMMENT_BODY = "@kody hotfix --dry-run"
+    const r = parseCommentInputs()
+    expect(r.mode).toBe("hotfix")
+    expect(r.dry_run).toBe(true)
+  })
+
+  it("/kody hotfix works same as @kody hotfix", () => {
+    process.env.COMMENT_BODY = "/kody hotfix"
+    const r = parseCommentInputs()
+    expect(r.mode).toBe("hotfix")
+    expect(r.valid).toBe(true)
+  })
+
+  // ─── Revert mode ───────────────────────────────────────────────────────
+
+  it("parses @kody revert #87", () => {
+    process.env.COMMENT_BODY = "@kody revert #87"
+    const r = parseCommentInputs()
+    expect(r.mode).toBe("revert")
+    expect(r.revert_target).toBe("87")
+    expect(r.valid).toBe(true)
+    expect(r.task_id).toMatch(/^revert-\d{6}-\d{6}$/)
+  })
+
+  it("parses @kody revert 87 (no hash)", () => {
+    process.env.COMMENT_BODY = "@kody revert 87"
+    const r = parseCommentInputs()
+    expect(r.mode).toBe("revert")
+    expect(r.revert_target).toBe("87")
+  })
+
+  it("parses @kody revert (no target)", () => {
+    process.env.COMMENT_BODY = "@kody revert"
+    const r = parseCommentInputs()
+    expect(r.mode).toBe("revert")
+    expect(r.revert_target).toBe("")
+    expect(r.valid).toBe(true)
+  })
+
+  it("revert with --dry-run", () => {
+    process.env.COMMENT_BODY = "@kody revert #42 --dry-run"
+    const r = parseCommentInputs()
+    expect(r.mode).toBe("revert")
+    expect(r.revert_target).toBe("42")
+    expect(r.dry_run).toBe(true)
+  })
+
+  it("/kody revert works same as @kody revert", () => {
+    process.env.COMMENT_BODY = "/kody revert #10"
+    const r = parseCommentInputs()
+    expect(r.mode).toBe("revert")
+    expect(r.revert_target).toBe("10")
+  })
 })

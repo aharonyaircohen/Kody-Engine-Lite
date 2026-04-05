@@ -1,5 +1,5 @@
 export interface CliInput {
-  command: "run" | "rerun" | "fix" | "fix-ci" | "status" | "review" | "resolve" | "decompose" | "compose" | "ask"
+  command: "run" | "rerun" | "fix" | "fix-ci" | "status" | "review" | "resolve" | "decompose" | "compose" | "ask" | "hotfix"
   taskId?: string
   task?: string
   fromStage?: string
@@ -9,7 +9,7 @@ export interface CliInput {
   prNumber?: number
   feedback?: string
   local?: boolean
-  complexity?: "low" | "medium" | "high"
+  complexity?: "low" | "medium" | "high" | "hotfix"
   ciRunId?: string
   noCompose?: boolean
   provider?: string
@@ -60,13 +60,14 @@ export function parseArgs(): CliInput {
   kody resolve   --pr-number <n> [--cwd <path>] [--local]
   kody decompose --issue-number <n> [--cwd <path>] [--local] [--no-compose]
   kody compose   --task-id <id> [--issue-number <n>] [--cwd <path>] [--local]
+  kody hotfix    --issue-number <n> [--cwd <path>] [--local] [--dry-run]
   kody status    --task-id <id> [--cwd <path>]
   kody --help`)
     process.exit(0)
   }
 
   const command = args[0] as CliInput["command"]
-  if (!["run", "rerun", "fix", "fix-ci", "status", "review", "resolve", "decompose", "compose", "ask"].includes(command)) {
+  if (!["run", "rerun", "fix", "fix-ci", "status", "review", "resolve", "decompose", "compose", "ask", "hotfix"].includes(command)) {
     console.error(`Unknown command: ${command}`)
     process.exit(1)
   }
@@ -86,7 +87,7 @@ export function parseArgs(): CliInput {
     prNumber: prStr ? parseInt(prStr, 10) : undefined,
     feedback: getArg(args, "--feedback") ?? process.env.FEEDBACK,
     local: localFlag || (!process.env.GITHUB_ACTIONS && !hasFlag(args, "--no-local")),
-    complexity: (getArg(args, "--complexity") ?? process.env.COMPLEXITY) as "low" | "medium" | "high" | undefined,
+    complexity: (getArg(args, "--complexity") ?? process.env.COMPLEXITY) as CliInput["complexity"],
     ciRunId: getArg(args, "--ci-run-id") ?? process.env.CI_RUN_ID,
     noCompose: hasFlag(args, "--no-compose"),
     provider: getArg(args, "--provider") ?? process.env.PROVIDER ?? undefined,

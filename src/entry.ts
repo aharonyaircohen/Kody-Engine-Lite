@@ -628,6 +628,9 @@ async function main() {
     logger.info(`Tools detected: ${detectedTools.map((t) => t.name).join(", ")}`)
   }
 
+  // Hotfix mode: fast-track pipeline (build → verify → ship, no tests)
+  const isHotfix = input.command === "hotfix"
+
   // Build context
   const ctx: PipelineContext = {
     taskId,
@@ -644,7 +647,8 @@ async function main() {
       prBaseBranch,
       feedback: input.feedback,
       local: input.local,
-      complexity: input.complexity,
+      complexity: isHotfix ? "hotfix" : input.complexity,
+      skipTests: isHotfix,
     },
   }
 

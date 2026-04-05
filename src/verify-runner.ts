@@ -101,6 +101,8 @@ export interface QualityGateOptions {
    * issues already present in the codebase).
    */
   onlyFailOnFiles?: string[]
+  /** Skip running unit tests (used by hotfix for fast-track verify). */
+  skipTests?: boolean
 }
 
 export function runQualityGates(
@@ -117,8 +119,10 @@ export function runQualityGates(
 
   const commands: Array<{ name: string; cmd: string }> = [
     { name: "typecheck", cmd: config.quality.typecheck },
-    { name: "test", cmd: config.quality.testUnit },
   ]
+  if (!options?.skipTests) {
+    commands.push({ name: "test", cmd: config.quality.testUnit })
+  }
 
   if (config.quality.lint) {
     commands.push({ name: "lint", cmd: config.quality.lint })

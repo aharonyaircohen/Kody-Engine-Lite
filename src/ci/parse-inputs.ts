@@ -3,7 +3,7 @@
  * Run by the parse job in GitHub Actions.
  * Reads from env, writes to $GITHUB_OUTPUT.
  *
- * Supports all modes: full, rerun, fix, fix-ci, status, approve, review, resolve, bootstrap, taskify
+ * Supports all modes: full, rerun, fix, fix-ci, status, approve, review, resolve, bootstrap, taskify, hotfix, revert
  * Supports flags: --from, --feedback (quoted), --complexity, --dry-run, --ci-run-id, --ticket, --file
  */
 
@@ -26,6 +26,7 @@ export interface ParseResult {
   finalize: boolean
   no_publish: boolean
   no_notify: boolean
+  revert_target: string
   dry_run: boolean
   valid: boolean
   trigger_type: string
@@ -34,6 +35,7 @@ export interface ParseResult {
 const VALID_MODES = [
   "full", "rerun", "fix", "fix-ci", "status",
   "approve", "review", "resolve", "bootstrap", "taskify", "ask", "release",
+  "hotfix", "revert",
 ] as const
 
 function generateTimestamp(): string {
@@ -75,6 +77,7 @@ export function parseCommentInputs(): ParseResult {
       finalize: false,
       no_publish: false,
       no_notify: false,
+      revert_target: "",
       dry_run: false,
       valid: !!taskId,
       trigger_type: "dispatch",
@@ -93,7 +96,7 @@ export function parseCommentInputs(): ParseResult {
       task_id: "", mode: "full", from_stage: "", issue_number: issueNumber,
       pr_number: "", feedback: "", complexity: "", ci_run_id: "", ticket_id: "", prd_file: "",
       provider: "", model: "",
-      bump: "", finalize: false, no_publish: false, no_notify: false,
+      bump: "", finalize: false, no_publish: false, no_notify: false, revert_target: "",
       dry_run: false, valid: false, trigger_type: "comment",
     }
   }
@@ -269,6 +272,23 @@ export function parseCommentInputs(): ParseResult {
     taskId = `release-${generateTimestamp()}`
   }
 
+  // hotfix: auto-generate task-id
+  if (mode === "hotfix") {
+    taskId = `hotfix-${issueNumber}-${generateTimestamp()}`
+  }
+
+  // revert: auto-generate task-id, capture revert target from positional
+  let revertTarget = ""
+  if (mode === "revert") {
+    // The parser captured the positional after "revert" as taskId (e.g. "#87" or "87")
+    // Reclaim it as the revert target
+    if (taskId && /^#?\d+$/.test(taskId)) {
+      revertTarget = taskId.replace(/^#/, "")
+      taskId = ""
+    }
+    taskId = `revert-${generateTimestamp()}`
+  }
+
   // PR detection
   const prNumber = isPR ? issueNumber : ""
 
@@ -283,7 +303,7 @@ export function parseCommentInputs(): ParseResult {
   }
 
   // Valid if we have a task-id, or if mode is one that doesn't need one (fix, fix-ci, status, review, resolve)
-  const modesWithoutTaskId = ["fix", "fix-ci", "status", "review", "resolve", "rerun", "release"]
+  const modesWithoutTaskId = ["fix", "fix-ci", "status", "review", "resolve", "rerun", "release", "hotfix", "revert"]
   const valid = !!taskId || modesWithoutTaskId.includes(mode)
 
   // taskify is valid with just the issue body (inline mode), ticket, or prd file
@@ -306,6 +326,7 @@ export function parseCommentInputs(): ParseResult {
     finalize,
     no_publish: noPublish,
     no_notify: noNotify,
+    revert_target: revertTarget,
     dry_run: dryRun,
     valid,
     trigger_type: "comment",
@@ -347,6 +368,7 @@ export function writeOutputs(result: ParseResult): void {
   output("finalize", result.finalize ? "true" : "false")
   output("no_publish", result.no_publish ? "true" : "false")
   output("no_notify", result.no_notify ? "true" : "false")
+  output("revert_target", result.revert_target)
   output("dry_run", result.dry_run ? "true" : "false")
   output("valid", result.valid ? "true" : "false")
   output("trigger_type", result.trigger_type)

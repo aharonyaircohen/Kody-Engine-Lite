@@ -4,6 +4,7 @@ const COMPLEXITY_SKIP: Record<string, string[]> = {
   low: ["plan", "review", "review-fix"],
   medium: ["review-fix"],
   high: [],
+  hotfix: ["taskify", "plan", "review", "review-fix"],
 }
 
 export function filterByComplexity(

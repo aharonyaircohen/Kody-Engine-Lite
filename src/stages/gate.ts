@@ -18,7 +18,9 @@ export function executeGateStage(
     return { outcome: "completed", retries: 0 }
   }
 
-  const verifyResult = runQualityGates(ctx.taskDir, ctx.projectDir)
+  const verifyResult = runQualityGates(ctx.taskDir, ctx.projectDir, {
+    skipTests: ctx.input.skipTests,
+  })
 
   const lines: string[] = [
     `# Verification Report\n`,

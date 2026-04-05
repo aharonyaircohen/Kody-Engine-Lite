@@ -32,6 +32,12 @@ describe("filterByComplexity", () => {
     const active = filterByComplexity(STAGES, "unknown")
     expect(active.length).toBe(STAGES.length)
   })
+
+  it("hotfix complexity runs only build, verify, ship", () => {
+    const active = filterByComplexity(STAGES, "hotfix")
+    const names = active.map((s) => s.name)
+    expect(names).toEqual(["build", "verify", "ship"])
+  })
 })
 
 describe("isValidComplexity", () => {
@@ -39,6 +45,7 @@ describe("isValidComplexity", () => {
     expect(isValidComplexity("low")).toBe(true)
     expect(isValidComplexity("medium")).toBe(true)
     expect(isValidComplexity("high")).toBe(true)
+    expect(isValidComplexity("hotfix")).toBe(true)
   })
 
   it("returns false for invalid values", () => {

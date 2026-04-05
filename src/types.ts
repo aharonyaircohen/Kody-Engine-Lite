@@ -102,7 +102,8 @@ export interface PipelineContext {
     prBaseBranch?: string
     feedback?: string
     local?: boolean
-    complexity?: "low" | "medium" | "high"
+    complexity?: "low" | "medium" | "high" | "hotfix"
+    skipTests?: boolean
   }
 }
 

@@ -5,6 +5,8 @@
  *   init      — Setup target repo: workflow, config, labels, bootstrap issue
  *   bootstrap — Generate project memory + step files (runs in GH Actions)
  *   run       — Run the Kody pipeline (default when no command given)
+ *   hotfix    — Fast-track pipeline: build → verify (no tests) → ship
+ *   revert    — Revert a merged PR: git revert → verify → create PR
  *   release   — Automate version bump, changelog, release PR, tagging, publish
  *   version   — Print package version
  */
@@ -84,6 +86,19 @@ if (command === "init") {
     return input.finalize ? releaseFinalizeCommand(input) : releaseCommand(input)
   }).catch((err) => {
     console.error(`Release failed: ${err instanceof Error ? err.message : err}`)
+    process.exit(1)
+  })
+} else if (command === "revert") {
+  import("./commands/revert.js").then(({ revertCommand }) => {
+    const issueStr = getArg(args, "--issue-number") ?? process.env.ISSUE_NUMBER
+    return revertCommand({
+      target: getArg(args, "--target") ?? args[1]?.replace(/^#/, ""),
+      issueNumber: issueStr ? parseInt(issueStr, 10) : undefined,
+      dryRun: args.includes("--dry-run"),
+      cwd: getArg(args, "--cwd"),
+    })
+  }).catch((err) => {
+    console.error(`Revert failed: ${err instanceof Error ? err.message : err}`)
     process.exit(1)
   })
 } else if (command === "version" || command === "--version" || command === "-v") {

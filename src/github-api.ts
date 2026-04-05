@@ -616,6 +616,60 @@ export function findMergedPRByHead(
   }
 }
 
+// ─── Revert helpers ──────────────────────────────────────────────────────────
+
+/**
+ * Get details of a merged PR including its merge commit SHA.
+ * Returns null if the PR is not merged or not found.
+ */
+export function getMergedPRDetails(
+  prNumber: number,
+): { title: string; mergeCommitSha: string; headBranch: string; baseBranch: string } | null {
+  try {
+    const output = gh([
+      "pr", "view", String(prNumber),
+      "--json", "title,mergeCommit,headRefName,baseRefName,state",
+    ])
+    const data = JSON.parse(output)
+    if (data.state !== "MERGED") {
+      logger.warn(`  PR #${prNumber} is not merged (state: ${data.state})`)
+      return null
+    }
+    return {
+      title: data.title ?? "",
+      mergeCommitSha: data.mergeCommit?.oid ?? "",
+      headBranch: data.headRefName ?? "",
+      baseBranch: data.baseRefName ?? "",
+    }
+  } catch (err: unknown) {
+    logger.error(`  Failed to get merged PR #${prNumber}: ${ghErrorMessage(err)}`)
+    return null
+  }
+}
+
+/**
+ * Find the most recently merged PR linked to an issue by branch naming
+ * convention (branch starts with issue number, e.g. "42-feature-name").
+ */
+export function findMergedPRForIssue(
+  issueNumber: number,
+): { number: number; title: string } | null {
+  try {
+    const output = gh([
+      "pr", "list",
+      "--state", "merged",
+      "--json", "number,title,headRefName",
+      "--limit", "50",
+    ])
+    const prs = JSON.parse(output) as { number: number; title: string; headRefName: string }[]
+    // Match branches that start with the issue number (e.g. "42-" or "42/")
+    const match = prs.find((pr) => pr.headRefName.match(new RegExp(`^${issueNumber}[-/]`)))
+    return match ? { number: match.number, title: match.title } : null
+  } catch {
+    return null
+  }
+}
+
 export function getMergedPRsSinceDate(
   sinceDate: string,
 ): { number: number; title: string; author: string; labels: string[] }[] {

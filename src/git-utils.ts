@@ -299,6 +299,45 @@ export function checkoutBranch(name: string, cwd?: string): void {
   git(["checkout", name], { cwd })
 }
 
+/**
+ * Revert a commit. Handles both merge commits (-m 1) and squash commits.
+ * On conflict, aborts the revert and returns an error.
+ */
+export function revertCommit(
+  sha: string,
+  isMerge: boolean,
+  cwd?: string,
+): { success: boolean; error?: string } {
+  const args = ["revert", "--no-edit"]
+  if (isMerge) args.push("-m", "1")
+  args.push(sha)
+
+  try {
+    git(args, { cwd, timeout: 60_000 })
+    return { success: true }
+  } catch (err) {
+    // Check if it's a conflict
+    try {
+      const unmerged = git(["diff", "--name-only", "--diff-filter=U"], { cwd })
+      if (unmerged.trim()) {
+        try { git(["revert", "--abort"], { cwd }) } catch { /* best effort */ }
+        return { success: false, error: `Conflict in files:\n${unmerged.trim()}` }
+      }
+    } catch { /* ignore */ }
+
+    // If isMerge failed, retry without -m (might be a squash merge)
+    if (isMerge) {
+      try {
+        git(["revert", "--no-edit", sha], { cwd, timeout: 60_000 })
+        return { success: true }
+      } catch { /* fall through to general error */ }
+    }
+
+    const msg = err instanceof Error ? err.message : String(err)
+    return { success: false, error: msg }
+  }
+}
+
 export function pushBranch(cwd?: string): void {
   try {
     git(["push", "-u", "origin", "HEAD"], { cwd, timeout: 120_000 })

@@ -71,6 +71,7 @@ jobs:
       finalize: ${{ steps.parse.outputs.finalize }}
       no_publish: ${{ steps.parse.outputs.no_publish }}
       no_notify: ${{ steps.parse.outputs.no_notify }}
+      revert_target: ${{ steps.parse.outputs.revert_target }}
       valid: ${{ steps.parse.outputs.valid }}
     steps:
       - uses: actions/setup-node@v4
@@ -213,6 +214,7 @@ jobs:
           FINALIZE: ${{ needs.parse.outputs.finalize }}
           NO_PUBLISH: ${{ needs.parse.outputs.no_publish }}
           NO_NOTIFY: ${{ needs.parse.outputs.no_notify }}
+          REVERT_TARGET: ${{ needs.parse.outputs.revert_target }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           if [ "$MODE" = "release" ]; then
@@ -224,6 +226,13 @@ jobs:
             [ "$NO_NOTIFY" = "true" ] && ARGS="$ARGS --no-notify"
             [ "$DRY_RUN" = "true" ] && ARGS="$ARGS --dry-run"
             kody-engine release $ARGS
+          elif [ "$MODE" = "revert" ]; then
+            echo "Running revert..."
+            ARGS=""
+            [ -n "$REVERT_TARGET" ] && ARGS="$ARGS --target $REVERT_TARGET"
+            [ -n "$ISSUE_NUMBER" ] && ARGS="$ARGS --issue-number $ISSUE_NUMBER"
+            [ "$DRY_RUN" = "true" ] && ARGS="$ARGS --dry-run"
+            kody-engine revert $ARGS
           elif [ "$MODE" = "bootstrap" ]; then
             echo "Running bootstrap..."
             kody-engine bootstrap
@@ -243,6 +252,7 @@ jobs:
             [ "$MODE" = "review" ] && CMD="review"
             [ "$MODE" = "resolve" ] && CMD="resolve"
             [ "$MODE" = "status" ] && CMD="status"
+            [ "$MODE" = "hotfix" ] && CMD="hotfix"
             ARGS="--issue-number $ISSUE_NUMBER"
             [ -n "$TASK_ID" ] && ARGS="$ARGS --task-id $TASK_ID"
             [ -n "$PR_NUMBER" ] && ARGS="$ARGS --pr-number $PR_NUMBER"
