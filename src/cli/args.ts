@@ -16,8 +16,6 @@ export interface CliInput {
   model?: string
 }
 
-const isCI = !!process.env.GITHUB_ACTIONS
-
 function getArg(args: string[], flag: string): string | undefined {
   for (const a of args) {
     if (a.startsWith(`${flag}=`)) return a.slice(flag.length + 1)
@@ -47,7 +45,7 @@ export function parseArgs(): CliInput {
         const s = getArg(args, "--issue-number") ?? process.env.ISSUE_NUMBER
         return s ? parseInt(s, 10) : undefined
       })(),
-      local: hasFlag(args, "--local") || (!isCI && !hasFlag(args, "--no-local")),
+      local: hasFlag(args, "--local") || (!process.env.GITHUB_ACTIONS && !hasFlag(args, "--no-local")),
     }
   }
 
@@ -87,7 +85,7 @@ export function parseArgs(): CliInput {
     issueNumber: issueStr ? parseInt(issueStr, 10) : undefined,
     prNumber: prStr ? parseInt(prStr, 10) : undefined,
     feedback: getArg(args, "--feedback") ?? process.env.FEEDBACK,
-    local: localFlag || (!isCI && !hasFlag(args, "--no-local")),
+    local: localFlag || (!process.env.GITHUB_ACTIONS && !hasFlag(args, "--no-local")),
     complexity: (getArg(args, "--complexity") ?? process.env.COMPLEXITY) as "low" | "medium" | "high" | undefined,
     ciRunId: getArg(args, "--ci-run-id") ?? process.env.CI_RUN_ID,
     noCompose: hasFlag(args, "--no-compose"),
