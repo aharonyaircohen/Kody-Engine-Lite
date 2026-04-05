@@ -18,16 +18,16 @@ describe("workflow template", () => {
   it("recognizes bootstrap as valid mode", () => {
     expect(template).toContain("bootstrap")
     // The parse step invokes the TS parser via ci-parse
-    expect(template).toContain("kody-engine-lite ci-parse")
+    expect(template).toContain("kody-engine ci-parse")
   })
 
   it("orchestrate handles bootstrap mode", () => {
     expect(template).toContain('MODE" = "bootstrap"')
-    expect(template).toContain("kody-engine-lite bootstrap")
+    expect(template).toContain("kody-engine bootstrap")
   })
 
-  it("runs kody-engine-lite bootstrap for bootstrap mode", () => {
-    expect(template).toContain("kody-engine-lite bootstrap")
+  it("runs kody-engine bootstrap for bootstrap mode", () => {
+    expect(template).toContain("kody-engine bootstrap")
   })
 
   it("has separate bootstrap path from normal pipeline", () => {
@@ -49,8 +49,8 @@ describe("workflow template", () => {
     expect(template).toContain("notify-orchestrate-error:")
   })
 
-  it("installs kody-engine-lite and claude-code in orchestrate", () => {
-    expect(template).toContain("npm install -g @kody-ade/kody-engine-lite")
+  it("installs kody-engine and claude-code in orchestrate", () => {
+    expect(template).toContain("npm install -g @kody-ade/engine")
     expect(template).toContain("npm install -g @anthropic-ai/claude-code")
   })
 

@@ -160,7 +160,7 @@ describe("extractDependencyNames", () => {
 })
 
 describe("searchSkills", () => {
-  it("excludes skills in the exclude set", () => {
+  it("excludes skills in the exclude set", { timeout: 30_000 }, () => {
     const exclude = new Set(["playwright-cli", "some-other"])
     // This calls the real skills.sh API — only run if network available
     // The key behavior: excluded names should not appear in results
@@ -170,17 +170,17 @@ describe("searchSkills", () => {
     }
   })
 
-  it("respects the limit parameter", () => {
+  it("respects the limit parameter", { timeout: 30_000 }, () => {
     const results = searchSkills(["react"], new Set(), 2)
     expect(results.length).toBeLessThanOrEqual(2)
   })
 
-  it("returns empty for nonsense keyword", () => {
+  it("returns empty for nonsense keyword", { timeout: 30_000 }, () => {
     const results = searchSkills(["xyzzy999nonexistent"], new Set(), 5)
     expect(results).toEqual([])
   })
 
-  it("deduplicates across multiple keywords", () => {
+  it("deduplicates across multiple keywords", { timeout: 30_000 }, () => {
     const results = searchSkills(["react", "nextjs"], new Set(), 10)
     const refs = results.map((r) => r.ref)
     const unique = [...new Set(refs)]
