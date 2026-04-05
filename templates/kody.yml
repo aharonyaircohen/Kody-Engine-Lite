@@ -67,6 +67,10 @@ jobs:
       ticket_id: ${{ steps.parse.outputs.ticket_id }}
       prd_file: ${{ steps.parse.outputs.prd_file }}
       dry_run: ${{ steps.parse.outputs.dry_run }}
+      bump: ${{ steps.parse.outputs.bump }}
+      finalize: ${{ steps.parse.outputs.finalize }}
+      no_publish: ${{ steps.parse.outputs.no_publish }}
+      no_notify: ${{ steps.parse.outputs.no_notify }}
       valid: ${{ steps.parse.outputs.valid }}
     steps:
       - uses: actions/setup-node@v4
@@ -205,9 +209,22 @@ jobs:
           TICKET_ID: ${{ needs.parse.outputs.ticket_id }}
           PRD_FILE: ${{ needs.parse.outputs.prd_file }}
           DRY_RUN: ${{ github.event.inputs.dry_run || needs.parse.outputs.dry_run || 'false' }}
+          BUMP: ${{ needs.parse.outputs.bump }}
+          FINALIZE: ${{ needs.parse.outputs.finalize }}
+          NO_PUBLISH: ${{ needs.parse.outputs.no_publish }}
+          NO_NOTIFY: ${{ needs.parse.outputs.no_notify }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          if [ "$MODE" = "bootstrap" ]; then
+          if [ "$MODE" = "release" ]; then
+            echo "Running release..."
+            ARGS=""
+            [ "$FINALIZE" = "true" ] && ARGS="$ARGS --finalize"
+            [ -n "$BUMP" ] && ARGS="$ARGS --bump=$BUMP"
+            [ "$NO_PUBLISH" = "true" ] && ARGS="$ARGS --no-publish"
+            [ "$NO_NOTIFY" = "true" ] && ARGS="$ARGS --no-notify"
+            [ "$DRY_RUN" = "true" ] && ARGS="$ARGS --dry-run"
+            kody-engine release $ARGS
+          elif [ "$MODE" = "bootstrap" ]; then
             echo "Running bootstrap..."
             kody-engine bootstrap
           elif [ "$MODE" = "taskify" ]; then

@@ -22,6 +22,10 @@ export interface ParseResult {
   prd_file: string
   provider: string
   model: string
+  bump: string
+  finalize: boolean
+  no_publish: boolean
+  no_notify: boolean
   dry_run: boolean
   valid: boolean
   trigger_type: string
@@ -29,7 +33,7 @@ export interface ParseResult {
 
 const VALID_MODES = [
   "full", "rerun", "fix", "fix-ci", "status",
-  "approve", "review", "resolve", "bootstrap", "taskify", "ask",
+  "approve", "review", "resolve", "bootstrap", "taskify", "ask", "release",
 ] as const
 
 function generateTimestamp(): string {
@@ -67,6 +71,10 @@ export function parseCommentInputs(): ParseResult {
       prd_file: "",
       provider: process.env.INPUT_PROVIDER ?? "",
       model: process.env.INPUT_MODEL ?? "",
+      bump: "",
+      finalize: false,
+      no_publish: false,
+      no_notify: false,
       dry_run: false,
       valid: !!taskId,
       trigger_type: "dispatch",
@@ -85,6 +93,7 @@ export function parseCommentInputs(): ParseResult {
       task_id: "", mode: "full", from_stage: "", issue_number: issueNumber,
       pr_number: "", feedback: "", complexity: "", ci_run_id: "", ticket_id: "", prd_file: "",
       provider: "", model: "",
+      bump: "", finalize: false, no_publish: false, no_notify: false,
       dry_run: false, valid: false, trigger_type: "comment",
     }
   }
@@ -102,6 +111,10 @@ export function parseCommentInputs(): ParseResult {
   let prdFile = ""
   let provider = ""
   let model = ""
+  let bump = ""
+  let finalize = false
+  let noPublish = false
+  let noNotify = false
 
   // Extract --from (supports --from value and --from=value)
   const fromMatch = argsLine.match(/--from[=\s]+(\S+)/)
@@ -138,6 +151,19 @@ export function parseCommentInputs(): ParseResult {
   const modelMatch = argsLine.match(/--model[=\s]+(\S+)/)
   if (modelMatch) model = modelMatch[1]
 
+  // Extract --bump (for release mode)
+  const bumpMatch = argsLine.match(/--bump[=\s]+(\S+)/)
+  if (bumpMatch) bump = bumpMatch[1]
+
+  // Extract --finalize (for release mode)
+  if (/--finalize/.test(argsLine)) finalize = true
+
+  // Extract --no-publish (for release mode)
+  if (/--no-publish/.test(argsLine)) noPublish = true
+
+  // Extract --no-notify (for release mode)
+  if (/--no-notify/.test(argsLine)) noNotify = true
+
   // ─── Strip flags to get positional args ───────────────────────────────
   const positional = argsLine
     .replace(/--from[=\s]+\S+/g, "")
@@ -149,6 +175,10 @@ export function parseCommentInputs(): ParseResult {
     .replace(/--file[=\s]+\S+/g, "")
     .replace(/--provider[=\s]+\S+/g, "")
     .replace(/--model[=\s]+\S+/g, "")
+    .replace(/--bump[=\s]+\S+/g, "")
+    .replace(/--finalize/g, "")
+    .replace(/--no-publish/g, "")
+    .replace(/--no-notify/g, "")
     .replace(/\s+/g, " ")
     .trim()
 
@@ -234,6 +264,11 @@ export function parseCommentInputs(): ParseResult {
     taskId = `taskify-${issueNumber}-${generateTimestamp()}`
   }
 
+  // release: auto-generate task-id
+  if (mode === "release") {
+    taskId = `release-${generateTimestamp()}`
+  }
+
   // PR detection
   const prNumber = isPR ? issueNumber : ""
 
@@ -248,7 +283,7 @@ export function parseCommentInputs(): ParseResult {
   }
 
   // Valid if we have a task-id, or if mode is one that doesn't need one (fix, fix-ci, status, review, resolve)
-  const modesWithoutTaskId = ["fix", "fix-ci", "status", "review", "resolve", "rerun"]
+  const modesWithoutTaskId = ["fix", "fix-ci", "status", "review", "resolve", "rerun", "release"]
   const valid = !!taskId || modesWithoutTaskId.includes(mode)
 
   // taskify is valid with just the issue body (inline mode), ticket, or prd file
@@ -267,6 +302,10 @@ export function parseCommentInputs(): ParseResult {
     prd_file: prdFile,
     provider,
     model,
+    bump,
+    finalize,
+    no_publish: noPublish,
+    no_notify: noNotify,
     dry_run: dryRun,
     valid,
     trigger_type: "comment",
@@ -304,6 +343,10 @@ export function writeOutputs(result: ParseResult): void {
   output("prd_file", result.prd_file)
   output("provider", result.provider)
   output("model", result.model)
+  output("bump", result.bump)
+  output("finalize", result.finalize ? "true" : "false")
+  output("no_publish", result.no_publish ? "true" : "false")
+  output("no_notify", result.no_notify ? "true" : "false")
   output("dry_run", result.dry_run ? "true" : "false")
   output("valid", result.valid ? "true" : "false")
   output("trigger_type", result.trigger_type)
