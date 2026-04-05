@@ -74,7 +74,7 @@ jobs:
           node-version: 22
 
       - name: Install Kody Engine
-        run: npm install -g @kody-ade/kody-engine-lite
+        run: npm install -g @kody-ade/engine
 
       - name: Validate author
         id: safety
@@ -105,11 +105,13 @@ jobs:
         if: steps.safety.outputs.valid == 'true'
         id: parse
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
           COMMENT_BODY: ${{ github.event.comment.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_IS_PR: ${{ github.event.issue.pull_request && 'true' || '' }}
           TRIGGER_TYPE: comment
-        run: kody-engine-lite ci-parse
+        run: kody-engine ci-parse
 
   # ─── Orchestrate ─────────────────────────────────────────────────────────────
   orchestrate:
@@ -156,6 +158,9 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      - name: Install Kody Engine
+        run: npm install -g @kody-ade/engine
 
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code
@@ -204,7 +209,7 @@ jobs:
         run: |
           if [ "$MODE" = "bootstrap" ]; then
             echo "Running bootstrap..."
-            npx kody-engine-lite bootstrap
+            kody-engine bootstrap
           elif [ "$MODE" = "taskify" ]; then
             echo "Running taskify..."
             ARGS=""
@@ -212,7 +217,7 @@ jobs:
             [ -n "$PRD_FILE" ] && ARGS="$ARGS --file $PRD_FILE"
             [ -n "$ISSUE_NUMBER" ] && ARGS="$ARGS --issue-number $ISSUE_NUMBER"
             [ -n "$TASK_ID" ] && ARGS="$ARGS --task-id $TASK_ID"
-            npx kody-engine-lite taskify $ARGS
+            kody-engine taskify $ARGS
           else
             CMD="run"
             [ "$MODE" = "rerun" ] && CMD="rerun"
@@ -229,7 +234,7 @@ jobs:
             # FEEDBACK is also passed via env var (avoids shell escaping issues)
             [ -n "$FEEDBACK" ] && ARGS="$ARGS --feedback \"$FEEDBACK\""
             [ "$DRY_RUN" = "true" ] && ARGS="$ARGS --dry-run"
-            npx kody-engine-lite $CMD $ARGS
+            kody-engine $CMD $ARGS
           fi
 
       - name: Pipeline summary
@@ -437,12 +442,12 @@ jobs:
       - name: Typecheck
         run: pnpm tsc --noEmit
       - name: CLI loads
-        run: npx kody-engine-lite --help
+        run: kody-engine --help
       - name: Dry run
         run: |
           mkdir -p .kody/tasks/smoke-test
           echo "Smoke test task" > .kody/tasks/smoke-test/task.md
-          npx kody-engine-lite run --task-id smoke-test --dry-run || true
+          kody-engine run --task-id smoke-test --dry-run || true
           if [ -f ".kody/tasks/smoke-test/status.json" ]; then
             echo "✓ status.json created"
             cat .kody/tasks/smoke-test/status.json
