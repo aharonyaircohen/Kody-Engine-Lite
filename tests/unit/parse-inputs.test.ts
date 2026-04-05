@@ -215,6 +215,30 @@ describe("parseCommentInputs", () => {
     expect(r.feedback).toBe("Yes, looks good\nPlease proceed")
   })
 
+  it("approve with inline text treats it as feedback, not task-id", () => {
+    process.env.COMMENT_BODY = "@kody approve acceptable"
+    const r = parseCommentInputs()
+    expect(r.mode).toBe("rerun")
+    expect(r.task_id).toBe("")
+    expect(r.feedback).toBe("acceptable")
+  })
+
+  it("approve with inline text and body combines both as feedback", () => {
+    process.env.COMMENT_BODY = "@kody approve looks good\nPlease use the retry approach"
+    const r = parseCommentInputs()
+    expect(r.mode).toBe("rerun")
+    expect(r.task_id).toBe("")
+    expect(r.feedback).toBe("looks good\nPlease use the retry approach")
+  })
+
+  it("bare approve with no text has empty feedback and task-id", () => {
+    process.env.COMMENT_BODY = "@kody approve"
+    const r = parseCommentInputs()
+    expect(r.mode).toBe("rerun")
+    expect(r.task_id).toBe("")
+    expect(r.feedback).toBe("")
+  })
+
   // ─── Fix mode extracts body as feedback ───────────────────────────────────
 
   it("fix mode extracts body as feedback", () => {

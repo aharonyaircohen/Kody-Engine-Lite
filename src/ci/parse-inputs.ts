@@ -182,10 +182,19 @@ export function parseCommentInputs(): ParseResult {
   // ─── Mode-specific transformations ────────────────────────────────────
 
   // approve → rerun with body as feedback
+  // Any text after "approve" on the same line is inline feedback (e.g. "@kody approve acceptable"),
+  // NOT a task-id. Task-id for rerun is resolved by the engine from the last run for this issue.
   if (mode === "approve") {
     mode = "rerun"
+    // Collect all remaining positional words after "approve" as inline feedback
+    const approveIdx = parts.indexOf("approve")
+    const inlineText = parts.slice(approveIdx + 1).join(" ")
+    taskId = ""
+    if (inlineText) {
+      feedback = inlineText
+    }
     if (bodyAfterCommand) {
-      feedback = bodyAfterCommand
+      feedback = feedback ? feedback + "\n" + bodyAfterCommand : bodyAfterCommand
     }
   }
 
