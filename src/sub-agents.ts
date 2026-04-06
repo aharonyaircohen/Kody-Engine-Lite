@@ -3,20 +3,158 @@
  *
  * Inspired by OMC agent patterns: explore, test-engineer, security-reviewer, debugger.
  * Each sub-agent gets a fresh context window and dedicated model.
+ *
+ * Folder-scoped sub-agents are loaded from .kody/sub-agents.yml and merged
+ * with universal agents. Folder agents handle implementation within their scope,
+ * while universal agents handle cross-cutting concerns.
  */
 
+import * as fs from "fs"
+import * as path from "path"
 import type { AgentDefinition } from "@anthropic-ai/claude-agent-sdk"
+
+// Cached folder agents
+let _cachedFolderAgents: Record<string, AgentDefinition> | null = null
+let _cachedProjectDir: string | null = null
+
+interface SubAgentYamlEntry {
+  name: string
+  scope: string
+  model: "haiku" | "sonnet" | "opus"
+  instructions: string
+}
+
+/** Parse a minimal YAML subset for sub-agents.yml */
+function parseSubAgentsYaml(content: string): SubAgentYamlEntry[] {
+  const configs: SubAgentYamlEntry[] = []
+  const lines = content.split("\n")
+
+  let currentEntry: Partial<SubAgentYamlEntry> | null = null
+  let instructionsLines: string[] = []
+  let inInstructions = false
+
+  for (const line of lines) {
+    // Skip comments and empty lines at top level
+    if (line.trim() === "" || line.trim().startsWith("#")) continue
+
+    // New agent definition (top-level key ending with colon)
+    const agentMatch = line.match(/^([a-zA-Z0-9_-]+):\s*$/)
+    if (agentMatch && !inInstructions) {
+      if (currentEntry?.name && currentEntry.instructions) {
+        configs.push(currentEntry as SubAgentYamlEntry)
+      }
+      currentEntry = { name: agentMatch[1], scope: "", model: "haiku", instructions: "" }
+      instructionsLines = []
+      continue
+    }
+
+    if (!currentEntry) continue
+
+    // Scope
+    const scopeMatch = line.match(/^\s+scope:\s*["']?([^"']+)["']?\s*$/)
+    if (scopeMatch) {
+      currentEntry.scope = scopeMatch[1]
+      continue
+    }
+
+    // Model
+    const modelMatch = line.match(/^\s+model:\s*(haiku|sonnet|opus)\s*$/)
+    if (modelMatch) {
+      currentEntry.model = modelMatch[1] as "haiku" | "sonnet" | "opus"
+      continue
+    }
+
+    // Instructions block start
+    const instructionsStartMatch = line.match(/^\s+instructions:\s*\|?\s*$/)
+    if (instructionsStartMatch) {
+      inInstructions = true
+      instructionsLines = []
+      continue
+    }
+
+    // Inside instructions block (indented content)
+    if (inInstructions) {
+      const indentMatch = line.match(/^(\s{4,})(.*)$/)
+      if (indentMatch) {
+        instructionsLines.push(indentMatch[2])
+      } else if (line.trim() === "") {
+        // Empty line within instructions
+        instructionsLines.push("")
+      } else {
+        // End of instructions block (less indented or new key)
+        inInstructions = false
+        currentEntry.instructions = instructionsLines.join("\n").trim()
+        // Check if this line starts a new key
+        const newKeyMatch = line.match(/^([a-zA-Z0-9_-]+):\s*$/)
+        if (newKeyMatch) {
+          // Process this line as a new agent
+          if (currentEntry.name && currentEntry.instructions) {
+            configs.push(currentEntry as SubAgentYamlEntry)
+          }
+          currentEntry = { name: newKeyMatch[1], scope: "", model: "haiku", instructions: "" }
+          instructionsLines = []
+          inInstructions = false
+        }
+      }
+    }
+  }
+
+  // Final entry
+  if (currentEntry?.name && currentEntry.instructions) {
+    configs.push(currentEntry as SubAgentYamlEntry)
+  }
+
+  return configs
+}
+
+/** Load folder-scoped agents from .kody/sub-agents.yml */
+function loadFolderAgents(projectDir: string): Record<string, AgentDefinition> {
+  // Use cache if project dir hasn't changed
+  if (_cachedFolderAgents && _cachedProjectDir === projectDir) {
+    return _cachedFolderAgents
+  }
+
+  _cachedProjectDir = projectDir
+  _cachedFolderAgents = {}
+
+  const ymlPath = path.join(projectDir, ".kody", "sub-agents.yml")
+  if (!fs.existsSync(ymlPath)) {
+    return _cachedFolderAgents
+  }
+
+  try {
+    const content = fs.readFileSync(ymlPath, "utf-8")
+    const entries = parseSubAgentsYaml(content)
+
+    for (const entry of entries) {
+      _cachedFolderAgents[entry.name] = {
+        description: `Folder agent for ${entry.scope} scope`,
+        prompt: entry.instructions,
+        model: entry.model,
+        tools: ["Read", "Edit", "Write", "Bash", "Grep", "Glob"],
+        maxTurns: 15,
+      }
+    }
+  } catch {
+    // Ignore parse errors — return empty folder agents
+  }
+
+  return _cachedFolderAgents
+}
 
 /**
  * Build sub-agents for a given stage.
  * Returns undefined if the stage doesn't support sub-agents.
+ *
+ * Merges universal agents (researcher, test-writer, etc.) with
+ * folder-scoped agents loaded from .kody/sub-agents.yml.
  */
-export function buildSubAgents(stageName: string): Record<string, AgentDefinition> | undefined {
+export function buildSubAgents(stageName: string, projectDir?: string): Record<string, AgentDefinition> | undefined {
   if (stageName !== "build" && stageName !== "review-fix") {
     return undefined
   }
 
-  return {
+  const universalAgents: Record<string, AgentDefinition> = {
     researcher: {
       description: "Explore codebase to find patterns and understand structure",
       prompt: `You are a codebase researcher. Your role is to explore and understand code structure.
@@ -117,5 +255,15 @@ Circuit breaker:
       tools: ["Read", "Edit", "Bash", "Grep", "Glob"],
       maxTurns: 10,
     },
+  }
+
+  // Load and merge folder agents
+  const folderAgents = projectDir ? loadFolderAgents(projectDir) : {}
+
+  // Folder agents take precedence over universal agents with the same name
+  // (though typically they have different names like "web-agent", "server-agent")
+  return {
+    ...universalAgents,
+    ...folderAgents,
   }
 }

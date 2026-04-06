@@ -6,6 +6,7 @@ import type { ChildProcess } from "child_process"
 
 import { detectArchitectureBasic } from "../architecture-detection.js"
 import { discoverQaContext, generateQaGuideFallback, serializeDiscoveryForLLM } from "../qa-guide.js"
+import { generateSubAgentsYml, loadSubAgents } from "../sub-agent-generator.js"
 import { getProjectConfig, resolveStageConfig, setConfigDir, stageNeedsProxy, getLitellmUrl, getAnthropicApiKeyOrDummy } from "../../config.js"
 import { buildExtendInstruction } from "../extend-helpers.js"
 import { checkLitellmHealth, tryStartLitellm, generateLitellmConfig } from "../../cli/litellm.js"
@@ -904,7 +905,17 @@ Command and URL.
     console.log("  ○ .kody/tools.yml (already exists, keeping)")
   }
 
-  // ── Step 3c: Install skills ──
+  // ── Step 3c: Generate folder-scoped sub-agents ──
+  console.log("\n── Folder-Scoped Sub-Agents ──")
+  const subAgentsResult = generateSubAgentsYml(cwd, opts.force)
+  if (subAgentsResult.skipped) {
+    console.log("  ○ No folder structure detected — skipping sub-agents generation")
+  } else {
+    const existingNote = subAgentsResult.existing > 0 ? ` (${subAgentsResult.existing} user overrides preserved)` : ""
+    console.log(`  ✓ .kody/sub-agents.yml generated (${subAgentsResult.generated} agents)${existingNote}`)
+  }
+
+  // ── Step 3d: Install skills ──
   console.log("\n── Skills ──")
   const installedSkillPaths: string[] = []
 
@@ -1002,6 +1013,7 @@ Command and URL.
     ...MEMORY_FILES.map(f => `.kody/memory/${f}.md`),
     ".kody/qa-guide.md",
     ".kody/tools.yml",
+    ".kody/sub-agents.yml",
     "kody.config.json",
     ...installedSkillPaths,
   ].filter((f) => fs.existsSync(path.join(cwd, f)))
