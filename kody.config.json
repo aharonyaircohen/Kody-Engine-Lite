@@ -17,22 +17,11 @@
     "taskDir": ".kody/tasks"
   },
   "agent": {
-    "defaultRunner": "claude",
+    "provider": "minimax",
     "modelMap": {
-      "cheap": "claude-haiku-4-5-20251001",
-      "mid": "claude-sonnet-4-6",
-      "strong": "claude-opus-4-6"
-    },
-    "default": {
-      "provider": "claude",
-      "model": "claude-sonnet-4-6"
-    },
-    "stages": {
-      "taskify": { "provider": "claude", "model": "claude-haiku-4-5-20251001" },
-      "plan": { "provider": "claude", "model": "claude-opus-4-6" },
-      "build": { "provider": "claude", "model": "claude-sonnet-4-6" },
-      "review": { "provider": "claude", "model": "claude-opus-4-6" },
-      "review-fix": { "provider": "claude", "model": "claude-sonnet-4-6" }
+      "cheap": "MiniMax-M2.7-highspeed",
+      "mid": "MiniMax-M2.7-highspeed",
+      "strong": "MiniMax-M2.7-highspeed"
     }
   }
 }
