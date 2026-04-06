@@ -191,7 +191,7 @@ export function createSdkRunner(): AgentRunner {
             resume: options?.resumeSession ? options.sessionId : undefined,
             allowedTools: options?.allowedTools ?? (options?.mcpConfigJson ? undefined : baseTools.split(",")),
             mcpServers: options?.mcpConfigJson ? JSON.parse(options.mcpConfigJson).mcpServers : undefined,
-            permissionMode: "bypassPermissions",
+            permissionMode: options?.allowedTools ? "plan" : "bypassPermissions",
             maxTurns: options?.maxTurns,
             maxBudgetUsd: options?.maxBudgetUsd,
             agents: options?.agents as Record<string, AgentDefinition> | undefined,

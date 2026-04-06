@@ -24,6 +24,10 @@ export interface StageDefinition {
   maxRetries: number
   outputFile?: string
   retryWithAgent?: string
+  maxTurns?: number
+  maxBudgetUsd?: number
+  allowedTools?: string[]
+  outputFormat?: unknown
 }
 
 export interface StageState {
@@ -152,4 +156,21 @@ export interface DecomposeState {
     review: "completed" | "failed"
     ship: "completed" | "failed"
   }
+}
+
+// ─── Structured Output Schemas ────────────────────────────────────────────────
+
+export interface TaskifySchema {
+  task_type: "feature" | "bugfix" | "refactor" | "docs" | "chore"
+  title: string
+  description: string
+  scope: string[]
+  risk_level: "low" | "medium" | "high"
+  hasUI: boolean
+  questions: string[]
+}
+
+export interface ReviewVerdictSchema {
+  verdict: "PASS" | "FAIL"
+  reason: string
 }

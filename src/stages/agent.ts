@@ -166,6 +166,10 @@ export async function executeAgentStage(
     env: extraEnv,
     ...sessionInfo,
     mcpConfigJson,
+    maxTurns: def.maxTurns,
+    maxBudgetUsd: def.maxBudgetUsd,
+    allowedTools: def.allowedTools,
+    outputFormat: def.outputFormat,
   })
 
   let retries = 0
@@ -191,6 +195,10 @@ export async function executeAgentStage(
       cwd: ctx.projectDir,
       env: extraEnv,
       mcpConfigJson,
+      maxTurns: def.maxTurns,
+      maxBudgetUsd: def.maxBudgetUsd,
+      allowedTools: def.allowedTools,
+      outputFormat: def.outputFormat,
     })
   }
 
@@ -240,6 +248,10 @@ export async function executeAgentStage(
           const retryResult = await runner.run(def.name, retryPrompt, model, def.timeout, ctx.taskDir, {
             cwd: ctx.projectDir,
             env: extraEnv,
+            maxTurns: def.maxTurns,
+            maxBudgetUsd: def.maxBudgetUsd,
+            allowedTools: def.allowedTools,
+            outputFormat: def.outputFormat,
           })
           if (retryResult.outcome === "completed" && retryResult.output) {
             const stripped = stripFences(retryResult.output)
