@@ -65,6 +65,12 @@ export interface AgentRunnerOptions {
   sessionId?: string
   resumeSession?: boolean
   mcpConfigJson?: string
+  // SDK-specific options
+  maxTurns?: number
+  maxBudgetUsd?: number
+  allowedTools?: string[]
+  agents?: unknown[]
+  outputFormat?: unknown
 }
 
 export interface AgentRunner {
