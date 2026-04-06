@@ -8,7 +8,7 @@ import type {
 } from "./types.js"
 import { STAGES } from "./definitions.js"
 import { ensureFeatureBranch, syncWithDefault } from "./git-utils.js"
-import { setLifecycleLabel, postComment } from "./github-api.js"
+import { setLifecycleLabel, setLabel, postComment } from "./github-api.js"
 import { logger, ciGroup, ciGroupEnd } from "./logger.js"
 import { loadState, writeState, initState } from "./pipeline/state.js"
 import { filterByComplexity } from "./pipeline/complexity.js"
@@ -280,7 +280,7 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
       writeState(state, ctx.taskDir)
       logger.error(`[${def.name}] ${isTimeout ? "⏱ timed out" : `✗ failed: ${result.error}`}`)
       if (ctx.input.issueNumber && !ctx.input.local) {
-        setLifecycleLabel(ctx.input.issueNumber, "failed")
+        setLabel(ctx.input.issueNumber, "kody:failed")
       }
       break
     }

@@ -263,6 +263,7 @@ export function executeShipStage(
         fs.writeFileSync(shipPath, `# Ship\n\nPR created: ${pr.url}\nPR #${pr.number}\n`)
       } else {
         fs.writeFileSync(shipPath, "# Ship\n\nPushed branch but failed to create PR.\n")
+        return { outcome: "failed", outputFile: "ship.md", retries: 0, error: "PR creation failed" }
       }
     }
 

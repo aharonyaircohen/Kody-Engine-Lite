@@ -4,7 +4,7 @@ import { createRunners } from "./agent-runner.js"
 import { runPipeline, printStatus } from "./pipeline.js"
 import { runPreflight } from "./preflight.js"
 import { setConfigDir, getProjectConfig, applyModelOverrides } from "./config.js"
-import { setGhCwd, getIssue, postComment, getPRDetails, getPRsForIssue, postPRComment, submitPRReview, getLatestKodyReviewComment, getCIFailureLogs, getLatestFailedRunForBranch, getPRFeedbackSinceLastKodyAction, setLifecycleLabel } from "./github-api.js"
+import { setGhCwd, getIssue, postComment, getPRDetails, getPRsForIssue, postPRComment, submitPRReview, getLatestKodyReviewComment, getCIFailureLogs, getLatestFailedRunForBranch, getPRFeedbackSinceLastKodyAction, setLifecycleLabel, setLabel } from "./github-api.js"
 import { logger } from "./logger.js"
 import type { PipelineContext } from "./types.js"
 import { runStandaloneReview, resolveReviewTarget, formatReviewComment, detectReviewVerdict } from "./review-standalone.js"
@@ -27,7 +27,7 @@ process.on("SIGTERM", () => {
   if (issueStr && !isLocal) {
     const issueNumber = parseInt(issueStr, 10)
     try { postComment(issueNumber, "❌ Pipeline killed (job timeout or cancellation)") } catch { /* best effort */ }
-    try { setLifecycleLabel(issueNumber, "failed") } catch { /* best effort */ }
+    try { setLabel(issueNumber, "kody:failed") } catch { /* best effort */ }
   }
   process.exit(143)
 })

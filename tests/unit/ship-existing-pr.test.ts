@@ -227,7 +227,8 @@ describe("ship stage: existing PR detection", () => {
     const ctx = makeCtx(tmpDir, { issueNumber: 106 })
     const result = executeShipStage(ctx, stubDef)
 
-    expect(result.outcome).toBe("completed")
+    expect(result.outcome).toBe("failed")
+    expect(result.error).toBe("PR creation failed")
     expect(githubApi.getPRForBranch).toHaveBeenCalledTimes(2)
     expect(githubApi.postComment).not.toHaveBeenCalled()
 
