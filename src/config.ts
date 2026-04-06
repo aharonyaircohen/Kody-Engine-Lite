@@ -2,6 +2,7 @@ import * as fs from "fs"
 import * as path from "path"
 import { logger } from "./logger.js"
 import { parseJsonSafe } from "./validators.js"
+import { applyBudgetOverrides } from "./definitions.js"
 
 export interface RunnerConfig {
   type: "claude-code" | "sdk"
@@ -77,6 +78,8 @@ export interface KodyConfig {
     runners?: Record<string, RunnerConfig>
     defaultRunner?: string
     stageRunners?: Record<string, string>
+    /** Per-stage budget/turn limit overrides */
+    budgets?: Record<string, { maxTurns?: number; maxBudgetUsd?: number }>
   }
   timeouts?: Record<string, number>
   contextTiers?: ContextTiersConfig
@@ -281,6 +284,7 @@ export function getProjectConfig(): KodyConfig {
           ...DEFAULT_CONFIG.agent,
           ...raw.agent,
           modelMap: { ...DEFAULT_CONFIG.agent.modelMap, ...raw.agent?.modelMap },
+          budgets: raw.agent?.budgets ?? {},
         },
         timeouts: raw.timeouts ?? undefined,
         contextTiers: raw.contextTiers
@@ -328,6 +332,10 @@ export function getProjectConfig(): KodyConfig {
     }
   } else {
     _config = { ...DEFAULT_CONFIG }
+  }
+
+  if (_config.agent.budgets) {
+    applyBudgetOverrides(_config.agent.budgets)
   }
 
   return _config
