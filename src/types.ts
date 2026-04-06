@@ -57,6 +57,7 @@ export interface AgentResult {
   outcome: "completed" | "failed" | "timed_out"
   output?: string
   error?: string
+  structuredOutput?: unknown
 }
 
 export interface AgentRunnerOptions {
@@ -69,7 +70,7 @@ export interface AgentRunnerOptions {
   maxTurns?: number
   maxBudgetUsd?: number
   allowedTools?: string[]
-  agents?: unknown[]
+  agents?: Record<string, unknown>
   outputFormat?: unknown
 }
 

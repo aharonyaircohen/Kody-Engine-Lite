@@ -190,7 +190,8 @@ export function createSdkRunner(): AgentRunner {
             sessionId: options?.sessionId,
             resume: options?.resumeSession ? options.sessionId : undefined,
             allowedTools: options?.allowedTools ?? (options?.mcpConfigJson ? undefined : baseTools.split(",")),
-            permissionMode: "plan",
+            mcpServers: options?.mcpConfigJson ? JSON.parse(options.mcpConfigJson).mcpServers : undefined,
+            permissionMode: "bypassPermissions",
             maxTurns: options?.maxTurns,
             maxBudgetUsd: options?.maxBudgetUsd,
             agents: options?.agents as Record<string, AgentDefinition> | undefined,
@@ -214,7 +215,7 @@ export function createSdkRunner(): AgentRunner {
         }
 
         clearTimeout(timer)
-        return { outcome: "completed", output }
+        return { outcome: "completed", output, structuredOutput }
       } catch (e) {
         clearTimeout(timer)
         const err = e instanceof Error ? e.message : String(e)
