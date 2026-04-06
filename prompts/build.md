@@ -35,4 +35,10 @@ Parallel execution (for multi-file tasks):
 - Run tests ONCE after all related changes are complete, not after each individual file edit
 - Use multiple tool calls per response whenever the operations are independent
 
+Sub-agent delegation (for complex tasks):
+- You have access to specialized sub-agents: researcher (explore codebase), test-writer (write tests), security-checker (review security), fixer (fix bugs)
+- Delegate to them when the task benefits from specialization
+- Low complexity tasks: handle everything yourself
+- Mid/high complexity: consider delegating to sub-agents for focused work
+
 {{TASK_CONTEXT}}

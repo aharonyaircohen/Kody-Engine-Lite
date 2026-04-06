@@ -15,6 +15,7 @@ import { buildMcpConfigJson, isMcpEnabledForStage, withPlaywrightIfNeeded } from
 import { getRunnerForStage } from "../pipeline/runner-selection.js"
 import { startDevServer, type DevServerHandle } from "../dev-server.js"
 import { logger } from "../logger.js"
+import { buildSubAgents } from "../sub-agents.js"
 
 // ─── Session Groups ─────────────────────────────────────────────────────────
 // Stages in the same group share a Claude Code session (warm context).
@@ -160,6 +161,7 @@ export async function executeAgentStage(
 
   const runner = getRunnerForStage(ctx, def.name)
   const maxRetries = def.maxRetries ?? 0
+  const subAgents = buildSubAgents(def.name)
 
   let lastResult = await runner.run(def.name, prompt, model, def.timeout, ctx.taskDir, {
     cwd: ctx.projectDir,
@@ -170,6 +172,7 @@ export async function executeAgentStage(
     maxBudgetUsd: def.maxBudgetUsd,
     allowedTools: def.allowedTools,
     outputFormat: def.outputFormat,
+    agents: subAgents,
   })
 
   let retries = 0
@@ -199,6 +202,7 @@ export async function executeAgentStage(
       maxBudgetUsd: def.maxBudgetUsd,
       allowedTools: def.allowedTools,
       outputFormat: def.outputFormat,
+      agents: subAgents,
     })
   }
 
