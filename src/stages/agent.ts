@@ -161,7 +161,7 @@ export async function executeAgentStage(
 
   const runner = getRunnerForStage(ctx, def.name)
   const maxRetries = def.maxRetries ?? 0
-  const subAgents = buildSubAgents(def.name)
+  const subAgents = buildSubAgents(def.name, ctx.projectDir)
 
   let lastResult = await runner.run(def.name, prompt, model, def.timeout, ctx.taskDir, {
     cwd: ctx.projectDir,
