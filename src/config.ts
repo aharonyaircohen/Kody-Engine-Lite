@@ -4,7 +4,7 @@ import { logger } from "./logger.js"
 import { parseJsonSafe } from "./validators.js"
 
 export interface RunnerConfig {
-  type: "claude-code"
+  type: "claude-code" | "sdk"
 }
 
 import type { ContextTier } from "./context-tiers.js"

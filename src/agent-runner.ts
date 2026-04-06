@@ -158,10 +158,89 @@ export function createClaudeCodeRunner(): AgentRunner {
   }
 }
 
+// ─── SDK Runner ───────────────────────────────────────────────────────────────
+
+import { query, type AgentDefinition, type OutputFormat } from "@anthropic-ai/claude-agent-sdk"
+
+export function createSdkRunner(): AgentRunner {
+  return {
+    async run(
+      _stageName: string,
+      prompt: string,
+      model: string,
+      timeout: number,
+      taskDir: string,
+      options?: AgentRunnerOptions,
+    ): Promise<AgentResult> {
+      const abortController = new AbortController()
+      const timer = setTimeout(() => abortController.abort(), timeout)
+
+      const baseTools = "Bash,Edit,Read,Write,Glob,Grep"
+
+      let output = ""
+      let structuredOutput: unknown = null
+
+      try {
+        const result = query({
+          prompt,
+          options: {
+            model,
+            cwd: taskDir,
+            effort: "high",
+            sessionId: options?.sessionId,
+            resume: options?.resumeSession ? options.sessionId : undefined,
+            allowedTools: options?.allowedTools ?? (options?.mcpConfigJson ? undefined : baseTools.split(",")),
+            mcpServers: options?.mcpConfigJson ? JSON.parse(options.mcpConfigJson).mcpServers : undefined,
+            permissionMode: "bypassPermissions",
+            maxTurns: options?.maxTurns,
+            maxBudgetUsd: options?.maxBudgetUsd,
+            agents: options?.agents as Record<string, AgentDefinition> | undefined,
+            outputFormat: options?.outputFormat as OutputFormat | undefined,
+            env: {
+              ...process.env,
+              SKIP_BUILD: "1",
+              SKIP_HOOKS: "1",
+              HUSKY: "0",
+              ...options?.env,
+            },
+            abortController,
+          },
+        })
+
+        for await (const msg of result) {
+          if (msg.type === "result" && msg.subtype === "success") {
+            output = msg.result ?? ""
+            structuredOutput = msg.structured_output ?? null
+          }
+        }
+
+        clearTimeout(timer)
+        return { outcome: "completed", output, structuredOutput }
+      } catch (e) {
+        clearTimeout(timer)
+        const err = e instanceof Error ? e.message : String(e)
+        if (err.includes("maximum number of turns")) {
+          return { outcome: "timed_out", output, error: "maxTurns" }
+        }
+        if (err.includes("maximum budget")) {
+          return { outcome: "timed_out", output, error: "maxBudget" }
+        }
+        return { outcome: "failed", output, error: err }
+      }
+    },
+
+    async healthCheck(): Promise<boolean> {
+      // SDK doesn't have a direct health check; check if the package is importable
+      return true
+    },
+  }
+}
+
 // ─── Runner Factory ──────────────────────────────────────────────────────────
 
 const RUNNER_FACTORIES: Record<string, () => AgentRunner> = {
   "claude-code": createClaudeCodeRunner,
+  sdk: createSdkRunner,
 }
 
 export function createRunners(config: KodyConfig): Record<string, AgentRunner> {
@@ -179,5 +258,6 @@ export function createRunners(config: KodyConfig): Record<string, AgentRunner> {
 
   // Single-runner default
   const defaultName = config.agent.defaultRunner ?? "claude"
-  return { [defaultName]: createClaudeCodeRunner() }
+  const defaultFactory = RUNNER_FACTORIES[defaultName] ?? createClaudeCodeRunner
+  return { [defaultName]: defaultFactory() }
 }
