@@ -62,6 +62,22 @@ function validateStageOutput(
   }
 }
 
+const FAILURE_CONTEXT_CHARS = 2000
+
+function buildFailureContext(result: { outcome: string; output?: string; error?: string }): string {
+  const parts: string[] = ["\n\n---\n## Previous Attempt Failed"]
+  parts.push(`**Outcome:** ${result.outcome}`)
+
+  const tail = result.output ?? result.error ?? ""
+  if (tail.trim()) {
+    const excerpt = tail.length > FAILURE_CONTEXT_CHARS ? tail.slice(-FAILURE_CONTEXT_CHARS) : tail
+    parts.push(`**Last output (tail):**\n\`\`\`\n${excerpt}\n\`\`\``)
+  }
+
+  parts.push("Diagnose what went wrong above, then try a different approach. Do NOT repeat the same failing steps.")
+  return parts.join("\n\n")
+}
+
 export async function executeAgentStage(
   ctx: PipelineContext,
   def: StageDefinition,
@@ -166,8 +182,12 @@ export async function executeAgentStage(
       }
     }
 
+    // Build retry prompt with failure context so the agent doesn't repeat mistakes
+    const failureContext = buildFailureContext(lastResult)
+    const retryPrompt = prompt + failureContext
+
     logger.info(`  retry ${retries}/${maxRetries} with model=${model}`)
-    lastResult = await runner.run(def.name, prompt, model, def.timeout, ctx.taskDir, {
+    lastResult = await runner.run(def.name, retryPrompt, model, def.timeout, ctx.taskDir, {
       cwd: ctx.projectDir,
       env: extraEnv,
       mcpConfigJson,
