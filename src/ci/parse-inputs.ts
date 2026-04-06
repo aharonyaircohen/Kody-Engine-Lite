@@ -297,6 +297,12 @@ export function parseCommentInputs(): ParseResult {
     taskId = `review-pr-${prNumber}-${generateTimestamp()}`
   }
 
+  // Decompose: the word "decompose" is not a VALID_MODE, so it lands as taskId.
+  // Generate a unique task-id so parallel decompose runs don't collide.
+  if (taskId === "decompose") {
+    taskId = `decompose-${issueNumber}-${generateTimestamp()}`
+  }
+
   // Auto-generate task-id for full mode when not provided
   if (!taskId && mode === "full") {
     taskId = `${issueNumber}-${generateTimestamp()}`

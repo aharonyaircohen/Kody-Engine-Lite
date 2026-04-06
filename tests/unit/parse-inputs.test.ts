@@ -514,4 +514,21 @@ describe("parseCommentInputs", () => {
     expect(r.mode).toBe("revert")
     expect(r.revert_target).toBe("10")
   })
+
+  // ─── Decompose task-id generation ───────────────────────────────────────
+
+  it("@kody decompose generates unique task-id (not bare 'decompose')", () => {
+    process.env.COMMENT_BODY = "@kody decompose"
+    process.env.ISSUE_NUMBER = "42"
+    const r = parseCommentInputs()
+    expect(r.task_id).toMatch(/^decompose-42-\d{6}-\d{6}$/)
+    expect(r.task_id).not.toBe("decompose")
+  })
+
+  it("@kody decompose --no-compose generates unique task-id", () => {
+    process.env.COMMENT_BODY = "@kody decompose --no-compose"
+    process.env.ISSUE_NUMBER = "55"
+    const r = parseCommentInputs()
+    expect(r.task_id).toMatch(/^decompose-55-\d{6}-\d{6}$/)
+  })
 })

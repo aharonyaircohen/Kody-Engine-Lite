@@ -92,11 +92,16 @@ export async function runWatchCommand(opts: { dryRun: boolean }): Promise<void> 
     console.warn(`  Agent warning: ${w}`)
   }
 
-  if (agents.length > 0 && !watchModel) {
+  // Resolve watch model: watch.model > agent.modelMap.watch > agent.modelMap.default > fallback
+  const resolvedModel = watchModel
+    ?? agentModelMap?.watch
+    ?? agentModelMap?.default
+    ?? ""
+  if (agents.length > 0 && !resolvedModel) {
     console.error("No watch model configured — set watch.model or agent.modelMap in kody.config.json")
     process.exit(1)
   }
-  const model = watchModel ?? ""
+  const model = resolvedModel
   const needsProxy = agentProvider && agentProvider !== "claude" && agentProvider !== "anthropic"
 
   if (agents.length > 0) {
