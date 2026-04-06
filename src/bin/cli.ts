@@ -75,12 +75,14 @@ if (command === "init") {
   )
 } else if (command === "release") {
   import("./commands/release.js").then(({ releaseCommand, releaseFinalizeCommand }) => {
+    const issueStr = getArg(args, "--issue-number") ?? process.env.ISSUE_NUMBER
     const input = {
       bump: getArg(args, "--bump") as "major" | "minor" | "patch" | undefined,
       dryRun: args.includes("--dry-run"),
       finalize: args.includes("--finalize"),
       noPublish: args.includes("--no-publish"),
       noNotify: args.includes("--no-notify"),
+      issueNumber: issueStr ? parseInt(issueStr, 10) : undefined,
       cwd: getArg(args, "--cwd"),
     }
     return input.finalize ? releaseFinalizeCommand(input) : releaseCommand(input)

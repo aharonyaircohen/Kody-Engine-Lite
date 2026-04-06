@@ -225,6 +225,7 @@ jobs:
             [ "$NO_PUBLISH" = "true" ] && ARGS="$ARGS --no-publish"
             [ "$NO_NOTIFY" = "true" ] && ARGS="$ARGS --no-notify"
             [ "$DRY_RUN" = "true" ] && ARGS="$ARGS --dry-run"
+            [ -n "$ISSUE_NUMBER" ] && ARGS="$ARGS --issue-number $ISSUE_NUMBER"
             kody-engine release $ARGS
           elif [ "$MODE" = "revert" ]; then
             echo "Running revert..."

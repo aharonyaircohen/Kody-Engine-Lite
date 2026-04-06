@@ -26,6 +26,7 @@ import {
 import {
   createPR,
   setLabel,
+  postComment,
   postPRComment,
   createGitHubRelease,
   isCIGreenOnBranch,
@@ -42,6 +43,7 @@ export interface ReleaseInput {
   finalize: boolean
   noPublish?: boolean
   noNotify?: boolean
+  issueNumber?: number
   cwd?: string
 }
 
@@ -463,8 +465,20 @@ export async function releaseCommand(input: ReleaseInput): Promise<void> {
     }
     logger.info(`\nRelease PR created: ${pr.url}`)
     logger.info(`Merge it to trigger: kody-engine release --finalize`)
+
+    if (input.issueNumber) {
+      postComment(input.issueNumber,
+        `📦 **Release PR created:** ${pr.url}\n\n` +
+        `**Version:** ${currentVersion} → ${newVersion} (${bump})\n` +
+        `**Commits:** ${commits.length} since ${lastTag ?? "beginning"}\n\n` +
+        `After merging, run \`@kody release --finalize\` to tag and publish.`,
+      )
+    }
   } else {
     logger.error("Failed to create release PR")
+    if (input.issueNumber) {
+      postComment(input.issueNumber, `❌ Release failed: could not create PR for v${newVersion}`)
+    }
     process.exit(1)
   }
 }
@@ -539,4 +553,14 @@ export async function releaseFinalizeCommand(input: ReleaseInput): Promise<void>
   }
 
   logger.info(`\n${prefix}Release v${version} complete!`)
+
+  if (input.issueNumber && !input.dryRun) {
+    postComment(input.issueNumber,
+      `🚀 **Release v${version} finalized!**\n\n` +
+      `- Tag: \`${tag}\`\n` +
+      `- [GitHub Release](https://github.com/${config.github.owner}/${config.github.repo}/releases/tag/${tag})\n` +
+      (rc.publishCommand ? `- Published\n` : "") +
+      (rc.notifyCommand ? `- Notification sent\n` : ""),
+    )
+  }
 }
