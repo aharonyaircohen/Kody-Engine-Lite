@@ -166,7 +166,7 @@ function generateL0Json(content: string): string {
 /**
  * L1: ~300-500 tokens overview. All headings + first sentence of each section + bullet items.
  */
-export function generateL1(content: string, filename: string): string {
+export function generateL1(content: string, filename: string, maxChars = L1_MAX_CHARS): string {
   if (!content.trim()) return ""
 
   // For JSON files, extract structured overview
@@ -203,7 +203,7 @@ export function generateL1(content: string, filename: string): string {
   }
 
   const result = parts.join("\n")
-  return result.slice(0, L1_MAX_CHARS)
+  return result.slice(0, maxChars)
 }
 
 function generateL1Json(content: string): string {
@@ -264,12 +264,59 @@ export function inferHallFromFilename(filename: string): MemoryHall {
   return "conventions"
 }
 
+// ─── Room Detection ─────────────────────────────────────────────────────────
+
+/**
+ * Infer the room (topic) from a memory filename.
+ *
+ * Examples:
+ *   "conventions_auth.md"  → "auth"
+ *   "facts_architecture.md" → "architecture"
+ *   "conventions.md"       → null (global, no room)
+ *   "architecture.md"      → "architecture" (legacy)
+ */
+export function inferRoomFromFilename(filename: string): string | null {
+  const name = filename.replace(/\.md$/, "").toLowerCase()
+  // Hall-prefixed: "conventions_auth" → "auth"
+  const prefixMatch = name.match(/^(?:facts|conventions|events|preferences)_(.+)$/)
+  if (prefixMatch) return prefixMatch[1]
+  // Legacy named files: "architecture" → "architecture", "conventions" → null (global)
+  if (name === "conventions" || name === "observer-log") return null
+  if (name === "architecture") return "architecture"
+  // Other legacy files without prefix: "domain" → "domain", "patterns" → "patterns"
+  return name
+}
+
+/**
+ * Infer relevant rooms from task scope (file paths).
+ *
+ * Extracts the first significant directory from each scope path.
+ * Returns null if scope is empty (no room filtering).
+ */
+export function inferRoomsFromScope(scope: string[]): string[] | null {
+  if (scope.length === 0) return null
+
+  const rooms = new Set<string>()
+  for (const filePath of scope) {
+    // "src/auth/withAuth.ts" → ["src", "auth", "withAuth.ts"]
+    const parts = filePath.replace(/\\/g, "/").split("/").filter(Boolean)
+    // Skip "src" as it's not meaningful, take the next directory
+    const meaningful = parts.filter((p) => p !== "src" && p !== "lib" && p !== "app" && !p.includes("."))
+    if (meaningful.length > 0) {
+      rooms.add(meaningful[0].toLowerCase())
+    }
+  }
+
+  return rooms.size > 0 ? [...rooms] : null
+}
+
 // ─── Tiered Memory Reader ────────────────────────────────────────────────
 
 export function readProjectMemoryTiered(
   projectDir: string,
   tier: ContextTier,
   hallFilter?: MemoryHall[],
+  roomFilter?: string[] | null,
 ): string {
   const memoryDir = path.join(projectDir, ".kody", "memory")
   if (!fs.existsSync(memoryDir)) return ""
@@ -283,6 +330,14 @@ export function readProjectMemoryTiered(
   // Filter by hall type when specified
   if (hallFilter && hallFilter.length > 0) {
     files = files.filter((f) => hallFilter.includes(inferHallFromFilename(f)))
+  }
+
+  // Filter by room when specified — keep global files (no room) + matching rooms
+  if (roomFilter && roomFilter.length > 0) {
+    files = files.filter((f) => {
+      const room = inferRoomFromFilename(f)
+      return room === null || roomFilter.includes(room)
+    })
   }
 
   if (files.length === 0) return ""

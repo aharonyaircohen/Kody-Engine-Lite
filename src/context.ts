@@ -7,15 +7,19 @@ import {
   injectTaskContextTiered,
   resolveStagePolicy,
   estimateTokens,
+  inferRoomsFromScope,
   type MemoryHall,
 } from "./context-tiers.js"
 import { isMcpEnabledForStage } from "./mcp-config.js"
 import { readRunHistory, formatRunHistoryForPrompt } from "./run-history.js"
+import { readDiary, formatDiaryForPrompt } from "./stage-diary.js"
+import { generateL1 } from "./context-tiers.js"
 
-
-const MAX_TASK_CONTEXT_PLAN = 8000
-const MAX_TASK_CONTEXT_SPEC = 8000
-const MAX_ACCUMULATED_CONTEXT = 32000
+// Safety rails (chars) — not budgets. Only kick in to prevent runaway content
+// (e.g. infinite loop appending to context.md). Normal content passes through
+// verbatim; generateL1 summarizes only when these limits are breached.
+const MAX_TASK_CONTEXT_CHARS = 200_000 // ~50K tokens — virtually unlimited for spec/plan
+const MAX_ACCUMULATED_CONTEXT = 400_000 // ~100K tokens — accumulated context from all stages
 
 export function readPromptFile(stageName: string, projectDir?: string): string {
   // Try project-level step file first (.kody/steps/{stageName}.md)
@@ -78,15 +82,15 @@ export function injectTaskContext(
   const specPath = path.join(taskDir, "spec.md")
   if (fs.existsSync(specPath)) {
     const spec = fs.readFileSync(specPath, "utf-8")
-    const truncated = spec.slice(0, MAX_TASK_CONTEXT_SPEC)
-    context += `\n## Spec Summary\n${truncated}${spec.length > MAX_TASK_CONTEXT_SPEC ? "\n..." : ""}\n`
+    const summarized = spec.length > MAX_TASK_CONTEXT_CHARS ? generateL1(spec, "spec.md", MAX_TASK_CONTEXT_CHARS) : spec
+    context += `\n## Spec${spec.length > MAX_TASK_CONTEXT_CHARS ? " Summary" : ""}\n${summarized}\n`
   }
 
   const planPath = path.join(taskDir, "plan.md")
   if (fs.existsSync(planPath)) {
     const plan = fs.readFileSync(planPath, "utf-8")
-    const truncated = plan.slice(0, MAX_TASK_CONTEXT_PLAN)
-    context += `\n## Plan Summary\n${truncated}${plan.length > MAX_TASK_CONTEXT_PLAN ? "\n..." : ""}\n`
+    const summarized = plan.length > MAX_TASK_CONTEXT_CHARS ? generateL1(plan, "plan.md", MAX_TASK_CONTEXT_CHARS) : plan
+    context += `\n## Plan${plan.length > MAX_TASK_CONTEXT_CHARS ? " Summary" : ""}\n${summarized}\n`
   }
 
   // Accumulated context from previous stages
@@ -127,6 +131,24 @@ export function injectTaskContext(
   }
 
   return prompt.replace("{{TASK_CONTEXT}}", context)
+}
+
+/**
+ * Read task.json scope and infer rooms for memory filtering.
+ * Returns null when task.json doesn't exist or has no scope (e.g. taskify stage).
+ */
+function inferRoomsFromTaskJson(taskDir: string): string[] | null {
+  const taskJsonPath = path.join(taskDir, "task.json")
+  if (!fs.existsSync(taskJsonPath)) return null
+  try {
+    const raw = fs.readFileSync(taskJsonPath, "utf-8")
+    const cleaned = raw.replace(/^```json\s*\n?/m, "").replace(/\n?```\s*$/m, "")
+    const task = JSON.parse(cleaned)
+    const scope: string[] = Array.isArray(task.scope) ? task.scope : []
+    return inferRoomsFromScope(scope)
+  } catch {
+    return null
+  }
 }
 
 const UI_EXTENSIONS = new Set([
@@ -398,11 +420,20 @@ function buildFullPromptTiered(
   const policy = resolveStagePolicy(stageName, config.contextTiers?.stageOverrides)
   const tokenBudget = config.contextTiers?.tokenBudget ?? 8000
 
-  const memory = readProjectMemoryTiered(projectDir, policy.memory, policy.memoryHalls)
+  // Infer rooms from task scope for memory filtering
+  const roomFilter = inferRoomsFromTaskJson(taskDir)
+  const memory = readProjectMemoryTiered(projectDir, policy.memory, policy.memoryHalls, roomFilter)
   const promptTemplate = readPromptFile(stageName, projectDir)
   const prompt = injectTaskContextTiered(promptTemplate, taskId, taskDir, policy, feedback, { projectDir, issueNumber })
 
   let assembled = memory ? `${memory}\n---\n\n${prompt}` : prompt
+
+  // Inject stage diary (cross-run patterns for this stage)
+  const diary = readDiary(projectDir, stageName)
+  const diaryBlock = formatDiaryForPrompt(diary)
+  if (diaryBlock) {
+    assembled += `\n\n${diaryBlock}\n`
+  }
 
   // Token budget enforcement: truncate if over budget
   const tokens = estimateTokens(assembled)

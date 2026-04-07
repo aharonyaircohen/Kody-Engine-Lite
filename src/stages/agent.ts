@@ -9,6 +9,8 @@ import type {
 } from "../types.js"
 import { buildFullPrompt, resolveModel, escalateModelTier, taskHasUI } from "../context.js"
 import { estimateTokens } from "../context-tiers.js"
+import { extractStagePatterns, appendDiary, type DiaryEntry } from "../stage-diary.js"
+import { inferRoomsFromScope } from "../context-tiers.js"
 import { validateTaskJson, validatePlanMd, validateReviewMd, stripFences } from "../validators.js"
 import { getProjectConfig, resolveStageConfig, stageNeedsProxy, getLitellmUrl } from "../config.js"
 import { buildMcpConfigJson, isMcpEnabledForStage, withPlaywrightIfNeeded } from "../mcp-config.js"
@@ -292,7 +294,40 @@ export async function executeAgentStage(
   // Append stage summary to accumulated context
   appendStageContext(ctx.taskDir, def.name, result.output)
 
+  // Write stage diary entry (cross-run learning)
+  try {
+    const patterns = extractStagePatterns(def.name, ctx.taskDir)
+    if (patterns.length > 0) {
+      const room = inferRoomFromTask(ctx.taskDir)
+      const diaryEntry: DiaryEntry = {
+        taskId: ctx.taskId,
+        timestamp: new Date().toISOString(),
+        stage: def.name,
+        patterns,
+        room: room ?? undefined,
+      }
+      appendDiary(ctx.projectDir, diaryEntry)
+    }
+  } catch {
+    // Diary is best-effort — don't fail the stage
+  }
+
   return { outcome: "completed", outputFile: def.outputFile, retries, promptTokens }
+}
+
+function inferRoomFromTask(taskDir: string): string | null {
+  const taskJsonPath = path.join(taskDir, "task.json")
+  if (!fs.existsSync(taskJsonPath)) return null
+  try {
+    const raw = fs.readFileSync(taskJsonPath, "utf-8")
+    const cleaned = raw.replace(/^```json\s*\n?/m, "").replace(/\n?```\s*$/m, "")
+    const task = JSON.parse(cleaned)
+    const scope: string[] = Array.isArray(task.scope) ? task.scope : []
+    const rooms = inferRoomsFromScope(scope)
+    return rooms?.[0] ?? null
+  } catch {
+    return null
+  }
 }
 
 function appendStageContext(taskDir: string, stageName: string, output?: string): void {
