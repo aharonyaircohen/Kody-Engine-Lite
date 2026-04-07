@@ -302,6 +302,20 @@ jobs:
           path: .kody/tasks/
           retention-days: 3
 
+      - name: Persist run history
+        if: always()
+        continue-on-error: true
+        run: |
+          if [ -d ".kody/runs" ] && [ -n "$(ls -A .kody/runs/ 2>/dev/null)" ]; then
+            git add .kody/runs/
+            if ! git diff --cached --quiet .kody/runs/; then
+              git commit -m "chore: update run history [skip ci]"
+              # Push to the current branch (feature branch or main)
+              BRANCH=$(git branch --show-current)
+              git push origin "$BRANCH" || echo "Warning: could not push run history (non-fatal)"
+            fi
+          fi
+
   # ─── Close Issue on PR Merge ────────────────────────────────────────────────
   close-issue-on-merge:
     if: >-
