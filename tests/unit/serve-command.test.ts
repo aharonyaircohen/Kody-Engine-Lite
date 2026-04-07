@@ -3,8 +3,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 /**
  * Tests for `kody serve` command.
  *
- * Tests the decision logic, arg parsing, environment setup, and
- * Claude Code launch configuration without spawning real processes.
+ * Tests the decision logic, arg parsing, environment setup,
+ * context file generation, and launch configuration.
  */
 
 // ─── Arg parsing (pure logic, extracted from serve.ts pattern) ──────────────
@@ -15,6 +15,7 @@ describe("serve arg parsing", () => {
     provider?: string
     model?: string
     noClaude: boolean
+    vscode: boolean
   } {
     function getArg(a: string[], flag: string): string | undefined {
       for (const item of a) {
@@ -32,6 +33,7 @@ describe("serve arg parsing", () => {
       provider: getArg(args, "--provider"),
       model: getArg(args, "--model"),
       noClaude: args.includes("--no-claude"),
+      vscode: args.includes("--vscode"),
     }
   }
 
@@ -41,6 +43,7 @@ describe("serve arg parsing", () => {
     expect(opts.provider).toBeUndefined()
     expect(opts.model).toBeUndefined()
     expect(opts.noClaude).toBe(false)
+    expect(opts.vscode).toBe(false)
   })
 
   it("parses --cwd", () => {
@@ -64,17 +67,22 @@ describe("serve arg parsing", () => {
     expect(opts.noClaude).toBe(true)
   })
 
+  it("parses --vscode flag", () => {
+    const opts = parseServeArgs(["--vscode"])
+    expect(opts.vscode).toBe(true)
+  })
+
   it("parses all flags together", () => {
     const opts = parseServeArgs([
       "--cwd", "/tmp/project",
       "--provider", "openai",
       "--model", "gpt-4o",
-      "--no-claude",
+      "--vscode",
     ])
     expect(opts.cwd).toBe("/tmp/project")
     expect(opts.provider).toBe("openai")
     expect(opts.model).toBe("gpt-4o")
-    expect(opts.noClaude).toBe(true)
+    expect(opts.vscode).toBe(true)
   })
 })
 
@@ -136,7 +144,7 @@ describe("serve Claude Code environment", () => {
     expect(env.ANTHROPIC_API_KEY).toBe("sk-real-key")
   })
 
-  it("sets no extra env vars when not using proxy", () => {
+  it("sets no extra env vars when not using proxy (safe for standalone VS Code)", () => {
     const env = buildClaudeEnv(false, "http://localhost:4000")
     expect(env.ANTHROPIC_BASE_URL).toBeUndefined()
     expect(env.ANTHROPIC_API_KEY).toBeUndefined()
@@ -195,7 +203,6 @@ describe("serve model resolution", () => {
 
 describe("serve CLI dispatch", () => {
   it("serve command is registered in CLI", async () => {
-    // Verify the serve command module exports serveCommand
     const mod = await import("../../src/bin/commands/serve.js")
     expect(typeof mod.serveCommand).toBe("function")
   })
@@ -221,7 +228,6 @@ describe("serve cleanup", () => {
       }
     }
 
-    // Should not throw with all nulls
     expect(() => cleanup()).not.toThrow()
   })
 
@@ -268,16 +274,96 @@ describe("serve cleanup", () => {
   })
 })
 
-// ─── Memory injection ──────────────────────────────────────────────────────
+// ─── Context file (.claude/kody-context.md) ────────────────────────────────
 
-describe("serve memory injection", () => {
+describe("serve context file", () => {
+  it("buildKodyContextContent includes memory and learning instructions", async () => {
+    const { buildKodyContextContent } = await import("../../src/bin/commands/serve.js")
+    const memory = "# Project Memory\n\n## architecture\n- Framework: Next.js 14"
+    const content = buildKodyContextContent(memory, "/tmp/project")
+
+    expect(content).toContain("Next.js 14")
+    expect(content).toContain("Kody Memory System")
+    expect(content).toContain(".kody/memory")
+    expect(content).toContain("Do NOT proactively write")
+    expect(content).toContain("only when the user explicitly asks")
+  })
+
+  it("buildKodyContextContent works with empty memory", async () => {
+    const { buildKodyContextContent } = await import("../../src/bin/commands/serve.js")
+    const content = buildKodyContextContent("", "/tmp/project")
+
+    expect(content).toContain("Kody Memory System")
+    expect(content).not.toContain("Project Memory")
+  })
+
+  it("writeKodyContext creates .claude/ directory and writes file", async () => {
+    const { writeKodyContext } = await import("../../src/bin/commands/serve.js")
+    const os = await import("os")
+    const fs = await import("fs")
+    const path = await import("path")
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kody-serve-ctx-"))
+    const content = "# Test Context\n\nSome memory content"
+
+    const filePath = writeKodyContext(tmpDir, content)
+
+    expect(filePath).toBe(path.join(tmpDir, ".claude", "kody-context.md"))
+    expect(fs.existsSync(filePath)).toBe(true)
+    expect(fs.readFileSync(filePath, "utf-8")).toBe(content)
+
+    fs.rmSync(tmpDir, { recursive: true })
+  })
+
+  it("writeKodyContext overwrites existing file", async () => {
+    const { writeKodyContext } = await import("../../src/bin/commands/serve.js")
+    const os = await import("os")
+    const fs = await import("fs")
+    const path = await import("path")
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kody-serve-ctx-"))
+    const claudeDir = path.join(tmpDir, ".claude")
+    fs.mkdirSync(claudeDir, { recursive: true })
+    fs.writeFileSync(path.join(claudeDir, "kody-context.md"), "old content")
+
+    writeKodyContext(tmpDir, "new content")
+
+    expect(fs.readFileSync(path.join(claudeDir, "kody-context.md"), "utf-8")).toBe("new content")
+
+    fs.rmSync(tmpDir, { recursive: true })
+  })
+
+  it("writeKodyContext preserves other .claude/ files", async () => {
+    const { writeKodyContext } = await import("../../src/bin/commands/serve.js")
+    const os = await import("os")
+    const fs = await import("fs")
+    const path = await import("path")
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kody-serve-ctx-"))
+    const claudeDir = path.join(tmpDir, ".claude")
+    fs.mkdirSync(claudeDir, { recursive: true })
+    fs.writeFileSync(path.join(claudeDir, "settings.local.json"), '{"existing": true}')
+
+    writeKodyContext(tmpDir, "kody memory")
+
+    // Other files untouched
+    expect(fs.readFileSync(path.join(claudeDir, "settings.local.json"), "utf-8")).toBe('{"existing": true}')
+    // Kody context written
+    expect(fs.readFileSync(path.join(claudeDir, "kody-context.md"), "utf-8")).toBe("kody memory")
+
+    fs.rmSync(tmpDir, { recursive: true })
+  })
+})
+
+// ─── Memory read ───────────────────────────────────────────────────────────
+
+describe("serve memory read", () => {
   it("readProjectMemory returns content from .kody/memory/ files", async () => {
     const { readProjectMemory } = await import("../../src/memory.js")
     const os = await import("os")
     const fs = await import("fs")
     const path = await import("path")
 
-    // Create temp project with memory files
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kody-serve-test-"))
     const memDir = path.join(tmpDir, ".kody", "memory")
     fs.mkdirSync(memDir, { recursive: true })
@@ -290,7 +376,6 @@ describe("serve memory injection", () => {
     expect(memory).toContain("Next.js 14")
     expect(memory).toContain("vitest")
 
-    // Cleanup
     fs.rmSync(tmpDir, { recursive: true })
   })
 
@@ -307,61 +392,11 @@ describe("serve memory injection", () => {
 
     fs.rmSync(tmpDir, { recursive: true })
   })
-
-  it("buildMemorySystemPrompt includes memory and learning instructions", async () => {
-    const { buildMemorySystemPrompt } = await import("../../src/bin/commands/serve.js")
-    const memory = "# Project Memory\n\n## architecture\n- Framework: Next.js 14"
-    const prompt = buildMemorySystemPrompt(memory, "/tmp/project")
-
-    // Includes original memory
-    expect(prompt).toContain("Next.js 14")
-    // Includes learning instructions
-    expect(prompt).toContain("Kody Memory System")
-    expect(prompt).toContain(".kody/memory")
-    // Passive — explicit about not proactively writing
-    expect(prompt).toContain("Do NOT proactively write")
-    expect(prompt).toContain("only when the user explicitly asks")
-  })
-
-  it("buildMemorySystemPrompt works with empty memory", async () => {
-    const { buildMemorySystemPrompt } = await import("../../src/bin/commands/serve.js")
-    const prompt = buildMemorySystemPrompt("", "/tmp/project")
-
-    // Still includes instructions even without existing memory
-    expect(prompt).toContain("Kody Memory System")
-    expect(prompt).not.toContain("Project Memory")
-  })
-
-  it("builds claude args with memory when available", () => {
-    function buildClaudeArgs(model?: string, memory?: string): string[] {
-      const args: string[] = []
-      if (model) args.push("--model", model)
-      if (memory) args.push("--append-system-prompt", memory)
-      return args
-    }
-
-    const args = buildClaudeArgs("gpt-4o", "# Project Memory\n\n## arch\n- Next.js")
-    expect(args).toContain("--append-system-prompt")
-    expect(args).toContain("# Project Memory\n\n## arch\n- Next.js")
-  })
-
-  it("builds claude args without memory when empty", () => {
-    function buildClaudeArgs(model?: string, memory?: string): string[] {
-      const args: string[] = []
-      if (model) args.push("--model", model)
-      if (memory) args.push("--append-system-prompt", memory)
-      return args
-    }
-
-    const args = buildClaudeArgs("gpt-4o", "")
-    expect(args).not.toContain("--append-system-prompt")
-  })
 })
 
 // ─── anyStageNeedsProxy integration ────────────────────────────────────────
 
 describe("serve proxy detection via config", () => {
-  // Import the real function to test against actual config shapes
   it("detects proxy needed for minimax provider", async () => {
     const { anyStageNeedsProxy } = await import("../../src/config.js")
     const config = {

@@ -5,13 +5,15 @@
  *   1. Reads kody.config.json
  *   2. Starts LiteLLM proxy (if non-Anthropic provider configured)
  *   3. Starts dev server (if configured)
- *   4. Launches Claude Code CLI with ANTHROPIC_BASE_URL pointed at LiteLLM
+ *   4. Writes .claude/kody-context.md (memory + learning instructions)
+ *   5. Launches Claude Code CLI or VS Code with env vars
  *
  * Usage:
- *   kody-engine serve                  # uses kody.config.json in cwd
- *   kody-engine serve --cwd /path      # target a different project
+ *   kody-engine serve                           # launches Claude Code CLI
+ *   kody-engine serve --vscode                  # launches VS Code with env vars
+ *   kody-engine serve --no-claude               # infra only
  *   kody-engine serve --provider minimax --model MiniMax-M1
- *   kody-engine serve --no-claude      # start infra only, skip launching Claude Code
+ *   kody-engine serve --cwd /path/to/project
  */
 
 import * as fs from "fs"
@@ -45,6 +47,7 @@ interface ServeOptions {
   provider?: string
   model?: string
   noClaude?: boolean
+  vscode?: boolean
 }
 
 function parseServeArgs(args: string[]): ServeOptions {
@@ -53,6 +56,7 @@ function parseServeArgs(args: string[]): ServeOptions {
     provider: getArg(args, "--provider"),
     model: getArg(args, "--model"),
     noClaude: args.includes("--no-claude"),
+    vscode: args.includes("--vscode"),
   }
 }
 
@@ -87,11 +91,16 @@ async function ensureLitellmForServe(
   return litellmProcess
 }
 
+// ─── Context file (.claude/kody-context.md) ────────────────────────────────
+
+const KODY_CONTEXT_FILENAME = "kody-context.md"
+
 /**
- * Build the system prompt that includes project memory + passive learning instructions.
- * Claude Code will only write to memory when the user explicitly asks.
+ * Build the content for .claude/kody-context.md.
+ * Includes project memory + passive learning instructions.
+ * This file is read by both Claude Code CLI and VS Code extension.
  */
-export function buildMemorySystemPrompt(memory: string, projectDir: string): string {
+export function buildKodyContextContent(memory: string, projectDir: string): string {
   const memoryDir = path.join(projectDir, ".kody", "memory")
   const parts: string[] = []
 
@@ -112,9 +121,37 @@ export function buildMemorySystemPrompt(memory: string, projectDir: string): str
   return parts.join("\n\n")
 }
 
-function launchClaudeCode(config: KodyConfig, projectDir: string): ReturnType<typeof spawn> {
+/**
+ * Write .claude/kody-context.md so both CLI and VS Code extension pick it up.
+ * Returns the file path written.
+ */
+export function writeKodyContext(projectDir: string, content: string): string {
+  const claudeDir = path.join(projectDir, ".claude")
+  if (!fs.existsSync(claudeDir)) {
+    fs.mkdirSync(claudeDir, { recursive: true })
+  }
+  const filePath = path.join(claudeDir, KODY_CONTEXT_FILENAME)
+  fs.writeFileSync(filePath, content, "utf-8")
+  return filePath
+}
+
+// ─── Launch helpers ────────────────────────────────────────────────────────
+
+function buildEnv(config: KodyConfig): Record<string, string> {
+  const env: Record<string, string> = { ...process.env as Record<string, string> }
   const usesProxy = anyStageNeedsProxy(config)
-  const litellmUrl = getLitellmUrl()
+
+  if (usesProxy) {
+    env.ANTHROPIC_BASE_URL = getLitellmUrl()
+    env.ANTHROPIC_API_KEY = getAnthropicApiKeyOrDummy()
+  }
+
+  return env
+}
+
+function launchClaudeCode(config: KodyConfig, projectDir: string): ReturnType<typeof spawn> {
+  const env = buildEnv(config)
+  const usesProxy = anyStageNeedsProxy(config)
 
   // Resolve which model to use for the interactive session
   const model = config.agent.default?.model
@@ -122,29 +159,14 @@ function launchClaudeCode(config: KodyConfig, projectDir: string): ReturnType<ty
     ?? config.agent.modelMap.cheap
     ?? Object.values(config.agent.modelMap)[0]
 
-  const env: Record<string, string> = { ...process.env as Record<string, string> }
-
-  if (usesProxy) {
-    env.ANTHROPIC_BASE_URL = litellmUrl
-    env.ANTHROPIC_API_KEY = getAnthropicApiKeyOrDummy()
-  }
-
   const args: string[] = []
   if (model) {
     args.push("--model", model)
   }
 
-  // Inject Kody's project memory + learning instructions
-  const memory = readProjectMemory(projectDir)
-  const memoryPrompt = buildMemorySystemPrompt(memory, projectDir)
-  if (memoryPrompt) {
-    args.push("--append-system-prompt", memoryPrompt)
-    logger.info(`  Injected project memory (${memoryPrompt.length} chars)`)
-  }
-
   logger.info(`Launching Claude Code${model ? ` (model: ${model})` : ""}`)
   if (usesProxy) {
-    logger.info(`  ANTHROPIC_BASE_URL=${litellmUrl}`)
+    logger.info(`  ANTHROPIC_BASE_URL=${getLitellmUrl()}`)
   }
 
   const child = spawn("claude", args, {
@@ -155,6 +177,25 @@ function launchClaudeCode(config: KodyConfig, projectDir: string): ReturnType<ty
 
   return child
 }
+
+function launchVSCode(config: KodyConfig, projectDir: string): ReturnType<typeof spawn> {
+  const env = buildEnv(config)
+  const usesProxy = anyStageNeedsProxy(config)
+
+  logger.info("Launching VS Code...")
+  if (usesProxy) {
+    logger.info(`  ANTHROPIC_BASE_URL=${getLitellmUrl()}`)
+  }
+
+  const child = spawn("code", [projectDir], {
+    stdio: "inherit",
+    env,
+  })
+
+  return child
+}
+
+// ─── Main ──────────────────────────────────────────────────────────────────
 
 export async function serveCommand(rawArgs: string[]): Promise<void> {
   const opts = parseServeArgs(rawArgs)
@@ -209,13 +250,13 @@ export async function serveCommand(rawArgs: string[]): Promise<void> {
     // Health check
     const litellmUrl = getLitellmUrl()
     const apiKey = "health-check"
-    const model = config.agent.default?.model
+    const healthModel = config.agent.default?.model
       ?? config.agent.modelMap.cheap
       ?? Object.values(config.agent.modelMap)[0]
 
-    if (model) {
-      logger.info(`Model health check (${model})...`)
-      const result = await checkModelHealth(litellmUrl, apiKey, model)
+    if (healthModel) {
+      logger.info(`Model health check (${healthModel})...`)
+      const result = await checkModelHealth(litellmUrl, apiKey, healthModel)
       if (result.ok) {
         logger.info("  ✓ Model responded")
       } else {
@@ -244,8 +285,11 @@ export async function serveCommand(rawArgs: string[]): Promise<void> {
     }
   }
 
-  // ─── 3. Load project memory ────────────────────────────────────────────
+  // ─── 3. Write .claude/kody-context.md ────────────────────────────────────
   const memory = readProjectMemory(projectDir)
+  const contextContent = buildKodyContextContent(memory, projectDir)
+  const contextPath = writeKodyContext(projectDir, contextContent)
+
   const memoryFiles = (() => {
     const dir = path.join(projectDir, ".kody", "memory")
     if (!fs.existsSync(dir)) return 0
@@ -253,6 +297,10 @@ export async function serveCommand(rawArgs: string[]): Promise<void> {
   })()
 
   // ─── 4. Print connection info ────────────────────────────────────────────
+  const model = config.agent.default?.model
+    ?? config.agent.modelMap.mid
+    ?? config.agent.modelMap.cheap
+
   console.log("")
   console.log("╔══════════════════════════════════════════════╗")
   console.log("║           Kody Serve — Ready                 ║")
@@ -264,9 +312,6 @@ export async function serveCommand(rawArgs: string[]): Promise<void> {
   if (devServerHandle) {
     console.log(`║  Dev server: ${devServerHandle.url.padEnd(32)}║`)
   }
-  const model = config.agent.default?.model
-    ?? config.agent.modelMap.mid
-    ?? config.agent.modelMap.cheap
   if (model) {
     console.log(`║  Model:      ${model.padEnd(32)}║`)
   }
@@ -276,14 +321,40 @@ export async function serveCommand(rawArgs: string[]): Promise<void> {
   } else {
     console.log(`║  Memory:     ${"(none)".padEnd(32)}║`)
   }
+  console.log(`║  Context:    ${contextPath.padEnd(32)}║`)
   console.log("╚══════════════════════════════════════════════╝")
   console.log("")
 
-  // ─── 5. Launch Claude Code ───────────────────────────────────────────────
+  // ─── 5. Launch Claude Code or VS Code ────────────────────────────────────
   if (opts.noClaude) {
     logger.info("--no-claude: Infrastructure running. Press Ctrl+C to stop.")
     // Keep alive
     await new Promise(() => {})
+  } else if (opts.vscode) {
+    const child = launchVSCode(config, projectDir)
+
+    child.on("exit", (code) => {
+      logger.info(`VS Code launched (code: ${code})`)
+      // VS Code spawns and detaches — don't cleanup infra, keep it running
+      if (usesProxy || devServerHandle) {
+        logger.info("Infrastructure still running. Press Ctrl+C to stop.")
+      } else {
+        cleanup()
+        process.exit(code ?? 0)
+      }
+    })
+
+    child.on("error", (err) => {
+      logger.error(`Failed to launch VS Code: ${err.message}`)
+      logger.info("Is 'code' CLI installed? Run: Shell Command: Install 'code' command in PATH")
+      cleanup()
+      process.exit(1)
+    })
+
+    // VS Code detaches quickly — keep alive for infra
+    if (usesProxy || devServerHandle) {
+      await new Promise(() => {})
+    }
   } else {
     claudeProcess = launchClaudeCode(config, projectDir)
 
