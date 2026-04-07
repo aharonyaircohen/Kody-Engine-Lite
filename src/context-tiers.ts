@@ -2,7 +2,8 @@ import * as fs from "fs"
 import * as path from "path"
 
 import type { StageName } from "./types.js"
-import { readRunHistory, formatRunHistoryForPrompt } from "./run-history.js"
+import { readRunHistory, formatRunHistoryForPrompt, formatRunHistoryCompressed } from "./run-history.js"
+import { compressMemoryContent } from "./compress.js"
 
 // --- Types ---
 
@@ -15,6 +16,9 @@ export interface TieredContent {
   L2: string
 }
 
+/** Memory hall types for categorized filtering */
+export type MemoryHall = "facts" | "conventions" | "events" | "preferences"
+
 export interface StageContextPolicy {
   memory: ContextTier
   taskDescription: ContextTier
@@ -22,6 +26,8 @@ export interface StageContextPolicy {
   spec: ContextTier
   plan: ContextTier
   accumulatedContext: ContextTier
+  /** Which memory halls to include. Undefined = all halls. */
+  memoryHalls?: MemoryHall[]
 }
 
 // --- Token Estimation ---
@@ -46,6 +52,7 @@ const DEFAULT_STAGE_POLICIES: Record<string, StageContextPolicy> = {
     spec: "L0",
     plan: "L0",
     accumulatedContext: "L0",
+    memoryHalls: ["facts"],
   },
   plan: {
     memory: "L1",
@@ -54,6 +61,7 @@ const DEFAULT_STAGE_POLICIES: Record<string, StageContextPolicy> = {
     spec: "L0",
     plan: "L0",
     accumulatedContext: "L1",
+    memoryHalls: ["facts", "conventions", "events"],
   },
   build: {
     memory: "L1",
@@ -62,6 +70,7 @@ const DEFAULT_STAGE_POLICIES: Record<string, StageContextPolicy> = {
     spec: "L1",
     plan: "L2",
     accumulatedContext: "L1",
+    memoryHalls: ["facts", "conventions", "preferences"],
   },
   autofix: {
     memory: "L0",
@@ -70,6 +79,7 @@ const DEFAULT_STAGE_POLICIES: Record<string, StageContextPolicy> = {
     spec: "L0",
     plan: "L1",
     accumulatedContext: "L2",
+    memoryHalls: ["conventions"],
   },
   review: {
     memory: "L1",
@@ -78,6 +88,7 @@ const DEFAULT_STAGE_POLICIES: Record<string, StageContextPolicy> = {
     spec: "L0",
     plan: "L2",
     accumulatedContext: "L1",
+    memoryHalls: ["facts", "conventions", "preferences"],
   },
   "review-fix": {
     memory: "L0",
@@ -86,6 +97,7 @@ const DEFAULT_STAGE_POLICIES: Record<string, StageContextPolicy> = {
     spec: "L0",
     plan: "L1",
     accumulatedContext: "L2",
+    memoryHalls: ["conventions"],
   },
 }
 
@@ -235,17 +247,44 @@ export function selectTier(tiered: TieredContent, tier: ContextTier): string {
 
 // --- Tiered Memory Reader ---
 
+// ─── Hall Detection ─────────────────────────────────────────────────────────
+
+/**
+ * Infer the memory hall type from a filename.
+ *
+ * Convention: prefix with hall name (e.g. "facts_architecture.md", "conventions_eslint.md").
+ * Legacy files without prefix default to "conventions".
+ */
+export function inferHallFromFilename(filename: string): MemoryHall {
+  const name = filename.replace(/\.md$/, "").toLowerCase()
+  if (name.startsWith("facts_") || name === "architecture") return "facts"
+  if (name.startsWith("events_") || name === "observer-log") return "events"
+  if (name.startsWith("preferences_")) return "preferences"
+  // Default: conventions (covers "conventions.md" and untagged legacy files)
+  return "conventions"
+}
+
+// ─── Tiered Memory Reader ────────────────────────────────────────────────
+
 export function readProjectMemoryTiered(
   projectDir: string,
   tier: ContextTier,
+  hallFilter?: MemoryHall[],
 ): string {
   const memoryDir = path.join(projectDir, ".kody", "memory")
   if (!fs.existsSync(memoryDir)) return ""
 
-  const files = fs
+  let files = fs
     .readdirSync(memoryDir)
     .filter((f) => f.endsWith(".md"))
     .sort()
+  if (files.length === 0) return ""
+
+  // Filter by hall type when specified
+  if (hallFilter && hallFilter.length > 0) {
+    files = files.filter((f) => hallFilter.includes(inferHallFromFilename(f)))
+  }
+
   if (files.length === 0) return ""
 
   const tierLabel = tier === "L2" ? "full" : tier === "L1" ? "overview" : "abstract"
@@ -256,6 +295,15 @@ export function readProjectMemoryTiered(
     const content = fs.readFileSync(filePath, "utf-8").trim()
     if (!content) continue
 
+    // L0 with compression: use AAAK-style shorthand
+    if (tier === "L0") {
+      const compressed = compressMemoryContent(content, file)
+      if (compressed) {
+        sections.push(compressed)
+      }
+      continue
+    }
+
     const tiered = getTieredContent(filePath, content)
     const selected = selectTier(tiered, tier)
     if (selected) {
@@ -264,6 +312,11 @@ export function readProjectMemoryTiered(
   }
 
   if (sections.length === 0) return ""
+
+  // L0: compact single-line format
+  if (tier === "L0") {
+    return `# Memory(compact)\n${sections.join("\n")}\n`
+  }
 
   const header =
     tier === "L2"
@@ -347,10 +400,10 @@ export function injectTaskContextTiered(
     context += `\n## ${label}\n${selected}\n`
   }
 
-  // Run history context (previous attempts on this issue)
+  // Run history context (previous attempts on this issue) — compressed format
   if (options?.projectDir && options?.issueNumber) {
     const records = readRunHistory(options.projectDir, options.issueNumber)
-    const runHistorySection = formatRunHistoryForPrompt(records)
+    const runHistorySection = formatRunHistoryCompressed(records)
     if (runHistorySection) {
       context += `\n${runHistorySection}\n`
     }

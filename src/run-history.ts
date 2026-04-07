@@ -1,6 +1,12 @@
 import * as fs from "fs"
 import * as path from "path"
 
+import {
+  compressRunHistory,
+  detectContradictions,
+  formatContradictions,
+} from "./compress.js"
+
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface RunRecord {
@@ -99,6 +105,28 @@ export function formatRunHistoryForPrompt(records: RunRecord[], maxRuns = 5): st
   lines.push("IMPORTANT: Review what was tried before. Do NOT repeat failing approaches.")
 
   return lines.join("\n")
+}
+
+// ─── Compressed Format ──────────────────────────────────────────────────────
+
+/**
+ * AAAK-style compressed run history with contradiction detection.
+ * ~65% fewer tokens than verbose markdown format.
+ */
+export function formatRunHistoryCompressed(records: RunRecord[], maxRuns = 5): string {
+  if (records.length === 0) return ""
+
+  const compressed = compressRunHistory(records, maxRuns)
+  const contradictions = detectContradictions(records)
+  const warnings = formatContradictions(contradictions)
+
+  const parts = [compressed]
+  if (warnings) {
+    parts.push(warnings)
+  }
+  parts.push("!NO_REPEAT: Review runs above. Do NOT repeat failing approaches.")
+
+  return parts.join("\n")
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────

@@ -77,13 +77,15 @@ function autoLearnArchitecture(
   memoryDir: string,
   timestamp: string,
 ): void {
-  const archPath = path.join(memoryDir, "architecture.md")
-  if (fs.existsSync(archPath)) return
+  // Support both legacy "architecture.md" and new hall-prefixed "facts_architecture.md"
+  const legacyPath = path.join(memoryDir, "architecture.md")
+  const hallPath = path.join(memoryDir, "facts_architecture.md")
+  if (fs.existsSync(legacyPath) || fs.existsSync(hallPath)) return
 
   const detected = detectArchitectureBasic(projectDir)
   if (detected.length > 0) {
     const content = `# Architecture (auto-detected ${timestamp})\n\n## Overview\n${detected.join("\n")}\n`
-    fs.writeFileSync(archPath, content)
+    fs.writeFileSync(hallPath, content)
     logger.info(`Auto-detected architecture (${detected.length} items)`)
   }
 }

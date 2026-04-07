@@ -7,6 +7,7 @@ import {
   injectTaskContextTiered,
   resolveStagePolicy,
   estimateTokens,
+  type MemoryHall,
 } from "./context-tiers.js"
 import { isMcpEnabledForStage } from "./mcp-config.js"
 import { readRunHistory, formatRunHistoryForPrompt } from "./run-history.js"
@@ -397,7 +398,7 @@ function buildFullPromptTiered(
   const policy = resolveStagePolicy(stageName, config.contextTiers?.stageOverrides)
   const tokenBudget = config.contextTiers?.tokenBudget ?? 8000
 
-  const memory = readProjectMemoryTiered(projectDir, policy.memory)
+  const memory = readProjectMemoryTiered(projectDir, policy.memory, policy.memoryHalls)
   const promptTemplate = readPromptFile(stageName, projectDir)
   const prompt = injectTaskContextTiered(promptTemplate, taskId, taskDir, policy, feedback, { projectDir, issueNumber })
 
