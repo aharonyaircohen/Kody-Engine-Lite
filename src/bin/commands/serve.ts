@@ -60,6 +60,64 @@ function parseServeArgs(args: string[]): ServeOptions {
   }
 }
 
+// Claude model names that Claude Code CLI / VS Code extension may send
+const CLAUDE_MODEL_ALIASES = [
+  "claude-sonnet-4-6",
+  "claude-opus-4-6",
+  "claude-haiku-4-5",
+  "claude-sonnet-4-5-20250514",
+  "claude-3-5-sonnet-20241022",
+  "claude-3-5-haiku-20241022",
+  "claude-3-opus-20240229",
+]
+
+/**
+ * Augment LiteLLM config with aliases for common Claude model names.
+ * This ensures that when Claude Code (CLI or VS Code extension) requests
+ * any Claude model, the proxy routes it to the configured provider model.
+ */
+export function augmentConfigWithAliases(
+  baseConfig: string | undefined,
+  provider: string,
+  targetModel: string,
+): string {
+  const apiKeyVar = `os.environ/${provider.toUpperCase()}_API_KEY`
+  const providerModel = `${provider}/${targetModel}`
+
+  const aliases: string[] = []
+  for (const alias of CLAUDE_MODEL_ALIASES) {
+    if (alias === targetModel) continue
+    aliases.push(`  - model_name: ${alias}`)
+    aliases.push(`    litellm_params:`)
+    aliases.push(`      model: ${providerModel}`)
+    aliases.push(`      api_key: ${apiKeyVar}`)
+  }
+
+  if (!baseConfig) {
+    // No base config — generate from scratch
+    const entries = [
+      "model_list:",
+      `  - model_name: ${targetModel}`,
+      `    litellm_params:`,
+      `      model: ${providerModel}`,
+      `      api_key: ${apiKeyVar}`,
+      ...aliases,
+      "",
+      "litellm_settings:",
+      "  drop_params: true",
+    ]
+    return entries.join("\n") + "\n"
+  }
+
+  // Append aliases before any litellm_settings block
+  const settingsIdx = baseConfig.indexOf("\nlitellm_settings:")
+  if (settingsIdx !== -1) {
+    return baseConfig.slice(0, settingsIdx) + "\n" + aliases.join("\n") + baseConfig.slice(settingsIdx)
+  }
+
+  return baseConfig + "\n" + aliases.join("\n") + "\n"
+}
+
 async function ensureLitellmForServe(
   config: KodyConfig,
   projectDir: string,
@@ -77,8 +135,19 @@ async function ensureLitellmForServe(
     generatedConfig = generateLitellmConfig(config.agent.provider, config.agent.modelMap)
   }
 
+  // Add aliases for Claude model names so CLI/VS Code extension works
+  const targetModel = config.agent.default?.model
+    ?? Object.values(config.agent.modelMap)[0]
+  const provider = config.agent.default?.provider
+    ?? config.agent.provider ?? "minimax"
+
+  if (targetModel && provider !== "claude" && provider !== "anthropic") {
+    generatedConfig = augmentConfigWithAliases(generatedConfig, provider, targetModel)
+  }
+
   if (proxyRunning) {
-    logger.info(`LiteLLM proxy already running at ${litellmUrl}`)
+    logger.info(`LiteLLM proxy already running at ${litellmUrl} (restart to pick up aliases)`)
+    // TODO: check if proxy has aliases, restart if not
     return null
   }
 

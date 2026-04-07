@@ -394,6 +394,61 @@ describe("serve memory read", () => {
   })
 })
 
+// ─── LiteLLM alias generation ──────────────────────────────────────────────
+
+describe("serve LiteLLM aliases", () => {
+  it("augments config with Claude model aliases", async () => {
+    const { augmentConfigWithAliases } = await import("../../src/bin/commands/serve.js")
+
+    const baseConfig = [
+      "model_list:",
+      "  - model_name: MiniMax-M2.7-highspeed",
+      "    litellm_params:",
+      "      model: minimax/MiniMax-M2.7-highspeed",
+      "      api_key: os.environ/MINIMAX_API_KEY",
+      "",
+      "litellm_settings:",
+      "  drop_params: true",
+      "",
+    ].join("\n")
+
+    const result = augmentConfigWithAliases(baseConfig, "minimax", "MiniMax-M2.7-highspeed")
+
+    // Original model preserved
+    expect(result).toContain("model_name: MiniMax-M2.7-highspeed")
+    // Claude aliases added
+    expect(result).toContain("model_name: claude-sonnet-4-6")
+    expect(result).toContain("model_name: claude-opus-4-6")
+    expect(result).toContain("model_name: claude-haiku-4-5")
+    // All aliases route to the same provider model
+    expect(result).toContain("model: minimax/MiniMax-M2.7-highspeed")
+    // Settings block preserved
+    expect(result).toContain("litellm_settings:")
+    expect(result).toContain("drop_params: true")
+  })
+
+  it("generates config from scratch when no base config", async () => {
+    const { augmentConfigWithAliases } = await import("../../src/bin/commands/serve.js")
+
+    const result = augmentConfigWithAliases(undefined, "openai", "gpt-4o")
+
+    expect(result).toContain("model_name: gpt-4o")
+    expect(result).toContain("model_name: claude-sonnet-4-6")
+    expect(result).toContain("model: openai/gpt-4o")
+    expect(result).toContain("OPENAI_API_KEY")
+  })
+
+  it("does not duplicate target model in aliases", async () => {
+    const { augmentConfigWithAliases } = await import("../../src/bin/commands/serve.js")
+
+    const result = augmentConfigWithAliases(undefined, "anthropic", "claude-sonnet-4-6")
+
+    // Should not have duplicate entries for claude-sonnet-4-6
+    const matches = result.match(/model_name: claude-sonnet-4-6/g)
+    expect(matches?.length).toBe(1)
+  })
+})
+
 // ─── anyStageNeedsProxy integration ────────────────────────────────────────
 
 describe("serve proxy detection via config", () => {
