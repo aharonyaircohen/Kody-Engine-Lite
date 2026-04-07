@@ -124,16 +124,20 @@ After each pipeline run (pass or fail), Kody analyzes what happened:
 
 Results are appended to `.kody/memory/observer-log.jsonl` as structured JSON. Over time, this builds a searchable log of recurring patterns — use it to debug repeated failures, discover systemic issues, or tune the pipeline. Quick check after any run: `cat .kody/memory/observer-log.jsonl | jq '.suggestion'`.
 
-## Auto-Learning Memory
+## Memory System
 
-After each successful run, Kody extracts conventions from pipeline artifacts:
+Kody learns across runs. Memory is organized into **halls** (types: facts, conventions, events, preferences), **rooms** (topics derived from task scope), and **tiers** (L0 compressed → L2 full). Each stage loads only the memory it needs — taskify gets facts only (68 tokens), build gets facts+conventions for the relevant room (250 tokens), instead of dumping all 1,900 tokens every time.
 
-- Testing framework and patterns (vitest, jest)
-- Linting rules (eslint config)
-- Import conventions (path aliases, barrel exports)
-- Architecture patterns
+Key capabilities:
+- **AAAK compression** — compact shorthand for run history and L0 memory (~86% token reduction)
+- **Contradiction detection** — warns when the same approach keeps failing
+- **Stage diaries** — each stage remembers patterns across runs (test results, review findings, import styles)
+- **Auto-learning with dedup** — extracts conventions from pipeline artifacts, never duplicates, prunes old entries
+- **Room scoping** — task touching `src/auth/` loads `conventions_auth.md`, not unrelated conventions
 
-Conventions are stored in `.kody/memory/conventions.md` and prepended to every future agent prompt, improving accuracy over time.
+All memory is flat files in `.kody/memory/`, persisted via git. No database.
+
+[Full memory system documentation →](MEMORY.md)
 
 ## Pattern Discovery
 
