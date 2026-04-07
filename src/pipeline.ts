@@ -319,6 +319,11 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
       const commandMap: Record<string, string> = { full: "run", rerun: "rerun" }
       const command = commandMap[ctx.input.mode] ?? ctx.input.mode
 
+      // For reruns, stages before fromStage stay "pending" — that's not a failure.
+      // The run succeeded if no stage failed/timed-out.
+      const hasFailure = !!failedEntry
+      const outcome = hasFailure ? "failed" : "completed"
+
       const runRecord: RunRecord = {
         runId: ctx.taskId,
         issueNumber: ctx.input.issueNumber,
@@ -326,7 +331,7 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
         command,
         startedAt: state.createdAt,
         completedAt: new Date().toISOString(),
-        outcome: state.state === "completed" ? "completed" : "failed",
+        outcome,
         failedStage: failedEntry?.[0],
         failedError: failedEntry?.[1].error?.slice(0, 200),
         stagesCompleted: completedStages,

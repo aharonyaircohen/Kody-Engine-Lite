@@ -307,12 +307,28 @@ jobs:
         continue-on-error: true
         run: |
           if [ -d ".kody/runs" ] && [ -n "$(ls -A .kody/runs/ 2>/dev/null)" ]; then
+            # Stash run history files, switch to main, apply, commit, push
+            cp -r .kody/runs/ /tmp/kody-runs-backup/
+            DEFAULT_BRANCH=$(git remote show origin | grep 'HEAD branch' | awk '{print $NF}')
+            git stash --include-untracked || true
+            git fetch origin "$DEFAULT_BRANCH"
+            git checkout "$DEFAULT_BRANCH"
+            git pull origin "$DEFAULT_BRANCH" --rebase || true
+            mkdir -p .kody/runs
+            # Merge: append new lines from backup into existing files
+            for f in /tmp/kody-runs-backup/*; do
+              fname=$(basename "$f")
+              if [ -f ".kody/runs/$fname" ]; then
+                # Append only new lines (lines in backup not in existing)
+                comm -13 <(sort ".kody/runs/$fname") <(sort "$f") >> ".kody/runs/$fname" || cat "$f" >> ".kody/runs/$fname"
+              else
+                cp "$f" ".kody/runs/$fname"
+              fi
+            done
             git add .kody/runs/
             if ! git diff --cached --quiet .kody/runs/; then
               git commit -m "chore: update run history [skip ci]"
-              # Push to the current branch (feature branch or main)
-              BRANCH=$(git branch --show-current)
-              git push origin "$BRANCH" || echo "Warning: could not push run history (non-fatal)"
+              git push origin "$DEFAULT_BRANCH" || echo "Warning: could not push run history (non-fatal)"
             fi
           fi
 
