@@ -44,32 +44,35 @@ async function ensureLitellmProxy(
   const litellmUrl = getLitellmUrl()
   const proxyRunning = await checkLitellmHealth(litellmUrl)
 
+  // Generate LiteLLM config: prefer per-stage configs, fall back to legacy modelMap
+  let generatedConfig: string | undefined
+  if (config.agent.stages || config.agent.default) {
+    generatedConfig = generateLitellmConfigFromStages(config.agent.default, config.agent.stages)
+  } else if (config.agent.provider && config.agent.provider !== "anthropic") {
+    generatedConfig = generateLitellmConfig(config.agent.provider, config.agent.modelMap)
+  }
+
   let litellmProcess: ReturnType<typeof import("child_process").spawn> | null = null
-  if (!proxyRunning) {
-    // Check provider API key before starting
-    if (config.agent.provider && config.agent.provider !== "anthropic") {
-      const keyVar = providerApiKeyEnvVar(config.agent.provider)
-      if (!process.env[keyVar]) {
-        logger.error(`Provider '${config.agent.provider}' requires ${keyVar} environment variable`)
+  if (proxyRunning) {
+    // Proxy is running — verify it has the models we need, restart if stale
+    const needsRestart = await isProxyStale(litellmUrl, config)
+    if (needsRestart) {
+      logger.info("LiteLLM proxy has stale model config — restarting with updated models")
+      await killExistingProxy(litellmUrl)
+      litellmProcess = await tryStartLitellm(litellmUrl, projectDir, generatedConfig)
+      if (!litellmProcess) {
+        logger.error("Failed to restart LiteLLM proxy")
         process.exit(1)
       }
+    } else {
+      logger.info(`LiteLLM proxy already running at ${litellmUrl}`)
     }
-
-    // Generate LiteLLM config: prefer per-stage configs, fall back to legacy modelMap
-    let generatedConfig: string | undefined
-    if (config.agent.stages || config.agent.default) {
-      generatedConfig = generateLitellmConfigFromStages(config.agent.default, config.agent.stages)
-    } else if (config.agent.provider && config.agent.provider !== "anthropic") {
-      generatedConfig = generateLitellmConfig(config.agent.provider, config.agent.modelMap)
-    }
-
+  } else {
     litellmProcess = await tryStartLitellm(litellmUrl, projectDir, generatedConfig)
     if (!litellmProcess) {
       logger.error("LiteLLM is configured but could not be started. Install it with: pip install 'litellm[proxy]'")
       process.exit(1)
     }
-  } else {
-    logger.info(`LiteLLM proxy already running at ${litellmUrl}`)
   }
 
   // Don't set ANTHROPIC_BASE_URL globally — per-stage agent.ts sets it only when needed
@@ -84,16 +87,74 @@ async function ensureLitellmProxy(
   return litellmProcess
 }
 
+/**
+ * Check if the running LiteLLM proxy has stale model config.
+ * Queries the proxy's /v1/models endpoint and compares against expected models.
+ */
+async function isProxyStale(url: string, config: KodyConfig): Promise<boolean> {
+  try {
+    const res = await fetch(`${url}/v1/models`, { signal: AbortSignal.timeout(3000) })
+    if (!res.ok) return true
+    const body = await res.json() as { data?: Array<{ id: string }> }
+    const available = new Set((body.data ?? []).map((m) => m.id))
+
+    // Collect all models the engine needs
+    const needed = new Set<string>()
+    for (const model of Object.values(config.agent.modelMap)) {
+      needed.add(model)
+    }
+    if (config.agent.default?.model) needed.add(config.agent.default.model)
+    if (config.agent.stages) {
+      for (const sc of Object.values(config.agent.stages)) {
+        needed.add(sc.model)
+      }
+    }
+
+    // If any needed model is missing from the proxy, it's stale
+    for (const model of needed) {
+      if (!available.has(model)) return true
+    }
+    return false
+  } catch {
+    return true
+  }
+}
+
+/**
+ * Kill an existing LiteLLM proxy process.
+ */
+async function killExistingProxy(url: string): Promise<void> {
+  try {
+    // Find and kill the litellm process
+    const { execSync } = await import("child_process")
+    const portMatch = url.match(/:(\d+)/)
+    const port = portMatch ? portMatch[1] : "4000"
+    execSync(`lsof -ti:${port} | xargs kill -9 2>/dev/null || true`, { stdio: "pipe" })
+    // Wait for port to be released
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+  } catch {
+    // Best effort
+  }
+}
+
 async function runModelHealthCheck(config: KodyConfig): Promise<void> {
   const usesProxy = anyStageNeedsProxy(config)
   const baseUrl = usesProxy ? getLitellmUrl() : "https://api.anthropic.com"
-  const provider = config.agent.default?.provider ?? config.agent.provider ?? "anthropic"
-  const keyName = providerApiKeyEnvVar(provider)
-  const apiKey = process.env[keyName]
 
-  if (!apiKey) {
-    logger.warn(`Skipping model health check — ${keyName} not set`)
-    return
+  // When using LiteLLM proxy, the proxy handles auth — the provider's API key
+  // lives in the proxy's environment, not the engine's. Use a dummy key for the
+  // health check request since LiteLLM ignores the x-api-key header.
+  let apiKey: string
+  if (usesProxy) {
+    apiKey = "health-check"
+  } else {
+    const provider = config.agent.default?.provider ?? config.agent.provider ?? "anthropic"
+    const keyName = providerApiKeyEnvVar(provider)
+    apiKey = process.env[keyName] ?? ""
+    if (!apiKey) {
+      logger.warn(`Skipping model health check — ${keyName} not set`)
+      return
+    }
   }
 
   const model = config.agent.modelMap.cheap
