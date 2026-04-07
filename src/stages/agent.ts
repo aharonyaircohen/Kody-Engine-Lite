@@ -15,6 +15,7 @@ import { buildMcpConfigJson, isMcpEnabledForStage, withPlaywrightIfNeeded } from
 import { getRunnerForStage } from "../pipeline/runner-selection.js"
 import { startDevServer, type DevServerHandle } from "../dev-server.js"
 import { logger } from "../logger.js"
+import { buildSubAgents } from "../sub-agents.js"
 
 // ─── Session Groups ─────────────────────────────────────────────────────────
 // Stages in the same group share a Claude Code session (warm context).
@@ -160,12 +161,18 @@ export async function executeAgentStage(
 
   const runner = getRunnerForStage(ctx, def.name)
   const maxRetries = def.maxRetries ?? 0
+  const subAgents = buildSubAgents(def.name, ctx.projectDir)
 
   let lastResult = await runner.run(def.name, prompt, model, def.timeout, ctx.taskDir, {
     cwd: ctx.projectDir,
     env: extraEnv,
     ...sessionInfo,
     mcpConfigJson,
+    maxTurns: def.maxTurns,
+    maxBudgetUsd: def.maxBudgetUsd,
+    allowedTools: def.allowedTools,
+    outputFormat: def.outputFormat,
+    agents: subAgents,
   })
 
   let retries = 0
@@ -191,6 +198,11 @@ export async function executeAgentStage(
       cwd: ctx.projectDir,
       env: extraEnv,
       mcpConfigJson,
+      maxTurns: def.maxTurns,
+      maxBudgetUsd: def.maxBudgetUsd,
+      allowedTools: def.allowedTools,
+      outputFormat: def.outputFormat,
+      agents: subAgents,
     })
   }
 
@@ -240,6 +252,10 @@ export async function executeAgentStage(
           const retryResult = await runner.run(def.name, retryPrompt, model, def.timeout, ctx.taskDir, {
             cwd: ctx.projectDir,
             env: extraEnv,
+            maxTurns: def.maxTurns,
+            maxBudgetUsd: def.maxBudgetUsd,
+            allowedTools: def.allowedTools,
+            outputFormat: def.outputFormat,
           })
           if (retryResult.outcome === "completed" && retryResult.output) {
             const stripped = stripFences(retryResult.output)
