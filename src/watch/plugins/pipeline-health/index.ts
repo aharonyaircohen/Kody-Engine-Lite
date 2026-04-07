@@ -154,7 +154,7 @@ export const pipelineHealthPlugin: WatchPlugin = {
     const actions: ActionRequest[] = []
 
     // Post digest
-    if (ctx.digestIssue) {
+    if (ctx.activityLog) {
       actions.push({
         plugin: "pipeline-health",
         type: "digest",
@@ -164,10 +164,10 @@ export const pipelineHealthPlugin: WatchPlugin = {
         dedupKey: "pipeline-health:digest",
         dedupWindowMinutes: 25, // Slightly less than 30 min cycle
         async execute(execCtx: WatchContext) {
-          if (!execCtx.digestIssue) return { success: false, message: "No digest issue" }
+          if (!execCtx.activityLog) return { success: false, message: "No activity log" }
           const markdown = formatDigestMarkdown(evaluations, execCtx.cycleNumber)
           if (!markdown) return { success: true, message: "No unhealthy tasks" }
-          execCtx.github.postComment(execCtx.digestIssue, markdown)
+          execCtx.github.postComment(execCtx.activityLog, markdown)
           return { success: true, message: `Reported ${unhealthy.length} unhealthy task(s)` }
         },
       })

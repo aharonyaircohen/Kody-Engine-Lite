@@ -154,7 +154,7 @@ export function initCommand(opts: { force: boolean }, pkgRoot: string) {
       }
 
       console.log("  ℹ Kody Watch will monitor pipeline health every 30 minutes")
-      console.log("  ℹ Digest issue will be created during bootstrap")
+      console.log("  ℹ Activity log issue will be created during bootstrap")
     }
 
     // Install template watch agents
@@ -175,6 +175,17 @@ export function initCommand(opts: { force: boolean }, pkgRoot: string) {
           fs.copyFileSync(path.join(srcDir, file), path.join(destDir, file))
         }
         console.log(`  ✓ .kody/watch/agents/${agentDir.name}`)
+      }
+
+      // Copy watch agents README
+      const readmeSrc = path.join(agentTemplatesDir, "README.md")
+      if (fs.existsSync(readmeSrc)) {
+        const readmeDest = path.join(watchAgentsDir, "README.md")
+        if (!fs.existsSync(readmeDest) || opts.force) {
+          fs.mkdirSync(watchAgentsDir, { recursive: true })
+          fs.copyFileSync(readmeSrc, readmeDest)
+          console.log("  ✓ .kody/watch/agents/README.md")
+        }
       }
     }
   } else {

@@ -50,8 +50,8 @@ export interface WatchContext {
   log: Logger
   runTimestamp: string
   cycleNumber: number
-  /** Issue number for posting digest reports */
-  digestIssue?: number
+  /** Issue number for posting activity log reports */
+  activityLog?: number
 }
 
 export interface StateStore {
@@ -106,6 +106,9 @@ export interface WatchAgentConfig {
   name: string
   description: string
   schedule: WatchAgentSchedule
+  reportOnFailure?: boolean
+  /** Agent timeout in milliseconds. Default: 20 minutes */
+  timeoutMs?: number
 }
 
 export interface WatchAgentDefinition {
@@ -132,7 +135,7 @@ export interface WatchConfig {
   dryRun: boolean
   stateFile: string
   plugins: WatchPlugin[]
-  digestIssue?: number
+  activityLog?: number
   /** LLM-powered watch agents loaded from .kody/watch/agents/ */
   agents: WatchAgentDefinition[]
   /** Model for watch agents (e.g. "claude-sonnet-4-6"). Falls back to agent.modelMap.cheap */

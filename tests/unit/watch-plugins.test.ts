@@ -36,7 +36,7 @@ function createTestContext(overrides?: Partial<WatchContext>): WatchContext {
     },
     runTimestamp: new Date().toISOString(),
     cycleNumber: 1,
-    digestIssue: 42,
+    activityLog: 42,
     ...overrides,
   }
 }

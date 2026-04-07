@@ -39,10 +39,16 @@ function validateAgentConfig(raw: unknown, dirName: string): WatchAgentConfig | 
     }
   }
 
+  const timeoutMs = typeof obj.timeoutMs === "number" && obj.timeoutMs > 0
+    ? obj.timeoutMs
+    : undefined
+
   return {
     name: obj.name.trim(),
     description: obj.description.trim(),
     schedule: { every },
+    reportOnFailure: obj.reportOnFailure === true,
+    timeoutMs,
   }
 }
 

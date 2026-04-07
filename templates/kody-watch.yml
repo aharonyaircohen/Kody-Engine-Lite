@@ -17,7 +17,7 @@ concurrency:
 jobs:
   watch:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 360
     permissions:
       issues: write
       contents: read
@@ -56,6 +56,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          WATCH_DIGEST_ISSUE: ${{ vars.WATCH_DIGEST_ISSUE }}
+          WATCH_ACTIVITY_LOG: ${{ vars.WATCH_ACTIVITY_LOG }}
           DRY_RUN: ${{ inputs.dry_run || 'false' }}
         run: kody-engine watch ${{ inputs.dry_run == 'true' && '--dry-run' || '' }}

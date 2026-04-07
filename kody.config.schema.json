@@ -193,9 +193,9 @@
           "description": "Enable Kody Watch periodic monitoring",
           "default": false
         },
-        "digestIssue": {
+        "activityLog": {
           "type": "number",
-          "description": "GitHub issue number for posting digest reports. Auto-created by bootstrap."
+          "description": "GitHub issue number for posting activity log reports. Auto-created by bootstrap."
         },
         "model": {
           "type": "string",

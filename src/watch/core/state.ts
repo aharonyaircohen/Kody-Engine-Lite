@@ -71,11 +71,11 @@ export class JsonStateStore implements StateStore {
 }
 
 // ============================================================================
-// Issue Comment State Store (CI persistence via digest issue)
+// Issue Comment State Store (CI persistence via activity log issue)
 // ============================================================================
 
 /**
- * Persists state as a hidden HTML comment in the first comment of the digest issue.
+ * Persists state as a hidden HTML comment in the first comment of the activity log issue.
  * Format: <!-- KODY_WATCH_STATE:{"system:cycleNumber":47,...} -->
  *
  * Uses only issue comment APIs — works with the default github.token, no PAT needed.
@@ -84,18 +84,18 @@ export class IssueCommentStateStore implements StateStore {
   private data: Record<string, unknown> = {}
   private dirty = false
   private github: GitHubClient
-  private digestIssue: number
+  private activityLog: number
   private commentId: number | null = null
 
-  constructor(github: GitHubClient, digestIssue: number) {
+  constructor(github: GitHubClient, activityLog: number) {
     this.github = github
-    this.digestIssue = digestIssue
+    this.activityLog = activityLog
     this.loadFromComment()
   }
 
   private loadFromComment(): void {
     try {
-      const comments = this.github.getIssueComments(this.digestIssue)
+      const comments = this.github.getIssueComments(this.activityLog)
       for (const comment of comments) {
         if (comment.body.includes(STATE_MARKER)) {
           this.commentId = comment.id
@@ -135,7 +135,7 @@ export class IssueCommentStateStore implements StateStore {
       if (this.commentId) {
         this.github.updateComment(this.commentId, body)
       } else {
-        this.github.postComment(this.digestIssue, body)
+        this.github.postComment(this.activityLog, body)
       }
       this.dirty = false
     } catch (error) {
@@ -152,16 +152,16 @@ export class IssueCommentStateStore implements StateStore {
 /**
  * Create the appropriate state store based on environment.
  *
- * - In GitHub Actions with a digest issue: uses IssueCommentStateStore
+ * - In GitHub Actions with an activity log issue: uses IssueCommentStateStore
  * - Locally: uses JsonStateStore at the given file path
  */
 export function createStateStore(
   localFilePath: string,
   github?: GitHubClient,
-  digestIssue?: number,
+  activityLog?: number,
 ): StateStore {
-  if (process.env.GITHUB_ACTIONS === "true" && github && digestIssue) {
-    return new IssueCommentStateStore(github, digestIssue)
+  if (process.env.GITHUB_ACTIONS === "true" && github && activityLog) {
+    return new IssueCommentStateStore(github, activityLog)
   }
   return new JsonStateStore(localFilePath)
 }

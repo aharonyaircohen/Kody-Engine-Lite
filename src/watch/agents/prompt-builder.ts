@@ -7,7 +7,7 @@ import type { WatchAgentDefinition } from "../core/types.js"
 export interface PromptContext {
   repo: string
   cycleNumber: number
-  digestIssue?: number
+  activityLog?: number
 }
 
 export function buildWatchAgentPrompt(agent: WatchAgentDefinition, ctx: PromptContext): string {
@@ -20,7 +20,7 @@ Your role is described below. Use the tools available to you to inspect the repo
 - Repository: ${ctx.repo}
 - Current date: ${now}
 - Watch cycle: #${ctx.cycleNumber}
-${ctx.digestIssue ? `- Digest issue: #${ctx.digestIssue}` : ""}
+${ctx.activityLog ? `- Activity log: #${ctx.activityLog}` : ""}
 
 ## Tools
 Use \`gh\` CLI (via Bash) for all GitHub operations. Examples:

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest"
-import { resolveDigestIssue, type DigestIssueGateway } from "../../src/bin/commands/bootstrap.js"
+import { resolveActivityLog, type ActivityLogGateway } from "../../src/bin/commands/bootstrap.js"
 
-function makeGateway(overrides: Partial<DigestIssueGateway> = {}): DigestIssueGateway {
+function makeGateway(overrides: Partial<ActivityLogGateway> = {}): ActivityLogGateway {
   return {
     getIssueState: vi.fn(() => "OPEN"),
     getVariable: vi.fn(() => null),
@@ -12,10 +12,10 @@ function makeGateway(overrides: Partial<DigestIssueGateway> = {}): DigestIssueGa
   }
 }
 
-describe("resolveDigestIssue", () => {
+describe("resolveActivityLog", () => {
   it("uses config value when issue is open", () => {
     const gw = makeGateway()
-    const result = resolveDigestIssue(42, gw)
+    const result = resolveActivityLog(42, gw)
     expect(result.issueNumber).toBe(42)
     expect(result.source).toBe("config")
     expect(result.warnings).toHaveLength(0)
@@ -30,7 +30,7 @@ describe("resolveDigestIssue", () => {
       getVariable: vi.fn(() => null),
       searchIssue: vi.fn(() => 99),
     })
-    const result = resolveDigestIssue(42, gw)
+    const result = resolveActivityLog(42, gw)
     expect(result.issueNumber).toBe(99)
     expect(result.source).toBe("search")
     expect(result.warnings).toHaveLength(1)
@@ -44,7 +44,7 @@ describe("resolveDigestIssue", () => {
       getVariable: vi.fn(() => null),
       createIssue: vi.fn(() => 100),
     })
-    const result = resolveDigestIssue(42, gw)
+    const result = resolveActivityLog(42, gw)
     expect(result.issueNumber).toBe(100)
     expect(result.source).toBe("created")
     expect(result.warnings.some(w => w.includes("#42"))).toBe(true)
@@ -54,7 +54,7 @@ describe("resolveDigestIssue", () => {
     const gw = makeGateway({
       getVariable: vi.fn(() => "55"),
     })
-    const result = resolveDigestIssue(undefined, gw)
+    const result = resolveActivityLog(undefined, gw)
     expect(result.issueNumber).toBe(55)
     expect(result.source).toBe("variable")
   })
@@ -65,7 +65,7 @@ describe("resolveDigestIssue", () => {
       getVariable: vi.fn(() => "55"),
       searchIssue: vi.fn(() => 77),
     })
-    const result = resolveDigestIssue(undefined, gw)
+    const result = resolveActivityLog(undefined, gw)
     expect(result.issueNumber).toBe(77)
     expect(result.source).toBe("search")
     expect(result.warnings.some(w => w.includes("#55"))).toBe(true)
@@ -77,7 +77,7 @@ describe("resolveDigestIssue", () => {
       getVariable: vi.fn(() => "55"),
       createIssue: vi.fn(() => 200),
     })
-    const result = resolveDigestIssue(undefined, gw)
+    const result = resolveActivityLog(undefined, gw)
     expect(result.issueNumber).toBe(200)
     expect(result.source).toBe("created")
     expect(result.warnings.some(w => w.includes("#55"))).toBe(true)
@@ -88,7 +88,7 @@ describe("resolveDigestIssue", () => {
       getVariable: vi.fn(() => null),
       searchIssue: vi.fn(() => 88),
     })
-    const result = resolveDigestIssue(undefined, gw)
+    const result = resolveActivityLog(undefined, gw)
     expect(result.issueNumber).toBe(88)
     expect(result.source).toBe("search")
   })
@@ -99,7 +99,7 @@ describe("resolveDigestIssue", () => {
       searchIssue: vi.fn(() => null),
       createIssue: vi.fn(() => 101),
     })
-    const result = resolveDigestIssue(undefined, gw)
+    const result = resolveActivityLog(undefined, gw)
     expect(result.issueNumber).toBe(101)
     expect(result.source).toBe("created")
     expect(gw.pinIssue).toHaveBeenCalledWith(101)
@@ -113,14 +113,14 @@ describe("resolveDigestIssue", () => {
       createIssue: vi.fn(() => 50),
       pinIssue,
     })
-    resolveDigestIssue(undefined, gw)
+    resolveActivityLog(undefined, gw)
     expect(pinIssue).toHaveBeenCalledWith(50)
   })
 
   it("does not pin issues found from config/variable/search", () => {
     const pinIssue = vi.fn()
     const gw = makeGateway({ pinIssue })
-    resolveDigestIssue(42, gw)
+    resolveActivityLog(42, gw)
     expect(pinIssue).not.toHaveBeenCalled()
   })
 
@@ -130,7 +130,7 @@ describe("resolveDigestIssue", () => {
       searchIssue: vi.fn(() => null),
       createIssue: vi.fn(() => null),
     })
-    const result = resolveDigestIssue(undefined, gw)
+    const result = resolveActivityLog(undefined, gw)
     expect(result.issueNumber).toBeNull()
     expect(result.source).toBeNull()
   })
@@ -140,7 +140,7 @@ describe("resolveDigestIssue", () => {
       getVariable: vi.fn(() => "not-a-number"),
       searchIssue: vi.fn(() => 33),
     })
-    const result = resolveDigestIssue(undefined, gw)
+    const result = resolveActivityLog(undefined, gw)
     expect(result.issueNumber).toBe(33)
     expect(result.source).toBe("search")
   })
@@ -150,16 +150,16 @@ describe("resolveDigestIssue", () => {
       getVariable: vi.fn(() => ""),
       searchIssue: vi.fn(() => 44),
     })
-    const result = resolveDigestIssue(undefined, gw)
+    const result = resolveActivityLog(undefined, gw)
     expect(result.issueNumber).toBe(44)
     expect(result.source).toBe("search")
   })
 
-  it("skips config check when configDigestIssue is 0", () => {
+  it("skips config check when configActivityLog is 0", () => {
     const gw = makeGateway({
       getVariable: vi.fn(() => "66"),
     })
-    const result = resolveDigestIssue(0 as unknown as undefined, gw)
+    const result = resolveActivityLog(0 as unknown as undefined, gw)
     expect(result.issueNumber).toBe(66)
     expect(result.source).toBe("variable")
   })
@@ -174,7 +174,7 @@ describe("resolveDigestIssue", () => {
       searchIssue: vi.fn(() => null),
       createIssue: vi.fn(() => 300),
     })
-    const result = resolveDigestIssue(10, gw)
+    const result = resolveActivityLog(10, gw)
     expect(result.issueNumber).toBe(300)
     expect(result.source).toBe("created")
     expect(result.warnings).toHaveLength(2)

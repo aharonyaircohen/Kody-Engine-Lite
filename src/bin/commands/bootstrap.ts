@@ -14,50 +14,50 @@ import { readProjectMemory } from "../../memory.js"
 
 export const STEP_STAGES = ["taskify", "plan", "build", "autofix", "review", "review-fix"] as const
 
-/* ── Digest issue resolution ─────────────────────────────────── */
+/* ── Activity log resolution ─────────────────────────────────── */
 
-export interface DigestIssueGateway {
+export interface ActivityLogGateway {
   /** Return "OPEN" | "CLOSED" or throw if issue doesn't exist */
   getIssueState(issueNum: number): string
-  /** Return the WATCH_DIGEST_ISSUE repo variable value, or null */
+  /** Return the WATCH_ACTIVITY_LOG repo variable value, or null */
   getVariable(): string | null
   /** Search for an open issue by title, return its number or null */
   searchIssue(): number | null
-  /** Create the digest issue, return its number or null */
+  /** Create the activity log issue, return its number or null */
   createIssue(): number | null
   /** Pin an issue (best-effort) */
   pinIssue(issueNum: number): void
 }
 
-export interface DigestIssueResult {
+export interface ActivityLogResult {
   issueNumber: number | null
   source: "config" | "variable" | "search" | "created" | null
   warnings: string[]
 }
 
 /**
- * Resolve the digest issue number through a priority chain:
+ * Resolve the activity log issue number through a priority chain:
  * 1. Config value (validated open)
  * 2. GitHub Actions variable (validated open)
  * 3. Search by title
  * 4. Create new
  */
-export function resolveDigestIssue(
-  configDigestIssue: number | undefined,
-  gateway: DigestIssueGateway,
-): DigestIssueResult {
+export function resolveActivityLog(
+  configActivityLog: number | undefined,
+  gateway: ActivityLogGateway,
+): ActivityLogResult {
   const warnings: string[] = []
 
   // 1. Check config value and validate it exists & is open
-  if (configDigestIssue) {
+  if (configActivityLog) {
     try {
-      const state = gateway.getIssueState(configDigestIssue)
+      const state = gateway.getIssueState(configActivityLog)
       if (state === "OPEN") {
-        return { issueNumber: configDigestIssue, source: "config", warnings }
+        return { issueNumber: configActivityLog, source: "config", warnings }
       }
-      warnings.push(`Config digestIssue #${configDigestIssue} is ${state || "missing"} — will re-resolve`)
+      warnings.push(`Config activityLog #${configActivityLog} is ${state || "missing"} — will re-resolve`)
     } catch {
-      warnings.push(`Config digestIssue #${configDigestIssue} not found — will re-resolve`)
+      warnings.push(`Config activityLog #${configActivityLog} not found — will re-resolve`)
     }
   }
 
@@ -70,13 +70,13 @@ export function resolveDigestIssue(
       if (state === "OPEN") {
         return { issueNumber: candidate, source: "variable", warnings }
       }
-      warnings.push(`Variable WATCH_DIGEST_ISSUE #${candidate} is ${state || "missing"} — will re-resolve`)
+      warnings.push(`Variable WATCH_ACTIVITY_LOG #${candidate} is ${state || "missing"} — will re-resolve`)
     } catch {
-      warnings.push(`Variable WATCH_DIGEST_ISSUE #${candidate} not found — will re-resolve`)
+      warnings.push(`Variable WATCH_ACTIVITY_LOG #${candidate} not found — will re-resolve`)
     }
   }
 
-  // 3. Search for existing open digest issue
+  // 3. Search for existing open activity log issue
   const found = gateway.searchIssue()
   if (found) {
     return { issueNumber: found, source: "search", warnings }
@@ -338,6 +338,40 @@ export function searchSkills(keywords: string[], exclude: Set<string>, limit: nu
   }
 
   return selected
+}
+
+/** Dot-dirs that belong to the project — everything else with a sole `skills/` child is IDE junk from `npx skills add` */
+const KEEP_DOT_DIRS = new Set([
+  ".claude", ".agents", ".github", ".git", ".kody",
+  ".vscode", ".env.example", ".prettierrc.json", ".yarnrc",
+])
+
+/**
+ * Remove IDE-specific dot-folders created by `npx skills add`.
+ * The skills CLI scaffolds symlink dirs for every supported IDE (Cursor, Windsurf, etc.)
+ * but we only use `.claude` and `.agents`. A dir is considered an IDE skill stub if:
+ *   1. It starts with "."
+ *   2. It's not in the KEEP_DOT_DIRS allowlist
+ *   3. Its only child is a `skills/` subdirectory
+ */
+export function cleanupIdeSkillDirs(cwd: string): void {
+  let removed = 0
+  for (const entry of fs.readdirSync(cwd)) {
+    if (!entry.startsWith(".")) continue
+    if (KEEP_DOT_DIRS.has(entry)) continue
+    const full = path.join(cwd, entry)
+    try {
+      if (!fs.statSync(full).isDirectory()) continue
+      const children = fs.readdirSync(full)
+      if (children.length === 1 && children[0] === "skills") {
+        fs.rmSync(full, { recursive: true, force: true })
+        removed++
+      }
+    } catch { /* skip entries we can't stat */ }
+  }
+  if (removed > 0) {
+    console.log(`  ✓ Cleaned up ${removed} IDE skill folders`)
+  }
 }
 
 function collectSkillPaths(cwd: string, skillName: string, paths: string[]): void {
@@ -715,7 +749,7 @@ Command and URL.
     console.log("  ○ No routes or collections detected — skipping QA guide")
   }
 
-  // ── Step 2c: Setup Kody Watch digest issue ──
+  // ── Step 2c: Setup Kody Watch activity log ──
   console.log("\n── Kody Watch ──")
   const kodyConfigPath = path.join(cwd, "kody.config.json")
   if (fs.existsSync(kodyConfigPath)) {
@@ -730,7 +764,7 @@ Command and URL.
         if (watchRepoSlug) {
           const ghOpts = { cwd, encoding: "utf-8" as const, timeout: 10_000, stdio: ["pipe", "pipe", "pipe"] as ["pipe", "pipe", "pipe"] }
 
-          const gateway: DigestIssueGateway = {
+          const gateway: ActivityLogGateway = {
             getIssueState(issueNum) {
               return execFileSync("gh", [
                 "issue", "view", String(issueNum),
@@ -741,7 +775,7 @@ Command and URL.
             getVariable() {
               try {
                 return execFileSync("gh", [
-                  "variable", "get", "WATCH_DIGEST_ISSUE",
+                  "variable", "get", "WATCH_ACTIVITY_LOG",
                   "--repo", watchRepoSlug,
                 ], ghOpts).trim() || null
               } catch { return null }
@@ -750,7 +784,7 @@ Command and URL.
               try {
                 const r = execFileSync("gh", [
                   "issue", "list", "--repo", watchRepoSlug,
-                  "--search", "[Kody Watch] Health Digest in:title",
+                  "--search", "[Kody Watcher] Activity Log in:title",
                   "--state", "open", "--json", "number", "--jq", ".[0].number",
                 ], { ...ghOpts, timeout: 15_000 }).trim()
                 return r && !isNaN(parseInt(r, 10)) ? parseInt(r, 10) : null
@@ -760,8 +794,8 @@ Command and URL.
               try {
                 const url = execFileSync("gh", [
                   "issue", "create", "--repo", watchRepoSlug,
-                  "--title", "[Kody Watch] Health Digest",
-                  "--body", "This issue receives periodic health reports from Kody Watch.\n\n**Plugins:** pipeline-health, security-scan, config-health\n\n_Do not close this issue — Kody Watch posts digest comments here._",
+                  "--title", "[Kody Watcher] Activity Log",
+                  "--body", "This issue receives periodic health reports from Kody Watch.\n\n**Plugins:** pipeline-health, security-scan, config-health\n\n_Do not close this issue — Kody Watch posts activity log comments here._",
                 ], { ...ghOpts, timeout: 15_000 }).trim()
                 const m = url.match(/\/issues\/(\d+)/)
                 return m ? parseInt(m[1], 10) : null
@@ -776,36 +810,36 @@ Command and URL.
             },
           }
 
-          const result = resolveDigestIssue(config.watch?.digestIssue, gateway)
+          const result = resolveActivityLog(config.watch?.activityLog, gateway)
 
           for (const w of result.warnings) console.log(`  ⚠ ${w}`)
           if (result.issueNumber && result.source) {
             const labels: Record<string, string> = {
-              config: "Digest issue from config",
-              variable: "Digest issue from variable",
-              search: "Found existing digest issue",
-              created: "Created digest issue",
+              config: "Activity log from config",
+              variable: "Activity log from variable",
+              search: "Found existing activity log",
+              created: "Created activity log",
             }
             console.log(`  ✓ ${labels[result.source]}: #${result.issueNumber}`)
-            if (result.source === "created") console.log(`  ✓ Pinned digest issue`)
+            if (result.source === "created") console.log(`  ✓ Pinned activity log`)
           }
 
           // Persist to config and GitHub Actions variable
           if (result.issueNumber) {
-            config.watch.digestIssue = result.issueNumber
+            config.watch.activityLog = result.issueNumber
             fs.writeFileSync(kodyConfigPath, JSON.stringify(config, null, 2) + "\n")
             try {
               execFileSync("gh", [
-                "variable", "set", "WATCH_DIGEST_ISSUE",
+                "variable", "set", "WATCH_ACTIVITY_LOG",
                 "--repo", watchRepoSlug,
                 "--body", String(result.issueNumber),
               ], { cwd, encoding: "utf-8", timeout: 10_000, stdio: ["pipe", "pipe", "pipe"] })
-              console.log(`  ✓ Set WATCH_DIGEST_ISSUE variable`)
+              console.log(`  ✓ Set WATCH_ACTIVITY_LOG variable`)
             } catch { /* best-effort */ }
           }
         }
       } else {
-        console.log("  ○ Watch not enabled — skipping digest issue setup")
+        console.log("  ○ Watch not enabled — skipping activity log setup")
       }
     } catch { /* config parse error */ }
   }
@@ -990,6 +1024,10 @@ Command and URL.
   } else {
     console.log("  ○ No frameworks detected — skipping skill search")
   }
+
+  // Clean up IDE dot-folders created by `npx skills add`
+  // The skills CLI scaffolds symlinks for every supported IDE, but we only use .claude and .agents
+  cleanupIdeSkillDirs(cwd)
 
   // Add skills-lock.json if created
   if (fs.existsSync(path.join(cwd, "skills-lock.json"))) {

@@ -135,7 +135,7 @@ Kody Watch — periodic health monitoring. See [Watch documentation](WATCH.md) f
 | Field | Type | Description |
 |-------|------|-------------|
 | `enabled` | boolean | Enable Kody Watch periodic monitoring |
-| `digestIssue` | number | GitHub issue number for digest reports (auto-set by bootstrap) |
+| `activityLog` | number | GitHub issue number for activity log reports (auto-set by bootstrap) |
 
 ### PR Base Branch Behavior
 

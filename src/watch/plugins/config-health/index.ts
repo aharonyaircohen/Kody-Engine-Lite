@@ -159,7 +159,7 @@ export const configHealthPlugin: WatchPlugin = {
 
     const actions: ActionRequest[] = []
 
-    if (ctx.digestIssue) {
+    if (ctx.activityLog) {
       actions.push({
         plugin: "config-health",
         type: "digest",
@@ -169,9 +169,9 @@ export const configHealthPlugin: WatchPlugin = {
         dedupKey: "config-health:digest-daily",
         dedupWindowMinutes: 23 * 60,
         async execute(execCtx: WatchContext) {
-          if (!execCtx.digestIssue) return { success: false, message: "No digest issue" }
+          if (!execCtx.activityLog) return { success: false, message: "No activity log" }
           const markdown = formatDigestMarkdown(findings, execCtx.cycleNumber)
-          execCtx.github.postComment(execCtx.digestIssue, markdown)
+          execCtx.github.postComment(execCtx.activityLog, markdown)
           return { success: true, message: `Reported ${findings.length} config issue(s)` }
         },
       })

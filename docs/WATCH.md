@@ -4,7 +4,7 @@ Periodic health monitoring for your Kody-powered repository. Runs every 30 minut
 
 ## How It Works
 
-Kody Watch is a plugin-based watchdog that runs on a fixed 30-minute cron. Each plugin has its own cycle frequency — some run every tick, others run daily. State (cycle counter, dedup timestamps) is persisted as a comment on the digest issue, so no PAT or special permissions are needed beyond the default `github.token`.
+Kody Watch is a plugin-based watchdog that runs on a fixed 30-minute cron. Each plugin has its own cycle frequency — some run every tick, others run daily. State (cycle counter, dedup timestamps) is persisted as a comment on the activity log issue, so no PAT or special permissions are needed beyond the default `github.token`.
 
 ```
 Every 30 min
@@ -19,7 +19,7 @@ Every 30 min
           └── Validate kody.config.json, GitHub secrets, quality commands
 ```
 
-Findings are posted as comments on a pinned **digest issue** — a single place to monitor your repo's health.
+Findings are posted as comments on a pinned **activity log issue** — a single place to monitor your repo's health.
 
 ## Setup
 
@@ -33,7 +33,7 @@ Init automatically:
 - Installs `.github/workflows/kody-watch.yml`
 - Adds `watch: { enabled: true }` to `kody.config.json`
 
-Then run `@kody bootstrap` on a GitHub issue — bootstrap creates the digest issue, pins it, and sets the `WATCH_DIGEST_ISSUE` repository variable.
+Then run `@kody bootstrap` on a GitHub issue — bootstrap creates the activity log issue, pins it, and sets the `WATCH_ACTIVITY_LOG` repository variable.
 
 ### Manual Setup
 
@@ -46,9 +46,9 @@ Then run `@kody bootstrap` on a GitHub issue — bootstrap creates the digest is
    }
    ```
 
-3. Create a GitHub issue titled `[Kody Watch] Health Digest` and set the `WATCH_DIGEST_ISSUE` repository variable to its number:
+3. Create a GitHub issue titled `[Kody Watcher] Activity Log` and set the `WATCH_ACTIVITY_LOG` repository variable to its number:
    ```bash
-   gh variable set WATCH_DIGEST_ISSUE --repo owner/repo --body "42"
+   gh variable set WATCH_ACTIVITY_LOG --repo owner/repo --body "42"
    ```
 
 ## Plugins
@@ -65,7 +65,7 @@ Discovers `.kody/tasks/*/status.json` files and evaluates each task:
 | **failed** | Pipeline exited with error |
 | **healthy** | Running normally or completed |
 
-Posts a digest comment listing all unhealthy tasks with their status, duration, and failure details.
+Posts a comment listing all unhealthy tasks with their status, duration, and failure details.
 
 ### security-scan
 
@@ -80,7 +80,7 @@ Runs four deterministic scans (no LLM, no API keys needed):
 | Committed .env files | `.env`, `.env.local`, etc. tracked by git | critical |
 | Unsafe code patterns | `eval()`, `innerHTML`, unsanitized `exec` with template literals | high/medium |
 
-Critical findings create individual GitHub issues (max 3 per cycle, deduplicated). All findings are posted to the digest.
+Critical findings create individual GitHub issues (max 3 per cycle, deduplicated). All findings are posted to the activity log.
 
 ### config-health
 
@@ -104,13 +104,13 @@ Validates your Kody setup:
 }
 ```
 
-That's it. No interval config, no plugin list. The 30-minute tick and plugin schedules are fixed. After bootstrap runs, the config will include the digest issue number:
+That's it. No interval config, no plugin list. The 30-minute tick and plugin schedules are fixed. After bootstrap runs, the config will include the activity log issue number:
 
 ```json
 {
   "watch": {
     "enabled": true,
-    "digestIssue": 42
+    "activityLog": 42
   }
 }
 ```
@@ -125,7 +125,7 @@ GH_TOKEN=$(gh auth token) kody-engine-lite watch --dry-run
 
 ## State Persistence
 
-Watch stores its state (cycle number, dedup timestamps) as a hidden HTML comment on the digest issue:
+Watch stores its state (cycle number, dedup timestamps) as a hidden HTML comment on the activity log issue:
 
 ```html
 <!-- KODY_WATCH_STATE:{"system:cycleNumber":47,"watch:dedupEntries":{}} -->
@@ -137,10 +137,10 @@ This works with the default `github.token` — no PAT or special permissions nee
 
 Actions are deduplicated within a time window to prevent noise:
 
-- **pipeline-health digest**: 25 min window (slightly less than the 30 min cycle)
-- **security-scan digest**: 23 hours
+- **pipeline-health**: 25 min window (slightly less than the 30 min cycle)
+- **security-scan**: 23 hours
 - **security-scan issues**: 23 hours (also checks for existing open issues before creating)
-- **config-health digest**: 23 hours
+- **config-health**: 23 hours
 
 Dedup entries older than 24 hours are automatically cleaned up.
 
@@ -150,7 +150,7 @@ The `kody-watch.yml` workflow needs:
 
 | Permission | Why |
 |-----------|-----|
-| `issues: write` | Post digest comments, create security issues |
+| `issues: write` | Post activity log comments, create security issues |
 | `contents: read` | Checkout repo for scanning |
 
 No PAT, no app token, no additional secrets.

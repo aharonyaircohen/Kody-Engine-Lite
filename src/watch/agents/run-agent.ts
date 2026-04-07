@@ -7,8 +7,8 @@ import { getLitellmUrl, stageNeedsProxy, getAnthropicApiKeyOrDummy } from "../..
 import type { WatchAgentDefinition, WatchAgentRunResult, WatchContext } from "../core/types.js"
 import { buildWatchAgentPrompt } from "./prompt-builder.js"
 
-/** Default timeout for a watch agent run (10 minutes) */
-const AGENT_TIMEOUT_MS = 10 * 60 * 1000
+/** Default timeout for a watch agent run (20 minutes) */
+const AGENT_TIMEOUT_MS = 20 * 60 * 1000
 
 export interface RunAgentOptions {
   model: string
@@ -27,7 +27,7 @@ export async function runWatchAgent(
   const prompt = buildWatchAgentPrompt(agent, {
     repo: ctx.repo,
     cycleNumber: ctx.cycleNumber,
-    digestIssue: ctx.digestIssue,
+    activityLog: ctx.activityLog,
   })
 
   const runner = createClaudeCodeRunner()

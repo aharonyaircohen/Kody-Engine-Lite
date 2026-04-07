@@ -85,7 +85,7 @@ export interface KodyConfig {
   devServer?: DevServerConfig
   watch?: {
     enabled?: boolean
-    digestIssue?: number
+    activityLog?: number
     /** Model for watch agents. Falls back to agent.modelMap.cheap */
     model?: string
   }
@@ -300,7 +300,7 @@ export function getProjectConfig(): KodyConfig {
         watch: raw.watch
           ? {
               enabled: raw.watch.enabled ?? false,
-              digestIssue: raw.watch.digestIssue,
+              activityLog: raw.watch.activityLog,
               model: raw.watch.model,
             }
           : undefined,

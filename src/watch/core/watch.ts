@@ -15,7 +15,7 @@ export async function runWatch(config: WatchConfig): Promise<WatchResult> {
   const token = process.env.GH_TOKEN || ""
   const github = createGitHubClient(repo, token)
 
-  const state = createStateStore(stateFile, github, config.digestIssue)
+  const state = createStateStore(stateFile, github, config.activityLog)
   const cycleNumber = (state.get<number>("system:cycleNumber") || 0) + 1
   state.set("system:cycleNumber", cycleNumber)
   const log = createConsoleLogger()
@@ -29,7 +29,7 @@ export async function runWatch(config: WatchConfig): Promise<WatchResult> {
     log,
     runTimestamp: timestamp,
     cycleNumber,
-    digestIssue: config.digestIssue,
+    activityLog: config.activityLog,
   }
 
   const cleaned = cleanupExpiredDedup(ctx)
@@ -132,8 +132,24 @@ export async function runWatch(config: WatchConfig): Promise<WatchResult> {
           model: config.model,
           provider,
           projectDir: config.projectDir,
+          timeoutMs: agent.config.timeoutMs,
         })
         agentResults.push(result)
+
+        // Fallback reporting: post agent output to activity log when agent didn't complete
+        if (agent.config.reportOnFailure && ctx.activityLog && result.outcome !== "completed") {
+          const header = `## Watch Agent: ${agent.config.name} — ${result.outcome}`
+          const content = result.error
+            ? `${header}\n\n**Error:** ${result.error}`
+            : result.output
+              ? `${header}\n\n<details><summary>Agent output</summary>\n\n${result.output.slice(0, 60000)}\n\n</details>`
+              : header
+          try {
+            ctx.github.postComment(ctx.activityLog, content)
+          } catch {
+            log.warn({ agent: agent.config.name }, "Failed to post agent result to activity log")
+          }
+        }
 
         if (result.outcome === "completed") {
           log.info({ agent: agent.config.name }, "Watch agent completed")

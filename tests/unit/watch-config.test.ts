@@ -15,20 +15,20 @@ function writeConfig(dir: string, config: Record<string, unknown>): void {
 describe("parseWatchConfig", () => {
   let tmpDir: string
   const originalRepo = process.env.REPO
-  const originalDigest = process.env.WATCH_DIGEST_ISSUE
+  const originalDigest = process.env.WATCH_ACTIVITY_LOG
 
   beforeEach(() => {
     tmpDir = createTmpDir()
     delete process.env.REPO
-    delete process.env.WATCH_DIGEST_ISSUE
+    delete process.env.WATCH_ACTIVITY_LOG
   })
 
   afterEach(() => {
     fs.rmSync(tmpDir, { recursive: true, force: true })
     if (originalRepo !== undefined) process.env.REPO = originalRepo
     else delete process.env.REPO
-    if (originalDigest !== undefined) process.env.WATCH_DIGEST_ISSUE = originalDigest
-    else delete process.env.WATCH_DIGEST_ISSUE
+    if (originalDigest !== undefined) process.env.WATCH_ACTIVITY_LOG = originalDigest
+    else delete process.env.WATCH_ACTIVITY_LOG
   })
 
   it("reads watch.model from config", () => {
@@ -84,23 +84,44 @@ describe("parseWatchConfig", () => {
     expect(result.repo).toBe("env-owner/env-repo")
   })
 
-  it("reads digestIssue from config", () => {
+  it("reads activityLog from config", () => {
     writeConfig(tmpDir, {
       github: { owner: "test", repo: "repo" },
-      watch: { digestIssue: 42 },
+      watch: { activityLog: 42 },
     })
     const result = parseWatchConfig(tmpDir)
-    expect(result.digestIssue).toBe(42)
+    expect(result.activityLog).toBe(42)
   })
 
-  it("WATCH_DIGEST_ISSUE env overrides config digestIssue", () => {
-    process.env.WATCH_DIGEST_ISSUE = "99"
+  it("WATCH_ACTIVITY_LOG env overrides config activityLog", () => {
+    process.env.WATCH_ACTIVITY_LOG = "99"
     writeConfig(tmpDir, {
       github: { owner: "test", repo: "repo" },
-      watch: { digestIssue: 42 },
+      watch: { activityLog: 42 },
     })
     const result = parseWatchConfig(tmpDir)
-    expect(result.digestIssue).toBe(99)
+    expect(result.activityLog).toBe(99)
+  })
+
+  it("WATCH_DIGEST_ISSUE env works as backward compat fallback", () => {
+    process.env.WATCH_DIGEST_ISSUE = "88"
+    writeConfig(tmpDir, {
+      github: { owner: "test", repo: "repo" },
+    })
+    const result = parseWatchConfig(tmpDir)
+    expect(result.activityLog).toBe(88)
+    delete process.env.WATCH_DIGEST_ISSUE
+  })
+
+  it("WATCH_ACTIVITY_LOG takes precedence over WATCH_DIGEST_ISSUE", () => {
+    process.env.WATCH_ACTIVITY_LOG = "77"
+    process.env.WATCH_DIGEST_ISSUE = "88"
+    writeConfig(tmpDir, {
+      github: { owner: "test", repo: "repo" },
+    })
+    const result = parseWatchConfig(tmpDir)
+    expect(result.activityLog).toBe(77)
+    delete process.env.WATCH_DIGEST_ISSUE
   })
 
   it("returns empty repo when no config and no env", () => {

@@ -108,7 +108,7 @@ export const securityScanPlugin: WatchPlugin = {
     const actions: ActionRequest[] = []
 
     // Digest comment
-    if (ctx.digestIssue) {
+    if (ctx.activityLog) {
       actions.push({
         plugin: "security-scan",
         type: "digest",
@@ -118,9 +118,9 @@ export const securityScanPlugin: WatchPlugin = {
         dedupKey: "security-scan:digest-daily",
         dedupWindowMinutes: DEDUP_WINDOW_MINUTES,
         async execute(execCtx: WatchContext) {
-          if (!execCtx.digestIssue) return { success: false, message: "No digest issue" }
+          if (!execCtx.activityLog) return { success: false, message: "No activity log" }
           const markdown = formatDigestMarkdown(findings, execCtx.cycleNumber)
-          execCtx.github.postComment(execCtx.digestIssue, markdown)
+          execCtx.github.postComment(execCtx.activityLog, markdown)
           return { success: true, message: "Digest posted" }
         },
       })

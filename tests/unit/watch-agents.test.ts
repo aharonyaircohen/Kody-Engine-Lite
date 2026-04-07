@@ -62,6 +62,88 @@ describe("loadWatchAgents", () => {
     expect(agents[0].config.schedule.every).toBe(1)
   })
 
+  it("parses reportOnFailure when true", () => {
+    createAgent("report-agent", {
+      name: "report-agent",
+      description: "Reports on failure",
+      reportOnFailure: true,
+    }, "Some prompt")
+
+    const { agents } = loadWatchAgents(tmpDir)
+    expect(agents).toHaveLength(1)
+    expect(agents[0].config.reportOnFailure).toBe(true)
+  })
+
+  it("defaults reportOnFailure to false when omitted", () => {
+    createAgent("no-report", {
+      name: "no-report",
+      description: "No reporting",
+    }, "Some prompt")
+
+    const { agents } = loadWatchAgents(tmpDir)
+    expect(agents).toHaveLength(1)
+    expect(agents[0].config.reportOnFailure).toBe(false)
+  })
+
+  it("defaults reportOnFailure to false when set to non-true value", () => {
+    createAgent("bad-report", {
+      name: "bad-report",
+      description: "Bad value",
+      reportOnFailure: "yes",
+    }, "Some prompt")
+
+    const { agents } = loadWatchAgents(tmpDir)
+    expect(agents).toHaveLength(1)
+    expect(agents[0].config.reportOnFailure).toBe(false)
+  })
+
+  it("parses timeoutMs when valid positive number", () => {
+    createAgent("timeout-agent", {
+      name: "timeout-agent",
+      description: "Custom timeout",
+      timeoutMs: 3600000,
+    }, "Some prompt")
+
+    const { agents } = loadWatchAgents(tmpDir)
+    expect(agents).toHaveLength(1)
+    expect(agents[0].config.timeoutMs).toBe(3600000)
+  })
+
+  it("defaults timeoutMs to undefined when omitted", () => {
+    createAgent("no-timeout", {
+      name: "no-timeout",
+      description: "Default timeout",
+    }, "Some prompt")
+
+    const { agents } = loadWatchAgents(tmpDir)
+    expect(agents).toHaveLength(1)
+    expect(agents[0].config.timeoutMs).toBeUndefined()
+  })
+
+  it("ignores timeoutMs when zero or negative", () => {
+    createAgent("zero-timeout", {
+      name: "zero-timeout",
+      description: "Bad timeout",
+      timeoutMs: 0,
+    }, "Some prompt")
+
+    const { agents } = loadWatchAgents(tmpDir)
+    expect(agents).toHaveLength(1)
+    expect(agents[0].config.timeoutMs).toBeUndefined()
+  })
+
+  it("ignores timeoutMs when non-number", () => {
+    createAgent("string-timeout", {
+      name: "string-timeout",
+      description: "Bad timeout",
+      timeoutMs: "fast",
+    }, "Some prompt")
+
+    const { agents } = loadWatchAgents(tmpDir)
+    expect(agents).toHaveLength(1)
+    expect(agents[0].config.timeoutMs).toBeUndefined()
+  })
+
   it("skips directory missing agent.json", () => {
     const agentDir = path.join(tmpDir, ".kody", "watch", "agents", "no-json")
     fs.mkdirSync(agentDir, { recursive: true })
@@ -227,14 +309,14 @@ describe("buildWatchAgentPrompt", () => {
     expect(prompt).toContain("kody:watch:")
   })
 
-  it("includes digest issue when provided", () => {
-    const prompt = buildWatchAgentPrompt(agent, { repo: "owner/repo", cycleNumber: 1, digestIssue: 99 })
+  it("includes activity log when provided", () => {
+    const prompt = buildWatchAgentPrompt(agent, { repo: "owner/repo", cycleNumber: 1, activityLog: 99 })
     expect(prompt).toContain("#99")
   })
 
-  it("omits digest issue when not provided", () => {
+  it("omits activity log when not provided", () => {
     const prompt = buildWatchAgentPrompt(agent, { repo: "owner/repo", cycleNumber: 1 })
-    expect(prompt).not.toContain("Digest issue")
+    expect(prompt).not.toContain("Activity log")
   })
 })
 

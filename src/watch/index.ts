@@ -18,7 +18,7 @@ import type { WatchConfig } from "./core/types.js"
 
 export interface WatchConfigParsed {
   repo: string
-  digestIssue?: number
+  activityLog?: number
   watchModel?: string
   agentProvider?: string
   agentModelMap?: Record<string, string>
@@ -27,7 +27,7 @@ export interface WatchConfigParsed {
 export function parseWatchConfig(cwd: string): WatchConfigParsed {
   const configPath = path.join(cwd, "kody.config.json")
   let repo = process.env.REPO || ""
-  let digestIssue: number | undefined
+  let activityLog: number | undefined
   let watchModel: string | undefined
   let agentProvider: string | undefined
   let agentModelMap: Record<string, string> | undefined
@@ -38,8 +38,8 @@ export function parseWatchConfig(cwd: string): WatchConfigParsed {
       if (!repo && config.github?.owner && config.github?.repo) {
         repo = `${config.github.owner}/${config.github.repo}`
       }
-      if (config.watch?.digestIssue) {
-        digestIssue = config.watch.digestIssue
+      if (config.watch?.activityLog) {
+        activityLog = config.watch.activityLog
       }
       if (config.watch?.model) {
         watchModel = config.watch.model
@@ -55,19 +55,20 @@ export function parseWatchConfig(cwd: string): WatchConfigParsed {
     }
   }
 
-  // Env override for digest issue
-  if (process.env.WATCH_DIGEST_ISSUE) {
-    digestIssue = parseInt(process.env.WATCH_DIGEST_ISSUE, 10) || undefined
+  // Env override for activity log (backward compat: read both env var names)
+  const activityLogEnv = process.env.WATCH_ACTIVITY_LOG ?? process.env.WATCH_DIGEST_ISSUE
+  if (activityLogEnv) {
+    activityLog = parseInt(activityLogEnv, 10) || undefined
   }
 
-  return { repo, digestIssue, watchModel, agentProvider, agentModelMap }
+  return { repo, activityLog, watchModel, agentProvider, agentModelMap }
 }
 
 export async function runWatchCommand(opts: { dryRun: boolean }): Promise<void> {
   const cwd = process.cwd()
   let litellmProcess: ChildProcess | null = null
 
-  const { repo: parsedRepo, digestIssue, watchModel, agentProvider, agentModelMap } = parseWatchConfig(cwd)
+  const { repo: parsedRepo, activityLog, watchModel, agentProvider, agentModelMap } = parseWatchConfig(cwd)
   let repo = parsedRepo
 
   if (!repo) {
@@ -134,7 +135,7 @@ export async function runWatchCommand(opts: { dryRun: boolean }): Promise<void> 
     dryRun: opts.dryRun,
     stateFile: path.join(cwd, ".kody", "watch-state.json"),
     plugins: registry.getAll(),
-    digestIssue,
+    activityLog,
     agents,
     model,
     provider: agentProvider,
