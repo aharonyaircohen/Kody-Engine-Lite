@@ -8,6 +8,7 @@ import { shouldDedup, markExecuted, cleanupExpiredDedup } from "./dedup.js"
 import { createGitHubClient } from "../clients/github.js"
 import { createConsoleLogger } from "../clients/logger.js"
 import { runWatchAgent } from "../agents/run-agent.js"
+import { shouldRunOnCycle } from "./schedule.js"
 
 export async function runWatch(config: WatchConfig): Promise<WatchResult> {
   const { repo, dryRun, stateFile, plugins, agents } = config
@@ -111,7 +112,8 @@ export async function runWatch(config: WatchConfig): Promise<WatchResult> {
   // ── Watch agents (LLM-powered) ────────────────────────────────────────────
 
   const scheduledAgents = agents.filter((agent) => {
-    return cycleNumber % agent.config.schedule.every === 0
+    const now = new Date(ctx.runTimestamp)
+    return shouldRunOnCycle(agent.config.schedule, cycleNumber, state, now)
   })
 
   const agentResults: WatchAgentRunResult[] = []

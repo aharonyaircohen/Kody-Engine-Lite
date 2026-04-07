@@ -29,6 +29,8 @@ function validateAgentConfig(raw: unknown, dirName: string): WatchAgentConfig | 
   }
 
   let every = 1
+  let runAt: string | undefined
+  let days: number | undefined
   if (obj.schedule && typeof obj.schedule === "object") {
     const sched = obj.schedule as Record<string, unknown>
     if (sched.every !== undefined) {
@@ -36,6 +38,12 @@ function validateAgentConfig(raw: unknown, dirName: string): WatchAgentConfig | 
         return `${dirName}: schedule.every must be an integer >= 1`
       }
       every = sched.every
+    }
+    if (typeof sched.runAt === "string" && sched.runAt.trim()) {
+      runAt = sched.runAt.trim()
+    }
+    if (typeof sched.days === "number" && sched.days > 0 && Number.isInteger(sched.days)) {
+      days = sched.days
     }
   }
 
@@ -46,7 +54,7 @@ function validateAgentConfig(raw: unknown, dirName: string): WatchAgentConfig | 
   return {
     name: obj.name.trim(),
     description: obj.description.trim(),
-    schedule: { every },
+    schedule: { every, ...(runAt && { runAt }), ...(days !== undefined && { days }) },
     reportOnFailure: obj.reportOnFailure === true,
     timeoutMs,
   }

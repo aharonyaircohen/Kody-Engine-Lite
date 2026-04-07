@@ -5,7 +5,9 @@ import * as os from "os"
 
 import { loadWatchAgents } from "../../src/watch/agents/loader"
 import { buildWatchAgentPrompt } from "../../src/watch/agents/prompt-builder"
-import type { WatchAgentDefinition } from "../../src/watch/core/types"
+import { shouldRunOnCycle } from "../../src/watch/core/schedule"
+import { JsonStateStore } from "../../src/watch/core/state"
+import type { WatchAgentDefinition, StateStore } from "../../src/watch/core/types"
 
 // ============================================================================
 // Loader Tests
@@ -321,38 +323,164 @@ describe("buildWatchAgentPrompt", () => {
 })
 
 // ============================================================================
-// Agent Schedule Filtering Tests
+// Agent Schedule Filtering Tests — uses shouldRunOnCycle
 // ============================================================================
 
-describe("agent schedule filtering", () => {
-  it("runs agent when cycle matches schedule.every", () => {
-    const agent: WatchAgentDefinition = {
-      config: { name: "a", description: "A", schedule: { every: 48 } },
-      systemPrompt: "test",
-      dirPath: "/tmp",
-    }
-    expect(48 % agent.config.schedule.every === 0).toBe(true)
-    expect(96 % agent.config.schedule.every === 0).toBe(true)
+describe("agent schedule filtering via shouldRunOnCycle", () => {
+  let state: StateStore
+
+  beforeEach(() => {
+    state = new JsonStateStore("/dev/null")
   })
 
-  it("skips agent when cycle does not match", () => {
-    const agent: WatchAgentDefinition = {
-      config: { name: "a", description: "A", schedule: { every: 48 } },
-      systemPrompt: "test",
-      dirPath: "/tmp",
-    }
-    expect(1 % agent.config.schedule.every === 0).toBe(false)
-    expect(47 % agent.config.schedule.every === 0).toBe(false)
+  it("runs agent when cycle matches schedule.every", () => {
+    const schedule = { every: 48 }
+    expect(shouldRunOnCycle(schedule, 48, state, new Date())).toBe(true)
+    expect(shouldRunOnCycle(schedule, 96, state, new Date())).toBe(true)
+  })
+
+  it("skips agent when cycle does not match every", () => {
+    const schedule = { every: 48 }
+    expect(shouldRunOnCycle(schedule, 1, state, new Date())).toBe(false)
+    expect(shouldRunOnCycle(schedule, 47, state, new Date())).toBe(false)
   })
 
   it("runs every-1 agent on every cycle", () => {
-    const agent: WatchAgentDefinition = {
-      config: { name: "a", description: "A", schedule: { every: 1 } },
-      systemPrompt: "test",
-      dirPath: "/tmp",
-    }
+    const schedule = { every: 1 }
     for (let cycle = 1; cycle <= 10; cycle++) {
-      expect(cycle % agent.config.schedule.every === 0).toBe(true)
+      expect(shouldRunOnCycle(schedule, cycle, state, new Date())).toBe(true)
     }
+  })
+
+  it("runs agent with runAt when within cron window", () => {
+    // Schedule at 02:00, run at 02:10 (within 30-min window)
+    const schedule = { runAt: "02:00" }
+    const runAt = new Date("2026-04-08T02:10:00")
+    expect(shouldRunOnCycle(schedule, 1, state, runAt)).toBe(true)
+  })
+
+  it("skips agent with runAt when outside cron window", () => {
+    // Schedule at 02:00, run at 03:15 (outside 30-min window)
+    const schedule = { runAt: "02:00" }
+    const runAt = new Date("2026-04-08T03:15:00")
+    expect(shouldRunOnCycle(schedule, 1, state, runAt)).toBe(false)
+  })
+
+  it("skips runAt agent when not enough days have passed", () => {
+    // Schedule: run at 02:00, every 7 days
+    const schedule = { runAt: "02:00", days: 7 }
+    const runAt = new Date("2026-04-08T02:10:00")
+
+    // First run should succeed
+    expect(shouldRunOnCycle(schedule, 1, state, runAt)).toBe(true)
+
+    // Second run 1 day later should be skipped (not enough days)
+    const oneDayLater = new Date("2026-04-09T02:10:00")
+    expect(shouldRunOnCycle(schedule, 2, state, oneDayLater)).toBe(false)
+  })
+
+  it("allows runAt agent after days interval has passed", () => {
+    const schedule = { runAt: "02:00", days: 1 }
+    const runAt = new Date("2026-04-08T02:10:00")
+
+    // First run
+    expect(shouldRunOnCycle(schedule, 1, state, runAt)).toBe(true)
+
+    // Next cycle > 12 hours later (within 30-min window next day)
+    const nextDay = new Date("2026-04-09T02:10:00")
+    expect(shouldRunOnCycle(schedule, 2, state, nextDay)).toBe(true)
+  })
+})
+
+// ============================================================================
+// Loader — runAt and days preservation
+// ============================================================================
+
+describe("loadWatchAgents preserves runAt and days", () => {
+  let tmpDir: string
+  let fs: typeof import("fs")
+  let path: typeof import("path")
+
+  beforeEach(async () => {
+    ;({ default: fs } = await import("fs"))
+    ;({ default: path } = await import("path"))
+    tmpDir = fs.mkdtempSync(path.join(await import("os").then((m) => m.tmpdir()), "watch-runat-test-"))
+  })
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true })
+  })
+
+  function createAgent(name: string, json: unknown) {
+    const agentDir = path.join(tmpDir, ".kody", "watch", "agents", name)
+    fs.mkdirSync(agentDir, { recursive: true })
+    fs.writeFileSync(path.join(agentDir, "agent.json"), JSON.stringify(json))
+    fs.writeFileSync(path.join(agentDir, "agent.md"), "Test prompt.")
+  }
+
+  it("preserves runAt from schedule config", () => {
+    createAgent("bench-agent", {
+      name: "bench-agent",
+      description: "Memory benchmark",
+      schedule: { runAt: "04:00", days: 7 },
+    })
+
+    const { agents } = loadWatchAgents(tmpDir)
+    expect(agents).toHaveLength(1)
+    expect(agents[0].config.schedule.runAt).toBe("04:00")
+    expect(agents[0].config.schedule.days).toBe(7)
+    expect(agents[0].config.schedule.every).toBe(1) // default
+  })
+
+  it("preserves runAt and days without every", () => {
+    createAgent("test-agent", {
+      name: "test-agent",
+      description: "Test suite",
+      schedule: { runAt: "02:00", days: 1 },
+    })
+
+    const { agents } = loadWatchAgents(tmpDir)
+    expect(agents).toHaveLength(1)
+    expect(agents[0].config.schedule.runAt).toBe("02:00")
+    expect(agents[0].config.schedule.days).toBe(1)
+    expect(agents[0].config.schedule.every).toBe(1)
+  })
+
+  it("omits runAt from config when not provided", () => {
+    createAgent("simple-agent", {
+      name: "simple-agent",
+      description: "Simple agent",
+      schedule: { every: 3 },
+    })
+
+    const { agents } = loadWatchAgents(tmpDir)
+    expect(agents).toHaveLength(1)
+    expect(agents[0].config.schedule.runAt).toBeUndefined()
+    expect(agents[0].config.schedule.every).toBe(3)
+  })
+
+  it("ignores invalid runAt (empty string)", () => {
+    createAgent("bad-runat", {
+      name: "bad-runat",
+      description: "Bad",
+      schedule: { runAt: "", days: 1 },
+    })
+
+    const { agents } = loadWatchAgents(tmpDir)
+    expect(agents).toHaveLength(1)
+    expect(agents[0].config.schedule.runAt).toBeUndefined()
+    expect(agents[0].config.schedule.days).toBe(1)
+  })
+
+  it("ignores non-integer days", () => {
+    createAgent("float-days", {
+      name: "float-days",
+      description: "Bad days",
+      schedule: { runAt: "05:00", days: 1.5 },
+    })
+
+    const { agents } = loadWatchAgents(tmpDir)
+    expect(agents).toHaveLength(1)
+    expect(agents[0].config.schedule.days).toBeUndefined()
   })
 })
