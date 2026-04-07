@@ -14,7 +14,7 @@
 
 import * as fs from "fs"
 import * as path from "path"
-import { spawn } from "child_process"
+import { spawn, execFileSync } from "child_process"
 
 import { logger } from "../../logger.js"
 import {
@@ -123,6 +123,27 @@ export function augmentConfigWithAliases(
   return baseConfig + "\n" + aliases.join("\n") + "\n"
 }
 
+async function proxyHasAliases(litellmUrl: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${litellmUrl}/v1/models`, { signal: AbortSignal.timeout(3000) })
+    if (!res.ok) return false
+    const body = await res.json() as { data?: Array<{ id: string }> }
+    const models = new Set((body.data ?? []).map((m) => m.id))
+    // Check if at least one Claude alias is registered
+    return CLAUDE_MODEL_ALIASES.some((alias) => models.has(alias))
+  } catch {
+    return false
+  }
+}
+
+async function killExistingProxy(): Promise<void> {
+  try {
+    const { execSync } = await import("child_process")
+    execSync(`pkill -9 -f 'litellm.*--config' 2>/dev/null || true`, { stdio: "pipe" })
+    await new Promise((r) => setTimeout(r, 2000))
+  } catch { /* best effort */ }
+}
+
 async function ensureLitellmForServe(
   config: KodyConfig,
   projectDir: string,
@@ -150,8 +171,15 @@ async function ensureLitellmForServe(
   }
 
   if (proxyRunning) {
-    logger.info(`LiteLLM proxy already running at ${litellmUrl}`)
-    return null
+    // Check if proxy has the Claude model aliases
+    const hasAliases = await proxyHasAliases(litellmUrl)
+    if (hasAliases) {
+      logger.info(`LiteLLM proxy already running at ${litellmUrl}`)
+      return null
+    }
+    // Restart with aliases
+    logger.info("LiteLLM proxy missing Claude model aliases — restarting...")
+    await killExistingProxy()
   }
 
   const litellmProcess = await tryStartLitellm(litellmUrl, projectDir, generatedConfig)
@@ -212,23 +240,34 @@ function buildProxyEnv(): Record<string, string | undefined> {
   }
 }
 
-function launchClaudeCode(config: KodyConfig, projectDir: string): ReturnType<typeof spawn> {
+/**
+ * Launch Claude Code CLI synchronously — gives full TTY passthrough.
+ * Returns the exit code. Using execFileSync because spawn doesn't
+ * properly pass through TTY for Claude Code's interactive terminal UI.
+ */
+function launchClaudeCodeSync(config: KodyConfig, projectDir: string): number {
   const usesProxy = anyStageNeedsProxy(config)
   const model = config.agent.default?.model
     ?? config.agent.modelMap.mid
     ?? config.agent.modelMap.cheap
     ?? Object.values(config.agent.modelMap)[0]
 
-  const args: string[] = []
+  const args: string[] = ["--dangerously-skip-permissions"]
   if (model) args.push("--model", model)
 
   logger.info(`Launching Claude Code${model ? ` (model: ${model})` : ""}`)
   if (usesProxy) logger.info(`  ANTHROPIC_BASE_URL=${getLitellmUrl()}`)
 
-  const spawnOpts: Parameters<typeof spawn>[2] = { stdio: "inherit", cwd: projectDir }
-  if (usesProxy) spawnOpts.env = buildProxyEnv()
-
-  return spawn("claude", args, spawnOpts)
+  try {
+    execFileSync("claude", args, {
+      stdio: "inherit",
+      cwd: projectDir,
+      env: usesProxy ? buildProxyEnv() as NodeJS.ProcessEnv : undefined,
+    })
+    return 0
+  } catch (err: any) {
+    return err.status ?? 1
+  }
 }
 
 function launchVSCode(config: KodyConfig, projectDir: string): ReturnType<typeof spawn> {
@@ -345,23 +384,16 @@ export async function serveCommand(rawArgs: string[]): Promise<void> {
   if (opts.mode === "infra") {
     logger.info("Infrastructure running. Press Ctrl+C to stop.")
     logger.info("  Use 'kody-engine serve claude' or 'kody-engine serve vscode' to also launch an editor.")
-    await new Promise(() => {})
+    // Keep process alive — stdin.resume() prevents Node from exiting
+    process.stdin.resume()
+    return
   }
 
   if (opts.mode === "claude") {
-    launchedProcess = launchClaudeCode(config, projectDir)
-
-    launchedProcess.on("exit", (code) => {
-      logger.info(`Claude Code exited (code: ${code})`)
-      cleanup()
-      process.exit(code ?? 0)
-    })
-
-    launchedProcess.on("error", (err) => {
-      logger.error(`Failed to launch Claude Code: ${err.message}`)
-      cleanup()
-      process.exit(1)
-    })
+    const code = launchClaudeCodeSync(config, projectDir)
+    logger.info(`Claude Code exited (code: ${code})`)
+    cleanup()
+    process.exit(code)
   }
 
   if (opts.mode === "vscode") {
@@ -378,7 +410,7 @@ export async function serveCommand(rawArgs: string[]): Promise<void> {
       process.exit(1)
     })
 
-    // Keep alive for infra
-    await new Promise(() => {})
+    // VS Code detaches — keep process alive for infra
+    process.stdin.resume()
   }
 }
