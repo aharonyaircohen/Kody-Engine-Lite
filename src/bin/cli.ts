@@ -8,6 +8,7 @@
  *   hotfix    — Fast-track pipeline: build → verify (no tests) → ship
  *   revert    — Revert a merged PR: git revert → verify → create PR
  *   release   — Automate version bump, changelog, release PR, tagging, publish
+ *   serve     — Start LiteLLM + dev server + Claude Code (local hot session)
  *   version   — Print package version
  */
 
@@ -69,6 +70,8 @@ if (command === "init") {
   import("../cli/test-model-command.js").then(({ runTestModelCommand }) => runTestModelCommand())
 } else if (command === "ci-parse") {
   import("../ci/parse-inputs.js").then(({ runCiParse }) => runCiParse())
+} else if (command === "serve") {
+  import("./commands/serve.js").then(({ serveCommand }) => serveCommand(args.slice(1)))
 } else if (command === "watch") {
   import("../watch/index.js").then(({ runWatchCommand }) =>
     runWatchCommand({ dryRun: args.includes("--dry-run") }),
