@@ -574,9 +574,25 @@ async function main() {
     logger.info(`Fetching issue #${input.issueNumber} body as task...`)
     const issue = getIssue(input.issueNumber)
     if (issue) {
-      const taskContent = `# ${issue.title}\n\n${issue.body ?? ""}`
+      let taskContent = `# ${issue.title}\n\n${issue.body ?? ""}`
+
+      // Include issue comments — they contain clarifications, decisions, and edge cases
+      if (issue.comments.length > 0) {
+        taskContent += `\n\n---\n\n## Discussion (${issue.comments.length} comments)\n\n`
+        const comments = issue.comments.length > 20
+          ? [...issue.comments.slice(0, 5), ...issue.comments.slice(-10)]
+          : issue.comments
+        if (issue.comments.length > 20) {
+          taskContent += `*Showing first 5 and last 10 of ${issue.comments.length} comments*\n\n`
+        }
+        for (const c of comments) {
+          const date = c.createdAt.split("T")[0]
+          taskContent += `**@${c.author}** (${date}):\n${c.body}\n\n`
+        }
+      }
+
       fs.writeFileSync(taskMdPath, taskContent)
-      logger.info(`  Task loaded from issue #${input.issueNumber}: ${issue.title}`)
+      logger.info(`  Task loaded from issue #${input.issueNumber}: ${issue.title} (${issue.comments.length} comments)`)
     }
   }
 

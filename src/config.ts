@@ -136,7 +136,7 @@ const DEFAULT_CONFIG: KodyConfig = {
   },
   contextTiers: {
     enabled: true,
-    tokenBudget: 8000,
+    tokenBudget: 100_000,
   },
 }
 

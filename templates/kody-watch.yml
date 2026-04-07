@@ -54,7 +54,7 @@ jobs:
 
       - name: Run Kody Watch
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
           REPO: ${{ github.repository }}
           WATCH_ACTIVITY_LOG: ${{ vars.WATCH_ACTIVITY_LOG }}
           DRY_RUN: ${{ inputs.dry_run || 'false' }}
