@@ -27,7 +27,6 @@ import {
   applyModelOverrides,
   anyStageNeedsProxy,
   getLitellmUrl,
-  getAnthropicApiKeyOrDummy,
 } from "../../config.js"
 import type { KodyConfig } from "../../config.js"
 import {
@@ -137,20 +136,20 @@ export function writeKodyContext(projectDir: string, content: string): string {
 
 // ─── Launch helpers ────────────────────────────────────────────────────────
 
-function buildEnv(config: KodyConfig): Record<string, string> {
-  const env: Record<string, string> = { ...process.env as Record<string, string> }
-  const usesProxy = anyStageNeedsProxy(config)
-
-  if (usesProxy) {
-    env.ANTHROPIC_BASE_URL = getLitellmUrl()
-    env.ANTHROPIC_API_KEY = getAnthropicApiKeyOrDummy()
+/**
+ * Build env for proxy mode. Only sets ANTHROPIC_BASE_URL — leaves
+ * ANTHROPIC_API_KEY untouched so Claude Code uses existing auth
+ * (OAuth token or real API key). The dummy key trick is only for
+ * pipeline --print mode; interactive mode validates it.
+ */
+function buildProxyEnv(): Record<string, string | undefined> {
+  return {
+    ...process.env,
+    ANTHROPIC_BASE_URL: getLitellmUrl(),
   }
-
-  return env
 }
 
 function launchClaudeCode(config: KodyConfig, projectDir: string): ReturnType<typeof spawn> {
-  const env = buildEnv(config)
   const usesProxy = anyStageNeedsProxy(config)
 
   // Resolve which model to use for the interactive session
@@ -169,17 +168,22 @@ function launchClaudeCode(config: KodyConfig, projectDir: string): ReturnType<ty
     logger.info(`  ANTHROPIC_BASE_URL=${getLitellmUrl()}`)
   }
 
-  const child = spawn("claude", args, {
+  // Only pass custom env when proxy needs it — otherwise inherit naturally
+  // to preserve OAuth tokens, PATH, and other auth state
+  const spawnOpts: Parameters<typeof spawn>[2] = {
     stdio: "inherit",
-    env,
     cwd: projectDir,
-  })
+  }
+  if (usesProxy) {
+    spawnOpts.env = buildProxyEnv()
+  }
+
+  const child = spawn("claude", args, spawnOpts)
 
   return child
 }
 
 function launchVSCode(config: KodyConfig, projectDir: string): ReturnType<typeof spawn> {
-  const env = buildEnv(config)
   const usesProxy = anyStageNeedsProxy(config)
 
   logger.info("Launching VS Code...")
@@ -187,10 +191,14 @@ function launchVSCode(config: KodyConfig, projectDir: string): ReturnType<typeof
     logger.info(`  ANTHROPIC_BASE_URL=${getLitellmUrl()}`)
   }
 
-  const child = spawn("code", [projectDir], {
+  const spawnOpts: Parameters<typeof spawn>[2] = {
     stdio: "inherit",
-    env,
-  })
+  }
+  if (usesProxy) {
+    spawnOpts.env = buildProxyEnv()
+  }
+
+  const child = spawn("code", [projectDir], spawnOpts)
 
   return child
 }
