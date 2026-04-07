@@ -310,6 +310,7 @@ jobs:
           name: kody-browser-artifacts-${{ github.event.inputs.task_id || needs.parse.outputs.task_id }}
           path: /tmp/kody-artifacts/
           retention-days: 3
+          if-no-files-found: ignore
 
       - name: Persist run history
         if: always()
