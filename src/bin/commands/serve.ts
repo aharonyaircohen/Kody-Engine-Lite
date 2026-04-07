@@ -27,6 +27,7 @@ import {
   applyModelOverrides,
   anyStageNeedsProxy,
   getLitellmUrl,
+  getAnthropicApiKeyOrDummy,
 } from "../../config.js"
 import type { KodyConfig } from "../../config.js"
 import {
@@ -137,15 +138,15 @@ export function writeKodyContext(projectDir: string, content: string): string {
 // ─── Launch helpers ────────────────────────────────────────────────────────
 
 /**
- * Build env for proxy mode. Only sets ANTHROPIC_BASE_URL — leaves
- * ANTHROPIC_API_KEY untouched so Claude Code uses existing auth
- * (OAuth token or real API key). The dummy key trick is only for
- * pipeline --print mode; interactive mode validates it.
+ * Build env for proxy mode. Sets ANTHROPIC_BASE_URL for routing and
+ * ANTHROPIC_API_KEY (real or dummy) so Claude Code skips OAuth login.
+ * All API calls go to the proxy — the key is only for local auth check.
  */
 function buildProxyEnv(): Record<string, string | undefined> {
   return {
     ...process.env,
     ANTHROPIC_BASE_URL: getLitellmUrl(),
+    ANTHROPIC_API_KEY: getAnthropicApiKeyOrDummy(),
   }
 }
 
