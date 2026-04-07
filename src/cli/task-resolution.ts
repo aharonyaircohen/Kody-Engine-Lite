@@ -1,7 +1,7 @@
 import * as fs from "fs"
 import * as path from "path"
 import { execFileSync } from "child_process"
-import { getIssueComments } from "../github-api.js"
+import { getIssueComments, getPRDetails } from "../github-api.js"
 
 export function findLatestTaskForIssue(issueNumber: number, projectDir: string): string | null {
   const tasksDir = path.join(projectDir, ".kody", "tasks")
@@ -91,6 +91,32 @@ export function findPausedTaskifyForIssue(issueNumber: number, projectDir: strin
   }
 
   return null
+}
+
+/**
+ * Resolve the original issue number from a PR.
+ * Parses PR body for "Closes #N", "Fixes #N", "Resolves #N",
+ * or extracts from branch name pattern "{issueNum}-{slug}".
+ */
+export function resolveIssueFromPR(prNumber: number): number | undefined {
+  try {
+    const details = getPRDetails(prNumber)
+    if (!details) return undefined
+
+    // Parse PR body for closing keywords
+    const body = details.body ?? ""
+    const closingPattern = /(?:closes|fixes|resolves)\s+#(\d+)/i
+    const match = body.match(closingPattern)
+    if (match) return parseInt(match[1], 10)
+
+    // Extract from branch name: {issueNum}-{slug}
+    const branchMatch = details.headBranch?.match(/^(\d+)-/)
+    if (branchMatch) return parseInt(branchMatch[1], 10)
+
+    return undefined
+  } catch {
+    return undefined
+  }
 }
 
 /**

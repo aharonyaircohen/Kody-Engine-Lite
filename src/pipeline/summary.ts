@@ -4,6 +4,7 @@ import { STAGES } from "../definitions.js"
 export interface SummaryOptions {
   complexity?: string
   model?: string
+  runCount?: number
 }
 
 const STATUS_ICONS: Record<string, string> = {
@@ -64,6 +65,10 @@ export function formatPipelineSummary(
   }
   if (options?.model) {
     footerParts.push(`**Model:** ${options.model}`)
+  }
+
+  if (options?.runCount && options.runCount > 1) {
+    footerParts.push(`**Run:** #${options.runCount} of ${options.runCount} attempts`)
   }
 
   lines.push(footerParts.join(" | "))

@@ -18,6 +18,8 @@ import { isTaskifyRun, taskifyCommand, readTaskifyMarker } from "./cli/taskify-c
 import { needsLitellmProxy, anyStageNeedsProxy, getLitellmUrl, providerApiKeyEnvVar, getAnthropicApiKeyOrDummy } from "./config.js"
 import type { KodyConfig } from "./config.js"
 import { loadToolDeclarations, detectTools } from "./tools.js"
+import { findParentRunId } from "./run-history.js"
+import { resolveIssueFromPR } from "./cli/task-resolution.js"
 
 // Handle SIGTERM (sent by GitHub Actions on job cancel/timeout)
 // Post a failure comment and update labels before dying
@@ -214,7 +216,7 @@ async function main() {
 
   // Status command — no preflight needed
   if (input.command === "status") {
-    printStatus(taskId, taskDir)
+    printStatus(taskId, taskDir, projectDir, input.issueNumber)
     return
   }
 
@@ -631,6 +633,22 @@ async function main() {
   // Hotfix mode: fast-track pipeline (build → verify → ship, no tests)
   const isHotfix = input.command === "hotfix"
 
+  // Resolve parentRunId for fix/rerun commands (cross-run context)
+  let parentRunId: string | undefined
+  let linkedIssue: number | undefined
+  const isRerunLike = input.command === "rerun" || input.command === "fix" || input.command === "fix-ci"
+  if (isRerunLike && input.issueNumber) {
+    parentRunId = findParentRunId(projectDir, input.issueNumber)
+  }
+
+  // PR-to-issue linking for PR-based fix
+  if (isPRFix && input.prNumber) {
+    linkedIssue = resolveIssueFromPR(input.prNumber)
+    if (linkedIssue && !parentRunId) {
+      parentRunId = findParentRunId(projectDir, linkedIssue)
+    }
+  }
+
   // Build context
   const ctx: PipelineContext = {
     taskId,
@@ -649,6 +667,8 @@ async function main() {
       local: input.local,
       complexity: isHotfix ? "hotfix" : input.complexity,
       skipTests: isHotfix,
+      parentRunId,
+      linkedIssue,
     },
   }
 

@@ -26,6 +26,8 @@ import { runRetrospective } from "./retrospective.js"
 import { formatPipelineSummary } from "./pipeline/summary.js"
 import { getProjectConfig } from "./config.js"
 import { runToolSetup } from "./tools.js"
+import { appendRunRecord, readRunHistory } from "./run-history.js"
+import type { RunRecord } from "./run-history.js"
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -303,6 +305,41 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
     logger.warn(`  Retrospective failed: ${err instanceof Error ? err.message : String(err)}`)
   })
 
+  // Record run history for cross-run context
+  const issueForHistory = ctx.input.issueNumber ?? ctx.input.linkedIssue
+  if (issueForHistory) {
+    try {
+      const failedEntry = Object.entries(state.stages).find(
+        ([, s]) => s.state === "failed" || s.state === "timeout",
+      )
+      const completedStages = Object.entries(state.stages)
+        .filter(([, s]) => s.state === "completed")
+        .map(([name]) => name)
+
+      const commandMap: Record<string, string> = { full: "run", rerun: "rerun" }
+      const command = commandMap[ctx.input.mode] ?? ctx.input.mode
+
+      const runRecord: RunRecord = {
+        runId: ctx.taskId,
+        issueNumber: ctx.input.issueNumber,
+        prNumber: ctx.input.prNumber,
+        command,
+        startedAt: state.createdAt,
+        completedAt: new Date().toISOString(),
+        outcome: state.state === "completed" ? "completed" : "failed",
+        failedStage: failedEntry?.[0],
+        failedError: failedEntry?.[1].error?.slice(0, 200),
+        stagesCompleted: completedStages,
+        feedback: ctx.input.feedback?.slice(0, 200),
+        parentRunId: ctx.input.parentRunId,
+        linkedIssue: ctx.input.linkedIssue,
+      }
+      appendRunRecord(ctx.projectDir, runRecord)
+    } catch (err) {
+      logger.warn(`  Run history recording failed: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
   // Post pipeline summary comment on the issue
   if (ctx.input.issueNumber && !ctx.input.dryRun) {
     const config = getProjectConfig()
@@ -310,10 +347,13 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
     const shouldPost = config.github.postSummary ?? (isCI ? true : false)
     if (shouldPost) {
       try {
-        const summaryOpts: { complexity?: string; model?: string } = {}
+        const summaryOpts: { complexity?: string; model?: string; runCount?: number } = {}
         if (complexity) summaryOpts.complexity = complexity
         const modelMap = config.agent?.modelMap
         if (modelMap?.mid) summaryOpts.model = modelMap.mid
+        // Include run count from history
+        const historyRecords = readRunHistory(ctx.projectDir, ctx.input.issueNumber)
+        if (historyRecords.length > 0) summaryOpts.runCount = historyRecords.length
         const summary = formatPipelineSummary(state, summaryOpts)
         postComment(ctx.input.issueNumber, summary)
         logger.info("Pipeline summary posted on issue")
@@ -328,7 +368,7 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
 
 // ─── Status Display ─────────────────────────────────────────────────────────
 
-export function printStatus(taskId: string, taskDir: string): void {
+export function printStatus(taskId: string, taskDir: string, projectDir?: string, issueNumber?: number): void {
   const state = loadState(taskId, taskDir)
   if (!state) {
     console.log(`No status found for task ${taskId}`)
@@ -349,5 +389,20 @@ export function printStatus(taskId: string, taskDir: string): void {
       s.state === "timeout" ? "⏱" : "○"
     const extra = s.error ? ` — ${s.error}` : ""
     console.log(`  ${icon} ${stage.name}: ${s.state}${extra}`)
+  }
+
+  // Show run history timeline if available
+  if (projectDir && issueNumber) {
+    const records = readRunHistory(projectDir, issueNumber)
+    if (records.length > 0) {
+      console.log(`\nRun History for Issue #${issueNumber}:`)
+      for (let i = 0; i < records.length; i++) {
+        const r = records[i]
+        const date = r.startedAt.split("T")[0]
+        const failInfo = r.failedStage ? ` at ${r.failedStage}` : ""
+        const current = r.runId === taskId ? "  <- current" : ""
+        console.log(`  #${i + 1}  ${r.runId.padEnd(24)} ${r.command.padEnd(8)} ${r.outcome.padEnd(10)} ${date}${failInfo}${current}`)
+      }
+    }
   }
 }

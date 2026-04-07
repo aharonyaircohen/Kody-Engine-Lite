@@ -17,7 +17,7 @@ export async function executeDecompose(
   const minScore = config.decompose?.minComplexityScore ?? 6
 
   try {
-    const prompt = buildFullPrompt("decompose", ctx.taskId, ctx.taskDir, ctx.projectDir, ctx.input.feedback)
+    const prompt = buildFullPrompt("decompose", ctx.taskId, ctx.taskDir, ctx.projectDir, ctx.input.feedback, ctx.input.issueNumber)
     const sc = resolveStageConfig(config, "decompose", "cheap")
     const model = sc.model
     const useProxy = stageNeedsProxy(sc)

@@ -88,7 +88,7 @@ export async function executeAgentStage(
     return { outcome: "completed", retries: 0 }
   }
 
-  const prompt = buildFullPrompt(def.name, ctx.taskId, ctx.taskDir, ctx.projectDir, ctx.input.feedback)
+  const prompt = buildFullPrompt(def.name, ctx.taskId, ctx.taskDir, ctx.projectDir, ctx.input.feedback, ctx.input.issueNumber)
   const promptTokens = estimateTokens(prompt)
   let currentModelTier: string = def.modelTier
 

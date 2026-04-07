@@ -2,6 +2,7 @@ import * as fs from "fs"
 import * as path from "path"
 
 import type { StageName } from "./types.js"
+import { readRunHistory, formatRunHistoryForPrompt } from "./run-history.js"
 
 // --- Types ---
 
@@ -280,6 +281,7 @@ export function injectTaskContextTiered(
   taskDir: string,
   policy: StageContextPolicy,
   feedback?: string,
+  options?: { projectDir?: string; issueNumber?: number },
 ): string {
   let context = `## Task Context\n`
   context += `Task ID: ${taskId}\n`
@@ -343,6 +345,15 @@ export function injectTaskContextTiered(
     const selected = selectContent(contextMdPath, content, policy.accumulatedContext)
     const label = tierLabel("Previous Stage Context", policy.accumulatedContext)
     context += `\n## ${label}\n${selected}\n`
+  }
+
+  // Run history context (previous attempts on this issue)
+  if (options?.projectDir && options?.issueNumber) {
+    const records = readRunHistory(options.projectDir, options.issueNumber)
+    const runHistorySection = formatRunHistoryForPrompt(records)
+    if (runHistorySection) {
+      context += `\n${runHistorySection}\n`
+    }
   }
 
   // Feedback is never tiered — always full

@@ -9,11 +9,12 @@ import {
   estimateTokens,
 } from "./context-tiers.js"
 import { isMcpEnabledForStage } from "./mcp-config.js"
+import { readRunHistory, formatRunHistoryForPrompt } from "./run-history.js"
 
 
-const MAX_TASK_CONTEXT_PLAN = 1500
-const MAX_TASK_CONTEXT_SPEC = 2000
-const MAX_ACCUMULATED_CONTEXT = 4000
+const MAX_TASK_CONTEXT_PLAN = 8000
+const MAX_TASK_CONTEXT_SPEC = 8000
+const MAX_ACCUMULATED_CONTEXT = 32000
 
 export function readPromptFile(stageName: string, projectDir?: string): string {
   // Try project-level step file first (.kody/steps/{stageName}.md)
@@ -48,6 +49,7 @@ export function injectTaskContext(
   taskId: string,
   taskDir: string,
   feedback?: string,
+  options?: { projectDir?: string; issueNumber?: number },
 ): string {
   let context = `## Task Context\n`
   context += `Task ID: ${taskId}\n`
@@ -108,6 +110,15 @@ export function injectTaskContext(
         }
       }
     } catch { /* ignore parse errors */ }
+  }
+
+  // Run history context (previous attempts on this issue)
+  if (options?.projectDir && options?.issueNumber) {
+    const records = readRunHistory(options.projectDir, options.issueNumber)
+    const runHistorySection = formatRunHistoryForPrompt(records)
+    if (runHistorySection) {
+      context += `\n${runHistorySection}\n`
+    }
   }
 
   if (feedback) {
@@ -343,16 +354,17 @@ export function buildFullPrompt(
   taskDir: string,
   projectDir: string,
   feedback?: string,
+  issueNumber?: number,
 ): string {
   const config = getProjectConfig()
 
   let assembled: string
   if (config.contextTiers?.enabled) {
-    assembled = buildFullPromptTiered(stageName, taskId, taskDir, projectDir, feedback)
+    assembled = buildFullPromptTiered(stageName, taskId, taskDir, projectDir, feedback, issueNumber)
   } else {
     const memory = readProjectMemory(projectDir)
     const promptTemplate = readPromptFile(stageName, projectDir)
-    const prompt = injectTaskContext(promptTemplate, taskId, taskDir, feedback)
+    const prompt = injectTaskContext(promptTemplate, taskId, taskDir, feedback, { projectDir, issueNumber })
     assembled = memory ? `${memory}\n---\n\n${prompt}` : prompt
   }
 
@@ -379,6 +391,7 @@ function buildFullPromptTiered(
   taskDir: string,
   projectDir: string,
   feedback?: string,
+  issueNumber?: number,
 ): string {
   const config = getProjectConfig()
   const policy = resolveStagePolicy(stageName, config.contextTiers?.stageOverrides)
@@ -386,7 +399,7 @@ function buildFullPromptTiered(
 
   const memory = readProjectMemoryTiered(projectDir, policy.memory)
   const promptTemplate = readPromptFile(stageName, projectDir)
-  const prompt = injectTaskContextTiered(promptTemplate, taskId, taskDir, policy, feedback)
+  const prompt = injectTaskContextTiered(promptTemplate, taskId, taskDir, policy, feedback, { projectDir, issueNumber })
 
   let assembled = memory ? `${memory}\n---\n\n${prompt}` : prompt
 
