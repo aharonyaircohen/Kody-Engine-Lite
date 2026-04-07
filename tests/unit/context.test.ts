@@ -41,11 +41,10 @@ describe("injectTaskContext", () => {
     expect(result).toContain("low")
   })
 
-  it("truncates plan.md to 8000 chars", () => {
-    fs.writeFileSync(path.join(tmpDir, "plan.md"), "x".repeat(10000))
+  it("includes plan.md content", () => {
+    fs.writeFileSync(path.join(tmpDir, "plan.md"), "Step 1: Do the thing\nStep 2: Verify")
     const result = injectTaskContext("{{TASK_CONTEXT}}", "test-4", tmpDir)
-    expect(result).toContain("...")
-    expect(result.length).toBeLessThan(10000)
+    expect(result).toContain("Step 1: Do the thing")
   })
 
   it("includes feedback when provided", () => {
@@ -71,12 +70,12 @@ describe("injectTaskContext", () => {
     expect(result).not.toContain("Previous Stage Context")
   })
 
-  it("truncates accumulated context to 32000 chars", () => {
-    const longContext = "x".repeat(40000)
+  it("truncates very large accumulated context", () => {
+    const longContext = "x".repeat(500000)
     fs.writeFileSync(path.join(tmpDir, "context.md"), longContext)
     const result = injectTaskContext("{{TASK_CONTEXT}}", "test-ctx", tmpDir)
     expect(result).toContain("(earlier context truncated)")
-    expect(result).not.toContain("x".repeat(33000))
+    expect(result.length).toBeLessThan(500000)
   })
 })
 

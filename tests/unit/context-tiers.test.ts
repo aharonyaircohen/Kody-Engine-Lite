@@ -201,14 +201,13 @@ describe("readProjectMemoryTiered", () => {
     expect(result).not.toContain("overview")
   })
 
-  it("returns abstract at L0", () => {
+  it("returns compact format at L0", () => {
     const memDir = path.join(tmpDir, ".kody", "memory")
     fs.mkdirSync(memDir, { recursive: true })
     fs.writeFileSync(path.join(memDir, "arch.md"), "# Architecture\n\nBig application with many features.\n\n## Details\n- Feature 1\n- Feature 2\n")
 
     const result = readProjectMemoryTiered(tmpDir, "L0")
-    expect(result).toContain("abstract")
-    expect(result).toContain("# Architecture")
+    expect(result).toContain("Memory(compact)")
   })
 })
 

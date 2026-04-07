@@ -95,7 +95,7 @@ describe("autoLearn", () => {
 
     autoLearn(ctx)
 
-    const archPath = path.join(projectDir, ".kody", "memory", "architecture.md")
+    const archPath = path.join(projectDir, ".kody", "memory", "facts_architecture.md")
     expect(fs.existsSync(archPath)).toBe(true)
     const arch = fs.readFileSync(archPath, "utf-8")
     expect(arch).toContain("Next.js")
