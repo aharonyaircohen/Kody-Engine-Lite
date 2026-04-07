@@ -213,6 +213,35 @@
 
     .hero-buttons { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
 
+    /* ═══ DEMO VIDEO ═══ */
+    .demo-video-wrap {
+      max-width: 800px;
+      margin: 2.5rem auto 0;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      box-shadow: 0 0 60px rgba(124,58,237,0.15);
+      position: relative;
+    }
+
+    .demo-video-wrap video {
+      width: 100%;
+      display: block;
+      border-radius: 15px;
+    }
+
+    .demo-video-label {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: 1rem;
+    }
+
     /* ═══ PIPELINE SVG ═══ */
     .pipeline-wrap {
       max-width: 700px;
@@ -734,15 +763,13 @@
       <a href="https://www.npmjs.com/package/@kody-ade/engine" class="btn btn-secondary">npm install</a>
     </div>
 
-    <div class="demo-terminal reveal" id="demo-terminal">
-      <div class="demo-bar">
-        <div class="terminal-dot" style="background: #FF5F57;"></div>
-        <div class="terminal-dot" style="background: #FFBD2E;"></div>
-        <div class="terminal-dot" style="background: #28C840;"></div>
-        <span style="color: var(--text-muted); font-size: 0.75rem; margin-left: 0.5rem; font-family: var(--font-mono);">kody pipeline</span>
-      </div>
-      <div class="demo-body" id="demo-body"></div>
+    <div class="demo-video-wrap reveal">
+      <video autoplay loop muted playsinline poster="assets/kody-demo-poster.png">
+        <source src="assets/kody-demo.mp4" type="video/mp4">
+        <source src="assets/kody-demo.webm" type="video/webm">
+      </video>
     </div>
+    <div class="demo-video-label">Real pipeline run — issue #530 to PR #531</div>
   </section>
 
   <!-- HOW IT WORKS -->

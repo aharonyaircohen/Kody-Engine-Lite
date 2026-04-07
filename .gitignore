@@ -26,4 +26,7 @@ dev-debug.log
 
 # Task files
 tasks.json
-tasks/ 
+tasks/
+
+# Demo recording intermediates (final videos live in docs/assets/)
+demo/videos/

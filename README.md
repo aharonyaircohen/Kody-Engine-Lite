@@ -20,6 +20,15 @@ Kody wraps Claude Code with a 7-stage autonomous pipeline — research, plan, bu
   <img src="assets/pipeline.svg" alt="Kody 7-stage pipeline: Taskify → Plan → Build → Verify → Review → Review-Fix → Ship" width="600">
 </p>
 
+<div align="center">
+  <h4>See it in action — issue to PR in one run</h4>
+
+  <a href="https://aharonyaircohen.github.io/Kody-ADE-Engine/assets/kody-demo.mp4">
+    <img src="assets/screenshots/kody-trigger.png" alt="Watch Kody demo video — click to play" width="680">
+  </a>
+  <br><sub>Click to watch the full demo &middot; Real pipeline run: <a href="https://github.com/aharonyaircohen/Kody-Engine-Tester/issues/530">Issue #530</a> → <a href="https://github.com/aharonyaircohen/Kody-Engine-Tester/pull/531">PR #531</a></sub>
+</div>
+
 ## Quick Start
 
 **Prerequisites:** A GitHub repo + an Anthropic API key (or [compatible provider](docs/LITELLM.md) key).
@@ -312,15 +321,18 @@ flowchart TB
 
 **Reference:** [FAQ](docs/FAQ.md) · [Model Compatibility](docs/model-compatibility.md)
 
-## Generating Demo GIFs
+## Demo Video
 
-Demo GIFs can be generated using [VHS](https://github.com/charmbracelet/vhs). Tape files are in `assets/tapes/`:
+The demo video is auto-recorded with Playwright from a real pipeline run:
 
 ```bash
-brew install vhs            # install VHS
-vhs assets/tapes/init.tape  # → assets/demo-init.gif
-vhs assets/tapes/run-local.tape  # → assets/demo-run.gif (runs a real pipeline)
+npx tsx demo/record.ts                    # record (opens browser)
+ffmpeg -i demo/videos/kody-demo.webm \
+  -c:v libx264 -crf 20 demo/videos/kody-demo.mp4  # convert
+cp demo/videos/kody-demo.{webm,mp4} docs/assets/   # deploy
 ```
+
+Terminal GIFs can also be generated using [VHS](https://github.com/charmbracelet/vhs) — tape files are in `assets/tapes/`.
 
 ## License
 
