@@ -302,6 +302,15 @@ jobs:
           path: .kody/tasks/
           retention-days: 3
 
+      - name: Upload browser artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: kody-browser-artifacts-${{ github.event.inputs.task_id || needs.parse.outputs.task_id }}
+          path: /tmp/kody-artifacts/
+          retention-days: 3
+
       - name: Persist run history
         if: always()
         continue-on-error: true

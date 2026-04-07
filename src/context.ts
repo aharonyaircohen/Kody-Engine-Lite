@@ -304,21 +304,55 @@ playwright-cli open ${serverUrl ?? "http://localhost:3000"}
 npx playwright test --grep "homepage" --reporter=list
 \`\`\`
 
-Alternatively, write and run a short Playwright script to verify the UI:
+Alternatively, write and run a short Playwright script to verify the UI with console and network capture:
 \`\`\`bash
 node -e "
 const { chromium } = require('playwright');
+const fs = require('fs');
+
 (async () => {
+  // Ensure artifact directories exist
+  fs.mkdirSync('/tmp/kody-artifacts/screenshots', { recursive: true });
+  fs.mkdirSync('/tmp/kody-artifacts/videos', { recursive: true });
+
   const browser = await chromium.launch();
-  const page = await browser.newPage();
+  const context = await browser.newContext({
+    recordVideo: { dir: '/tmp/kody-artifacts/videos/' }
+  });
+  const page = await context.newPage();
+
+  // Collect console errors and warnings
+  const consoleErrors = [];
+  page.on('console', msg => {
+    if (msg.type() === 'error' || msg.type() === 'warning') {
+      consoleErrors.push({ type: msg.type(), text: msg.text() });
+    }
+  });
+
+  // Collect network errors (4xx/5xx responses)
+  const networkErrors = [];
+  page.on('response', response => {
+    if (response.status() >= 400) {
+      networkErrors.push({ url: response.url(), status: response.status() });
+    }
+  });
+
   await page.goto('${serverUrl ?? "http://localhost:3000"}');
-  await page.screenshot({ path: '/tmp/verify.png', fullPage: true });
+  await page.screenshot({ path: '/tmp/kody-artifacts/screenshots/verify.png', fullPage: true });
   console.log('Title:', await page.title());
+
+  // Close context to finalize video recording
+  await context.close();
   await browser.close();
+
+  // Print captured artifacts
+  console.log('CONSOLE ERRORS:', JSON.stringify(consoleErrors, null, 2));
+  console.log('NETWORK ERRORS:', JSON.stringify(networkErrors, null, 2));
+  console.log('Artifacts saved to /tmp/kody-artifacts/');
 })();
 "
 \`\`\`
-Use the screenshot output and page title to verify the UI is rendering correctly.`
+Use the screenshot output, console errors, and network errors to verify the UI is rendering correctly.`
 
   const toolsBlock = hasMcpPlaywright ? mcpTools : cliTools
 
