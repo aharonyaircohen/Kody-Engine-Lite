@@ -243,10 +243,11 @@ async function record() {
     console.log(`\nSaved: ${dst}`)
   }
 
-  console.log('\nConvert to mp4:')
-  console.log('  ffmpeg -i demo/videos/kody-demo.webm -c:v libx264 -crf 20 -preset medium demo/videos/kody-demo.mp4')
+  console.log('\nConvert + speed up:')
+  console.log('  ffmpeg -i demo/videos/kody-demo.webm -c:v libx264 -crf 20 -preset medium demo/videos/kody-demo.mp4 -y')
+  console.log('  ffmpeg -i demo/videos/kody-demo.mp4 -filter:v "setpts=PTS/2.5" -af "atempo=2.5" -c:v libx264 -crf 20 -preset medium demo/videos/kody-demo-fast.mp4 -y')
   console.log('\nCopy to docs:')
-  console.log('  cp demo/videos/kody-demo.{webm,mp4} docs/assets/')
+  console.log('  cp demo/videos/kody-demo-fast.mp4 docs/assets/')
 }
 
 record().catch((err) => {

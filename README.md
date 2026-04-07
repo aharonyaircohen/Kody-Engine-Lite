@@ -23,7 +23,7 @@ Kody wraps Claude Code with a 7-stage autonomous pipeline — research, plan, bu
 <div align="center">
   <h4>See it in action — issue to PR in one run</h4>
 
-  <a href="https://aharonyaircohen.github.io/Kody-ADE-Engine/assets/kody-demo.mp4">
+  <a href="https://aharonyaircohen.github.io/Kody-ADE-Engine/assets/kody-demo-fast.mp4">
     <img src="assets/screenshots/kody-trigger.png" alt="Watch Kody demo video — click to play" width="680">
   </a>
   <br><sub>Click to watch the full demo &middot; Real pipeline run: <a href="https://github.com/aharonyaircohen/Kody-Engine-Tester/issues/530">Issue #530</a> → <a href="https://github.com/aharonyaircohen/Kody-Engine-Tester/pull/531">PR #531</a></sub>
