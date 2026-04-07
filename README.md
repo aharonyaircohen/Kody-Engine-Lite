@@ -190,6 +190,9 @@ kody-engine decompose --issue-number 42  # Parallel sub-tasks for complex issues
 kody-engine compose --task-id <id>  # Retry compose after decompose
 kody-engine rerun --issue-number 42 --from verify
 kody-engine watch [--dry-run]       # Run health monitoring locally
+kody-engine serve                  # Start LiteLLM proxy + dev server (infra only)
+kody-engine serve claude           # Above + launch Claude Code CLI
+kody-engine serve vscode           # Above + launch VS Code with proxy routing
 ```
 
 [Full CLI reference with all flags and options →](docs/CLI.md)
@@ -210,6 +213,31 @@ kody-engine watch [--dry-run]       # Run health monitoring locally
 - **Retrospective** — analyzes each run, identifies patterns, suggests improvements ([details](docs/FEATURES.md#retrospective-system))
 - **Kody Watch** — periodic health monitoring: pipeline health, security scanning, config validation every 30 min ([setup guide](docs/WATCH.md))
 - **Anthropic-Compatible Models** — route through LiteLLM to use other providers like MiniMax, Gemini, etc. ([setup guide](docs/LITELLM.md) · [model test results](docs/model-compatibility.md))
+
+## Local Development (`kody serve`)
+
+Start the same infrastructure that GitHub Actions uses, but locally and persistent:
+
+```bash
+kody-engine serve              # LiteLLM proxy + dev server + project memory
+kody-engine serve claude       # Above + Claude Code CLI session
+kody-engine serve vscode       # Above + VS Code with proxy routing
+```
+
+**What it does:**
+- Reads `kody.config.json` and starts the LiteLLM proxy with your model routing (e.g., MiniMax, OpenAI)
+- Adds Claude model aliases so Claude Code works seamlessly through the proxy
+- Starts your dev server if configured
+- Writes `.claude/kody-context.md` with project memory + passive learning instructions
+- Launches Claude Code CLI (with `--dangerously-skip-permissions` and full TTY) or VS Code with `ANTHROPIC_BASE_URL` set
+
+**Options:**
+```bash
+kody-engine serve claude --provider minimax --model MiniMax-M1   # Override model
+kody-engine serve --cwd /path/to/project                        # Target different project
+```
+
+Memory is shared: anything you ask Claude Code to remember (via `.kody/memory/`) is picked up by pipeline runs too.
 
 ## Architecture
 

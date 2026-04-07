@@ -1022,6 +1022,12 @@
         <p>Runs as a GitHub Action, not a hosted service. Posts progress updates to issues, creates PRs, comments results. Your code never leaves your infra.</p>
       </div>
 
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background: rgba(56,189,248,0.15); color: #38bdf8;">&#9889;</div>
+        <h3>Local Serve</h3>
+        <p><code>kody serve</code> starts the same infrastructure locally&mdash;LiteLLM proxy, dev server, project memory. Launch Claude Code CLI or VS Code with one command.</p>
+      </div>
+
     </div>
   </section>
 
@@ -1071,6 +1077,18 @@
           <tr>
             <td><code>@kody approve</code></td>
             <td>Resume after questions or risk gate pause</td>
+          </tr>
+          <tr>
+            <td><code>kody-engine serve</code></td>
+            <td>Start LiteLLM proxy + dev server locally (infra only)</td>
+          </tr>
+          <tr>
+            <td><code>kody-engine serve claude</code></td>
+            <td>Above + launch Claude Code CLI with proxy routing</td>
+          </tr>
+          <tr>
+            <td><code>kody-engine serve vscode</code></td>
+            <td>Above + launch VS Code with proxy routing</td>
           </tr>
         </tbody>
       </table>
