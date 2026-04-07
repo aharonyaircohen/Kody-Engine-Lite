@@ -122,16 +122,15 @@ async function isProxyStale(url: string, config: KodyConfig): Promise<boolean> {
 
 /**
  * Kill an existing LiteLLM proxy process.
+ * Finds the litellm/python process by name to avoid killing the engine itself.
  */
-async function killExistingProxy(url: string): Promise<void> {
+async function killExistingProxy(_url: string): Promise<void> {
   try {
-    // Find and kill the litellm process
     const { execSync } = await import("child_process")
-    const portMatch = url.match(/:(\d+)/)
-    const port = portMatch ? portMatch[1] : "4000"
-    execSync(`lsof -ti:${port} | xargs kill -9 2>/dev/null || true`, { stdio: "pipe" })
+    // Kill litellm process by name, not by port — avoids accidentally killing the engine
+    execSync(`pkill -9 -f 'litellm.*--config' 2>/dev/null || true`, { stdio: "pipe" })
     // Wait for port to be released
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    await new Promise((resolve) => setTimeout(resolve, 2000))
   } catch {
     // Best effort
   }
