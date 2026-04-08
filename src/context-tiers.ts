@@ -17,7 +17,7 @@ export interface TieredContent {
 }
 
 /** Memory hall types for categorized filtering */
-export type MemoryHall = "facts" | "conventions" | "events" | "preferences"
+export type MemoryHall = "facts" | "conventions" | "events" | "preferences" | "thoughts"
 
 export interface StageContextPolicy {
   memory: ContextTier
@@ -260,6 +260,7 @@ export function inferHallFromFilename(filename: string): MemoryHall {
   if (name.startsWith("facts_") || name === "architecture") return "facts"
   if (name.startsWith("events_") || name === "observer-log") return "events"
   if (name.startsWith("preferences_")) return "preferences"
+  if (name.startsWith("thoughts_")) return "thoughts"
   // Default: conventions (covers "conventions.md" and untagged legacy files)
   return "conventions"
 }

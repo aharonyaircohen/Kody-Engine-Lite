@@ -1,6 +1,6 @@
 import * as fs from "fs"
 import * as path from "path"
-import { readProjectMemory } from "./memory.js"
+import { readProjectMemory, mergeBrainWithProject, readBrainMemoryTiered, getBrainBasePath } from "./memory.js"
 import { getProjectConfig } from "./config.js"
 import {
   readProjectMemoryTiered,
@@ -385,7 +385,7 @@ export function buildFullPrompt(
   if (config.contextTiers?.enabled) {
     assembled = buildFullPromptTiered(stageName, taskId, taskDir, projectDir, feedback, issueNumber)
   } else {
-    const memory = readProjectMemory(projectDir)
+    const memory = mergeBrainWithProject(projectDir)
     const promptTemplate = readPromptFile(stageName, projectDir)
     const prompt = injectTaskContext(promptTemplate, taskId, taskDir, feedback, { projectDir, issueNumber })
     assembled = memory ? `${memory}\n---\n\n${prompt}` : prompt
@@ -422,7 +422,11 @@ function buildFullPromptTiered(
 
   // Infer rooms from task scope for memory filtering
   const roomFilter = inferRoomsFromTaskJson(taskDir)
-  const memory = readProjectMemoryTiered(projectDir, policy.memory, policy.memoryHalls, roomFilter)
+  const brainMemory = readBrainMemoryTiered(policy.memory, policy.memoryHalls, roomFilter)
+  const projectMemory = readProjectMemoryTiered(projectDir, policy.memory, policy.memoryHalls, roomFilter)
+  const memory = brainMemory && projectMemory
+    ? `${brainMemory}\n\n---\n\n${projectMemory}`
+    : (brainMemory || projectMemory)
   const promptTemplate = readPromptFile(stageName, projectDir)
   const prompt = injectTaskContextTiered(promptTemplate, taskId, taskDir, policy, feedback, { projectDir, issueNumber })
 

@@ -72,6 +72,8 @@ if (command === "init") {
   import("../ci/parse-inputs.js").then(({ runCiParse }) => runCiParse())
 } else if (command === "serve") {
   import("./commands/serve.js").then(({ serveCommand }) => serveCommand(args.slice(1)))
+} else if (command === "brain") {
+  import("./commands/brain.js").then(({ runBrainCommand }) => runBrainCommand(args.slice(1)))
 } else if (command === "watch") {
   import("../watch/index.js").then(({ runWatchCommand }) =>
     runWatchCommand({ dryRun: args.includes("--dry-run") }),

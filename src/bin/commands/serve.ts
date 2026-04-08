@@ -35,7 +35,7 @@ import {
 } from "../../cli/litellm.js"
 import { startDevServer } from "../../dev-server.js"
 import type { DevServerHandle } from "../../dev-server.js"
-import { readProjectMemory } from "../../memory.js"
+import { readProjectMemory, mergeBrainWithProject } from "../../memory.js"
 import { getArg } from "../cli.js"
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -211,6 +211,7 @@ export function buildKodyContextContent(memory: string, projectDir: string): str
     "# Kody Memory System",
     "",
     `This project uses Kody's memory at \`${memoryDir}/\`.`,
+    "User context (preferences, communication style) is stored at ~/.kody/brain/memory/.",
     "When the user asks you to remember something about this project, write it to the appropriate .md file there.",
     "Follow existing file naming (e.g., architecture.md, conventions.md, patterns.md).",
     "Check for duplicates before adding. Append new entries as bullet points under the relevant heading.",
@@ -353,7 +354,7 @@ export async function serveCommand(rawArgs: string[]): Promise<void> {
   }
 
   // ─── 3. Write .claude/kody-context.md ────────────────────────────────────
-  const memory = readProjectMemory(projectDir)
+  const memory = mergeBrainWithProject(projectDir)
   const contextContent = buildKodyContextContent(memory, projectDir)
   const contextPath = writeKodyContext(projectDir, contextContent)
   const memoryFileCount = (() => {

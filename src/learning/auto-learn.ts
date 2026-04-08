@@ -5,6 +5,7 @@ import type { PipelineContext } from "../types.js"
 import { logger } from "../logger.js"
 import { detectArchitectureBasic } from "../bin/architecture-detection.js"
 import { inferRoomsFromScope } from "../context-tiers.js"
+import { writeBrainEntry, getBrainBasePath } from "../memory.js"
 
 function stripAnsi(str: string): string {
   return str.replace(/\x1b\[[0-9;]*m/g, "")
@@ -150,6 +151,39 @@ function extractDirectories(ctx: PipelineContext): string[] {
   return []
 }
 
+// ─── Brain Auto-learn ───────────────────────────────────────────────────────
+
+/**
+ * Auto-learn user preferences from pipeline context.
+ * Writes patterns about how the user works (not project patterns) to brain.
+ */
+function autoLearnBrain(ctx: PipelineContext): void {
+  try {
+    const feedback = ctx.feedback ?? ""
+    const lowerFb = feedback.toLowerCase()
+
+    // Approval workflow patterns
+    if (/approval|approved|ask.*before/i.test(lowerFb)) {
+      writeBrainEntry("preferences", "workflow", "User prefers to approve changes before they are made")
+    }
+
+    // Communication style patterns
+    if (/terse|no.*preamble|short.*responses/i.test(lowerFb)) {
+      writeBrainEntry("preferences", "style", "User prefers terse responses with no preamble")
+    }
+    if (/no.*emoji|without.*emoji/i.test(lowerFb)) {
+      writeBrainEntry("preferences", "style", "User prefers responses without emoji")
+    }
+
+    // Model preference patterns
+    if (/minimax|prefer.*minimax/i.test(lowerFb)) {
+      writeBrainEntry("facts", "user", "User prefers MiniMax over Claude for most tasks")
+    }
+  } catch {
+    // Brain auto-learn is best-effort
+  }
+}
+
 // ─── Main ───────────────────────────────────────────────────────────────────
 
 export function autoLearn(ctx: PipelineContext): void {
@@ -195,6 +229,9 @@ export function autoLearn(ctx: PipelineContext): void {
 
     // Auto-detect architecture (only if architecture.md doesn't exist)
     autoLearnArchitecture(ctx.projectDir, memoryDir, timestamp)
+
+    // Auto-learn user preferences to brain
+    autoLearnBrain(ctx)
   } catch {
     // Auto-learn is best-effort — don't fail the pipeline
   }

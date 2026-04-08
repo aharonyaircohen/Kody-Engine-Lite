@@ -44,8 +44,8 @@ export function parseWatchConfig(cwd: string): WatchConfigParsed {
       if (config.watch?.model) {
         watchModel = config.watch.model
       }
-      if (config.agent?.provider) {
-        agentProvider = config.agent.provider
+      if (config.watch?.provider) {
+        agentProvider = config.watch.provider
       }
       if (config.agent?.modelMap) {
         agentModelMap = config.agent.modelMap
@@ -100,6 +100,10 @@ export async function runWatchCommand(opts: { dryRun: boolean }): Promise<void> 
     ?? ""
   if (agents.length > 0 && !resolvedModel) {
     console.error("No watch model configured — set watch.model or agent.modelMap in kody.config.json")
+    process.exit(1)
+  }
+  if (agents.length > 0 && !agentProvider) {
+    console.error("No watch provider configured — set watch.provider in kody.config.json")
     process.exit(1)
   }
   const model = resolvedModel

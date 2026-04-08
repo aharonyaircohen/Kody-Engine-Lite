@@ -34,7 +34,9 @@ export async function runWatchAgent(
 
   // Route through LiteLLM proxy if provider is non-claude
   const extraEnv: Record<string, string> = {}
-  const stageConfig = { provider: provider ?? "claude", model }
+  if (!provider) throw new Error(`Watch agent '${agent.config.name}' is missing provider — set watch.provider in kody.config.json`)
+
+  const stageConfig = { provider, model }
   if (stageNeedsProxy(stageConfig)) {
     extraEnv.ANTHROPIC_BASE_URL = getLitellmUrl()
     extraEnv.ANTHROPIC_API_KEY = getAnthropicApiKeyOrDummy()

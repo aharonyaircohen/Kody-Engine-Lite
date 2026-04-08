@@ -40,12 +40,30 @@ describe("parseWatchConfig", () => {
     expect(result.watchModel).toBe("minimax/MiniMax-M2.7-highspeed")
   })
 
+  it("reads watch.provider from config and takes precedence over agent.provider", () => {
+    writeConfig(tmpDir, {
+      github: { owner: "test", repo: "repo" },
+      watch: { provider: "minimax", model: "minimax/M2" },
+      agent: { provider: "openai" },
+    })
+    const result = parseWatchConfig(tmpDir)
+    expect(result.agentProvider).toBe("minimax")
+  })
+
+  it("returns undefined provider when watch.provider is not set", () => {
+    writeConfig(tmpDir, {
+      github: { owner: "test", repo: "repo" },
+    })
+    const result = parseWatchConfig(tmpDir)
+    expect(result.agentProvider).toBeUndefined()
+  })
+
   it("reads watch.model even when REPO env var is set", () => {
     process.env.REPO = "env-owner/env-repo"
     writeConfig(tmpDir, {
       github: { owner: "config-owner", repo: "config-repo" },
-      watch: { model: "minimax/MiniMax-M2.7-highspeed" },
-      agent: { provider: "minimax" },
+      watch: { model: "minimax/MiniMax-M2.7-highspeed", provider: "minimax" },
+      agent: { provider: "openai" },
     })
     const result = parseWatchConfig(tmpDir)
     expect(result.watchModel).toBe("minimax/MiniMax-M2.7-highspeed")
@@ -54,16 +72,15 @@ describe("parseWatchConfig", () => {
     expect(result.repo).toBe("env-owner/env-repo")
   })
 
-  it("reads agent.provider and agent.modelMap from config", () => {
+  it("reads agent.modelMap from config", () => {
     writeConfig(tmpDir, {
       github: { owner: "test", repo: "repo" },
       agent: {
-        provider: "minimax",
         modelMap: { cheap: "minimax/cheap", mid: "minimax/mid" },
       },
     })
     const result = parseWatchConfig(tmpDir)
-    expect(result.agentProvider).toBe("minimax")
+    expect(result.agentProvider).toBeUndefined()
     expect(result.agentModelMap).toEqual({ cheap: "minimax/cheap", mid: "minimax/mid" })
   })
 

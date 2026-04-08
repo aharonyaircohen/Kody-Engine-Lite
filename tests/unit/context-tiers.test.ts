@@ -12,6 +12,7 @@ import {
   resolveStagePolicy,
   readProjectMemoryTiered,
   injectTaskContextTiered,
+  inferHallFromFilename,
 } from "../../src/context-tiers.js"
 
 describe("estimateTokens", () => {
@@ -275,5 +276,38 @@ describe("injectTaskContextTiered", () => {
     const result = injectTaskContextTiered("{{TASK_CONTEXT}}", "t1", tmpDir, policy)
     expect(result).toContain("t1")
     expect(result).not.toContain("{{TASK_CONTEXT}}")
+  })
+})
+
+// ─── inferHallFromFilename ───────────────────────────────────────────────────
+
+describe("inferHallFromFilename", () => {
+  it("maps facts_* prefix to facts hall", () => {
+    expect(inferHallFromFilename("facts_user.md")).toBe("facts")
+    expect(inferHallFromFilename("facts_architecture.md")).toBe("facts")
+    expect(inferHallFromFilename("architecture.md")).toBe("facts")
+  })
+
+  it("maps events_* prefix to events hall", () => {
+    expect(inferHallFromFilename("events_retrospective.md")).toBe("events")
+    expect(inferHallFromFilename("observer-log.md")).toBe("events")
+  })
+
+  it("maps preferences_* prefix to preferences hall", () => {
+    expect(inferHallFromFilename("preferences_workflow.md")).toBe("preferences")
+    expect(inferHallFromFilename("preferences_style.md")).toBe("preferences")
+  })
+
+  it("maps thoughts_* prefix to thoughts hall", () => {
+    expect(inferHallFromFilename("thoughts_discovery.md")).toBe("thoughts")
+    expect(inferHallFromFilename("thoughts_session.md")).toBe("thoughts")
+    expect(inferHallFromFilename("thoughts_today.md")).toBe("thoughts")
+  })
+
+  it("maps conventions_* and untagged files to conventions hall", () => {
+    expect(inferHallFromFilename("conventions.md")).toBe("conventions")
+    expect(inferHallFromFilename("conventions_naming.md")).toBe("conventions")
+    expect(inferHallFromFilename("patterns.md")).toBe("conventions")
+    expect(inferHallFromFilename("legacy.md")).toBe("conventions")
   })
 })

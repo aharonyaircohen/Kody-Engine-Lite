@@ -152,7 +152,7 @@ export interface WatchConfig {
   agents: WatchAgentDefinition[]
   /** Model for watch agents (e.g. "claude-sonnet-4-6"). Falls back to agent.modelMap.cheap */
   model: string
-  /** LLM provider (e.g. "claude", "minimax"). When non-claude, routes through LiteLLM proxy */
+  /** LLM provider (e.g. "claude", "minimax"). Read from watch.provider, falls back to agent.provider. Routes through LiteLLM proxy when non-claude. */
   provider?: string
   /** Absolute path to the project directory */
   projectDir: string

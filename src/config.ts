@@ -91,6 +91,8 @@ export interface KodyConfig {
     activityLog?: number
     /** Model for watch agents. Falls back to agent.modelMap.cheap */
     model?: string
+    /** Provider for watch agents (e.g. "claude", "minimax"). Falls back to agent.provider */
+    provider?: string
   }
   decompose?: {
     /** Enable decompose command. Default: true */
