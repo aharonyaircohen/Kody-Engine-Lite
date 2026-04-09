@@ -1,22 +1,23 @@
 /**
  * Schedule-matching utilities for watch plugins and agents.
  *
- * Supports two modes:
- *  - **intervals** (cycle-based): run every N cycles. Legacy `every` maps here.
- *  - **runAt + days** (time-based): run at a specific time of day, every N days.
+ * Supports:
+ *  - everyHours: run every N hours
+ *  - everyDays:  run every N days
+ *  - runAt/days: run at a specific time of day, every N days (needs state persistence)
  */
 
 import type { PluginSchedule, WatchAgentSchedule, StateStore } from "./types.js"
 
-/** Width of a single watch cron window in minutes (matches the cron `*\/30`). */
-const CRON_WINDOW_MINUTES = 30
+/** Minutes between each watch cron fire (matches cron interval) */
+const CRON_INTERVAL_MINUTES = 15
 
 /**
  * Returns true if a plugin/agent should run on this cycle.
  *
  * @param schedule - The schedule config from a plugin or agent.
  * @param cycleNumber - Current watch cycle count.
- * @param state - Persistent state store (used for day-tracking with `runAt`).
+ * @param state - Persistent state store (used for day-tracking with runAt).
  * @param now - Current date (injectable for testing).
  */
 export function shouldRunOnCycle(
@@ -27,15 +28,26 @@ export function shouldRunOnCycle(
 ): boolean {
   if (!schedule) return true
 
+  // ── Hour-based scheduling ─────────────────────────────────────────────────
+  if (schedule.everyHours) {
+    const interval = (schedule.everyHours * 60) / CRON_INTERVAL_MINUTES
+    if (interval <= 0) return true
+    return cycleNumber % interval === 0
+  }
+
+  // ── Day-based scheduling ──────────────────────────────────────────────────
+  if (schedule.everyDays) {
+    const interval = (schedule.everyDays * 24 * 60) / CRON_INTERVAL_MINUTES
+    if (interval <= 0) return true
+    return cycleNumber % interval === 0
+  }
+
   // ── Time-based scheduling (runAt) ───────────────────────────────────────
   if (schedule.runAt) {
     return matchesRunAt(schedule.runAt, schedule.days ?? 1, state, now)
   }
 
-  // ── Cycle-based scheduling (intervals / legacy every) ──────────────────
-  const interval = schedule.intervals ?? schedule.every
-  if (!interval || interval <= 0) return true
-  return cycleNumber % interval === 0
+  return true
 }
 
 /**
@@ -55,8 +67,8 @@ function matchesRunAt(
   const nowMinutes = now.getHours() * 60 + now.getMinutes()
   const targetMinutes = hours * 60 + minutes
 
-  // Check if we're within the cron window [target, target + CRON_WINDOW_MINUTES)
-  if (nowMinutes < targetMinutes || nowMinutes >= targetMinutes + CRON_WINDOW_MINUTES) {
+  // Check if we're within the cron window [target, target + CRON_INTERVAL_MINUTES)
+  if (nowMinutes < targetMinutes || nowMinutes >= targetMinutes + CRON_INTERVAL_MINUTES) {
     return false
   }
 
