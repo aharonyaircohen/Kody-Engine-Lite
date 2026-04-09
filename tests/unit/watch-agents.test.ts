@@ -41,7 +41,7 @@ describe("loadWatchAgents", () => {
     createAgent("my-agent", {
       name: "my-agent",
       description: "Test agent",
-      schedule: { every: 48 },
+      schedule: { everyHours: 48 },
     }, "Check open PRs for staleness.")
 
     const { agents, warnings } = loadWatchAgents(tmpDir)
@@ -49,7 +49,7 @@ describe("loadWatchAgents", () => {
     expect(agents).toHaveLength(1)
     expect(agents[0].config.name).toBe("my-agent")
     expect(agents[0].config.description).toBe("Test agent")
-    expect(agents[0].config.schedule.every).toBe(48)
+    expect(agents[0].config.schedule.everyHours).toBe(48)
     expect(agents[0].systemPrompt).toBe("Check open PRs for staleness.")
   })
 
@@ -61,7 +61,7 @@ describe("loadWatchAgents", () => {
 
     const { agents } = loadWatchAgents(tmpDir)
     expect(agents).toHaveLength(1)
-    expect(agents[0].config.schedule.every).toBe(1)
+    expect(agents[0].config.schedule.everyHours).toBe(1)
   })
 
   it("parses reportOnFailure when true", () => {
@@ -161,7 +161,7 @@ describe("loadWatchAgents", () => {
     const agentDir = path.join(tmpDir, ".kody", "watch", "agents", "no-md")
     fs.mkdirSync(agentDir, { recursive: true })
     fs.writeFileSync(path.join(agentDir, "agent.json"), JSON.stringify({
-      name: "no-md", description: "Test", schedule: { every: 1 },
+      name: "no-md", description: "Test", schedule: { everyHours: 1 },
     }))
 
     const { agents, warnings } = loadWatchAgents(tmpDir)
@@ -185,7 +185,7 @@ describe("loadWatchAgents", () => {
   it("skips agent with missing name", () => {
     createAgent("missing-name", {
       description: "No name",
-      schedule: { every: 1 },
+      schedule: { everyHours: 1 },
     }, "Some prompt")
 
     const { agents, warnings } = loadWatchAgents(tmpDir)
@@ -197,7 +197,7 @@ describe("loadWatchAgents", () => {
   it("skips agent with missing description", () => {
     createAgent("missing-desc", {
       name: "missing-desc",
-      schedule: { every: 1 },
+      schedule: { everyHours: 1 },
     }, "Some prompt")
 
     const { agents, warnings } = loadWatchAgents(tmpDir)
@@ -210,20 +210,20 @@ describe("loadWatchAgents", () => {
     createAgent("bad-schedule", {
       name: "bad-schedule",
       description: "Test",
-      schedule: { every: 0 },
+      schedule: { everyHours: 0 },
     }, "Some prompt")
 
     const { agents, warnings } = loadWatchAgents(tmpDir)
     expect(agents).toHaveLength(0)
     expect(warnings).toHaveLength(1)
-    expect(warnings[0]).toContain("schedule.every")
+    expect(warnings[0]).toContain("schedule.everyHours")
   })
 
   it("rejects non-integer schedule.every", () => {
     createAgent("float-schedule", {
       name: "float-schedule",
       description: "Test",
-      schedule: { every: 1.5 },
+      schedule: { everyHours: 1.5 },
     }, "Some prompt")
 
     const { agents, warnings } = loadWatchAgents(tmpDir)
@@ -245,7 +245,7 @@ describe("loadWatchAgents", () => {
 
   it("loads multiple valid agents", () => {
     createAgent("agent-a", { name: "agent-a", description: "A" }, "Prompt A")
-    createAgent("agent-b", { name: "agent-b", description: "B", schedule: { every: 10 } }, "Prompt B")
+    createAgent("agent-b", { name: "agent-b", description: "B", schedule: { everyHours: 10 } }, "Prompt B")
 
     const { agents, warnings } = loadWatchAgents(tmpDir)
     expect(warnings).toHaveLength(0)
@@ -274,7 +274,7 @@ describe("buildWatchAgentPrompt", () => {
     config: {
       name: "test-agent",
       description: "A test watch agent",
-      schedule: { every: 1 },
+      schedule: { everyHours: 1 },
     },
     systemPrompt: "List open PRs and flag stale ones.",
     dirPath: "/tmp/test-agent",
@@ -333,14 +333,14 @@ describe("agent schedule filtering via shouldRunOnCycle", () => {
     state = new JsonStateStore("/dev/null")
   })
 
-  it("runs agent when cycle matches schedule.every", () => {
-    const schedule = { every: 48 }
+  it("runs agent when cycle matches schedule.everyHours", () => {
+    const schedule = { everyHours: 48 }
     expect(shouldRunOnCycle(schedule, 48, state, new Date())).toBe(true)
     expect(shouldRunOnCycle(schedule, 96, state, new Date())).toBe(true)
   })
 
-  it("skips agent when cycle does not match every", () => {
-    const schedule = { every: 48 }
+  it("skips agent when cycle does not match everyHours", () => {
+    const schedule = { everyHours: 48 }
     expect(shouldRunOnCycle(schedule, 1, state, new Date())).toBe(false)
     expect(shouldRunOnCycle(schedule, 47, state, new Date())).toBe(false)
   })
@@ -429,7 +429,7 @@ describe("loadWatchAgents preserves runAt and days", () => {
     expect(agents).toHaveLength(1)
     expect(agents[0].config.schedule.runAt).toBe("04:00")
     expect(agents[0].config.schedule.days).toBe(7)
-    expect(agents[0].config.schedule.every).toBe(1) // default
+    expect(agents[0].config.schedule.everyHours).toBe(1) // default
   })
 
   it("preserves runAt and days without every", () => {
@@ -443,20 +443,20 @@ describe("loadWatchAgents preserves runAt and days", () => {
     expect(agents).toHaveLength(1)
     expect(agents[0].config.schedule.runAt).toBe("02:00")
     expect(agents[0].config.schedule.days).toBe(1)
-    expect(agents[0].config.schedule.every).toBe(1)
+    expect(agents[0].config.schedule.everyHours).toBe(1)
   })
 
   it("omits runAt from config when not provided", () => {
     createAgent("simple-agent", {
       name: "simple-agent",
       description: "Simple agent",
-      schedule: { every: 3 },
+      schedule: { everyHours: 3 },
     })
 
     const { agents } = loadWatchAgents(tmpDir)
     expect(agents).toHaveLength(1)
     expect(agents[0].config.schedule.runAt).toBeUndefined()
-    expect(agents[0].config.schedule.every).toBe(3)
+    expect(agents[0].config.schedule.everyHours).toBe(3)
   })
 
   it("ignores invalid runAt (empty string)", () => {

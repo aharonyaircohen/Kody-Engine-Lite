@@ -45,8 +45,8 @@ export async function runWatch(config: WatchConfig): Promise<WatchResult> {
   // ── Deterministic plugins ──────────────────────────────────────────────────
 
   const scheduledPlugins = plugins.filter((plugin) => {
-    if (!plugin.schedule || !plugin.schedule.every) return true
-    return cycleNumber % plugin.schedule.every === 0
+    if (!plugin.schedule || !plugin.schedule.everyHours) return true
+    return cycleNumber % plugin.schedule.everyHours === 0
   })
 
   log.info(

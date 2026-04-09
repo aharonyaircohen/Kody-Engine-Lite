@@ -84,7 +84,7 @@ export const securityScanPlugin: WatchPlugin = {
   name: "security-scan",
   description: "Broad security audit: secrets, dependency CVEs, unsafe patterns, committed env files",
   domain: "security",
-  schedule: { every: 48 },
+  schedule: { everyHours: 48 },
 
   async run(ctx): Promise<ActionRequest[]> {
     ctx.log.debug("Running security-scan plugin")

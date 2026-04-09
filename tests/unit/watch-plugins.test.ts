@@ -56,7 +56,7 @@ afterEach(() => {
 describe("pipeline-health plugin", () => {
   it("has correct metadata", () => {
     expect(pipelineHealthPlugin.name).toBe("pipeline-health")
-    expect(pipelineHealthPlugin.schedule?.every).toBe(1)
+    expect(pipelineHealthPlugin.schedule?.everyHours).toBe(1)
   })
 
   it("returns empty when no tasks directory exists", async () => {
@@ -220,7 +220,7 @@ describe("committed env files", () => {
 describe("security-scan plugin", () => {
   it("has correct metadata", () => {
     expect(securityScanPlugin.name).toBe("security-scan")
-    expect(securityScanPlugin.schedule?.every).toBe(48)
+    expect(securityScanPlugin.schedule?.everyHours).toBe(48)
   })
 
   it("returns empty for clean project", async () => {
@@ -243,7 +243,7 @@ describe("security-scan plugin", () => {
 describe("config-health plugin", () => {
   it("has correct metadata", () => {
     expect(configHealthPlugin.name).toBe("config-health")
-    expect(configHealthPlugin.schedule?.every).toBe(48)
+    expect(configHealthPlugin.schedule?.everyHours).toBe(48)
   })
 
   it("reports missing config", async () => {

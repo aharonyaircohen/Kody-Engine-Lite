@@ -30,9 +30,8 @@ export function shouldRunOnCycle(
 
   // ── Hour-based scheduling ─────────────────────────────────────────────────
   if (schedule.everyHours) {
-    const interval = (schedule.everyHours * 60) / CRON_INTERVAL_MINUTES
-    if (interval <= 0) return true
-    return cycleNumber % interval === 0
+    if (schedule.everyHours <= 0) return true
+    return cycleNumber % schedule.everyHours === 0
   }
 
   // ── Day-based scheduling ──────────────────────────────────────────────────

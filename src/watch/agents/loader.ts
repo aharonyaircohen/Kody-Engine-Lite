@@ -28,16 +28,16 @@ function validateAgentConfig(raw: unknown, dirName: string): WatchAgentConfig | 
     return `${dirName}: agent.json missing required "description" (string)`
   }
 
-  let every = 1
+  let everyHours = 1
   let runAt: string | undefined
   let days: number | undefined
   if (obj.schedule && typeof obj.schedule === "object") {
     const sched = obj.schedule as Record<string, unknown>
-    if (sched.every !== undefined) {
-      if (typeof sched.every !== "number" || sched.every < 1 || !Number.isInteger(sched.every)) {
-        return `${dirName}: schedule.every must be an integer >= 1`
+    if (sched.everyHours !== undefined) {
+      if (typeof sched.everyHours !== "number" || sched.everyHours < 1 || !Number.isInteger(sched.everyHours)) {
+        return `${dirName}: schedule.everyHours must be an integer >= 1`
       }
-      every = sched.every
+      everyHours = sched.everyHours
     }
     if (typeof sched.runAt === "string" && sched.runAt.trim()) {
       runAt = sched.runAt.trim()
@@ -54,7 +54,7 @@ function validateAgentConfig(raw: unknown, dirName: string): WatchAgentConfig | 
   return {
     name: obj.name.trim(),
     description: obj.description.trim(),
-    schedule: { every, ...(runAt && { runAt }), ...(days !== undefined && { days }) },
+    schedule: { everyHours, ...(runAt && { runAt }), ...(days !== undefined && { days }) },
     reportOnFailure: obj.reportOnFailure === true,
     timeoutMs,
   }
