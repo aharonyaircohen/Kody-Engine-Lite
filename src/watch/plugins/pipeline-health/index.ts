@@ -1,5 +1,6 @@
 /**
  * Pipeline Health plugin — monitors .kody/tasks/ for stalled, failed, or stuck tasks.
+ * Writes failure events to the graph for cross-run context.
  * Runs every cycle (every 30 min).
  */
 
@@ -7,6 +8,7 @@ import * as fs from "fs"
 import * as path from "path"
 
 import type { WatchPlugin, ActionRequest, WatchContext } from "../../core/types.js"
+import { createEpisode, factExists, writeFactOnce } from "../../../memory/graph/index.js"
 
 interface TaskStatus {
   taskId: string
@@ -110,6 +112,41 @@ function evaluateHealth(task: TaskStatus): TaskHealth {
   }
 }
 
+// ─── Graph Memory Wiring ────────────────────────────────────────────────────────
+
+function writeHealthEvents(ctx: WatchContext, unhealthy: TaskHealth[]): void {
+  try {
+    const episode = createEpisode(ctx.projectDir, {
+      runId: `watch-cycle-${ctx.cycleNumber}`,
+      source: "ci_failure",
+      taskId: `cycle-${ctx.cycleNumber}`,
+      createdAt: new Date().toISOString(),
+      rawContent: `Pipeline health: ${unhealthy.length} unhealthy task(s)`,
+      extractedNodeIds: [],
+    })
+
+    const written: string[] = []
+    for (const h of unhealthy) {
+      const content = `Pipeline task '${h.taskId}' is ${h.health}: ${h.detail}`
+      if (!factExists(ctx.projectDir, "events", "ci", content)) {
+        const node = writeFactOnce(ctx.projectDir, "events", "ci", content, episode.id)
+        if (node) written.push(node.id)
+      }
+    }
+
+    if (written.length > 0) {
+      ctx.log.info(
+        { count: written.length, episodeId: episode.id },
+        "Wrote pipeline health events to graph",
+      )
+    }
+  } catch (err) {
+    ctx.log.warn(`  Graph write failed: ${err instanceof Error ? err.message : String(err)}`)
+  }
+}
+
+// ─── Digest Formatting ─────────────────────────────────────────────────────────
+
 function formatDigestMarkdown(evaluations: TaskHealth[], cycleNumber: number): string {
   const unhealthy = evaluations.filter((e) => e.health !== "healthy")
   if (unhealthy.length === 0) return ""
@@ -150,6 +187,9 @@ export const pipelineHealthPlugin: WatchPlugin = {
     )
 
     if (unhealthy.length === 0) return []
+
+    // Write events to the graph (non-blocking)
+    writeHealthEvents(ctx, unhealthy)
 
     const actions: ActionRequest[] = []
 

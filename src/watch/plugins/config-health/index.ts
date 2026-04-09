@@ -1,5 +1,6 @@
 /**
  * Config Health plugin — validates kody.config.json, secrets, quality commands, .kody/ integrity.
+ * Writes config findings to the graph as conventions or events.
  * Runs every 48 cycles (daily at 30 min intervals).
  */
 
@@ -8,6 +9,7 @@ import * as path from "path"
 import { execFileSync } from "child_process"
 
 import type { WatchPlugin, ActionRequest, WatchContext } from "../../core/types.js"
+import { createEpisode, factExists, writeFactOnce } from "../../../memory/graph/index.js"
 
 interface ConfigFinding {
   check: string
@@ -125,6 +127,42 @@ function validateConfig(cwd: string, repo: string): ConfigFinding[] {
   return findings
 }
 
+// ─── Graph Memory Wiring ────────────────────────────────────────────────────────
+
+function writeConfigFindings(ctx: WatchContext, findings: ConfigFinding[]): void {
+  try {
+    const episode = createEpisode(ctx.projectDir, {
+      runId: `watch-cycle-${ctx.cycleNumber}`,
+      source: "ci_failure",
+      taskId: `cycle-${ctx.cycleNumber}`,
+      createdAt: new Date().toISOString(),
+      rawContent: `Config health: ${findings.length} finding(s)`,
+      extractedNodeIds: [],
+    })
+
+    const written: string[] = []
+    for (const f of findings) {
+      const hall: "events" | "conventions" = f.severity === "error" ? "events" : "conventions"
+      const content = `Config: ${f.check} — ${f.message}`
+      if (!factExists(ctx.projectDir, hall, "config", content)) {
+        const node = writeFactOnce(ctx.projectDir, hall, "config", content, episode.id)
+        if (node) written.push(node.id)
+      }
+    }
+
+    if (written.length > 0) {
+      ctx.log.info(
+        { count: written.length, episodeId: episode.id },
+        "Wrote config health findings to graph",
+      )
+    }
+  } catch (err) {
+    ctx.log.warn(`  Graph write failed: ${err instanceof Error ? err.message : String(err)}`)
+  }
+}
+
+// ─── Digest Formatting ─────────────────────────────────────────────────────────
+
 function formatDigestMarkdown(findings: ConfigFinding[], cycleNumber: number): string {
   let md = `## Config Health — Cycle #${cycleNumber}\n\n`
   md += `| Check | Severity | Message |\n|-------|----------|---------|\n`
@@ -156,6 +194,9 @@ export const configHealthPlugin: WatchPlugin = {
       { total: findings.length, errors: findings.filter((f) => f.severity === "error").length },
       "Config health issues found",
     )
+
+    // Write findings to the graph (non-blocking)
+    writeConfigFindings(ctx, findings)
 
     const actions: ActionRequest[] = []
 

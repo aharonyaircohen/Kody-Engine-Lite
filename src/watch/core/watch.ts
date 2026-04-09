@@ -30,6 +30,7 @@ export async function runWatch(config: WatchConfig): Promise<WatchResult> {
     log,
     runTimestamp: timestamp,
     cycleNumber,
+    projectDir: config.projectDir,
     activityLog: config.activityLog,
   }
 

@@ -56,6 +56,8 @@ export interface WatchContext {
   log: Logger
   runTimestamp: string
   cycleNumber: number
+  /** Absolute path to the project directory */
+  projectDir: string
   /** Issue number for posting activity log reports */
   activityLog?: number
 }
