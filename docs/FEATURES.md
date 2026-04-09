@@ -124,6 +124,8 @@ After each pipeline run (pass or fail), Kody analyzes what happened:
 
 Results are appended to `.kody/memory/observer-log.jsonl` as structured JSON. Over time, this builds a searchable log of recurring patterns — use it to debug repeated failures, discover systemic issues, or tune the pipeline. Quick check after any run: `cat .kody/memory/observer-log.jsonl | jq '.suggestion'`.
 
+Every retrospective also creates a **graph episode** (`.kody/graph/episodes/ep_plan_*.json`) summarizing the run — automatically indexed into the FTS search layer so you can search past runs by keyword: `kody graph search . "JWT"`.
+
 ## Memory System
 
 Kody learns across runs. Memory is organized into **halls** (types: facts, conventions, events, preferences), **rooms** (topics derived from task scope), and **tiers** (L0 compressed → L2 full). Each stage loads only the memory it needs — taskify gets facts only (68 tokens), build gets facts+conventions for the relevant room (250 tokens), instead of dumping all 1,900 tokens every time.
@@ -134,8 +136,10 @@ Key capabilities:
 - **Stage diaries** — each stage remembers patterns across runs (test results, review findings, import styles)
 - **Auto-learning with dedup** — extracts conventions from pipeline artifacts, never duplicates, prunes old entries
 - **Room scoping** — task touching `src/auth/` loads `conventions_auth.md`, not unrelated conventions
+- **Memory nudges** — LLM-driven pattern extraction from completed tasks (opt-in via `KODY_MEMORY_NUDGE=true`)
+- **Session FTS search** — full-text search across all past runs via `kody graph search . <query>`
 
-All memory is flat files in `.kody/memory/`, persisted via git. No database.
+All memory is flat files in `.kody/memory/` and `.kody/graph/`, persisted via git. No database.
 
 [Full memory system documentation →](MEMORY.md)
 

@@ -3,8 +3,16 @@ import * as path from "path"
 import * as os from "os"
 import { MemoryHall, inferHallFromFilename, inferRoomFromFilename } from "./context-tiers.js"
 import { compressMemoryContent } from "./compress.js"
+import * as graph from "./memory/graph/index.js"
 
 export function readProjectMemory(projectDir: string): string {
+  // Try graph store first
+  const graphNodes = graph.getCurrentFacts(projectDir)
+  if (graphNodes.length > 0) {
+    return graph.graphNodesToMarkdown(graphNodes)
+  }
+
+  // Fallback: legacy .md files
   const memoryDir = path.join(projectDir, ".kody", "memory")
   if (!fs.existsSync(memoryDir)) return ""
 

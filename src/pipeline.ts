@@ -22,6 +22,7 @@ import {
   postSkippedStagesComment,
 } from "./pipeline/hooks.js"
 import { autoLearn } from "./learning/auto-learn.js"
+import { nudge } from "./memory/nudge.js"
 import { runRetrospective } from "./retrospective.js"
 import { formatPipelineSummary } from "./pipeline/summary.js"
 import { getProjectConfig } from "./config.js"
@@ -304,6 +305,13 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
   await runRetrospective(ctx, state, pipelineStartTime).catch((err) => {
     logger.warn(`  Retrospective failed: ${err instanceof Error ? err.message : String(err)}`)
   })
+
+  // Memory nudge: LLM-driven pattern extraction from successful runs
+  if (state.state === "completed") {
+    await nudge(ctx).catch((err) => {
+      logger.warn(`  Nudge failed: ${err instanceof Error ? err.message : String(err)}`)
+    })
+  }
 
   // Record run history for cross-run context
   const issueForHistory = ctx.input.issueNumber ?? ctx.input.linkedIssue

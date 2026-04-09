@@ -1,6 +1,7 @@
 import { execFileSync } from "child_process"
 import { getProjectConfig, VERIFY_COMMAND_TIMEOUT_MS } from "./config.js"
 import { logger } from "./logger.js"
+import type { ResolvedTool } from "./types.js"
 
 interface ExecError {
   stdout?: string
@@ -93,6 +94,19 @@ function extractSummary(output: string, cmdName: string): string[] {
   return lines.slice(-3).map((l) => `[${cmdName}] ${l.trim()}`)
 }
 
+/**
+ * Run a tool's quality gate command (e.g., `npx playwright test`).
+ * The dev server is assumed to already be running from the build stage
+ * (which starts it for UI tasks and keeps it as a detached process).
+ */
+function runToolCommand(
+  tool: ResolvedTool,
+  cwd: string,
+): { success: boolean; output: string; timedOut: boolean } {
+  if (!tool.run) return { success: true, output: "", timedOut: false }
+  return runCommand(tool.run, cwd, VERIFY_COMMAND_TIMEOUT_MS)
+}
+
 export interface QualityGateOptions {
   /**
    * When set, typecheck errors are only treated as failures if they reference
@@ -103,6 +117,8 @@ export interface QualityGateOptions {
   onlyFailOnFiles?: string[]
   /** Skip running unit tests (used by hotfix for fast-track verify). */
   skipTests?: boolean
+  /** Tools from .kody/tools.yml to run as quality gates in the verify stage. */
+  tools?: ResolvedTool[]
 }
 
 export function runQualityGates(
@@ -173,6 +189,31 @@ export function runQualityGates(
     }
 
     allSummary.push(...extractSummary(result.output, name))
+  }
+
+  // Run tools that target the "verify" stage (e.g., E2E tests from .kody/tools.yml)
+  const verifyTools = (options?.tools ?? []).filter((t) => t.stages.includes("verify"))
+  for (const tool of verifyTools) {
+    if (!tool.run) continue
+    logger.info(`  Running tool ${tool.name}: ${tool.run}`)
+    const result = runToolCommand(tool, cwd)
+
+    if (result.timedOut) {
+      allErrors.push(`${tool.name}: timed out after ${VERIFY_COMMAND_TIMEOUT_MS / 1000}s`)
+      allPass = false
+      continue
+    }
+
+    if (!result.success) {
+      allPass = false
+      const errors = parseErrors(result.output)
+      allErrors.push(...errors.length > 0
+        ? errors.map((e) => `[${tool.name}] ${e}`)
+        : [`[${tool.name}] ${result.output.slice(0, 500).trim()}`])
+      rawOutputs.push({ name: tool.name, output: result.output.slice(-3000) })
+    } else {
+      allSummary.push(...extractSummary(result.output, tool.name))
+    }
   }
 
   return { pass: allPass, errors: allErrors, summary: allSummary, rawOutputs }

@@ -36,6 +36,12 @@ Superpowers Writing Plans rules:
 7. If modifying existing code, show the exact function/line to change
 8. Keep it simple — avoid unnecessary abstractions (YAGNI)
 
+Change sizing — keep each implementation step focused:
+- ~100 lines changed → good. Reviewable in one pass.
+- ~300 lines changed → acceptable if it's a single logical change.
+- ~1000+ lines changed → too large. Split into multiple steps.
+If a plan step would exceed ~300 lines, break it into smaller steps.
+
 If there are architecture decisions or technical tradeoffs that need input, add a Questions section at the END of your plan:
 
 ## Questions

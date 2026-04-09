@@ -4,6 +4,7 @@ import * as path from "path"
 import type { StageName } from "./types.js"
 import { readRunHistory, formatRunHistoryForPrompt, formatRunHistoryCompressed } from "./run-history.js"
 import { compressMemoryContent } from "./compress.js"
+import * as graph from "./memory/graph/index.js"
 
 // --- Types ---
 
@@ -319,6 +320,22 @@ export function readProjectMemoryTiered(
   hallFilter?: MemoryHall[],
   roomFilter?: string[] | null,
 ): string {
+  // Try graph store first
+  const graphNodes = graph.getCurrentFacts(projectDir, hallFilter?.[0] as import("./memory/graph/types.js").HallType | undefined)
+
+  if (graphNodes.length > 0) {
+    const filtered = roomFilter && roomFilter.length > 0
+      ? graphNodes.filter((n: import("./memory/graph/types.js").GraphNode) => roomFilter!.includes(n.room))
+      : graphNodes
+
+    if (filtered.length === 0) return ""
+
+    // For L0: no markdown needed — just return the filtered node IDs and contents
+    // For L1/L2: serialize to markdown
+    return graph.graphNodesToMarkdown(filtered)
+  }
+
+  // Fallback: legacy .md files
   const memoryDir = path.join(projectDir, ".kody", "memory")
   if (!fs.existsSync(memoryDir)) return ""
 

@@ -18,10 +18,10 @@ export interface WatchPlugin {
 }
 
 export interface PluginSchedule {
-  /** Run every N cycles (default: 1 = every cycle) */
-  every?: number
-  /** Run every N cycles (alias for `every`) */
-  intervals?: number
+  /** Run every N hours */
+  everyHours?: number
+  /** Run every N days */
+  everyDays?: number
   /** Time-of-day to run (HH:mm format, e.g. "02:00") */
   runAt?: string
   /** Run every N days (used with runAt, default: 1) */
@@ -106,10 +106,10 @@ export interface IssueInfo {
 // ============================================================================
 
 export interface WatchAgentSchedule {
-  /** Run every N cycles (default: 1 = every cycle) */
-  every: number
-  /** Run every N cycles (alias for `every`) */
-  intervals?: number
+  /** Run every N hours */
+  everyHours?: number
+  /** Run every N days */
+  everyDays?: number
   /** Time-of-day to run (HH:mm format, e.g. "02:00") */
   runAt?: string
   /** Run every N days (used with runAt, default: 1) */

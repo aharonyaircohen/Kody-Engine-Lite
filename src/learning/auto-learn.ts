@@ -159,7 +159,7 @@ function extractDirectories(ctx: PipelineContext): string[] {
  */
 function autoLearnBrain(ctx: PipelineContext): void {
   try {
-    const feedback = ctx.feedback ?? ""
+    const feedback = ctx.input.feedback ?? ""
     const lowerFb = feedback.toLowerCase()
 
     // Approval workflow patterns

@@ -112,4 +112,12 @@ When the diff introduces a new enum value, status string, tier name, or type con
 - Issues already addressed in the diff you are reviewing — read the FULL diff first
 - devDependencies additions (no production impact)
 
+## Chesterton's Fence
+
+When flagging dead code, unnecessary complexity, or code that seems wrong:
+- Ask: "Is there a reason this exists that I don't understand?"
+- Check `git log --follow` on the file to find when and why the code was added
+- Don't recommend removal of code whose purpose isn't clear from context alone
+- Apply this especially to: workarounds, legacy patterns, defensive checks, and fallback branches
+
 {{TASK_CONTEXT}}

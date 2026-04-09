@@ -160,6 +160,79 @@ After each successful run, `auto-learn.ts` extracts conventions from pipeline ar
 
 **Room tagging:** Review-derived learnings are written to both the global `conventions.md` and a room-specific file (`conventions_{room}.md`) based on the task's primary scope directory.
 
+## Memory Nudges
+
+After a successful task completion, an LLM-driven nudge engine reviews the pipeline artifacts and asks: *"Should I save any pattern from this task?"* Identified patterns are written directly to graph memory as facts, conventions, preferences, or thoughts.
+
+**Opt-in:** `KODY_MEMORY_NUDGE=true` env var (disabled by default).
+
+**What it analyzes:**
+- `task.md` / `task.json` — task type, scope, risk
+- `plan.md` — what was planned and why
+- `review.md` — coding conventions found
+- `verify.md` — tooling patterns (test framework, coverage, pre-existing failures)
+- `ship.md` — what was shipped
+
+**Output:** Patterns written to graph memory via `writeFact()` with a `nudge` episode. Example log output:
+
+```
+Nudge: saved 3 pattern(s) from 840-260409-110822
+  [facts] memory-nudge-feature: The memory nudge feature in src/memory/nudge.ts analyzes task artifacts...
+  [conventions] task-artifacts: Tasks generate structured artifacts (task.md, task.json, verify.md...) that...
+  [thoughts] verify-stage-errors: TypeScript type errors in .next/dev/types/ may occur from modal/Error page imports
+```
+
+**5 halls used by nudge:**
+
+| Hall | Content |
+|------|---------|
+| `facts` | Factual knowledge about the project |
+| `conventions` | Coding patterns and styles |
+| `preferences` | User preferences from feedback |
+| `thoughts` | Notable insights about this task |
+| `events` | Things that happened during the run |
+
+## Session FTS Search
+
+Every pipeline run creates a **graph episode** — a record of what happened — stored in `.kody/graph/episodes/`. Episodes are automatically indexed into a full-text search layer for cross-run recall.
+
+**Storage:**
+- Episodes: `.kody/graph/episodes/{id}.json`
+- Search index: `.kody/graph/sessions-index.json`
+
+**Index:** Zero-dependency inverted index with BM25 ranking. Episodes are indexed on creation (no external service required).
+
+**Sources that create episodes:**
+- `nudge` — LLM-driven pattern extraction (when `KODY_MEMORY_NUDGE=true`)
+- `plan` — retrospective summary of every completed pipeline run
+- `ci_failure` — retrospective summary of failed runs
+- `review`, `decompose`, `migration` — other pipeline events
+
+**Search the CLI:**
+```bash
+kody graph search . JWT
+kody graph search . "PostgreSQL Drizzle"
+```
+
+**Output includes:**
+- BM25 relevance score
+- Source type (nudge/plan/review/etc.)
+- Highlighted snippet with matching terms marked in bold
+- Episode creation date
+
+**Example output:**
+```
+3 sessions matching "JWT":
+
+[nudge] 840-260409-110822 (score: 1.3)
+  Created: 2026-04-09
+  LLM **nudge** identified 3 pattern(s)
+
+[plan] 840-260409-110822 (score: 0.18)
+  Created: 2026-04-09
+  Task: 840-260409-110822 | Outcome: completed | Observation: completed a chore to verify the memory **nudge** feature...
+```
+
 ## Persistence in CI
 
 Run history is persisted to the default branch between CI runs:
@@ -197,4 +270,8 @@ When `contextTiers.enabled` is `false`, the legacy behavior applies — all memo
 | `src/stage-diary.ts` | Diary entry types, read/write, pattern extraction per stage |
 | `src/memory.ts` | Legacy flat memory reader (fallback when tiers disabled) |
 | `src/learning/auto-learn.ts` | Convention extraction, dedup, prune, room-tagged writes |
-| `src/retrospective.ts` | Post-run analysis, observer log |
+| `src/retrospective.ts` | Post-run analysis, observer log, episode creation |
+| `src/memory/nudge.ts` | LLM-driven pattern extraction from completed tasks |
+| `src/memory/search.ts` | Inverted-index FTS with BM25 ranking over episodes |
+| `src/memory/graph/episode.ts` | Episode CRUD, sequence tracking, FTS upsert on create |
+| `src/memory/graph/types.ts` | Graph node/edge/episode types, EpisodeSource enum |

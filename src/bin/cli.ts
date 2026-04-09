@@ -74,6 +74,11 @@ if (command === "init") {
   import("./commands/serve.js").then(({ serveCommand }) => serveCommand(args.slice(1)))
 } else if (command === "brain") {
   import("./commands/brain.js").then(({ runBrainCommand }) => runBrainCommand(args.slice(1)))
+} else if (command === "graph") {
+  import("./commands/graph.js").then(({ runGraphCommand }) => runGraphCommand(args.slice(1))).catch((err) => {
+    console.error(`Graph command failed: ${err instanceof Error ? err.message : err}`)
+    process.exit(1)
+  })
 } else if (command === "watch") {
   import("../watch/index.js").then(({ runWatchCommand }) =>
     runWatchCommand({ dryRun: args.includes("--dry-run") }),

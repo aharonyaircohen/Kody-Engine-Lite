@@ -166,6 +166,7 @@ interface BootstrapToolEntry {
   stages: string[]
   setup: string
   skill: string
+  run?: string
 }
 
 const KNOWN_TOOLS: BootstrapToolEntry[] = [
@@ -175,6 +176,7 @@ const KNOWN_TOOLS: BootstrapToolEntry[] = [
     stages: ["verify"],
     setup: "npx playwright install --with-deps chromium",
     skill: "microsoft/playwright-cli@playwright-cli",
+    run: "npx playwright test",
   },
 ]
 
@@ -925,13 +927,15 @@ Command and URL.
     const detected = detectToolsForBootstrap(cwd)
     const header = `# Kody Tools Configuration\n# Find skills at https://skills.sh\n`
     if (detected.length > 0) {
-      const entries = detected.map((t) =>
-        `${t.name}:\n  detect: ${JSON.stringify(t.detect)}\n  stages: ${JSON.stringify(t.stages)}\n  setup: "${t.setup}"\n  skill: "${t.skill}"`
-      ).join("\n\n")
+      const entries = detected.map((t) => {
+        const base = `${t.name}:\n  detect: ${JSON.stringify(t.detect)}\n  stages: ${JSON.stringify(t.stages)}\n  setup: "${t.setup}"\n  skill: "${t.skill}"`
+        const run = t.run ? `\n  run: "${t.run}"` : ""
+        return base + run
+      }).join("\n\n")
       fs.writeFileSync(toolsYmlPath, `${header}\n${entries}\n`)
       for (const t of detected) console.log(`  ✓ ${t.name} detected`)
     } else {
-      const example = `${header}#\n# Example:\n# playwright:\n#   detect: ["playwright.config.ts", "playwright.config.js"]\n#   stages: [verify]\n#   setup: "npx playwright install --with-deps chromium"\n#   skill: "microsoft/playwright-cli@playwright-cli"\n`
+      const example = `${header}#\n# Example:\n# playwright:\n#   detect: ["playwright.config.ts", "playwright.config.js"]\n#   stages: [verify]\n#   setup: "npx playwright install --with-deps chromium"\n#   skill: "microsoft/playwright-cli@playwright-cli"\n#   run: "npx playwright test"\n`
       fs.writeFileSync(toolsYmlPath, example)
       console.log("  ○ No tools detected — template created")
     }

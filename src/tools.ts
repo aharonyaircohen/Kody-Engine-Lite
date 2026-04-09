@@ -13,6 +13,7 @@ export interface ToolDeclaration {
   stages: string[]
   setup: string
   skill?: string // skills.sh package ref, e.g. "microsoft/playwright-cli@playwright-cli"
+  run?: string
 }
 
 export function loadToolDeclarations(projectDir: string): ToolDeclaration[] {
@@ -32,6 +33,7 @@ export function loadToolDeclarations(projectDir: string): ToolDeclaration[] {
         stages: Array.isArray(v.stages) ? v.stages : [],
         setup: typeof v.setup === "string" ? v.setup : "",
         skill: typeof v.skill === "string" ? v.skill : undefined,
+        run: typeof v.run === "string" ? v.run : undefined,
       }
     })
   } catch (err) {
@@ -52,6 +54,7 @@ export function detectTools(declarations: ToolDeclaration[], projectDir: string)
       stages: decl.stages,
       setup: decl.setup,
       skill: decl.skill,
+      run: decl.run,
     })
   }
 

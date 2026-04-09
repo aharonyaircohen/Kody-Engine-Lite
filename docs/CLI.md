@@ -265,6 +265,39 @@ kody-engine-lite ci-parse
 
 Reads from environment variables (`COMMENT_BODY`, `ISSUE_NUMBER`, `ISSUE_IS_PR`, `TRIGGER_TYPE`) and writes outputs to `$GITHUB_OUTPUT`.
 
+### `graph`
+
+Inspect and search Kody's graph memory. Use `graph search` to recall past runs by keyword.
+
+```bash
+kody graph status <projectDir>
+kody graph query <projectDir> [query]
+kody graph show <projectDir> <nodeId>
+kody graph search <projectDir> <query>
+kody graph migrate <projectDir>
+kody graph clear <projectDir> --confirm
+```
+
+| Subcommand | Description |
+|-----------|-------------|
+| `status` | Show graph stats: node count, edge count, episode count |
+| `query [query]` | Search facts in graph memory (substring match) |
+| `show <nodeId>` | Show a fact + its provenance and version history |
+| `search <query>` | Full-text search across all past run episodes (BM25 ranked, highlighted snippets) |
+| `migrate` | Migrate legacy `.md` memory files to the graph store |
+| `clear --confirm` | Reset all graph data |
+
+**Examples:**
+```bash
+kody graph status .
+kody graph query . JWT
+kody graph show . facts_memory-nudge-feature_123
+kody graph search . "PostgreSQL Drizzle"
+kody graph search . "authentication"
+```
+
+**Episode sources:** `plan` (retrospective summary), `nudge` (LLM pattern extraction), `review`, `ci_failure`, `decompose`, `migration`. Episodes are auto-created on every pipeline run and indexed for FTS search.
+
 ### `watch`
 
 Run Kody Watch health monitoring. In CI this runs automatically via the `kody-watch.yml` cron workflow. Use this command for local testing.

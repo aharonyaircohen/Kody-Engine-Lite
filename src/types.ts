@@ -95,6 +95,7 @@ export interface ResolvedTool {
   stages: string[]
   setup: string
   skill?: string // skills.sh package ref, e.g. "microsoft/playwright-cli@playwright-cli"
+  run?: string   // command to execute as a quality gate in the specified stages
 }
 
 export interface PipelineContext {

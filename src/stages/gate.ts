@@ -5,6 +5,7 @@ import type {
   StageDefinition,
   StageResult,
   PipelineContext,
+  ResolvedTool,
 } from "../types.js"
 import { runQualityGates } from "../verify-runner.js"
 import { logger } from "../logger.js"
@@ -20,6 +21,7 @@ export function executeGateStage(
 
   const verifyResult = runQualityGates(ctx.taskDir, ctx.projectDir, {
     skipTests: ctx.input.skipTests,
+    tools: ctx.tools,
   })
 
   const lines: string[] = [

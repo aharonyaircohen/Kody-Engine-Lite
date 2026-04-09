@@ -13,6 +13,7 @@ import { getRunnerForStage } from "./pipeline/runner-selection.js"
 import { readProjectMemory } from "./memory.js"
 import { estimateTokens } from "./context-tiers.js"
 import { logger } from "./logger.js"
+import { createEpisode } from "./memory/graph/episode.js"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -342,6 +343,33 @@ export async function runRetrospective(
 
     appendRetrospectiveEntry(ctx.projectDir, entry)
     logger.info(`Retrospective: ${observation.slice(0, 120)}`)
+
+    // Create a graph episode so this run is searchable via FTS
+    try {
+      const episodeContent = [
+        `Task: ${state.taskId}`,
+        `Outcome: ${state.state}`,
+        `Observation: ${observation}`,
+        state.state !== "completed" && failedStage ? `Failed at: ${failedStage}` : null,
+        patternMatch ? `Pattern: ${patternMatch}` : null,
+        suggestion ? `Suggestion: ${suggestion}` : null,
+        pipelineFlaw ? `Flaw: ${pipelineFlaw.component} — ${pipelineFlaw.issue}` : null,
+        `Stages: ${Object.entries(state.stages).map(([k, v]) => `${k}:${v.state}`).join(", ")}`,
+      ].filter(Boolean).join(" | ")
+
+      const episode = createEpisode(ctx.projectDir, {
+        runId: ctx.taskId,
+        source: state.state === "completed" ? "plan" : "ci_failure",
+        taskId: ctx.taskId,
+        createdAt: new Date().toISOString(),
+        rawContent: episodeContent,
+        extractedNodeIds: [],
+        linkedFiles: [],
+      })
+      logger.info(`  Episode created: ${episode.id}`)
+    } catch (err) {
+      logger.warn(`  Episode creation failed: ${err instanceof Error ? err.message : String(err)}`)
+    }
   } catch (err) {
     logger.warn(`Retrospective failed: ${err instanceof Error ? err.message : err}`)
   }

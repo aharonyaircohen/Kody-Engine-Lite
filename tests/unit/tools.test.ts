@@ -63,6 +63,28 @@ describe("loadToolDeclarations", () => {
     expect(result[0].skill).toBeUndefined()
   })
 
+  it("parses run field when present", () => {
+    writeFile(tmpDir, ".kody/tools.yml", `playwright:
+  detect: ["playwright.config.ts"]
+  stages: [verify]
+  setup: "npx playwright install"
+  skill: "microsoft/playwright-cli@playwright-cli"
+  run: "npx playwright test"
+`)
+    const result = loadToolDeclarations(tmpDir)
+    expect(result[0].run).toBe("npx playwright test")
+  })
+
+  it("returns undefined run when field is omitted", () => {
+    writeFile(tmpDir, ".kody/tools.yml", `vitest:
+  detect: ["vitest.config.ts"]
+  stages: [verify]
+  setup: ""
+`)
+    const result = loadToolDeclarations(tmpDir)
+    expect(result[0].run).toBeUndefined()
+  })
+
   it("returns empty array for invalid YAML", () => {
     writeFile(tmpDir, ".kody/tools.yml", ":::invalid:::")
     const result = loadToolDeclarations(tmpDir)
@@ -131,6 +153,17 @@ describe("detectTools", () => {
 
     const result = detectTools(declarations, tmpDir)
     expect(result[0].skill).toBe("microsoft/playwright-cli@playwright-cli")
+  })
+
+  it("propagates run field to resolved tool", () => {
+    writeFile(tmpDir, "playwright.config.ts", "export default {}")
+
+    const declarations = [
+      { name: "playwright", detect: ["playwright.config.ts"], stages: ["verify"], setup: "", run: "npx playwright test" },
+    ]
+
+    const result = detectTools(declarations, tmpDir)
+    expect(result[0].run).toBe("npx playwright test")
   })
 
   it("resolved tool has undefined skill when not declared", () => {
