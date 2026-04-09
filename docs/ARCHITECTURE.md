@@ -161,6 +161,8 @@ GitHub Actions (kody.yml)
           │
           ├─ Auto-learn conventions from artifacts
           ├─ Run retrospective (AI analysis of this run)
+          ├─ Memory nudge (LLM-driven pattern extraction)
+          ├─ Commit graph memory to git
           └─ Release lock
 ```
 
@@ -203,6 +205,8 @@ GitHub Actions (kody.yml)
                     │   Finalize      │
                     │   Auto-learn    │
                     │   Retrospective │
+                    │   Memory Nudge  │
+                    │   Commit graph  │
                     │   Release lock  │
                     └─────────────────┘
 ```
@@ -335,6 +339,12 @@ See [Memory System](MEMORY.md) for full documentation of halls, rooms, tiers, co
 │   ├── conventions_{room}.md   # conventions hall — room-scoped learnings
 │   ├── observer-log.jsonl      # events hall — retrospective entries
 │   └── diary_{stage}.jsonl     # stage diaries — cross-run patterns per stage
+├── graph/                      # Temporal context graph — episodes + full-text search index
+│   ├── episodes/
+│   │   ├── .seq                # monotonic sequence counter
+│   │   └── {id}.json           # one episode per pipeline event
+│   ├── sessions-index.json     # BM25 inverted index over episodes
+│   └── nodes/                  # deduplicated facts/conventions/events
 ├── runs/
 │   └── {issue}.jsonl           # run history — compressed, with contradiction detection
 └── steps/

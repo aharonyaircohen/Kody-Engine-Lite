@@ -205,8 +205,9 @@ Every pipeline run creates a **graph episode** — a record of what happened —
 **Sources that create episodes:**
 - `nudge` — LLM-driven pattern extraction (when `KODY_MEMORY_NUDGE=true`)
 - `plan` — retrospective summary of every completed pipeline run
-- `ci_failure` — retrospective summary of failed runs
-- `review`, `decompose`, `migration` — other pipeline events
+- `ci_failure` — retrospective summary of failed runs, also written by watch plugins (pipeline-health, config-health)
+- `review` — convention facts extracted from review verdicts
+- `decompose`, `migration` — other pipeline events
 
 **Search the CLI:**
 ```bash
@@ -275,3 +276,4 @@ When `contextTiers.enabled` is `false`, the legacy behavior applies — all memo
 | `src/memory/search.ts` | Inverted-index FTS with BM25 ranking over episodes |
 | `src/memory/graph/episode.ts` | Episode CRUD, sequence tracking, FTS upsert on create |
 | `src/memory/graph/types.ts` | Graph node/edge/episode types, EpisodeSource enum |
+| `src/memory/graph/write-utils.ts` | `factExists`, `writeFactOnce`, `inferRoom` — deduplication helpers for all graph writers |

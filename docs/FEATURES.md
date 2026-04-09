@@ -290,6 +290,42 @@ kody-engine-lite review --issue-number 42  # finds the associated PR
 
 **Multi-PR resolution:** If an issue has multiple open PRs, Kody lists them and asks you to specify which one. If there's only one, it reviews automatically.
 
+## MCP Server Integration
+
+Kody can expose MCP servers to the build, verify, review, and review-fix agents — giving them access to tools like a filesystem server or any other MCP-compatible tool.
+
+**Configuration** in `kody.config.json`:
+
+```json
+{
+  "mcp": {
+    "enabled": true,
+    "servers": {
+      "filesystem": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "./"]
+      }
+    },
+    "stages": ["build", "verify", "review", "review-fix"]
+  }
+}
+```
+
+**Fields:**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `enabled` | Yes | Set to `true` to activate MCP |
+| `servers` | Yes | Map of name → server config |
+| `servers[].command` | Yes | Executable (e.g. `npx`, `node`) |
+| `servers[].args` | No | Arguments passed to the command |
+| `servers[].env` | No | Environment variables for the server |
+| `stages` | No | Which stages get MCP tools. Defaults to `["build", "verify", "review", "review-fix"]` |
+
+**Playwright auto-injection:** If the task involves UI (detected from `devServer` config and `package.json` frontend dependencies), the Playwright MCP server is automatically added to the `build` and `review` stages — no explicit config needed.
+
+**Logs:** When MCP servers are active, you'll see `MCP servers enabled for <stage>` in the pipeline output.
+
 ## Rich PR Descriptions
 
 ```markdown
