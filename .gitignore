@@ -3,6 +3,12 @@ dist/
 .env
 *.tsbuildinfo
 .kody/memory/.tiers/
+# Graph memory — track nodes + edges, gitignore run-only episodes
+!.kody/graph/nodes.json
+!.kody/graph/edges.json
+!.kody/graph/episodes/
+.kody/graph/episodes/run_*.json
+.kody/graph/episodes/.seq
 
 # Logs
 logs
