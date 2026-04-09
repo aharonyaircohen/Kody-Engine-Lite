@@ -158,6 +158,8 @@ export async function nudge(ctx: PipelineContext): Promise<void> {
       linkedFiles: [],
     })
 
+    // Write nodes and collect their IDs
+    const nodeIds: string[] = []
     for (const pattern of patterns) {
       const node = writeFact(
         ctx.projectDir,
@@ -166,8 +168,15 @@ export async function nudge(ctx: PipelineContext): Promise<void> {
         pattern.content,
         episode.id,
       )
-      logger.info(`  Nudge: saved pattern [${pattern.hall}] ${pattern.room}: ${pattern.content.slice(0, 80)}`)
+      nodeIds.push(node.id)
+      logger.info(`  Nudge: saved pattern [${pattern.hall}] ${pattern.room}: ${node.id}`)
     }
+
+    // Backfill extractedNodeIds on the episode now that we have node IDs
+    const episodePath = path.join(ctx.projectDir, ".kody", "graph", "episodes", `${episode.id}.json`)
+    const episodeData = JSON.parse(fs.readFileSync(episodePath, "utf-8"))
+    episodeData.extractedNodeIds = nodeIds
+    fs.writeFileSync(episodePath, JSON.stringify(episodeData, null, 2) + "\n")
 
     logger.info(`  Nudge: saved ${patterns.length} pattern(s) from ${ctx.taskId}`)
   } catch (err) {
