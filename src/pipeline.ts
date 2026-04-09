@@ -1,5 +1,6 @@
 import * as fs from "fs"
 import * as path from "path"
+import { execFileSync } from "child_process"
 
 import type {
   StageResult,
@@ -111,6 +112,47 @@ function acquireLock(taskDir: string): void {
 
 function releaseLock(taskDir: string): void {
   try { fs.unlinkSync(path.join(taskDir, ".lock")) } catch { /* ignore */ }
+}
+
+// ─── Graph Memory Commit ─────────────────────────────────────────────────────
+
+/**
+ * Commit any uncommitted graph memory changes to git.
+ * Runs after the full pipeline (including nudge) so all episode writes are included.
+ */
+function commitGraphMemory(ctx: PipelineContext): void {
+  if (ctx.input.dryRun) return
+
+  try {
+    const graphDir = path.join(ctx.projectDir, ".kody", "graph")
+    if (!fs.existsSync(graphDir)) return
+
+    const env = { ...process.env, HUSKY: "0", SKIP_HOOKS: "1" }
+
+    // Check for uncommitted changes
+    const status = execFileSync("git", ["status", "--porcelain", ".kody/graph/"], {
+      cwd: ctx.projectDir,
+      encoding: "utf-8",
+      env,
+      stdio: ["pipe", "pipe", "pipe"],
+    })
+    if (!status.trim()) return
+
+    execFileSync("git", ["add", ".kody/graph/"], {
+      cwd: ctx.projectDir,
+      env,
+      stdio: "pipe",
+    })
+    execFileSync("git", ["commit", "--no-gpg-sign", "-m", `chore: update graph memory [skip ci]`], {
+      cwd: ctx.projectDir,
+      env,
+      stdio: "pipe",
+    })
+    logger.info("  Committed graph memory")
+  } catch (err) {
+    const msg = err instanceof Error ? err.message.slice(0, 100) : String(err).slice(0, 100)
+    logger.info(`  Graph commit skipped: ${msg}`)
+  }
 }
 
 // ─── Pipeline Loop ──────────────────────────────────────────────────────────
@@ -312,6 +354,9 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
       logger.warn(`  Nudge failed: ${err instanceof Error ? err.message : String(err)}`)
     })
   }
+
+  // Commit graph memory after all writes (including retrospective + nudge)
+  commitGraphMemory(ctx)
 
   // Record run history for cross-run context
   const issueForHistory = ctx.input.issueNumber ?? ctx.input.linkedIssue
