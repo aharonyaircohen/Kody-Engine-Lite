@@ -63,7 +63,7 @@ function matchesRunAt(
   if (!parsed) return false
 
   const { hours, minutes } = parsed
-  const nowMinutes = now.getHours() * 60 + now.getMinutes()
+  const nowMinutes = now.getUTCHours() * 60 + now.getUTCMinutes()
   const targetMinutes = hours * 60 + minutes
 
   // Check if we're within the cron window [target, target + CRON_INTERVAL_MINUTES)
