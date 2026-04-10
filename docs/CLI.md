@@ -1,351 +1,343 @@
 # CLI Reference
 
-Full command reference for `kody-engine-lite`. Run `kody-engine-lite --help` for a quick summary.
+`kody-engine-lite` is Kody's command-line interface. Run `kody-engine-lite --help` for a summary of all commands.
 
-## Setup Commands
+## Command Summary
 
-### `init`
+| Command | What it does |
+|---------|-------------|
+| `run` | Run the full pipeline on an issue or ad-hoc task |
+| `hotfix` | Fast-track pipeline — build → verify → ship, skips taskify, plan, review |
+| `rerun` | Resume a pipeline from a specific stage |
+| `fix` | Re-run from build with review feedback as context |
+| `fix-ci` | Fix failing CI — fetches failure logs, re-runs from build |
+| `status` | Print the current state of a pipeline run (read-only) |
+| `review` | Run a standalone code review on a PR |
+| `resolve` | Merge the default branch into a PR and AI-resolve conflicts |
+| `decompose` | Split a complex issue into parallel sub-tasks, merge and verify |
+| `compose` | Retry the merge/verify/review/ship phase after decompose |
+| `taskify` | Split an issue into structured sub-issues with priority and scope |
+| `bootstrap` | Analyze the codebase and generate memory, step files, and labels |
+| `init` | Set up a repository with workflow and config files (no LLM needed) |
+| `watch` | Run health monitoring plugins |
+| `release` | Automate version bump, changelog, and release PR |
+| `revert` | Revert a merged PR |
+| `graph` | Inspect and search Kody's graph memory |
+| `version` | Print the installed version |
 
-Set up a repository for Kody. Generates the workflow and config files deterministically (no LLM needed).
-
-```bash
-kody-engine-lite init [--force]
-```
-
-| Flag | Description |
-|------|-------------|
-| `--force` | Overwrite existing workflow and config files |
-
-**What it generates:**
-- `.github/workflows/kody.yml` — GitHub Actions workflow
-- `.github/workflows/kody-watch.yml` — Kody Watch health monitoring workflow
-- `kody.config.json` — auto-detected quality commands, git settings, GitHub config, watch config
-
-Then commits and pushes. Run `bootstrap` next to generate repo-aware step files.
-
-### `bootstrap`
-
-Generate project memory, customized step files, and GitHub labels by analyzing your codebase with an LLM. Required after `init` for a complete setup. Also useful after major refactors.
-
-```bash
-kody-engine-lite bootstrap [--force] [--provider=<name>] [--model=<name>]
-```
-
-| Flag | Description |
-|------|-------------|
-| `--force` | Overwrite existing memory and step files |
-| `--provider <name>` | Override the LLM provider from config (e.g., `claude`, `minimax`) |
-| `--model <name>` | Override the LLM model from config (e.g., `claude-opus-4-6`) |
-
-Flags accept both `--flag=value` and `--flag value` forms.
-
-Also available as `@kody bootstrap` on GitHub.
+---
 
 ## Pipeline Commands
 
-**When to use which:** Use **run** to start a fresh pipeline on a new issue or task. Use **fix** when a PR needs changes based on review feedback. Use **fix-ci** when CI is failing. Use **rerun** to retry from a specific stage after failure. Use **review** for standalone PR reviews.
+### `run` — Run the full pipeline
 
-### `run`
-
-Run the full Kody pipeline on an issue or ad-hoc task.
-
-```bash
-kody-engine-lite run --task-id <id> [options]
+```
+kody-engine-lite run --issue-number <n> [options]
 ```
 
-| Flag | Required | Description |
-|------|----------|-------------|
-| `--task-id <id>` | Yes* | Task identifier (auto-generated in CI) |
-| `--task "<desc>"` | No | Ad-hoc task description (skips issue lookup) |
-| `--issue-number <n>` | No | GitHub issue number to work on |
-| `--complexity <level>` | No | Override auto-detection: `low`, `medium`, or `high` |
-| `--feedback "<text>"` | No | Additional context injected into the build prompt |
-| `--cwd <path>` | No | Working directory (defaults to current) |
-| `--local` | No | Run locally (auto-enabled outside CI) |
-| `--dry-run` | No | Run without creating branches or PRs |
-| `--auto-mode` | No | Skip question and risk gates — for CI/cron pipelines |
+Runs the complete pipeline on a GitHub issue: taskify → plan → build → verify → review → review-fix → ship. Creates a branch, commits code, and opens a pull request.
 
-**Environment variables:** `TASK_ID`, `ISSUE_NUMBER`, `COMPLEXITY`, `FEEDBACK`, `DRY_RUN`
+**Flags:**
+
+| Flag | What it does |
+|------|-------------|
+| `--issue-number <n>` | GitHub issue to work on |
+| `--task-id <id>` | Resume a specific task by ID |
+| `--task "<desc>"` | Ad-hoc task (skips issue lookup) |
+| `--complexity low\|medium\|high` | Override auto-detected complexity |
+| `--feedback "<text>"` | Inject context into the build prompt |
+| `--dry-run` | Run without creating branches, commits, or PRs |
+| `--auto-mode` | Skip question and risk gates (for CI/cron) |
+| `--cwd <path>` | Working directory |
+| `--local` | Run locally (auto-enabled outside CI) |
+
+**Complexity levels** change how the pipeline runs:
+
+- **low** — taskify → build → verify → ship. plan, review, and review-fix are skipped. Fast.
+- **medium** (default) — full pipeline with review. review-fix runs only if there are critical or major findings.
+- **high** — full pipeline. The plan stage posts questions on the issue and the pipeline pauses until you comment `@kody approve`. Riskier changes get human sign-off.
+- **hotfix** (via `hotfix` command) — build → verify → ship. taskify, plan, review, and review-fix are always skipped. verify runs only typecheck and lint — no test suite. Use for simple, well-understood fixes.
 
 **Examples:**
-```bash
-# Run on a GitHub issue
-kody-engine-lite run --issue-number 42 --local --cwd ./project
 
-# Run an ad-hoc task
+```bash
+# Run on an issue
+kody-engine-lite run --issue-number 42 --local
+
+# Ad-hoc task, no issue needed
 kody-engine-lite run --task "Add retry utility" --local
 
-# Fully automated run (CI, cron, webhooks) — no gates
+# Automated pipeline (CI, cron, webhooks) — no gates
 kody-engine-lite run --issue-number 42 --auto-mode
 ```
 
-### `fix`
+---
 
-Re-run from build with review feedback as context. Automatically reads three layers: Kody's own review findings, human PR review comments (inline + top-level), and any text you include in the comment or `--feedback` flag.
+### `hotfix` — Fast-track for simple fixes
 
-```bash
-kody-engine-lite fix --task-id <id> [options]
+```
+kody-engine-lite hotfix --issue-number <n> [options]
 ```
 
-| Flag | Required | Description |
-|------|----------|-------------|
-| `--task-id <id>` | Yes* | Task identifier |
-| `--issue-number <n>` | No | GitHub issue number |
-| `--feedback "<text>"` | No | Additional feedback injected into the build prompt |
-| `--cwd <path>` | No | Working directory |
+Runs build → verify → ship only. No taskify, no plan, no review. Designed for things like fixing a typo, adding a missing export, or patching a config. verify runs typecheck and lint but skips the test suite.
 
-Also available as `@kody fix` on GitHub.
+**Flags:** `--issue-number`, `--cwd`, `--local`, `--dry-run`
 
-**Example:**
-```bash
-kody-engine-lite fix --issue-number 42 --feedback "Use middleware pattern"
+---
+
+### `rerun` — Resume from a specific stage
+
+```
+kody-engine-lite rerun --from <stage> [--issue-number <n>]
 ```
 
-### `fix-ci`
+Resume a pipeline from a specific stage. Skips everything before `--from`. Resumes from `--from` onward. Useful after a stage fails or after you've manually resolved an issue.
 
-Fix failing CI checks. Fetches CI failure logs and re-runs from the build stage.
-
-```bash
-kody-engine-lite fix-ci [options]
-```
-
-| Flag | Required | Description |
-|------|----------|-------------|
-| `--pr-number <n>` | No | PR number with failing CI |
-| `--ci-run-id <id>` | No | Specific CI run ID to diagnose |
-| `--issue-number <n>` | No | GitHub issue number |
-| `--feedback "<text>"` | No | Additional context |
-| `--cwd <path>` | No | Working directory |
-
-**Environment variables:** `PR_NUMBER`, `CI_RUN_ID`, `ISSUE_NUMBER`, `FEEDBACK`
-
-Also available as `@kody fix-ci` on GitHub — auto-triggered when CI fails on a Kody PR (with loop guard).
-
-**Example:**
-```bash
-kody-engine-lite fix-ci --pr-number 42 --ci-run-id 12345
-```
-
-### `rerun`
-
-Resume the pipeline from a specific stage. Keeps artifacts from previous stages.
-
-```bash
-kody-engine-lite rerun --task-id <id> --from <stage> [options]
-```
-
-| Flag | Required | Description |
-|------|----------|-------------|
-| `--task-id <id>` | No* | Task identifier (auto-resolved from issue comments if omitted) |
-| `--from <stage>` | Yes | Stage to resume from: `taskify`, `plan`, `build`, `verify`, `review`, `review-fix`, `ship` |
-| `--issue-number <n>` | No | GitHub issue number |
-| `--cwd <path>` | No | Working directory |
-
-**Environment variables:** `TASK_ID`, `FROM_STAGE`, `ISSUE_NUMBER`
-
-**Note:** `rerun` bypasses the "already-completed" state check, so you can re-run stages even after the pipeline has finished. When `--task-id` is omitted, the engine auto-resolves the latest task for the issue by scanning `.kody/tasks/` or issue comments.
-
-**Example:**
 ```bash
 kody-engine-lite rerun --issue-number 42 --from verify
 ```
 
-### `decompose`
+Stages: `taskify`, `plan`, `build`, `verify`, `review`, `review-fix`, `ship`.
 
-Split a complex issue into independent sub-tasks, build them in parallel (in git worktrees), then merge, verify, review, and ship. Falls back to the normal pipeline if the task isn't complex enough. See [Decompose documentation](DECOMPOSE.md) for full details.
+---
 
-```bash
-kody-engine-lite decompose --issue-number <n> [options]
+### `fix` — Fix from review feedback
+
+```
+kody-engine-lite fix --pr-number <n> [--feedback "<text>"]
 ```
 
-| Flag | Required | Description |
-|------|----------|-------------|
-| `--issue-number <n>` | Yes | GitHub issue to decompose |
-| `--no-compose` | No | Stop after parallel builds (don't auto-merge/verify/ship) |
-| `--cwd <path>` | No | Working directory |
-| `--local` | No | Run locally (auto-enabled outside CI) |
+Re-runs from the build stage. The engine reads your review comments and applies fixes automatically. Pushes directly to the existing PR — does not create a new one.
 
-Also available as `@kody decompose` on GitHub.
+---
 
-**Example:**
+### `fix-ci` — Fix failing CI
+
+```
+kody-engine-lite fix-ci --pr-number <n>
+```
+
+Fetches the CI failure logs, diagnoses the problem, and re-runs from the build stage. Pushes a fix to the existing PR.
+
+On PRs labeled with `kody:*`, the engine auto-posts `@kody fix-ci` when CI fails. It will not re-trigger itself within 24 hours (loop guard), and it does not trigger on bot commits.
+
+---
+
+### `status` — Print pipeline state
+
+```
+kody-engine-lite status --issue-number <n>
+```
+
+Reads the current pipeline state and prints it. Read-only — no stages execute.
+
+---
+
+## Standalone Commands
+
+### `review` — Code review on a PR
+
+```
+kody-engine-lite review --pr-number <n> [--local]
+```
+
+Runs a standalone AI code review on a PR. Posts a GitHub PR review (approve or request-changes) if the submission succeeds, or falls back to a plain comment. The review uses `git diff origin/<base>...HEAD` to identify changed files — findings reference the actual PR diff.
+
+---
+
+### `resolve` — Merge-conflict resolution
+
+```
+kody-engine-lite resolve --pr-number <n>
+```
+
+Merges the default branch into the PR branch, uses AI to resolve any conflicts, and pushes the result. Good for keeping PRs up-to-date without manual rebasing.
+
+---
+
+### `taskify` — Split into sub-issues
+
+```
+kody-engine-lite taskify --file docs/prd.md --ticket-id PROJECT-123
+```
+
+Parses a PRD or markdown file and creates structured GitHub sub-issues. Each sub-issue gets a priority label (`priority:high`, `priority:medium`, or `priority:low`) and body sections for context, test strategy, and acceptance criteria. Sub-issues are ordered respecting `depends on` annotations.
+
+When run on a GitHub issue, taskify also reads project memory (`.kody/memory/`) and the repo file tree to understand existing patterns, and enriches the task with the issue's labels and discussion comments.
+
+---
+
+## Complex Commands
+
+### `decompose` — Parallel sub-task split
+
+```
+kody-engine-lite decompose --issue-number <n> [--no-compose] [--local]
+```
+
+For complex multi-area issues. Scores task complexity 1-10. If the score is below 6, it falls back to the normal pipeline automatically — no harm, no waste. If the score is high enough, it splits the task into independent sub-tasks and builds them in parallel.
+
+**How it works:**
+
+1. Analyze — taskify + plan to understand the full scope
+2. Decompose — AI groups plan steps into independent clusters
+3. Parallel build — each sub-task gets an isolated git worktree and runs the build in parallel (up to 3 concurrent)
+4. Compose — merges all branches, runs verify + review + ship as one PR
+
+Each worktree is constrained to its own files only — worktrees cannot clobber each other's changes.
+
+**If a sub-task fails:** all worktrees are cleaned up and the pipeline falls back to the normal single-branch pipeline.
+
+**`--no-compose`:** run the parallel builds only, stop before merge. Useful for inspecting results before committing to the full flow.
+
 ```bash
+# Full decompose
 kody-engine-lite decompose --issue-number 42 --local
-kody-engine-lite decompose --issue-number 42 --no-compose  # build only, inspect before merging
+
+# Build only, inspect before merging
+kody-engine-lite decompose --issue-number 42 --no-compose --local
 ```
 
-### `compose`
+Configuration in `kody.config.json`:
 
-Retry the compose phase (merge + verify + review + ship) after a decompose run's parallel builds succeeded. Reads `decompose-state.json` from the task directory.
-
-```bash
-kody-engine-lite compose --task-id <id> [options]
+```json
+{
+  "decompose": {
+    "enabled": true,
+    "maxParallelSubTasks": 3,
+    "minComplexityScore": 6
+  }
+}
 ```
 
-| Flag | Required | Description |
-|------|----------|-------------|
-| `--task-id <id>` | Yes | Task ID from the decompose run |
-| `--issue-number <n>` | No | GitHub issue number |
-| `--cwd <path>` | No | Working directory |
-| `--local` | No | Run locally |
+---
 
-Also available as `@kody compose` on GitHub.
+### `compose` — Retry compose after decompose
 
-Compose is **re-runnable** — if it fails at verify or review, run it again. It skips the merge phase if branches are already merged and retries from verification.
-
-**Example:**
-```bash
-kody-engine-lite compose --task-id 42-260403-221500 --issue-number 42
+```
+kody-engine-lite compose --task-id <task-id>
 ```
 
-### `resolve`
+After `--no-compose`, run compose to complete the merge/verify/review/ship phase. Also use this to retry after a verify or review failure — it skips the merge if already done and retries from the right stage.
 
-Merge the default branch into a PR branch and AI-resolve any merge conflicts. Runs quality gates after resolution.
+---
 
-```bash
-kody-engine-lite resolve --pr-number <n> [options]
+## Setup Commands
+
+### `init` — Set up the repository
+
+```
+kody-engine-lite init [--force]
 ```
 
-| Flag | Required | Description |
-|------|----------|-------------|
-| `--pr-number <n>` | Yes | PR number to resolve conflicts for |
-| `--cwd <path>` | No | Working directory |
-| `--local` | No | Run locally (auto-enabled outside CI) |
+Generates the workflow and config files deterministically. No LLM is called. Use `--force` to overwrite existing files.
 
-**Environment variables:** `PR_NUMBER`
+Creates:
+- `.github/workflows/kody.yml`
+- `.github/workflows/kody-watch.yml`
+- `kody.config.json`
 
-Also available as `@kody resolve` on GitHub.
+Run `bootstrap` next to generate repo-aware step files.
 
-**Example:**
-```bash
-kody-engine-lite resolve --pr-number 42
+---
+
+### `bootstrap` — Generate project memory and step files
+
+```
+kody-engine-lite bootstrap [--force] [--provider=<name>] [--model=<name>]
 ```
 
-### `review`
+Analyzes your codebase with an LLM and generates everything Kody needs to work repo-aware:
 
-Run a standalone code review on a PR.
+- `.kody/memory/architecture.md` — framework, language, database, key directories
+- `.kody/memory/conventions.md` — naming patterns, error handling, testing conventions
+- `.kody/steps/taskify.md`, `plan.md`, `build.md`, `autofix.md`, `review.md`, `review-fix.md`
+- `.kody/tools.yml` — declared tools with skill content injected into prompts
+- `.kody/qa-guide.md` — authentication steps and navigation maps for projects with routes
 
-```bash
-kody-engine-lite review [options]
+Also creates 14 GitHub labels: `kody:planning`, `kody:building`, `kody:verifying`, `kody:review`, `kody:done`, `kody:failed`, `kody:waiting`, `kody:low`, `kody:medium`, `kody:high`, `kody:feature`, `kody:bugfix`, `kody:refactor`, `kody:docs`, `kody:chore`.
+
+`--provider` and `--model` override the defaults from `kody.config.json` for this run only. When `--provider` is non-Anthropic, the engine starts a LiteLLM proxy to route requests.
+
+Use `--force` to regenerate from scratch (instead of extending existing files).
+
+---
+
+## Monitor
+
+### `watch` — Health monitoring
+
 ```
-
-| Flag | Required | Description |
-|------|----------|-------------|
-| `--pr-number <n>` | No | PR number to review |
-| `--issue-number <n>` | No | GitHub issue number (to find associated PR) |
-| `--cwd <path>` | No | Working directory |
-| `--local` | No | Run locally (auto-enabled outside CI) |
-
-**Environment variables:** `PR_NUMBER`, `ISSUE_NUMBER`
-
-### `status`
-
-Print the current state of a pipeline run.
-
-```bash
-kody-engine-lite status --task-id <id> [--cwd <path>]
-```
-
-| Flag | Required | Description |
-|------|----------|-------------|
-| `--task-id <id>` | No* | Task identifier (auto-resolved from issue if omitted) |
-| `--issue-number <n>` | No | GitHub issue number (used for auto-resolution) |
-| `--cwd <path>` | No | Working directory |
-
-When `--task-id` is omitted, the engine auto-resolves the latest task for the issue.
-
-**Example:**
-```bash
-kody-engine-lite status --task-id 42-260327-102254
-kody-engine-lite status --issue-number 42
-```
-
-### `ci-parse`
-
-Parse a GitHub comment into structured pipeline inputs. Used internally by the workflow template to replace the shell parser.
-
-```bash
-kody-engine-lite ci-parse
-```
-
-Reads from environment variables (`COMMENT_BODY`, `ISSUE_NUMBER`, `ISSUE_IS_PR`, `TRIGGER_TYPE`) and writes outputs to `$GITHUB_OUTPUT`.
-
-### `graph`
-
-Inspect and search Kody's graph memory. Use `graph search` to recall past runs by keyword.
-
-```bash
-kody graph status <projectDir>
-kody graph query <projectDir> [query]
-kody graph show <projectDir> <nodeId>
-kody graph search <projectDir> <query>
-kody graph migrate <projectDir>
-kody graph clear <projectDir> --confirm
-```
-
-| Subcommand | Description |
-|-----------|-------------|
-| `status` | Show graph stats: node count, edge count, episode count |
-| `query [query]` | Search facts in graph memory (substring match) |
-| `show <nodeId>` | Show a fact + its provenance and version history |
-| `search <query>` | Full-text search across all past run episodes (BM25 ranked, highlighted snippets) |
-| `migrate` | Migrate legacy `.md` memory files to the graph store |
-| `clear --confirm` | Reset all graph data |
-
-**Examples:**
-```bash
-kody graph status .
-kody graph query . JWT
-kody graph show . facts_memory-nudge-feature_123
-kody graph search . "PostgreSQL Drizzle"
-kody graph search . "authentication"
-```
-
-**Episode sources:** `plan` (retrospective summary), `nudge` (LLM pattern extraction), `review`, `ci_failure`, `decompose`, `migration`. Episodes are auto-created on every pipeline run and indexed for FTS search.
-
-### `watch`
-
-Run Kody Watch health monitoring. In CI this runs automatically via the `kody-watch.yml` cron workflow. Use this command for local testing.
-
-```bash
 kody-engine-lite watch [--dry-run]
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--dry-run` | Run plugins but skip executing actions (no GitHub posts) |
+Runs three plugins on a schedule:
 
-Requires `GH_TOKEN` env var. See [Watch documentation](WATCH.md) for full details.
+- **pipeline-health** (every cycle, ~30 min) — scans for stalled, failed, or stuck runs, posts findings to the activity log issue
+- **security-scan** (daily) — checks for hardcoded secrets, dependency vulnerabilities, committed `.env` files, unsafe code patterns. Critical findings create GitHub issues.
+- **config-health** (daily) — validates `kody.config.json`, checks for required secrets and labels
 
-### `version`
+`--dry-run` runs all plugins but skips posting comments and creating issues.
 
-Print the installed version.
+State (cycle counter, dedup timestamps) is persisted as an HTML comment on the activity log issue — no PAT needed, works with the default `github.token`.
 
-```bash
-kody-engine-lite version
-kody-engine-lite --version
-kody-engine-lite -v
+---
+
+## Release Commands
+
+### `release` — Version bump and release PR
+
+```
+kody-engine-lite release [--issue-number <n>] [--bump major|minor|patch] [--dry-run]
 ```
 
-## GitHub Comment Commands
+Parses conventional commits since the last release, bumps the version, generates a changelog grouped by type, creates a PR on `release/v<version>`, and optionally publishes to npm. Use `--dry-run` to preview without creating anything.
 
-These commands are triggered by commenting on a GitHub issue or PR:
+`--finalize` merges the PR, tags, and publishes. `--no-publish` skips the npm publish step.
 
-| Command | Description |
-|---------|-------------|
-| `@kody` | Run the full pipeline on an issue |
-| `@kody decompose` | Split into parallel sub-tasks, build concurrently, merge, verify, review, ship |
-| `@kody compose` | Retry compose phase (merge + verify + review + ship) after successful decompose builds |
-| `@kody review` | Run a standalone code review on a PR — posts structured findings and submits a GitHub review (approve or request-changes). Falls back to a plain PR comment if the review submission fails (e.g., self-review not allowed) |
-| `@kody approve` | Resume after questions or risk gate pause |
-| `@kody fix` | Re-run from build stage. Reads human PR review comments + Kody's review as context. Additional feedback in the comment body is also injected |
-| `@kody fix-ci` | Fix failing CI. Auto-triggered when CI fails on a Kody PR (with loop guard) |
-| `@kody resolve` | Merge default branch into PR, AI-resolve conflicts, verify, and push |
-| `@kody rerun` | Resume from the failed or paused stage |
-| `@kody rerun --from <stage>` | Resume from a specific stage |
-| `@kody bootstrap` | Regenerate project memory and step files |
+---
+
+### `revert` — Revert a merged PR
+
+```
+kody-engine-lite revert [--target <#N>] [--dry-run]
+```
+
+Runs `git revert` on a merged PR and opens a PR to restore the changes. If `--target` is omitted, it auto-resolves the PR from the branch name (`kody/issue-<N>`). PR title format: `revert: <original> (#N)`.
+
+---
+
+## Read-Only Commands
+
+### `graph` — Inspect graph memory
+
+```
+kody graph status <path>
+kody graph query <path> [query]
+kody graph search <path> <query>
+kody graph show <path> <nodeId>
+kody graph migrate <path>
+kody graph clear <path> --confirm
+```
+
+No side effects for `status`, `query`, `show`, and `search`. `migrate` converts legacy `.md` memory files to the graph store. `clear` resets all graph data.
+
+---
+
+### `version` — Print version
+
+```
+kody-engine-lite version
+kody-engine-lite --version
+```
+
+Prints the installed version and exits.
+
+---
 
 ## Notes
 
-- Outside CI (no `GITHUB_ACTIONS` env), `--local` is enabled by default. Use `--no-local` to override.
-- Most flags have equivalent environment variables (used by the GitHub Actions workflow).
-- `--task-id` is auto-generated in CI from the issue number and timestamp.
+- Outside CI (no `GITHUB_ACTIONS` env), `--local` is on by default. Pass `--no-local` to override.
+- `--task-id` is auto-generated in CI: `<issue-number>-<YYYYMMDD-HHMMSS>`
+- All commands that create PRs include `Closes #<N>` in the PR body, which auto-closes the linked issue on merge.
+- `status` and `version` have no side effects. `graph` (except `migrate` and `clear`) has no side effects.
