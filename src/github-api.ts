@@ -30,7 +30,7 @@ function isNotFoundError(err: unknown): boolean {
   return msg.includes("not found") || msg.includes("no pull requests") || msg.includes("could not resolve")
 }
 
-const LIFECYCLE_LABELS = ["backlog", "planning", "building", "verifying", "review", "fixing", "shipping", "done", "failed", "waiting", "low", "medium", "high"]
+const LIFECYCLE_LABELS = ["backlog", "planning", "building", "verifying", "review", "fixing", "shipping", "done", "success", "failed", "waiting", "paused", "low", "medium", "high"]
 
 let _ghCwd: string | undefined
 

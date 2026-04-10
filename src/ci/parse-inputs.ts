@@ -50,6 +50,13 @@ function generateTimestamp(): string {
   return `${y}${m}${d}-${H}${M}${S}`
 }
 
+const ALLOWED_ASSOCIATIONS = ["COLLABORATOR", "MEMBER", "OWNER"]
+
+function isAuthorAllowed(): boolean {
+  const assoc = process.env.COMMENT_AUTHOR_ASSOC ?? ""
+  return ALLOWED_ASSOCIATIONS.includes(assoc)
+}
+
 /**
  * Pure parsing logic — reads from process.env, returns structured result.
  * Does NOT write to GITHUB_OUTPUT (caller handles that).
@@ -85,6 +92,16 @@ export function parseCommentInputs(): ParseResult {
   }
 
   // ─── Comment parsing ──────────────────────────────────────────────────
+  if (!isAuthorAllowed()) {
+    return {
+      task_id: "", mode: "full", from_stage: "", issue_number: process.env.ISSUE_NUMBER ?? "",
+      pr_number: "", feedback: "", complexity: "", ci_run_id: "", ticket_id: "", prd_file: "",
+      provider: "", model: "",
+      bump: "", finalize: false, no_publish: false, no_notify: false, revert_target: "",
+      dry_run: false, valid: false, trigger_type: "comment",
+    }
+  }
+
   const commentBody = (process.env.COMMENT_BODY ?? "").replace(/\r/g, "")
   const issueNumber = process.env.ISSUE_NUMBER ?? ""
   const isPR = !!(process.env.ISSUE_IS_PR)

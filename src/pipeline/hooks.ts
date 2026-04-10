@@ -49,7 +49,7 @@ export function checkQuestionsAfterStage(
   const paused = checkForQuestions(ctx, def.name)
   if (!paused) return null
 
-  state.state = "failed"
+  state.state = "paused"
   state.stages[def.name] = {
     ...state.stages[def.name],
     state: "completed",
@@ -141,10 +141,10 @@ export function checkRiskGate(
       + `<details><summary>📋 Plan summary</summary>\n\n${plan}\n</details>\n\n`
       + `To approve: \`@kody approve\``,
     )
-    setLifecycleLabel(ctx.input.issueNumber, "waiting")
+    setLifecycleLabel(ctx.input.issueNumber, "paused")
   } catch { /* fire-and-forget */ }
 
-  state.state = "failed"
+  state.state = "paused"
   state.stages[def.name] = {
     ...state.stages[def.name],
     state: "completed",

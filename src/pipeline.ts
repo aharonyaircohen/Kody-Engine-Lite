@@ -30,6 +30,7 @@ import { getProjectConfig } from "./config.js"
 import { runToolSetup } from "./tools.js"
 import { appendRunRecord, readRunHistory } from "./run-history.js"
 import type { RunRecord } from "./run-history.js"
+import { emit } from "./event-system/index.js"
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -223,6 +224,11 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
     setLifecycleLabel(ctx.input.issueNumber, initialPhase)
   }
 
+  // Emit pipeline.started event
+  emit("pipeline.started", { runId: ctx.taskId, issueNumber: ctx.input.issueNumber }).catch((err) =>
+    logger.debug(`[event] pipeline.started error: ${err}`),
+  )
+
   ensureFeatureBranchIfNeeded(ctx)
 
   if (ctx.tools?.length) {
@@ -271,6 +277,10 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
 
     applyPreStageLabel(ctx, def)
 
+    emit("step.started", { runId: ctx.taskId, step: def.name }).catch((err) =>
+      logger.debug(`[event] step.started error: ${err}`),
+    )
+
     // Execute stage via registry
     let result: StageResult
     try {
@@ -295,6 +305,10 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
       }
       logger.info(`[${def.name}] ✓ completed`)
 
+      emit("step.complete", { runId: ctx.taskId, step: def.name }).catch((err) =>
+        logger.debug(`[event] step.complete error: ${err}`),
+      )
+
       // Detect complexity BEFORE checking questions — otherwise question
       // gate pauses the pipeline before risk_level is ever read from task.json,
       // preventing the risk gate from firing on HIGH-complexity tasks.
@@ -305,10 +319,20 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
       }
 
       const paused = checkQuestionsAfterStage(ctx, def, state)
-      if (paused) return paused
+      if (paused) {
+        emit("step.waiting", { runId: ctx.taskId, step: def.name, context: { reason: "questions" } }).catch((err) =>
+          logger.debug(`[event] step.waiting error: ${err}`),
+        )
+        return paused
+      }
 
       const gated = checkRiskGate(ctx, def, state, complexity)
-      if (gated) return gated
+      if (gated) {
+        emit("step.waiting", { runId: ctx.taskId, step: def.name, context: { reason: "risk-gate" } }).catch((err) =>
+          logger.debug(`[event] step.waiting error: ${err}`),
+        )
+        return gated
+      }
 
       commitAfterStage(ctx, def)
     } else {
@@ -324,6 +348,9 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
       state.sessions = ctx.sessions
       writeState(state, ctx.taskDir)
       logger.error(`[${def.name}] ${isTimeout ? "⏱ timed out" : `✗ failed: ${result.error}`}`)
+      emit("step.failed", { runId: ctx.taskId, step: def.name, error: isTimeout ? "Stage timed out" : result.error }).catch((err) =>
+        logger.debug(`[event] step.failed error: ${err}`),
+      )
       if (ctx.input.issueNumber && !ctx.input.local) {
         setLabel(ctx.input.issueNumber, "kody:failed")
       }
@@ -342,6 +369,13 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
     if (ctx.input.issueNumber && !ctx.input.local) {
       setLifecycleLabel(ctx.input.issueNumber, "done")
     }
+    emit("pipeline.success", { runId: ctx.taskId, issueNumber: ctx.input.issueNumber }).catch((err) =>
+      logger.debug(`[event] pipeline.success error: ${err}`),
+    )
+  } else {
+    emit("pipeline.failed", { runId: ctx.taskId, error: "Stage failed", issueNumber: ctx.input.issueNumber }).catch((err) =>
+      logger.debug(`[event] pipeline.failed error: ${err}`),
+    )
   }
 
   await runRetrospective(ctx, state, pipelineStartTime).catch((err) => {

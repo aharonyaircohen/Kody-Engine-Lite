@@ -38,7 +38,7 @@ export function checkForQuestions(ctx: PipelineContext, stageName: string): bool
         if (realQuestions.length > 0) {
           const body = `🤔 **Kody has questions before proceeding:**\n\n${realQuestions.map((q: string, i: number) => `${i + 1}. ${q}`).join("\n")}\n\nReply with \`@kody approve\` and your answers in the comment body.`
           postComment(ctx.input.issueNumber, body)
-          setLifecycleLabel(ctx.input.issueNumber, "waiting")
+          setLifecycleLabel(ctx.input.issueNumber, "paused")
           return true
         }
         if (taskJson.questions.length > 0) {
@@ -59,7 +59,7 @@ export function checkForQuestions(ctx: PipelineContext, stageName: string): bool
         if (realQuestions.length > 0) {
           const body = `🏗️ **Kody has architecture questions:**\n\n${realQuestions.map((q, i) => `${i + 1}. ${q}`).join("\n")}\n\nReply with \`@kody approve\` and your answers in the comment body.`
           postComment(ctx.input.issueNumber, body)
-          setLifecycleLabel(ctx.input.issueNumber, "waiting")
+          setLifecycleLabel(ctx.input.issueNumber, "paused")
           return true
         }
         if (allQuestions.length > 0) {
