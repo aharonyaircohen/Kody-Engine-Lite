@@ -205,6 +205,28 @@
       },
       "additionalProperties": false
     },
+    "decompose": {
+      "type": "object",
+      "description": "Decompose command configuration for splitting complex tasks into parallel sub-tasks.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable the decompose command. Default: true.",
+          "default": true
+        },
+        "maxParallelSubTasks": {
+          "type": "number",
+          "description": "Maximum number of sub-tasks to build in parallel. Default: 3.",
+          "default": 3
+        },
+        "minComplexityScore": {
+          "type": "number",
+          "description": "Minimum complexity score (1-10) for a task to be decomposed. Set lower to decompose more tasks. Default: 4.",
+          "default": 4
+        }
+      },
+      "additionalProperties": false
+    },
     "mcp": {
       "type": "object",
       "description": "MCP (Model Context Protocol) server configuration. Enables external tools like browser automation.",

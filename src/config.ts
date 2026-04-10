@@ -99,7 +99,7 @@ export interface KodyConfig {
     enabled?: boolean
     /** Max concurrent sub-task builds. Default: 3 */
     maxParallelSubTasks?: number
-    /** Minimum complexity score (1-10) to decompose. Default: 6 */
+    /** Minimum complexity score (1-10) to decompose. Default: 4 */
     minComplexityScore?: number
   }
   release?: {
@@ -314,7 +314,7 @@ export function getProjectConfig(): KodyConfig {
           ? {
               enabled: raw.decompose.enabled ?? true,
               maxParallelSubTasks: raw.decompose.maxParallelSubTasks ?? 3,
-              minComplexityScore: raw.decompose.minComplexityScore ?? 6,
+              minComplexityScore: raw.decompose.minComplexityScore ?? 4,
             }
           : undefined,
         release: raw.release

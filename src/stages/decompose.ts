@@ -14,7 +14,7 @@ export async function executeDecompose(
   ctx: PipelineContext,
 ): Promise<DecomposeOutput | null> {
   const config = getProjectConfig()
-  const minScore = config.decompose?.minComplexityScore ?? 6
+  const minScore = config.decompose?.minComplexityScore ?? 4
 
   try {
     const prompt = buildFullPrompt("decompose", ctx.taskId, ctx.taskDir, ctx.projectDir, ctx.input.feedback, ctx.input.issueNumber)
