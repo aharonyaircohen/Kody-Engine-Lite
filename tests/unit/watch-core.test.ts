@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest"
 
+import { shouldRunOnCycle } from "../../src/watch/core/schedule"
+import type { StateStore } from "../../src/watch/core/types"
 import { shouldDedup, markExecuted, cleanupExpiredDedup } from "../../src/watch/core/dedup"
 import { JsonStateStore, IssueCommentStateStore } from "../../src/watch/core/state"
 import { PluginRegistry } from "../../src/watch/plugins/registry"
@@ -308,5 +310,133 @@ describe("cycle filtering", () => {
     }
     expect(1 % plugin.schedule!.every! === 0).toBe(false)
     expect(47 % plugin.schedule!.every! === 0).toBe(false)
+  })
+})
+
+// ============================================================================
+// shouldRunOnCycle Tests
+// ============================================================================
+
+describe("shouldRunOnCycle", () => {
+  // Use an in-memory mock so set/get/save work predictably without file I/O
+  let store: StateStore
+  beforeEach(() => {
+    const data = new Map<string, unknown>()
+    store = {
+      get: <T>(key: string) => data.get(key) as T | undefined,
+      set: <T>(key: string, value: T) => { data.set(key, value) },
+      save: () => {},
+    }
+  })
+
+  // ── Priority: runAt must be checked before everyHours/everyDays ─────────────
+
+  it("runAt takes priority over everyHours (runAt is checked first)", () => {
+    // This is the bug: without runAt-first ordering, everyHours logic
+    // would run every cycle since JSON objects are truthy
+    const schedule = { runAt: "04:00", days: 7, everyHours: 1 }
+    // Cycle 1, outside the 04:00 window → false (even though everyHours=1)
+    const result = shouldRunOnCycle(schedule, 1, store, new Date("2026-04-11T03:00:00Z"))
+    expect(result).toBe(false)
+  })
+
+  it("runAt takes priority over everyDays (runAt is checked first)", () => {
+    // The bug: everyDays was checked before runAt, so runAt agents ran every cycle
+    const schedule = { runAt: "04:00", days: 7, everyDays: 1 }
+    const result = shouldRunOnCycle(schedule, 1, store, new Date("2026-04-11T03:00:00Z"))
+    expect(result).toBe(false)
+  })
+
+  // ── runAt ─────────────────────────────────────────────────────────────────
+
+  it("returns true when current time is within the runAt window", () => {
+    const schedule = { runAt: "04:00", days: 1 }
+    // 04:05 is within [04:00, 04:15) window (CRON_INTERVAL_MINUTES = 15)
+    const result = shouldRunOnCycle(schedule, 1, store, new Date("2026-04-11T04:05:00Z"))
+    expect(result).toBe(true)
+  })
+
+  it("returns false when current time is before the runAt window", () => {
+    const schedule = { runAt: "04:00", days: 1 }
+    const result = shouldRunOnCycle(schedule, 1, store, new Date("2026-04-11T03:55:00Z"))
+    expect(result).toBe(false)
+  })
+
+  it("returns false when current time is after the runAt window", () => {
+    const schedule = { runAt: "04:00", days: 1 }
+    // 04:20 is past the [04:00, 04:15) window
+    const result = shouldRunOnCycle(schedule, 1, store, new Date("2026-04-11T04:20:00Z"))
+    expect(result).toBe(false)
+  })
+
+  it("returns false within the window but before enough days have elapsed", () => {
+    // Last run was 3 days ago, but days=7 requires 6.5+ days
+    store.set("schedule:lastRunAt:04:00", new Date("2026-04-08T04:10:00Z").toISOString())
+    const schedule = { runAt: "04:00", days: 7 }
+    const result = shouldRunOnCycle(schedule, 1, store, new Date("2026-04-11T04:05:00Z"))
+    expect(result).toBe(false)
+  })
+
+  it("returns true within the window when enough days have elapsed", () => {
+    // Last run was 8 days ago, days=7 allows 6.5+ days
+    store.set("schedule:lastRunAt:04:00", new Date("2026-04-03T04:10:00Z").toISOString())
+    const schedule = { runAt: "04:00", days: 7 }
+    const result = shouldRunOnCycle(schedule, 1, store, new Date("2026-04-11T04:05:00Z"))
+    expect(result).toBe(true)
+  })
+
+  it("returns true when no prior run exists (first run)", () => {
+    const schedule = { runAt: "04:00", days: 7 }
+    const result = shouldRunOnCycle(schedule, 1, store, new Date("2026-04-11T04:05:00Z"))
+    expect(result).toBe(true)
+  })
+
+  it("returns false for invalid runAt format", () => {
+    const schedule = { runAt: "not-a-time" } as any
+    const result = shouldRunOnCycle(schedule, 1, store, new Date())
+    expect(result).toBe(false)
+  })
+
+  // ── everyHours ─────────────────────────────────────────────────────────────
+
+  it("runs when cycleNumber is a multiple of everyHours", () => {
+    const schedule = { everyHours: 4 }
+    expect(shouldRunOnCycle(schedule, 4, store, new Date())).toBe(true)
+    expect(shouldRunOnCycle(schedule, 8, store, new Date())).toBe(true)
+    expect(shouldRunOnCycle(schedule, 12, store, new Date())).toBe(true)
+  })
+
+  it("skips when cycleNumber is not a multiple of everyHours", () => {
+    const schedule = { everyHours: 4 }
+    expect(shouldRunOnCycle(schedule, 1, store, new Date())).toBe(false)
+    expect(shouldRunOnCycle(schedule, 3, store, new Date())).toBe(false)
+    expect(shouldRunOnCycle(schedule, 5, store, new Date())).toBe(false)
+  })
+
+  it("runs every cycle when everyHours is 0 or invalid", () => {
+    const schedule = { everyHours: 0 } as any
+    expect(shouldRunOnCycle(schedule, 1, store, new Date())).toBe(true)
+    expect(shouldRunOnCycle(schedule, 999, store, new Date())).toBe(true)
+  })
+
+  // ── everyDays ───────────────────────────────────────────────────────────────
+
+  it("runs when cycleNumber matches everyDays interval", () => {
+    // 96 cycles = 24 hours (96 * 15min = 24h)
+    const schedule = { everyDays: 1 }
+    expect(shouldRunOnCycle(schedule, 96, store, new Date())).toBe(true)
+    expect(shouldRunOnCycle(schedule, 192, store, new Date())).toBe(true)
+  })
+
+  it("skips when cycleNumber does not match everyDays interval", () => {
+    const schedule = { everyDays: 1 }
+    expect(shouldRunOnCycle(schedule, 1, store, new Date())).toBe(false)
+    expect(shouldRunOnCycle(schedule, 95, store, new Date())).toBe(false)
+  })
+
+  // ── No schedule ─────────────────────────────────────────────────────────────
+
+  it("returns true when schedule is undefined", () => {
+    expect(shouldRunOnCycle(undefined, 1, store, new Date())).toBe(true)
   })
 })

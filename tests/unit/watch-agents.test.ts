@@ -6,7 +6,6 @@ import * as os from "os"
 import { loadWatchAgents } from "../../src/watch/agents/loader"
 import { buildWatchAgentPrompt } from "../../src/watch/agents/prompt-builder"
 import { shouldRunOnCycle } from "../../src/watch/core/schedule"
-import { JsonStateStore } from "../../src/watch/core/state"
 import type { WatchAgentDefinition, StateStore } from "../../src/watch/core/types"
 
 // ============================================================================
@@ -330,7 +329,12 @@ describe("agent schedule filtering via shouldRunOnCycle", () => {
   let state: StateStore
 
   beforeEach(() => {
-    state = new JsonStateStore("/dev/null")
+    const data = new Map<string, unknown>()
+    state = {
+      get: <T>(key: string) => data.get(key) as T | undefined,
+      set: <T>(key: string, value: T) => { data.set(key, value) },
+      save: () => {},
+    }
   })
 
   it("runs agent when cycle matches schedule.everyHours", () => {
@@ -354,40 +358,41 @@ describe("agent schedule filtering via shouldRunOnCycle", () => {
 
   it("runs agent with runAt when within cron window", () => {
     // Schedule at 02:00, run at 02:10 (within 30-min window)
+    // Use UTC dates so getUTCHours() matches the expected hour
     const schedule = { runAt: "02:00" }
-    const runAt = new Date("2026-04-08T02:10:00")
+    const runAt = new Date("2026-04-08T02:10:00Z")
     expect(shouldRunOnCycle(schedule, 1, state, runAt)).toBe(true)
   })
 
   it("skips agent with runAt when outside cron window", () => {
     // Schedule at 02:00, run at 03:15 (outside 30-min window)
     const schedule = { runAt: "02:00" }
-    const runAt = new Date("2026-04-08T03:15:00")
+    const runAt = new Date("2026-04-08T03:15:00Z")
     expect(shouldRunOnCycle(schedule, 1, state, runAt)).toBe(false)
   })
 
   it("skips runAt agent when not enough days have passed", () => {
     // Schedule: run at 02:00, every 7 days
     const schedule = { runAt: "02:00", days: 7 }
-    const runAt = new Date("2026-04-08T02:10:00")
+    const runAt = new Date("2026-04-08T02:10:00Z")
 
     // First run should succeed
     expect(shouldRunOnCycle(schedule, 1, state, runAt)).toBe(true)
 
     // Second run 1 day later should be skipped (not enough days)
-    const oneDayLater = new Date("2026-04-09T02:10:00")
+    const oneDayLater = new Date("2026-04-09T02:10:00Z")
     expect(shouldRunOnCycle(schedule, 2, state, oneDayLater)).toBe(false)
   })
 
   it("allows runAt agent after days interval has passed", () => {
     const schedule = { runAt: "02:00", days: 1 }
-    const runAt = new Date("2026-04-08T02:10:00")
+    const runAt = new Date("2026-04-08T02:10:00Z")
 
     // First run
     expect(shouldRunOnCycle(schedule, 1, state, runAt)).toBe(true)
 
     // Next cycle > 12 hours later (within 30-min window next day)
-    const nextDay = new Date("2026-04-09T02:10:00")
+    const nextDay = new Date("2026-04-09T02:10:00Z")
     expect(shouldRunOnCycle(schedule, 2, state, nextDay)).toBe(true)
   })
 })
