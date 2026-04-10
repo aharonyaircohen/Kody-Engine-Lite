@@ -12,7 +12,7 @@ on:
 
 concurrency:
   group: kody-watch
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   watch:
@@ -51,6 +51,19 @@ jobs:
             echo "${VALUE}" >> $GITHUB_ENV
             echo "${DELIM}" >> $GITHUB_ENV
           done
+
+      - name: Verify GH_TOKEN source
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
+          GH_TOKEN_DEFAULT: ${{ github.token }}
+        run: |
+          if [ "$GH_TOKEN" = "$GH_TOKEN_DEFAULT" ]; then
+            echo "⚠️ GH_TOKEN is the default github.token (GH_PAT secret may be empty)"
+          else
+            echo "✅ GH_TOKEN is from GH_PAT secret"
+          fi
+          echo "Token prefix: ${GH_TOKEN:0:4}..."
+          gh auth status
 
       - name: Run Kody Watch
         env:
