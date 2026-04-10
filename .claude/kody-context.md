@@ -69,7 +69,8 @@ Refer to ONBOARDING.md for full architecture, design decisions, and pipeline int
 
 # Kody Memory System
 
-This project uses Kody's memory at `/Users/aguy/projects/Kody-Engine-Lite/.kody/memory/`.
+This project uses Kody's memory at `/Users/yac/projects/Kody-ADE/Kody-ADE-Engine/.kody/memory/`.
+User context (preferences, communication style) is stored at ~/.kody/brain/memory/.
 When the user asks you to remember something about this project, write it to the appropriate .md file there.
 Follow existing file naming (e.g., architecture.md, conventions.md, patterns.md).
 Check for duplicates before adding. Append new entries as bullet points under the relevant heading.
