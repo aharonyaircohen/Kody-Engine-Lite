@@ -87,6 +87,7 @@ export interface GitHubClient {
   getOpenIssues(labels?: string[]): IssueInfo[]
   createIssue(title: string, body: string, labels: string[]): number | null
   searchIssues(query: string): IssueInfo[]
+  getIssueLabels(issueNumber: number): string[]
 }
 
 export interface IssueComment {
@@ -123,6 +124,11 @@ export interface WatchAgentConfig {
   reportOnFailure?: boolean
   /** Agent timeout in milliseconds. Default: 20 minutes */
   timeoutMs?: number
+  /**
+   * After agent completes, poll triggered issues until they have kody:done or kody:failed labels.
+   * Default interval: 30s. Default timeout: 2h.
+   */
+  waitFor?: boolean
 }
 
 export interface WatchAgentDefinition {

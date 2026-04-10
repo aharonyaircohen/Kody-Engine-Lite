@@ -10,6 +10,72 @@ import { createConsoleLogger } from "../clients/logger.js"
 import { runWatchAgent } from "../agents/run-agent.js"
 import { shouldRunOnCycle } from "./schedule.js"
 
+/**
+ * Polls GitHub issue labels until one shows kody:done or kody:failed.
+ * Used after a watch agent triggers issues via @kody comments.
+ */
+async function pollForCompletion(
+  github: ReturnType<typeof createGitHubClient>,
+  issueNumbers: number[],
+  log: ReturnType<typeof createConsoleLogger>,
+  timeoutMs = 2 * 60 * 60 * 1000,
+  intervalMs = 30 * 1000,
+): Promise<void> {
+  if (issueNumbers.length === 0) return
+
+  const doneLabels = ["kody:done", "kody:failed"]
+  const deadline = Date.now() + timeoutMs
+  const uniqueIssues = [...new Set(issueNumbers)]
+
+  log.info({ issues: uniqueIssues, timeoutMs, intervalMs }, "Polling for issue completion")
+
+  while (Date.now() < deadline) {
+    const completed: number[] = []
+    for (const n of uniqueIssues) {
+      const labels = github.getIssueLabels(n)
+      if (labels.some((l) => doneLabels.includes(l))) {
+        completed.push(n)
+        log.info({ issue: n, labels }, "Issue completed")
+      }
+    }
+
+    if (completed.length === uniqueIssues.length) {
+      log.info({ count: completed.length }, "All issues completed")
+      return
+    }
+
+    if (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, intervalMs))
+    }
+  }
+
+  log.warn({ deadline: new Date(deadline).toISOString() }, "Polling timed out")
+}
+
+/**
+ * Extracts GitHub issue numbers from agent output by finding @kody comment patterns.
+ */
+function extractTriggeredIssues(output: string): number[] {
+  const numbers: number[] = []
+  // Match patterns like "Comment successful" or gh output that shows issue numbers
+  // The agent posts @kody on issues, so look for recently created/updated issue references
+  const lines = output.split("\n")
+  for (const line of lines) {
+    // Match lines that contain issue numbers (usually near "issue comment" or "created" output)
+    const matches = line.match(/\b(\d{4,6})\b/g)
+    if (matches) {
+      for (const m of matches) {
+        const n = parseInt(m, 10)
+        // Filter to plausible issue numbers (Kody repos have 4-6 digit issues)
+        if (n >= 1000 && n <= 999999) {
+          numbers.push(n)
+        }
+      }
+    }
+  }
+  return [...new Set(numbers)]
+}
+
 export async function runWatch(config: WatchConfig): Promise<WatchResult> {
   const { repo, dryRun, stateFile, plugins, agents } = config
 
@@ -17,6 +83,14 @@ export async function runWatch(config: WatchConfig): Promise<WatchResult> {
   const github = createGitHubClient(repo, token)
 
   const state = createStateStore(stateFile, github, config.activityLog)
+
+  // ── Run-lock: prevent overlapping cycles ──────────────────────────────────
+  if (state.get<boolean>("system:watchRunning")) {
+    console.log("[KodyWatch] Previous cycle still running — skipping this tick")
+    return { cycleNumber: 0, pluginsRun: 0, actionsProduced: 0, actionsExecuted: 0, actionsDeduplicated: 0, agentsRun: 0, agentResults: [], errors: [] }
+  }
+  state.set("system:watchRunning", true)
+
   const cycleNumber = (state.get<number>("system:cycleNumber") || 0) + 1
   state.set("system:cycleNumber", cycleNumber)
   const log = createConsoleLogger()
@@ -42,6 +116,7 @@ export async function runWatch(config: WatchConfig): Promise<WatchResult> {
   const errors: string[] = []
   const allActions: ActionRequest[] = []
 
+  try {
   // ── Deterministic plugins ──────────────────────────────────────────────────
 
   const scheduledPlugins = plugins.filter((plugin) => {
@@ -139,6 +214,14 @@ export async function runWatch(config: WatchConfig): Promise<WatchResult> {
         })
         agentResults.push(result)
 
+        // waitFor: poll triggered issues until they have kody:done or kody:failed
+        if (agent.config.waitFor && result.outcome === "completed" && result.output) {
+          const triggeredIssues = extractTriggeredIssues(result.output)
+          if (triggeredIssues.length > 0) {
+            await pollForCompletion(github, triggeredIssues, log)
+          }
+        }
+
         // Fallback reporting: post agent output to activity log when agent didn't complete
         if (agent.config.reportOnFailure && ctx.activityLog && result.outcome !== "completed") {
           const header = `## Watch Agent: ${agent.config.name} — ${result.outcome}`
@@ -202,4 +285,8 @@ export async function runWatch(config: WatchConfig): Promise<WatchResult> {
   )
 
   return result
+  } finally {
+    state.set("system:watchRunning", false)
+    state.save()
+  }
 }

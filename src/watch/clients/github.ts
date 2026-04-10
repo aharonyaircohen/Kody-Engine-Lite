@@ -128,5 +128,20 @@ export function createGitHubClient(repo: string, token: string): GitHubClient {
         return []
       }
     },
+
+    getIssueLabels(issueNumber: number): string[] {
+      const output = gh([
+        "api",
+        `repos/${repo}/issues/${issueNumber}`,
+        "--jq",
+        "[.labels[].name]",
+      ])
+      if (!output) return []
+      try {
+        return JSON.parse(output) as string[]
+      } catch {
+        return []
+      }
+    },
   }
 }
