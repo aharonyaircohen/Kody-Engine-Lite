@@ -27,6 +27,9 @@ on:
       model:
         type: string
         default: ""
+      auto_mode:
+        type: boolean
+        default: false
 
   issue_comment:
     types: [created]
@@ -211,6 +214,7 @@ jobs:
           TICKET_ID: ${{ needs.parse.outputs.ticket_id }}
           PRD_FILE: ${{ needs.parse.outputs.prd_file }}
           DRY_RUN: ${{ github.event.inputs.dry_run || needs.parse.outputs.dry_run || 'false' }}
+          AUTO_MODE: ${{ github.event.inputs.auto_mode }}
           BUMP: ${{ needs.parse.outputs.bump }}
           FINALIZE: ${{ needs.parse.outputs.finalize }}
           NO_PUBLISH: ${{ needs.parse.outputs.no_publish }}
@@ -263,6 +267,7 @@ jobs:
             # FEEDBACK is also passed via env var (avoids shell escaping issues)
             [ -n "$FEEDBACK" ] && ARGS="$ARGS --feedback \"$FEEDBACK\""
             [ "$DRY_RUN" = "true" ] && ARGS="$ARGS --dry-run"
+            [ "$AUTO_MODE" = "true" ] && ARGS="$ARGS --auto-mode"
             kody-engine $CMD $ARGS
           fi
 
