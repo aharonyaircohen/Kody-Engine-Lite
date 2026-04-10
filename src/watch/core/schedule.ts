@@ -28,6 +28,11 @@ export function shouldRunOnCycle(
 ): boolean {
   if (!schedule) return true
 
+  // ── Time-based scheduling (runAt) — highest priority ─────────────────────
+  if (schedule.runAt) {
+    return matchesRunAt(schedule.runAt, schedule.days ?? 1, state, now)
+  }
+
   // ── Hour-based scheduling ─────────────────────────────────────────────────
   if (schedule.everyHours) {
     if (schedule.everyHours <= 0) return true
@@ -39,11 +44,6 @@ export function shouldRunOnCycle(
     const interval = (schedule.everyDays * 24 * 60) / CRON_INTERVAL_MINUTES
     if (interval <= 0) return true
     return cycleNumber % interval === 0
-  }
-
-  // ── Time-based scheduling (runAt) ───────────────────────────────────────
-  if (schedule.runAt) {
-    return matchesRunAt(schedule.runAt, schedule.days ?? 1, state, now)
   }
 
   return true
