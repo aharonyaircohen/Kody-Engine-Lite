@@ -63,6 +63,7 @@ kody-engine-lite run --task-id <id> [options]
 | `--cwd <path>` | No | Working directory (defaults to current) |
 | `--local` | No | Run locally (auto-enabled outside CI) |
 | `--dry-run` | No | Run without creating branches or PRs |
+| `--auto-mode` | No | Skip question and risk gates — for CI/cron pipelines |
 
 **Environment variables:** `TASK_ID`, `ISSUE_NUMBER`, `COMPLEXITY`, `FEEDBACK`, `DRY_RUN`
 
@@ -73,6 +74,9 @@ kody-engine-lite run --issue-number 42 --local --cwd ./project
 
 # Run an ad-hoc task
 kody-engine-lite run --task "Add retry utility" --local
+
+# Fully automated run (CI, cron, webhooks) — no gates
+kody-engine-lite run --issue-number 42 --auto-mode
 ```
 
 ### `fix`

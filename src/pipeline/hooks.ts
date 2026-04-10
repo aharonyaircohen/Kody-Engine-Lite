@@ -41,6 +41,10 @@ export function checkQuestionsAfterStage(
   if (def.name !== "taskify" && def.name !== "plan") return null
   if (ctx.input.dryRun) return null
   if (ctx.input.mode === "rerun") return null  // Skip question gate on resume (approve)
+  if (ctx.input.autoMode) {
+    logger.info(`  [auto-mode] question gate skipped`)
+    return null
+  }
 
   const paused = checkForQuestions(ctx, def.name)
   if (!paused) return null
@@ -119,6 +123,10 @@ export function checkRiskGate(
   if (ctx.input.dryRun || ctx.input.local) return null
   if (ctx.input.mode === "rerun") return null
   if (!ctx.input.issueNumber) return null
+  if (ctx.input.autoMode) {
+    logger.info(`  [auto-mode] risk gate skipped`)
+    return null
+  }
 
   // Read plan for the comment
   const planPath = path.join(ctx.taskDir, "plan.md")

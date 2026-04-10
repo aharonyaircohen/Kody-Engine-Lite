@@ -127,6 +127,23 @@ describe("approve flow: question pause", () => {
     const state = await runPipeline(ctx)
     expect(state.state).toBe("completed")
   })
+
+  it("pipeline continues with autoMode even when taskify has questions", async () => {
+    const runner = createRunner(["Should search be case-sensitive?", "Which users?"])
+    const ctx = createCtx(tmpDir, runner, {
+      local: false,
+      issueNumber: 99,
+      autoMode: true,
+      dryRun: true,
+    })
+
+    const state = await runPipeline(ctx)
+
+    // autoMode skips the question gate — pipeline completes without pausing
+    expect(state.state).toBe("completed")
+    expect(state.stages.taskify.state).toBe("completed")
+    expect(state.stages.plan.state).toBe("completed")
+  })
 })
 
 describe("approve flow: resume from paused state", () => {

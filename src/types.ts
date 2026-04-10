@@ -116,6 +116,7 @@ export interface PipelineContext {
     local?: boolean
     complexity?: "low" | "medium" | "high" | "hotfix"
     skipTests?: boolean
+    autoMode?: boolean
     parentRunId?: string
     linkedIssue?: number
   }

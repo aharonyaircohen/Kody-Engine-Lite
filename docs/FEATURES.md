@@ -85,6 +85,7 @@ The pipeline resumes only after `@kody approve`. This ensures security-critical 
 - Medium/low complexity tasks
 - Runs without an issue number
 - Dry runs
+- `--auto-mode` (set `KODY_AUTO_MODE_SUPPORTED=true` in your environment to enable)
 
 ## Question Gates
 
@@ -98,6 +99,8 @@ When questions are detected:
 2. Questions posted as a comment on the issue
 3. `kody:waiting` label applied
 4. Resume with `@kody approve` + answers in the comment body
+
+> **`--auto-mode`** skips question gates. Questions are logged but the pipeline proceeds without pausing. Not recommended for tasks where answers affect architecture decisions.
 
 ## AI-Powered Failure Diagnosis
 

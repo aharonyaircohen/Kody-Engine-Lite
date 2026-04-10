@@ -745,7 +745,12 @@ async function main() {
       skipTests: isHotfix,
       parentRunId,
       linkedIssue,
+      autoMode: input.autoMode,
     },
+  }
+
+  if (ctx.input.autoMode && process.env.KODY_AUTO_MODE_SUPPORTED !== "true") {
+    logger.warn(`  [auto-mode] KODY_AUTO_MODE_SUPPORTED is not set — proceeding anyway`)
   }
 
   logger.info(`Task: ${taskId}`)
