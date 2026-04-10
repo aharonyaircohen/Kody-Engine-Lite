@@ -226,6 +226,7 @@ jobs:
           NO_NOTIFY: ${{ needs.parse.outputs.no_notify }}
           REVERT_TARGET: ${{ needs.parse.outputs.revert_target }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          KODY_MEMORY_NUDGE: "true"
         run: |
           if [ "$MODE" = "release" ]; then
             echo "Running release..."
