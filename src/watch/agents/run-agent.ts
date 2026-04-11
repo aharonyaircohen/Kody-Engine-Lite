@@ -6,6 +6,7 @@ import { createClaudeCodeRunner } from "../../agent-runner.js"
 import { getLitellmUrl, stageNeedsProxy, getAnthropicApiKeyOrDummy } from "../../config.js"
 import type { WatchAgentDefinition, WatchAgentRunResult, WatchContext } from "../core/types.js"
 import { buildWatchAgentPrompt } from "./prompt-builder.js"
+import { join } from "path"
 
 /** Default timeout for a watch agent run (20 minutes) */
 const AGENT_TIMEOUT_MS = 20 * 60 * 1000
@@ -42,6 +43,10 @@ export async function runWatchAgent(
     extraEnv.ANTHROPIC_API_KEY = getAnthropicApiKeyOrDummy()
   }
 
+  // Persist session transcript for debugging
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-")
+  const agentLogFile = join(projectDir, ".kody", "watch", "agent-logs", `${agent.config.name}-${timestamp}.log`)
+
   const result = await runner.run(
     `watch:${agent.config.name}`,
     prompt,
@@ -51,6 +56,7 @@ export async function runWatchAgent(
     {
       cwd: projectDir,
       env: extraEnv,
+      agentLogFile,
     },
   )
 

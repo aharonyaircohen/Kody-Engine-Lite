@@ -1,6 +1,8 @@
 import { spawn, execFileSync } from "child_process"
 import type { AgentRunner, AgentResult, AgentRunnerOptions } from "./types.js"
 import type { KodyConfig } from "./config.js"
+import type { PathLike } from "fs"
+import { createWriteStream, mkdirSync } from "fs"
 
 const SIGKILL_GRACE_MS = 5000
 const STDERR_TAIL_CHARS = 2000
@@ -27,13 +29,31 @@ function writeStdin(
 function waitForProcess(
   child: ReturnType<typeof spawn>,
   timeout: number,
+  logFilePath?: PathLike,
 ): Promise<{ code: number | null; stdout: string; stderr: string }> {
   return new Promise((resolve) => {
     const stdoutChunks: Buffer[] = []
     const stderrChunks: Buffer[] = []
 
-    child.stdout?.on("data", (chunk: Buffer) => stdoutChunks.push(chunk))
-    child.stderr?.on("data", (chunk: Buffer) => stderrChunks.push(chunk))
+    let logStream: ReturnType<typeof createWriteStream> | undefined
+    if (logFilePath) {
+      try {
+        const dir = logFilePath.toString().replace(/[/\\][^/\\]*$/, "")
+        mkdirSync(dir, { recursive: true })
+        logStream = createWriteStream(logFilePath, { flags: "w" })
+      } catch {
+        // Non-fatal: proceed without file logging
+      }
+    }
+
+    child.stdout?.on("data", (chunk: Buffer) => {
+      stdoutChunks.push(chunk)
+      logStream?.write(chunk)
+    })
+    child.stderr?.on("data", (chunk: Buffer) => {
+      stderrChunks.push(chunk)
+      logStream?.write(chunk)
+    })
 
     const timer = setTimeout(() => {
       child.kill("SIGTERM")
@@ -44,6 +64,7 @@ function waitForProcess(
 
     child.on("exit", (code) => {
       clearTimeout(timer)
+      logStream?.end()
       resolve({
         code,
         stdout: Buffer.concat(stdoutChunks).toString(),
@@ -53,6 +74,7 @@ function waitForProcess(
 
     child.on("error", (err) => {
       clearTimeout(timer)
+      logStream?.end()
       resolve({ code: -1, stdout: "", stderr: err.message })
     })
   })
@@ -64,6 +86,7 @@ async function runSubprocess(
   prompt: string,
   timeout: number,
   options?: AgentRunnerOptions,
+  logFilePath?: PathLike,
 ): Promise<AgentResult> {
   const child = spawn(command, args, {
     cwd: options?.cwd ?? process.cwd(),
@@ -85,7 +108,7 @@ async function runSubprocess(
     }
   }
 
-  const { code, stdout, stderr } = await waitForProcess(child, timeout)
+  const { code, stdout, stderr } = await waitForProcess(child, timeout, logFilePath)
 
   if (code === 0) {
     return { outcome: "completed", output: stdout }
@@ -149,7 +172,10 @@ export function createClaudeCodeRunner(): AgentRunner {
         }
       }
 
-      return runSubprocess("claude", args, prompt, timeout, options)
+      // Persist Claude Code session transcript to disk for debugging
+      const logFilePath = options?.agentLogFile
+
+      return runSubprocess("claude", args, prompt, timeout, options, logFilePath)
     },
 
     async healthCheck(): Promise<boolean> {

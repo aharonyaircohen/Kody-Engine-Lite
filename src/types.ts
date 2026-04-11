@@ -70,6 +70,8 @@ export interface AgentRunnerOptions {
   sessionId?: string
   resumeSession?: boolean
   mcpConfigJson?: string
+  /** Absolute path for the Claude Code session transcript log file. */
+  agentLogFile?: string
   // SDK-specific options
   maxTurns?: number
   maxBudgetUsd?: number
