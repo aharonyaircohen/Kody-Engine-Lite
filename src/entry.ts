@@ -226,11 +226,13 @@ async function main() {
 
   // Resolve taskId
   let taskId = input.taskId
+  let wasAutoResolved = false
   if (!taskId) {
     // For rerun/status: auto-resolve from .kody/tasks/ or issue comments
     // In CI (GitHub Actions), the GitHub API comment is the authoritative source —
     // the local .kody/tasks/ may not contain the task if the pipeline ran on a PR branch.
     if ((input.command === "rerun" || input.command === "status") && input.issueNumber) {
+      wasAutoResolved = true
       const isCI = process.env.GITHUB_ACTIONS === "true"
       const resolved = resolveTaskIdForCommand(input.issueNumber, projectDir, isCI)
       if (resolved) {
@@ -559,7 +561,10 @@ async function main() {
   }
 
   // Post "pipeline started" comment as early as possible (before heavy init)
-  if (input.issueNumber && !input.local) {
+  // Skip when taskId was auto-resolved (rerun/approve path) — the pipeline was already
+  // started; posting another comment races with the cancellation cascade from the
+  // concurrency group and can result in the new run picking up the prior run's URL as taskId.
+  if (input.issueNumber && !input.local && !wasAutoResolved) {
     const runUrl = process.env.RUN_URL ?? ""
     const runLink = runUrl ? ` ([logs](${runUrl}))` : ""
     try {
