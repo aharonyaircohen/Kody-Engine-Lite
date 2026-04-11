@@ -125,6 +125,13 @@ if (command === "init") {
   })
 } else if (command === "version" || command === "--version" || command === "-v") {
   console.log(getVersion())
+} else if (command === "chat") {
+  import("./commands/chat.js").then(({ chatCommand }) =>
+    chatCommand(args.slice(1)).catch((err) => {
+      console.error(`Chat failed: ${err instanceof Error ? err.message : err}`)
+      process.exit(1)
+    }),
+  )
 } else {
   // Default: run the pipeline (import the entry module)
   import("../entry.js")

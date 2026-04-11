@@ -1,0 +1,4 @@
+{"role":"user","content":"What is 2+2?","timestamp":"2026-04-11T17:49:27.768Z","toolCalls":[]}
+{"role":"assistant","content":"\n2+2 = 4","timestamp":"2026-04-11T17:49:33.367Z","toolCalls":[]}
+{"role":"user","content":"What about 3+3?","timestamp":"2026-04-11T17:49:42.782Z","toolCalls":[]}
+{"role":"assistant","content":"3+3 = 6","timestamp":"2026-04-11T17:49:47.641Z","toolCalls":[]}

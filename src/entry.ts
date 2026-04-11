@@ -378,6 +378,11 @@ async function main() {
     process.exit(0)
   }
 
+  // Chat command — handled directly by cli.ts; entry.ts just validates the command exists
+  if (input.command === "chat") {
+    process.exit(0)
+  }
+
   // Ask command — research and answer a question
   if (input.command === "ask") {
     runPreflight()

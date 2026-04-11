@@ -1,0 +1,2 @@
+{"role":"user","content":"What is 2+2?","timestamp":"2026-04-11T18:14:23.433Z","toolCalls":[]}
+{"role":"assistant","content":"2+2 = 4","timestamp":"2026-04-11T18:14:28.513Z","toolCalls":[]}

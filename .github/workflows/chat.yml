@@ -93,8 +93,8 @@ jobs:
         run: |
           echo "KODY_DASHBOARD_ENDPOINTS=[\"{\"url\":\"${{ github.event.inputs.dashboardUrl }}\"}\"]" >> $GITHUB_ENV
 
-      - name: Build TypeScript
-        run: pnpm build
+      - name: Install kody-engine
+        run: npm install -g @kody-ade/engine
 
       - name: Run chat session
         env:
@@ -102,7 +102,7 @@ jobs:
           SESSION_ID: ${{ github.event.inputs.sessionId }}
           MODEL: ${{ github.event.inputs.model || 'claude-sonnet-4-6' }}
         run: |
-          npx tsx ./src/bin/cli.ts chat \
+          kody-engine chat \
             --session "$SESSION_ID" \
             --model "$MODEL" \
             --cwd .

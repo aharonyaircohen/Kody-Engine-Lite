@@ -1,5 +1,5 @@
 /**
- * `kody-engine chat` — Interactive chat session entry point.
+ * `kody chat` — Interactive chat session entry point.
  *
  * Reads session history from `.kody/sessions/<sessionId>.jsonl`,
  * runs Claude Code with the conversation context, and emits
@@ -7,23 +7,19 @@
  * via HTTP POST to the dashboard hook endpoint.
  *
  * Usage:
- *   kody-engine chat --session <sessionId> [--model <model>] [--cwd <dir>]
+ *   kody chat --session <sessionId> --message <text>  # CLI: message creates session file
+ *   kody chat --session <sessionId>                  # Workflow: uses existing session file
  */
 
 import * as fs from "fs"
 import * as path from "path"
 import { spawn } from "child_process"
-import { fileURLToPath } from "url"
-
 import { getArg } from "../cli.js"
 import { getProjectConfig } from "../../config.js"
-import { getLitellmUrl } from "../../config.js"
 import { getAnthropicApiKeyOrDummy } from "../../config.js"
-import { anyStageNeedsProxy } from "../../config.js"
+import { anyStageNeedsProxy, getLitellmUrl } from "../../config.js"
 import { logger } from "../../logger.js"
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const PKG_ROOT = path.resolve(__dirname, "..", "..")
+import { ensureLiteLlmProxyForChat } from "../../cli/litellm.js"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -62,12 +58,13 @@ async function emitEvent(
   name: string,
   payload: Record<string, unknown>,
   runId: string,
+  projectDir: string,
 ): Promise<void> {
   const dashboardUrl = getDashboardUrl()
   const sessionId = payload.sessionId as string
 
   // Also write to local event file so SSE can poll it
-  const sessionDir = path.join(PKG_ROOT, ".kody", "events")
+  const sessionDir = path.join(projectDir, ".kody", "events")
   fs.mkdirSync(sessionDir, { recursive: true })
   const eventFile = path.join(sessionDir, `${sessionId}.jsonl`)
   const entry = {
@@ -140,93 +137,23 @@ function buildPrompt(messages: SessionMessage[]): string {
   return parts.join("")
 }
 
-// ─── Streaming JSON parser ────────────────────────────────────────────────────
+// ─── Types (shared) ──────────────────────────────────────────────────────────
 
 interface StreamChunk {
   type: string
   [key: string]: unknown
 }
 
-async function parseStreamChunks(
-  stdout: NodeJS.ReadableStream,
-  onText: (text: string) => void,
-  onToolCall: (tc: ToolCall) => void,
-  onDone: () => void,
-): Promise<void> {
-  let buffer = ""
-
-  const stream = stdout as NodeJS.ReadableStream & {
-    on(event: string, cb: (chunk: Buffer) => void): void
-  }
-
-  await new Promise<void>((resolve, reject) => {
-    stream.on("data", (chunk: Buffer) => {
-      buffer += chunk.toString()
-      const lines = buffer.split("\n")
-      buffer = lines.pop() ?? "" // keep incomplete line in buffer
-
-      for (const line of lines) {
-        if (!line.trim() || line.trim() === "data: ") continue
-        // Remove "data: " prefix if present
-        const jsonStr = line.startsWith("data: ")
-          ? line.slice(6)
-          : line
-        if (!jsonStr.trim()) continue
-
-        try {
-          const data = JSON.parse(jsonStr) as StreamChunk
-          if (data.type === "content_block_start" && (data.content_block as Record<string, unknown>)?.type === "tool_use") {
-            const block = data.content_block as Record<string, unknown>
-            const input = block.input as Record<string, unknown> | undefined
-            onToolCall({
-              name: (block.name as string) ?? "",
-              arguments: input ?? {},
-              status: "in_progress",
-            })
-          } else if (data.type === "content_block_delta" && data.delta) {
-            const delta = data.delta as Record<string, unknown>
-            if (delta.type === "text_delta" && delta.text) {
-              onText(delta.text as string)
-            } else if (delta.type === "input_json_delta" && delta.partial_json) {
-              // For tool input streaming, we handle it on completion
-            }
-          } else if (data.type === "message_delta" && data.usage) {
-            onDone()
-          }
-        } catch {
-          // Skip non-JSON lines
-        }
-      }
-    })
-
-    stream.on("end", () => {
-      if (buffer.trim()) {
-        try {
-          const jsonStr = buffer.startsWith("data: ")
-            ? buffer.slice(6)
-            : buffer
-          const data = JSON.parse(jsonStr) as StreamChunk
-          if (data.type === "message_delta") onDone()
-        } catch {
-          // ignore
-        }
-      }
-      resolve()
-    })
-
-    stream.on("error", reject)
-  })
-}
-
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 export async function chatCommand(rawArgs: string[]): Promise<void> {
   const sessionId = getArg(rawArgs, "--session")
+  const message = getArg(rawArgs, "--message")
   const model = getArg(rawArgs, "--model")
   const cwd = getArg(rawArgs, "--cwd")
 
   if (!sessionId) {
-    console.error("Usage: kody-engine chat --session <sessionId> [--model <model>] [--cwd <dir>]")
+    console.error("Usage: kody chat --session <sessionId> [--message <text>] [--model <model>] [--cwd <dir>]")
     process.exit(1)
   }
 
@@ -244,14 +171,33 @@ export async function chatCommand(rawArgs: string[]): Promise<void> {
   const runId = `chat-${sessionId}-${Date.now()}`
   const usesProxy = anyStageNeedsProxy(config)
 
-  // Read session history
-  const messages = readSession(sessionId, projectDir)
+  // Start LiteLLM proxy if needed (mirrors entry.ts behavior)
+  const { kill: killProxy } = await ensureLiteLlmProxyForChat(config, projectDir)
 
-  // Get the last user message as the prompt
-  const lastUserMsg = [...messages].reverse().find((m) => m.role === "user")
-  if (!lastUserMsg) {
-    console.error("No user message found in session")
-    process.exit(1)
+  // Read session history
+  let messages = readSession(sessionId, projectDir)
+
+  // If --message is provided, append it as a new user message
+  let lastUserMsg: SessionMessage | undefined
+  if (message) {
+    const timestamp = new Date().toISOString()
+    const newMsg: SessionMessage = {
+      role: "user",
+      content: message,
+      timestamp,
+      toolCalls: [],
+    }
+    appendToSession(sessionId, projectDir, newMsg)
+    // Re-read to get full history including the new message
+    messages = readSession(sessionId, projectDir)
+    lastUserMsg = newMsg
+  } else {
+    // Get the last user message from existing session
+    lastUserMsg = [...messages].reverse().find((m) => m.role === "user")
+    if (!lastUserMsg) {
+      console.error("No user message found in session. Use --message to send a message.")
+      process.exit(1)
+    }
   }
 
   // Build conversation context for Claude Code
@@ -261,6 +207,7 @@ export async function chatCommand(rawArgs: string[]): Promise<void> {
   // Build Claude Code args
   const claudeArgs = [
     "--print",
+    "--verbose",
     "--model", effectiveModel,
     "--dangerously-skip-permissions",
     "--output-format", "stream-json",
@@ -270,7 +217,7 @@ export async function chatCommand(rawArgs: string[]): Promise<void> {
     ...process.env,
   }
   if (usesProxy) {
-    env.ANTHROPIC_BASE_URL = getLitellmUrl()
+    env.ANTHROPIC_BASE_URL = "http://localhost:4000"
     env.ANTHROPIC_API_KEY = getAnthropicApiKeyOrDummy()
   }
 
@@ -282,7 +229,7 @@ export async function chatCommand(rawArgs: string[]): Promise<void> {
     content: lastUserMsg.content,
     timestamp: lastUserMsg.timestamp,
     toolCalls: [],
-  }, runId)
+  }, runId, projectDir)
 
   // Run Claude Code
   let assistantText = ""
@@ -297,49 +244,55 @@ export async function chatCommand(rawArgs: string[]): Promise<void> {
   child.stdin?.write(prompt, () => child.stdin?.end())
 
   // Parse streaming output
+  const textParts: string[] = []
   await new Promise<void>((resolve, reject) => {
-    const textParts: string[] = []
+    let done = false
 
     child.stdout?.on("data", (chunk: Buffer) => {
       const lines = chunk.toString().split("\n")
       for (const raw of lines) {
-        if (!raw.trim() || raw === "data: ") continue
-        const jsonStr = raw.startsWith("data: ") ? raw.slice(6) : raw
-        if (!jsonStr.trim()) continue
+        if (!raw.trim()) continue
 
         try {
-          const data = JSON.parse(jsonStr) as StreamChunk
+          const data = JSON.parse(raw) as StreamChunk
 
-          if (data.type === "content_block_start") {
-            const block = data.content_block as Record<string, unknown>
-            if (block?.type === "tool_use") {
-              toolCalls.push({
-                name: (block.name as string) ?? "",
-                arguments: (block.input as Record<string, unknown>) ?? {},
-                status: "in_progress",
-              })
-            }
-          } else if (data.type === "content_block_delta") {
-            const delta = data.delta as Record<string, unknown>
-            if (delta?.type === "text_delta" && delta.text) {
-              const text = delta.text as string
-              textParts.push(text)
-              process.stdout.write(text)
-            } else if (delta?.type === "input_json_delta" && delta.partial_json) {
-              // Tool input streaming — update last tool call's arguments
-              const last = toolCalls[toolCalls.length - 1]
-              if (last && last.status === "in_progress") {
-                // Accumulate partial JSON
-                const existing = typeof last.arguments === "string"
-                  ? last.arguments
-                  : JSON.stringify(last.arguments)
-                last.arguments = existing + (delta.partial_json as string)
+          // Handle assistant message with content blocks
+          if (data.type === "assistant" && data.message) {
+            const message = data.message as Record<string, unknown>
+            const content = message.content as Array<Record<string, unknown>> | undefined
+            if (content) {
+              for (const block of content) {
+                if (block.type === "text" && block.text) {
+                  const text = block.text as string
+                  textParts.push(text)
+                  process.stdout.write(text)
+                } else if (block.type === "tool_use") {
+                  toolCalls.push({
+                    name: (block.name as string) ?? "",
+                    arguments: (block.input as Record<string, unknown>) ?? {},
+                    status: "in_progress",
+                  })
+                }
               }
             }
-          } else if (data.type === "message_stop") {
+          }
+
+          // Handle result — marks the end of the stream
+          if (data.type === "result") {
+            const result = data as Record<string, unknown>
+            // If no streaming text was captured, use the result text
+            if (textParts.length === 0 && result.result) {
+              const resultText = result.result as string
+              textParts.push(resultText)
+              process.stdout.write(resultText)
+            }
             // Mark all in-progress tool calls as completed
             for (const tc of toolCalls) {
               if (tc.status === "in_progress") tc.status = "completed"
+            }
+            if (!done) {
+              done = true
+              resolve()
             }
           }
         } catch {
@@ -353,16 +306,20 @@ export async function chatCommand(rawArgs: string[]): Promise<void> {
     })
 
     child.on("close", (code) => {
-      if (code !== 0 && code !== null) {
-        reject(new Error(`Claude Code exited with code ${code}`))
-      } else {
-        assistantText = textParts.join("")
-        resolve()
+      if (!done) {
+        done = true
+        if (code !== 0 && code !== null) {
+          reject(new Error(`Claude Code exited with code ${code}`))
+        } else {
+          resolve()
+        }
       }
     })
 
     child.on("error", reject)
   })
+
+  assistantText = textParts.join("")
 
   const assistantTimestamp = new Date().toISOString()
 
@@ -379,7 +336,7 @@ export async function chatCommand(rawArgs: string[]): Promise<void> {
     content: assistantText,
     timestamp: assistantTimestamp,
     toolCalls,
-  }, runId)
+  }, runId, projectDir)
 
   // Append assistant response to session file
   appendToSession(sessionId, projectDir, {
@@ -390,7 +347,10 @@ export async function chatCommand(rawArgs: string[]): Promise<void> {
   })
 
   // Emit done
-  await emitEvent("chat.done", { runId, sessionId }, runId)
+  await emitEvent("chat.done", { runId, sessionId }, runId, projectDir)
+
+  // Stop LiteLLM proxy if we started it
+  if (killProxy) killProxy()
 
   console.error("\n[chat] Session complete.")
 }

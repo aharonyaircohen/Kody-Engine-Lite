@@ -1,0 +1,1 @@
+{"id":"1775929698507-0u4krkh","runId":"chat-test2-1775929698501","event":"chat.message","payload":{"runId":"chat-test2-1775929698501","sessionId":"test2","role":"user","content":"What is 2+2?","timestamp":"2026-04-11T17:48:18.502Z","toolCalls":[]},"emittedAt":"2026-04-11T17:48:18.507Z"}

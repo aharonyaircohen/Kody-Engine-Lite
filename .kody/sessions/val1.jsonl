@@ -1,0 +1,4 @@
+{"role":"user","content":"What is 1+1?","timestamp":"2026-04-11T17:54:55.565Z","toolCalls":[]}
+{"role":"assistant","content":"2","timestamp":"2026-04-11T17:55:00.025Z","toolCalls":[]}
+{"role":"user","content":"What about 5+5?","timestamp":"2026-04-11T17:55:01.056Z","toolCalls":[]}
+{"role":"assistant","content":"10","timestamp":"2026-04-11T17:55:05.062Z","toolCalls":[]}

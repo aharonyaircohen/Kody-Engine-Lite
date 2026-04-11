@@ -1,5 +1,5 @@
 export interface CliInput {
-  command: "run" | "rerun" | "fix" | "fix-ci" | "status" | "review" | "resolve" | "decompose" | "compose" | "ask" | "hotfix"
+  command: "run" | "rerun" | "fix" | "fix-ci" | "status" | "review" | "resolve" | "decompose" | "compose" | "ask" | "hotfix" | "chat"
   taskId?: string
   task?: string
   fromStage?: string

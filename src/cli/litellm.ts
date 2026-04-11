@@ -4,7 +4,7 @@ import * as path from "path"
 import { execFileSync } from "child_process"
 
 import { logger } from "../logger.js"
-import { providerApiKeyEnvVar } from "../config.js"
+import { providerApiKeyEnvVar, getLitellmUrl } from "../config.js"
 
 export async function checkLitellmHealth(url: string): Promise<boolean> {
   try {
@@ -251,4 +251,38 @@ export async function tryStartLitellm(
   logger.warn("LiteLLM proxy failed to start within 60s")
   child.kill()
   return null
+}
+
+// ─── Agent environment setup (shared by entry.ts and chat.ts) ─────────────────
+
+import type { KodyConfig } from "../config.js"
+import { getAnthropicApiKeyOrDummy } from "../config.js"
+import { needsLitellmProxy } from "../config.js"
+
+/**
+ * Ensures the LiteLLM proxy is running for non-Anthropic providers.
+ * Used by chat.ts — the pipeline commands use ensureLitellmProxy from entry.ts.
+ */
+export async function ensureLiteLlmProxyForChat(
+  config: KodyConfig,
+  projectDir: string,
+): Promise<{ kill: (() => void) | null }> {
+  const litellmUrl = getLitellmUrl()
+
+  if (!needsLitellmProxy(config)) {
+    return { kill: null }
+  }
+
+  const proxyRunning = await checkLitellmHealth(litellmUrl)
+  if (proxyRunning) {
+    return { kill: null }
+  }
+
+  // Generate config from modelMap
+  let generatedConfig: string | undefined
+  if (config.agent.provider && config.agent.provider !== "anthropic") {
+    generatedConfig = generateLitellmConfig(config.agent.provider, config.agent.modelMap ?? {})
+  }
+  const process = await tryStartLitellm(litellmUrl, projectDir, generatedConfig)
+  return { kill: process ? () => process.kill() : null }
 }
