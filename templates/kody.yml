@@ -50,7 +50,7 @@ on:
 
 concurrency:
   group: kody-${{ github.event.inputs.task_id || github.run_id }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   issues: write
