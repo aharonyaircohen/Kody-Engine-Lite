@@ -20,6 +20,7 @@
 | `bootstrap` | Analyze the codebase and generate memory, step files, and labels |
 | `init` | Set up a repository with workflow and config files (no LLM needed) |
 | `watch` | Run health monitoring plugins |
+| `chat` | Run Kody as a chat service via GitHub Actions |
 | `release` | Automate version bump, changelog, and release PR |
 | `revert` | Revert a merged PR |
 | `graph` | Inspect and search Kody's graph memory |
@@ -268,7 +269,7 @@ Use `--force` to regenerate from scratch (instead of extending existing files).
 ### `watch` — Health monitoring
 
 ```
-kody-engine-lite watch [--dry-run]
+kody-engine-lite watch [--dry-run] [--agent <name>]
 ```
 
 Runs three plugins on a schedule:
@@ -279,7 +280,31 @@ Runs three plugins on a schedule:
 
 `--dry-run` runs all plugins but skips posting comments and creating issues.
 
+`--agent <name>` runs a single plugin only (e.g. `pipeline-health`, `security-scan`, `config-health`). Useful for manual triggering via workflow dispatch without waiting for the next scheduled tick.
+
 State (cycle counter, dedup timestamps) is persisted as an HTML comment on the activity log issue — no PAT needed, works with the default `github.token`.
+
+---
+
+## Chat
+
+### `chat` — Run Kody as a chat service
+
+```
+kody-engine-lite chat --session <sessionId> [--model <model>] [--cwd <dir>]
+```
+
+Runs Kody as a GitHub Actions chat service. Sessions are stored as JSONL files, enabling conversation history across workflow runs.
+
+**Flags:**
+
+| Flag | Description |
+|------|-------------|
+| `--session` | Session ID (required). Maps 1:1 to a task ID. |
+| `--model` | Model to use (default: from `kody.config.json`) |
+| `--cwd` | Working directory (default: current directory) |
+
+Sessions are triggered by calling `workflow_dispatch` on the `chat.yml` workflow with the session ID as input. The `chat.yml` workflow is installed automatically by `kody-engine-lite init`. For full details including session file format, event types, and GitHub Actions integration, see [Chat Sessions](CHAT-SESSIONS.md).
 
 ---
 

@@ -1,6 +1,6 @@
 # Kody Watch
 
-Periodic health monitoring for your Kody-powered repository. Runs every 30 minutes via GitHub Actions, checking pipeline health, security, and configuration.
+Periodic health monitoring for your Kody-powered repository. Runs every 30 minutes via GitHub Actions cron, checking pipeline health, security, and configuration. Each agent can also be triggered manually via workflow dispatch using the `--agent` filter.
 
 ## How It Works
 
@@ -17,6 +17,11 @@ Every 30 min
     │
     └── config-health (every 48 cycles ≈ daily)
           └── Validate kody.config.json, GitHub secrets, quality commands
+
+Manual trigger (workflow_dispatch)
+    │
+    └── kody watch --agent <name>
+          └── Run a single plugin on demand
 ```
 
 Findings are posted as comments on a pinned **activity log issue** — a single place to monitor your repo's health.
@@ -115,12 +120,30 @@ That's it. No interval config, no plugin list. The 30-minute tick and plugin sch
 }
 ```
 
+## Manual Triggering
+
+Use `--agent` to run a single plugin on demand without waiting for the next scheduled tick:
+
+```bash
+kody watch --agent pipeline-health
+kody watch --agent security-scan
+kody watch --agent config-health
+```
+
+In GitHub Actions, trigger a specific agent via workflow dispatch on the `kody-watch.yml` workflow, using the `agent` input. This is useful for running an agent immediately from the Actions UI or via `gh workflow run`.
+
 ## Local Testing
 
 Run Watch locally with `--dry-run` (no GitHub posts):
 
 ```bash
 GH_TOKEN=$(gh auth token) kody-engine-lite watch --dry-run
+```
+
+Run a single agent manually (also works locally):
+
+```bash
+GH_TOKEN=$(gh auth token) kody-engine-lite watch --agent pipeline-health --dry-run
 ```
 
 ## State Persistence
