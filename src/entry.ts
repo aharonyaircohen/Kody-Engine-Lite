@@ -570,7 +570,7 @@ async function main() {
     try {
       postComment(
         input.issueNumber,
-        `🚀 Kody pipeline started: \`${taskId}\`${runLink}\n\nTo rerun: \`@kody rerun ${taskId} --from <stage>\``,
+        `🚀 Kody pipeline started: \`${taskId}\`${runLink}`,
       )
     } catch { /* best effort */ }
   }
