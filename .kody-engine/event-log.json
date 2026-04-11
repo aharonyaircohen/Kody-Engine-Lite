@@ -1,0 +1,4640 @@
+[
+  {
+    "id": "1775927223720-oxph3ar",
+    "runId": "riskgate-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.720Z"
+  },
+  {
+    "id": "1775927223720-3xzqimt",
+    "runId": "session-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "session-test",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.720Z"
+  },
+  {
+    "id": "1775927223721-79ovx6n",
+    "runId": "test-task",
+    "event": "pipeline.started",
+    "payload": {
+      "runId": "test-task"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.721Z"
+  },
+  {
+    "id": "1775927223721-exfme1h",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.721Z"
+  },
+  {
+    "id": "1775927223722-xkld9lb",
+    "runId": "approve-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "approve-test",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.722Z"
+  },
+  {
+    "id": "1775927223722-r1crh4f",
+    "runId": "approve-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "approve-test",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.722Z"
+  },
+  {
+    "id": "1775927223723-odkd1sb",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.723Z"
+  },
+  {
+    "id": "1775927223724-ygwed6t",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.724Z"
+  },
+  {
+    "id": "1775927223724-va80oh4",
+    "runId": "approve-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "approve-test",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.724Z"
+  },
+  {
+    "id": "1775927223724-ds4h6hn",
+    "runId": "approve-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "approve-test",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.724Z"
+  },
+  {
+    "id": "1775927223725-tsrutyj",
+    "runId": "riskgate-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.725Z"
+  },
+  {
+    "id": "1775927223725-4grapz6",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.725Z"
+  },
+  {
+    "id": "1775927223725-wvdpm0m",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.725Z"
+  },
+  {
+    "id": "1775927223725-hy1vkxs",
+    "runId": "approve-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "approve-test",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.725Z"
+  },
+  {
+    "id": "1775927223725-fsldxir",
+    "runId": "approve-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "approve-test",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.725Z"
+  },
+  {
+    "id": "1775927223726-qwh46kl",
+    "runId": "riskgate-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.726Z"
+  },
+  {
+    "id": "1775927223727-vosooq0",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.727Z"
+  },
+  {
+    "id": "1775927223729-hn9pr1k",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.729Z"
+  },
+  {
+    "id": "1775927223730-qiotblc",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.730Z"
+  },
+  {
+    "id": "1775927223731-2m05xlq",
+    "runId": "approve-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "approve-test",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.731Z"
+  },
+  {
+    "id": "1775927223732-ia2tj8v",
+    "runId": "approve-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "approve-test",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.732Z"
+  },
+  {
+    "id": "1775927223733-cgo9wxy",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.733Z"
+  },
+  {
+    "id": "1775927223734-vdzczgt",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.734Z"
+  },
+  {
+    "id": "1775927223735-7y7uwyq",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.735Z"
+  },
+  {
+    "id": "1775927223735-3xede0j",
+    "runId": "test-task",
+    "event": "pipeline.success",
+    "payload": {
+      "runId": "test-task"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.735Z"
+  },
+  {
+    "id": "1775927223736-zus11i2",
+    "runId": "approve-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "approve-test",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.736Z"
+  },
+  {
+    "id": "1775927223736-ftdtgas",
+    "runId": "approve-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "approve-test",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.736Z"
+  },
+  {
+    "id": "1775927223737-cvokobx",
+    "runId": "riskgate-test",
+    "event": "pipeline.started",
+    "payload": {
+      "runId": "riskgate-test"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.737Z"
+  },
+  {
+    "id": "1775927223737-ou6o3e9",
+    "runId": "approve-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "approve-test",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.737Z"
+  },
+  {
+    "id": "1775927223738-4cxnkky",
+    "runId": "approve-test",
+    "event": "pipeline.success",
+    "payload": {
+      "runId": "approve-test",
+      "issueNumber": 99
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.738Z"
+  },
+  {
+    "id": "1775927223738-4fd4ytr",
+    "runId": "riskgate-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.738Z"
+  },
+  {
+    "id": "1775927223738-jtm7tl1",
+    "runId": "riskgate-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.738Z"
+  },
+  {
+    "id": "1775927223739-i8zfmno",
+    "runId": "riskgate-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.739Z"
+  },
+  {
+    "id": "1775927223740-zdfwaf6",
+    "runId": "riskgate-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.740Z"
+  },
+  {
+    "id": "1775927223740-1bdorjy",
+    "runId": "riskgate-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.740Z"
+  },
+  {
+    "id": "1775927223740-4p47tox",
+    "runId": "test-task",
+    "event": "pipeline.started",
+    "payload": {
+      "runId": "test-task",
+      "issueNumber": 42
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.740Z"
+  },
+  {
+    "id": "1775927223741-683fzs6",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.741Z"
+  },
+  {
+    "id": "1775927223742-e7o2zu9",
+    "runId": "riskgate-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.742Z"
+  },
+  {
+    "id": "1775927223742-i487ucs",
+    "runId": "riskgate-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.742Z"
+  },
+  {
+    "id": "1775927223742-q6yac0y",
+    "runId": "riskgate-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.742Z"
+  },
+  {
+    "id": "1775927223743-6oem846",
+    "runId": "riskgate-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.743Z"
+  },
+  {
+    "id": "1775927223744-20ma213",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.744Z"
+  },
+  {
+    "id": "1775927223744-2c4z6zd",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.744Z"
+  },
+  {
+    "id": "1775927223745-3frzo98",
+    "runId": "riskgate-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.745Z"
+  },
+  {
+    "id": "1775927223746-n7ipjv0",
+    "runId": "riskgate-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.746Z"
+  },
+  {
+    "id": "1775927223746-szzy03j",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.746Z"
+  },
+  {
+    "id": "1775927223746-qq3niab",
+    "runId": "test-task",
+    "event": "step.waiting",
+    "payload": {
+      "runId": "test-task",
+      "step": "plan",
+      "context": {
+        "reason": "risk-gate"
+      }
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.746Z"
+  },
+  {
+    "id": "1775927223747-19l8bgq",
+    "runId": "riskgate-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.747Z"
+  },
+  {
+    "id": "1775927223747-os9e7fg",
+    "runId": "riskgate-test",
+    "event": "pipeline.success",
+    "payload": {
+      "runId": "riskgate-test"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.747Z"
+  },
+  {
+    "id": "1775927223751-wmkomsb",
+    "runId": "resume-test",
+    "event": "pipeline.started",
+    "payload": {
+      "runId": "resume-test"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.751Z"
+  },
+  {
+    "id": "1775927223751-2hq0xiw",
+    "runId": "resume-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "resume-test",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.751Z"
+  },
+  {
+    "id": "1775927223753-qet7unr",
+    "runId": "resume-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "resume-test",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.753Z"
+  },
+  {
+    "id": "1775927223753-ykt6cs8",
+    "runId": "resume-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "resume-test",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.753Z"
+  },
+  {
+    "id": "1775927223754-e9dwl6y",
+    "runId": "riskgate-test",
+    "event": "pipeline.started",
+    "payload": {
+      "runId": "riskgate-test",
+      "issueNumber": 99
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.754Z"
+  },
+  {
+    "id": "1775927223754-3v3samd",
+    "runId": "riskgate-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.754Z"
+  },
+  {
+    "id": "1775927223754-0aggd2b",
+    "runId": "resume-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "resume-test",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.754Z"
+  },
+  {
+    "id": "1775927223754-7wjzlov",
+    "runId": "resume-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "resume-test",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.754Z"
+  },
+  {
+    "id": "1775927223755-e3dqmj1",
+    "runId": "riskgate-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.755Z"
+  },
+  {
+    "id": "1775927223755-4k4gqyj",
+    "runId": "riskgate-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.755Z"
+  },
+  {
+    "id": "1775927223756-v85fvr7",
+    "runId": "resume-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "resume-test",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.756Z"
+  },
+  {
+    "id": "1775927223757-xapni2b",
+    "runId": "resume-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "resume-test",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.757Z"
+  },
+  {
+    "id": "1775927223757-dkggat0",
+    "runId": "resume-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "resume-test",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.757Z"
+  },
+  {
+    "id": "1775927223758-u3fwhpx",
+    "runId": "riskgate-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.758Z"
+  },
+  {
+    "id": "1775927223761-xu54srp",
+    "runId": "riskgate-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.762Z"
+  },
+  {
+    "id": "1775927223762-70exzaq",
+    "runId": "riskgate-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.762Z"
+  },
+  {
+    "id": "1775927223764-803f7gl",
+    "runId": "resume-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "resume-test",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.764Z"
+  },
+  {
+    "id": "1775927223764-p7albf4",
+    "runId": "resume-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "resume-test",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.764Z"
+  },
+  {
+    "id": "1775927223764-av76kgg",
+    "runId": "riskgate-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.764Z"
+  },
+  {
+    "id": "1775927223765-c3fd2tf",
+    "runId": "riskgate-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.765Z"
+  },
+  {
+    "id": "1775927223766-7y951ma",
+    "runId": "resume-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "resume-test",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.766Z"
+  },
+  {
+    "id": "1775927223767-lxwzj6e",
+    "runId": "riskgate-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.767Z"
+  },
+  {
+    "id": "1775927223769-357upic",
+    "runId": "riskgate-test",
+    "event": "pipeline.failed",
+    "payload": {
+      "runId": "riskgate-test",
+      "error": "Stage failed",
+      "issueNumber": 99
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.769Z"
+  },
+  {
+    "id": "1775927223772-el8mlfv",
+    "runId": "feedback-test",
+    "event": "pipeline.started",
+    "payload": {
+      "runId": "feedback-test"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.772Z"
+  },
+  {
+    "id": "1775927223773-5a2k955",
+    "runId": "feedback-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "feedback-test",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.773Z"
+  },
+  {
+    "id": "1775927223775-tvraobz",
+    "runId": "feedback-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "feedback-test",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.775Z"
+  },
+  {
+    "id": "1775927223775-2yvjih1",
+    "runId": "feedback-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "feedback-test",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.775Z"
+  },
+  {
+    "id": "1775927223794-n70p3hf",
+    "runId": "pr-fields",
+    "event": "pipeline.started",
+    "payload": {
+      "runId": "pr-fields"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.794Z"
+  },
+  {
+    "id": "1775927223795-niat650",
+    "runId": "pr-fields",
+    "event": "step.started",
+    "payload": {
+      "runId": "pr-fields",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.795Z"
+  },
+  {
+    "id": "1775927223798-l2lfqis",
+    "runId": "pr-fields",
+    "event": "step.complete",
+    "payload": {
+      "runId": "pr-fields",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.798Z"
+  },
+  {
+    "id": "1775927223799-o3ytfbk",
+    "runId": "pr-fields",
+    "event": "step.started",
+    "payload": {
+      "runId": "pr-fields",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.799Z"
+  },
+  {
+    "id": "1775927223801-u676jq3",
+    "runId": "pr-fields",
+    "event": "step.complete",
+    "payload": {
+      "runId": "pr-fields",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.801Z"
+  },
+  {
+    "id": "1775927223801-dkucg2g",
+    "runId": "pr-fields",
+    "event": "step.started",
+    "payload": {
+      "runId": "pr-fields",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.801Z"
+  },
+  {
+    "id": "1775927223813-1qonydw",
+    "runId": "session-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-test",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.813Z"
+  },
+  {
+    "id": "1775927223814-tzuobfg",
+    "runId": "session-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "session-test",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.814Z"
+  },
+  {
+    "id": "1775927223816-cilx5ce",
+    "runId": "session-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-test",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.816Z"
+  },
+  {
+    "id": "1775927223817-1zoxang",
+    "runId": "session-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "session-test",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.817Z"
+  },
+  {
+    "id": "1775927223829-hqga42k",
+    "runId": "session-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-test",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.829Z"
+  },
+  {
+    "id": "1775927223830-0839o6c",
+    "runId": "session-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "session-test",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.830Z"
+  },
+  {
+    "id": "1775927223836-bmpbdrk",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.836Z"
+  },
+  {
+    "id": "1775927223836-zvugk7i",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.836Z"
+  },
+  {
+    "id": "1775927223837-hhcgm4f",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.837Z"
+  },
+  {
+    "id": "1775927223838-69707nl",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.838Z"
+  },
+  {
+    "id": "1775927223839-j98grur",
+    "runId": "feedback-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "feedback-test",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.839Z"
+  },
+  {
+    "id": "1775927223839-kfrzt4o",
+    "runId": "feedback-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "feedback-test",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.839Z"
+  },
+  {
+    "id": "1775927223841-qcb95p5",
+    "runId": "feedback-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "feedback-test",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.841Z"
+  },
+  {
+    "id": "1775927223841-uednvj3",
+    "runId": "feedback-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "feedback-test",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.841Z"
+  },
+  {
+    "id": "1775927223842-3o54glk",
+    "runId": "session-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-test",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.842Z"
+  },
+  {
+    "id": "1775927223842-mvea6my",
+    "runId": "session-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "session-test",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.842Z"
+  },
+  {
+    "id": "1775927223847-bxluteo",
+    "runId": "feedback-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "feedback-test",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.847Z"
+  },
+  {
+    "id": "1775927223847-893rf9y",
+    "runId": "riskgate-test",
+    "event": "pipeline.started",
+    "payload": {
+      "runId": "riskgate-test",
+      "issueNumber": 99
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.847Z"
+  },
+  {
+    "id": "1775927223847-6uj7zk3",
+    "runId": "riskgate-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.847Z"
+  },
+  {
+    "id": "1775927223848-a04lz1h",
+    "runId": "session-test",
+    "event": "pipeline.success",
+    "payload": {
+      "runId": "session-test"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.848Z"
+  },
+  {
+    "id": "1775927223851-cjuj4x5",
+    "runId": "riskgate-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.851Z"
+  },
+  {
+    "id": "1775927223851-hgg5xwg",
+    "runId": "riskgate-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.851Z"
+  },
+  {
+    "id": "1775927223854-1thjlgt",
+    "runId": "riskgate-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.854Z"
+  },
+  {
+    "id": "1775927223855-t8px7ca",
+    "runId": "riskgate-test",
+    "event": "step.waiting",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "plan",
+      "context": {
+        "reason": "risk-gate"
+      }
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.855Z"
+  },
+  {
+    "id": "1775927223859-40p600y",
+    "runId": "riskgate-test",
+    "event": "pipeline.started",
+    "payload": {
+      "runId": "riskgate-test"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.859Z"
+  },
+  {
+    "id": "1775927223859-w1vlaq5",
+    "runId": "riskgate-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.859Z"
+  },
+  {
+    "id": "1775927223860-n6qu0mg",
+    "runId": "riskgate-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.860Z"
+  },
+  {
+    "id": "1775927223860-v6i6hvm",
+    "runId": "riskgate-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.860Z"
+  },
+  {
+    "id": "1775927223861-p2xlgf9",
+    "runId": "riskgate-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.861Z"
+  },
+  {
+    "id": "1775927223862-g95rng2",
+    "runId": "riskgate-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.862Z"
+  },
+  {
+    "id": "1775927223862-tzt640m",
+    "runId": "riskgate-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.862Z"
+  },
+  {
+    "id": "1775927223862-zna7c1c",
+    "runId": "riskgate-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.862Z"
+  },
+  {
+    "id": "1775927223863-eqemsxi",
+    "runId": "riskgate-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.863Z"
+  },
+  {
+    "id": "1775927223864-01oo2b9",
+    "runId": "riskgate-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.864Z"
+  },
+  {
+    "id": "1775927223865-ia9jnnc",
+    "runId": "riskgate-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.865Z"
+  },
+  {
+    "id": "1775927223865-5kliy68",
+    "runId": "riskgate-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.865Z"
+  },
+  {
+    "id": "1775927223868-ciylkk4",
+    "runId": "riskgate-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.868Z"
+  },
+  {
+    "id": "1775927223869-4tqqg4m",
+    "runId": "riskgate-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.869Z"
+  },
+  {
+    "id": "1775927223870-f11mkif",
+    "runId": "riskgate-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "riskgate-test",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.870Z"
+  },
+  {
+    "id": "1775927223870-g4ucp8t",
+    "runId": "riskgate-test",
+    "event": "pipeline.success",
+    "payload": {
+      "runId": "riskgate-test"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.870Z"
+  },
+  {
+    "id": "1775927223872-fs4syps",
+    "runId": "pr-fields",
+    "event": "step.complete",
+    "payload": {
+      "runId": "pr-fields",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.872Z"
+  },
+  {
+    "id": "1775927223872-4ay18gu",
+    "runId": "pr-fields",
+    "event": "step.started",
+    "payload": {
+      "runId": "pr-fields",
+      "step": "verify"
+    },
+    "hooksFired": [
+      "log"
+    ],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.872Z"
+  },
+  {
+    "id": "1775927223875-gpyz6cw",
+    "runId": "pr-fields",
+    "event": "step.complete",
+    "payload": {
+      "runId": "pr-fields",
+      "step": "verify"
+    },
+    "hooksFired": [
+      "log"
+    ],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.875Z"
+  },
+  {
+    "id": "1775927223876-17mulbx",
+    "runId": "pr-fields",
+    "event": "step.started",
+    "payload": {
+      "runId": "pr-fields",
+      "step": "review"
+    },
+    "hooksFired": [
+      "log"
+    ],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.876Z"
+  },
+  {
+    "id": "1775927223896-pdva7ek",
+    "runId": "pr-fields",
+    "event": "step.complete",
+    "payload": {
+      "runId": "pr-fields",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.896Z"
+  },
+  {
+    "id": "1775927223897-qqln22e",
+    "runId": "pr-fields",
+    "event": "step.started",
+    "payload": {
+      "runId": "pr-fields",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.897Z"
+  },
+  {
+    "id": "1775927223898-qq1iqyv",
+    "runId": "pr-fields",
+    "event": "step.complete",
+    "payload": {
+      "runId": "pr-fields",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.898Z"
+  },
+  {
+    "id": "1775927223898-tfcj2ny",
+    "runId": "pr-fields",
+    "event": "pipeline.success",
+    "payload": {
+      "runId": "pr-fields"
+    },
+    "hooksFired": [
+      "github-action",
+      "github-label",
+      "dashboard",
+      "log"
+    ],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.898Z"
+  },
+  {
+    "id": "1775927223932-v6loiyb",
+    "runId": "feedback-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "feedback-test",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.932Z"
+  },
+  {
+    "id": "1775927223932-pglrd2l",
+    "runId": "feedback-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "feedback-test",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.932Z"
+  },
+  {
+    "id": "1775927223935-ulpzt1h",
+    "runId": "feedback-test",
+    "event": "step.failed",
+    "payload": {
+      "runId": "feedback-test",
+      "step": "ship",
+      "error": "Command failed: git branch --show-current\nfatal: not a git repository (or any of the parent directories): .git\n"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.935Z"
+  },
+  {
+    "id": "1775927223935-2hhxcyi",
+    "runId": "feedback-test",
+    "event": "pipeline.failed",
+    "payload": {
+      "runId": "feedback-test",
+      "error": "Stage failed"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.935Z"
+  },
+  {
+    "id": "1775927223943-h2idipp",
+    "runId": "session-test-2",
+    "event": "pipeline.started",
+    "payload": {
+      "runId": "session-test-2"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.943Z"
+  },
+  {
+    "id": "1775927223944-1vukdn8",
+    "runId": "session-test-2",
+    "event": "step.started",
+    "payload": {
+      "runId": "session-test-2",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.944Z"
+  },
+  {
+    "id": "1775927223946-4mfph8u",
+    "runId": "session-test-2",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-test-2",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.946Z"
+  },
+  {
+    "id": "1775927223946-6bdn0o8",
+    "runId": "session-test-2",
+    "event": "step.started",
+    "payload": {
+      "runId": "session-test-2",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.946Z"
+  },
+  {
+    "id": "1775927223950-iaaffvm",
+    "runId": "session-test-2",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-test-2",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.950Z"
+  },
+  {
+    "id": "1775927223951-l5mlv2o",
+    "runId": "session-test-2",
+    "event": "step.started",
+    "payload": {
+      "runId": "session-test-2",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.951Z"
+  },
+  {
+    "id": "1775927223990-012ufpy",
+    "runId": "pr-plan",
+    "event": "pipeline.started",
+    "payload": {
+      "runId": "pr-plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.990Z"
+  },
+  {
+    "id": "1775927223991-9f9gr3r",
+    "runId": "pr-plan",
+    "event": "step.started",
+    "payload": {
+      "runId": "pr-plan",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.991Z"
+  },
+  {
+    "id": "1775927223997-91btzg4",
+    "runId": "pr-plan",
+    "event": "step.complete",
+    "payload": {
+      "runId": "pr-plan",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.997Z"
+  },
+  {
+    "id": "1775927223997-d40b0yb",
+    "runId": "pr-plan",
+    "event": "step.started",
+    "payload": {
+      "runId": "pr-plan",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.997Z"
+  },
+  {
+    "id": "1775927223999-xpwhmd6",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:03.999Z"
+  },
+  {
+    "id": "1775927224000-qa6kt7r",
+    "runId": "pr-plan",
+    "event": "step.complete",
+    "payload": {
+      "runId": "pr-plan",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.000Z"
+  },
+  {
+    "id": "1775927224001-mvbhkm2",
+    "runId": "pr-plan",
+    "event": "step.started",
+    "payload": {
+      "runId": "pr-plan",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.001Z"
+  },
+  {
+    "id": "1775927224002-lib3ac0",
+    "runId": "test-task",
+    "event": "step.failed",
+    "payload": {
+      "runId": "test-task",
+      "step": "ship",
+      "error": "[vitest] No \"getPRForBranch\" export is defined on the \"../../src/github-api.js\" mock. Did you forget to return it from \"vi.mock\"?\nIf you need to partially mock a module, you can use \"importOriginal\" helper inside:\n"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.002Z"
+  },
+  {
+    "id": "1775927224002-dn82auh",
+    "runId": "test-task",
+    "event": "pipeline.failed",
+    "payload": {
+      "runId": "test-task",
+      "error": "Stage failed"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.002Z"
+  },
+  {
+    "id": "1775927224027-c44a553",
+    "runId": "session-test-2",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-test-2",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.027Z"
+  },
+  {
+    "id": "1775927224028-gfxnq5d",
+    "runId": "session-test-2",
+    "event": "step.started",
+    "payload": {
+      "runId": "session-test-2",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.028Z"
+  },
+  {
+    "id": "1775927224032-9kvtwt5",
+    "runId": "session-test-2",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-test-2",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.032Z"
+  },
+  {
+    "id": "1775927224033-qhl6ppd",
+    "runId": "session-test-2",
+    "event": "step.started",
+    "payload": {
+      "runId": "session-test-2",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.033Z"
+  },
+  {
+    "id": "1775927224046-aes73w2",
+    "runId": "session-test-2",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-test-2",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.046Z"
+  },
+  {
+    "id": "1775927224047-e0005sq",
+    "runId": "session-test-2",
+    "event": "step.started",
+    "payload": {
+      "runId": "session-test-2",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.047Z"
+  },
+  {
+    "id": "1775927224059-2571yqo",
+    "runId": "session-test-2",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-test-2",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.059Z"
+  },
+  {
+    "id": "1775927224061-z1zc1iu",
+    "runId": "session-test-2",
+    "event": "step.started",
+    "payload": {
+      "runId": "session-test-2",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.061Z"
+  },
+  {
+    "id": "1775927224062-psrt9of",
+    "runId": "session-test-2",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-test-2",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.062Z"
+  },
+  {
+    "id": "1775927224062-grayz90",
+    "runId": "session-test-2",
+    "event": "pipeline.success",
+    "payload": {
+      "runId": "session-test-2"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.062Z"
+  },
+  {
+    "id": "1775927224074-9k6q0t9",
+    "runId": "pr-plan",
+    "event": "step.complete",
+    "payload": {
+      "runId": "pr-plan",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.074Z"
+  },
+  {
+    "id": "1775927224075-zokut2g",
+    "runId": "pr-plan",
+    "event": "step.started",
+    "payload": {
+      "runId": "pr-plan",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.075Z"
+  },
+  {
+    "id": "1775927224076-8eifmb6",
+    "runId": "pr-plan",
+    "event": "step.complete",
+    "payload": {
+      "runId": "pr-plan",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.076Z"
+  },
+  {
+    "id": "1775927224077-3qub6hs",
+    "runId": "pr-plan",
+    "event": "step.started",
+    "payload": {
+      "runId": "pr-plan",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.077Z"
+  },
+  {
+    "id": "1775927224082-7pnqgh3",
+    "runId": "test-task",
+    "event": "pipeline.started",
+    "payload": {
+      "runId": "test-task"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.082Z"
+  },
+  {
+    "id": "1775927224082-ox4cfs4",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.082Z"
+  },
+  {
+    "id": "1775927224083-dt66r2b",
+    "runId": "pr-plan",
+    "event": "step.complete",
+    "payload": {
+      "runId": "pr-plan",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.083Z"
+  },
+  {
+    "id": "1775927224084-kvpwys5",
+    "runId": "pr-plan",
+    "event": "pipeline.success",
+    "payload": {
+      "runId": "pr-plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.084Z"
+  },
+  {
+    "id": "1775927224085-xpcpyep",
+    "runId": "approve-test",
+    "event": "pipeline.started",
+    "payload": {
+      "runId": "approve-test",
+      "issueNumber": 99
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.085Z"
+  },
+  {
+    "id": "1775927224086-543sdl5",
+    "runId": "approve-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "approve-test",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.086Z"
+  },
+  {
+    "id": "1775927224088-qhweux1",
+    "runId": "approve-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "approve-test",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.088Z"
+  },
+  {
+    "id": "1775927224088-ctkua3f",
+    "runId": "approve-test",
+    "event": "step.waiting",
+    "payload": {
+      "runId": "approve-test",
+      "step": "taskify",
+      "context": {
+        "reason": "questions"
+      }
+    },
+    "hooksFired": [
+      "github-label",
+      "log"
+    ],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.088Z"
+  },
+  {
+    "id": "1775927224142-omycdbx",
+    "runId": "session-test-3",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-test-3",
+      "step": "taskify"
+    },
+    "hooksFired": [
+      "github-action",
+      "github-label",
+      "dashboard",
+      "log"
+    ],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.142Z"
+  },
+  {
+    "id": "1775927224144-bjp8y70",
+    "runId": "session-test-3",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-test-3",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.144Z"
+  },
+  {
+    "id": "1775927224147-4280l99",
+    "runId": "session-test-3",
+    "event": "step.started",
+    "payload": {
+      "runId": "session-test-3",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.147Z"
+  },
+  {
+    "id": "1775927224156-ahxakhc",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.156Z"
+  },
+  {
+    "id": "1775927224157-y1l2fj4",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.157Z"
+  },
+  {
+    "id": "1775927224160-fllhbro",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.160Z"
+  },
+  {
+    "id": "1775927224161-wsjsr80",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.161Z"
+  },
+  {
+    "id": "1775927224167-loon62c",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.167Z"
+  },
+  {
+    "id": "1775927224167-dd079vq",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.167Z"
+  },
+  {
+    "id": "1775927224174-gihj9ld",
+    "runId": "pr-review",
+    "event": "pipeline.started",
+    "payload": {
+      "runId": "pr-review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.174Z"
+  },
+  {
+    "id": "1775927224174-nkdxuae",
+    "runId": "pr-review",
+    "event": "step.started",
+    "payload": {
+      "runId": "pr-review",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.174Z"
+  },
+  {
+    "id": "1775927224176-2rkqmcb",
+    "runId": "pr-review",
+    "event": "step.complete",
+    "payload": {
+      "runId": "pr-review",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.176Z"
+  },
+  {
+    "id": "1775927224176-glc342c",
+    "runId": "pr-review",
+    "event": "step.started",
+    "payload": {
+      "runId": "pr-review",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.176Z"
+  },
+  {
+    "id": "1775927224178-27qw78m",
+    "runId": "pr-review",
+    "event": "step.complete",
+    "payload": {
+      "runId": "pr-review",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.178Z"
+  },
+  {
+    "id": "1775927224178-migvlch",
+    "runId": "pr-review",
+    "event": "step.started",
+    "payload": {
+      "runId": "pr-review",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.178Z"
+  },
+  {
+    "id": "1775927224216-qu3o1xs",
+    "runId": "session-test-3",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-test-3",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.216Z"
+  },
+  {
+    "id": "1775927224217-8k6tj7o",
+    "runId": "session-test-3",
+    "event": "step.started",
+    "payload": {
+      "runId": "session-test-3",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.217Z"
+  },
+  {
+    "id": "1775927224220-1lxx3ai",
+    "runId": "session-test-3",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-test-3",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.220Z"
+  },
+  {
+    "id": "1775927224220-0tsml84",
+    "runId": "session-test-3",
+    "event": "step.started",
+    "payload": {
+      "runId": "session-test-3",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.220Z"
+  },
+  {
+    "id": "1775927224224-s09grcl",
+    "runId": "session-test-3",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-test-3",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.224Z"
+  },
+  {
+    "id": "1775927224224-bsxebew",
+    "runId": "session-test-3",
+    "event": "step.started",
+    "payload": {
+      "runId": "session-test-3",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.224Z"
+  },
+  {
+    "id": "1775927224226-yzuqgdt",
+    "runId": "session-test-3",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-test-3",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.226Z"
+  },
+  {
+    "id": "1775927224226-mgdfzju",
+    "runId": "session-test-3",
+    "event": "step.started",
+    "payload": {
+      "runId": "session-test-3",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.226Z"
+  },
+  {
+    "id": "1775927224227-dd2ixzu",
+    "runId": "session-test-3",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-test-3",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.227Z"
+  },
+  {
+    "id": "1775927224228-k9feb7c",
+    "runId": "session-test-3",
+    "event": "pipeline.success",
+    "payload": {
+      "runId": "session-test-3"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.228Z"
+  },
+  {
+    "id": "1775927224237-qr0mr0g",
+    "runId": "pr-review",
+    "event": "step.complete",
+    "payload": {
+      "runId": "pr-review",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.237Z"
+  },
+  {
+    "id": "1775927224238-8zyrsfk",
+    "runId": "pr-review",
+    "event": "step.started",
+    "payload": {
+      "runId": "pr-review",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.238Z"
+  },
+  {
+    "id": "1775927224241-gjck8mi",
+    "runId": "pr-review",
+    "event": "step.complete",
+    "payload": {
+      "runId": "pr-review",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.241Z"
+  },
+  {
+    "id": "1775927224242-rumwss6",
+    "runId": "pr-review",
+    "event": "step.started",
+    "payload": {
+      "runId": "pr-review",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.242Z"
+  },
+  {
+    "id": "1775927224244-axr2vbc",
+    "runId": "pr-review",
+    "event": "step.complete",
+    "payload": {
+      "runId": "pr-review",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.244Z"
+  },
+  {
+    "id": "1775927224245-1d6upmk",
+    "runId": "pr-review",
+    "event": "step.started",
+    "payload": {
+      "runId": "pr-review",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.245Z"
+  },
+  {
+    "id": "1775927224247-jxcbpc5",
+    "runId": "pr-review",
+    "event": "step.complete",
+    "payload": {
+      "runId": "pr-review",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.247Z"
+  },
+  {
+    "id": "1775927224247-3zyltca",
+    "runId": "pr-review",
+    "event": "pipeline.success",
+    "payload": {
+      "runId": "pr-review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.247Z"
+  },
+  {
+    "id": "1775927224302-dmt4gwk",
+    "runId": "session-persist",
+    "event": "pipeline.started",
+    "payload": {
+      "runId": "session-persist"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.302Z"
+  },
+  {
+    "id": "1775927224303-md8kvyw",
+    "runId": "session-persist",
+    "event": "step.started",
+    "payload": {
+      "runId": "session-persist",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.303Z"
+  },
+  {
+    "id": "1775927224305-z5xrdi7",
+    "runId": "session-persist",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-persist",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.305Z"
+  },
+  {
+    "id": "1775927224305-hj3wh3b",
+    "runId": "session-persist",
+    "event": "step.started",
+    "payload": {
+      "runId": "session-persist",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.305Z"
+  },
+  {
+    "id": "1775927224306-rnrrbro",
+    "runId": "session-persist",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-persist",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.306Z"
+  },
+  {
+    "id": "1775927224307-9i0l90o",
+    "runId": "session-persist",
+    "event": "step.started",
+    "payload": {
+      "runId": "session-persist",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.307Z"
+  },
+  {
+    "id": "1775927224307-3cvp6ql",
+    "runId": "session-persist",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-persist",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.307Z"
+  },
+  {
+    "id": "1775927224308-o7lgq1n",
+    "runId": "session-persist",
+    "event": "step.started",
+    "payload": {
+      "runId": "session-persist",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.308Z"
+  },
+  {
+    "id": "1775927224309-gpxdnz8",
+    "runId": "session-persist",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-persist",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.309Z"
+  },
+  {
+    "id": "1775927224309-g7ib6mm",
+    "runId": "session-persist",
+    "event": "step.started",
+    "payload": {
+      "runId": "session-persist",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.309Z"
+  },
+  {
+    "id": "1775927224310-b4v5zh0",
+    "runId": "session-persist",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-persist",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.310Z"
+  },
+  {
+    "id": "1775927224311-ncg9tzw",
+    "runId": "session-persist",
+    "event": "step.started",
+    "payload": {
+      "runId": "session-persist",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.311Z"
+  },
+  {
+    "id": "1775927224312-qiiz9bq",
+    "runId": "session-persist",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-persist",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.312Z"
+  },
+  {
+    "id": "1775927224313-2p7ufeu",
+    "runId": "session-persist",
+    "event": "step.started",
+    "payload": {
+      "runId": "session-persist",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.313Z"
+  },
+  {
+    "id": "1775927224314-k1pkli9",
+    "runId": "session-persist",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-persist",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.314Z"
+  },
+  {
+    "id": "1775927224314-v92y78y",
+    "runId": "session-persist",
+    "event": "pipeline.success",
+    "payload": {
+      "runId": "session-persist"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.314Z"
+  },
+  {
+    "id": "1775927224318-m2t1oy1",
+    "runId": "skip-test",
+    "event": "pipeline.started",
+    "payload": {
+      "runId": "skip-test"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.318Z"
+  },
+  {
+    "id": "1775927224323-lwcsw8f",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.323Z"
+  },
+  {
+    "id": "1775927224323-pi2bpyw",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.323Z"
+  },
+  {
+    "id": "1775927224323-z69606b",
+    "runId": "skip-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "skip-test",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.323Z"
+  },
+  {
+    "id": "1775927224324-sbhxt4q",
+    "runId": "test-task",
+    "event": "step.failed",
+    "payload": {
+      "runId": "test-task",
+      "step": "ship",
+      "error": "[vitest] No \"getPRForBranch\" export is defined on the \"../../src/github-api.js\" mock. Did you forget to return it from \"vi.mock\"?\nIf you need to partially mock a module, you can use \"importOriginal\" helper inside:\n"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.324Z"
+  },
+  {
+    "id": "1775927224324-ufxyd80",
+    "runId": "session-reviewfix",
+    "event": "step.started",
+    "payload": {
+      "runId": "session-reviewfix",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.324Z"
+  },
+  {
+    "id": "1775927224326-sbbuvh3",
+    "runId": "skip-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "skip-test",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.326Z"
+  },
+  {
+    "id": "1775927224326-9s6xo3h",
+    "runId": "skip-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "skip-test",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.326Z"
+  },
+  {
+    "id": "1775927224327-rzuwr2h",
+    "runId": "skip-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "skip-test",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.327Z"
+  },
+  {
+    "id": "1775927224327-gs619tg",
+    "runId": "skip-test",
+    "event": "pipeline.success",
+    "payload": {
+      "runId": "skip-test"
+    },
+    "hooksFired": [
+      "github-label",
+      "log"
+    ],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.327Z"
+  },
+  {
+    "id": "1775927224375-s5adh3g",
+    "runId": "session-reviewfix",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-reviewfix",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.375Z"
+  },
+  {
+    "id": "1775927224376-m9u6ugr",
+    "runId": "session-reviewfix",
+    "event": "step.started",
+    "payload": {
+      "runId": "session-reviewfix",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.376Z"
+  },
+  {
+    "id": "1775927224377-k3ynq00",
+    "runId": "session-reviewfix",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-reviewfix",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.377Z"
+  },
+  {
+    "id": "1775927224377-io45wsz",
+    "runId": "session-reviewfix",
+    "event": "step.started",
+    "payload": {
+      "runId": "session-reviewfix",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.377Z"
+  },
+  {
+    "id": "1775927224379-9als7hs",
+    "runId": "session-reviewfix",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-reviewfix",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.379Z"
+  },
+  {
+    "id": "1775927224379-7e3t149",
+    "runId": "session-reviewfix",
+    "event": "step.started",
+    "payload": {
+      "runId": "session-reviewfix",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.379Z"
+  },
+  {
+    "id": "1775927224381-eafao1z",
+    "runId": "session-reviewfix",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-reviewfix",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.381Z"
+  },
+  {
+    "id": "1775927224381-0sbuxw9",
+    "runId": "session-reviewfix",
+    "event": "step.started",
+    "payload": {
+      "runId": "session-reviewfix",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.381Z"
+  },
+  {
+    "id": "1775927224385-nm02rj6",
+    "runId": "session-reviewfix",
+    "event": "step.complete",
+    "payload": {
+      "runId": "session-reviewfix",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.385Z"
+  },
+  {
+    "id": "1775927224386-jbiq6cd",
+    "runId": "session-reviewfix",
+    "event": "pipeline.success",
+    "payload": {
+      "runId": "session-reviewfix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.386Z"
+  },
+  {
+    "id": "1775927224396-nptnkwj",
+    "runId": "test-task",
+    "event": "pipeline.started",
+    "payload": {
+      "runId": "test-task"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.396Z"
+  },
+  {
+    "id": "1775927224396-wstp6dq",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.396Z"
+  },
+  {
+    "id": "1775927224443-y2i1vou",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.443Z"
+  },
+  {
+    "id": "1775927224443-q1j061k",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.443Z"
+  },
+  {
+    "id": "1775927224447-l8h4ckx",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.447Z"
+  },
+  {
+    "id": "1775927224450-sijcvo4",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.450Z"
+  },
+  {
+    "id": "1775927224453-x43dtq4",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.453Z"
+  },
+  {
+    "id": "1775927224454-3uny3t5",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "review-fix"
+    },
+    "hooksFired": [
+      "github-label",
+      "log"
+    ],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.454Z"
+  },
+  {
+    "id": "1775927224572-v652fuv",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.572Z"
+  },
+  {
+    "id": "1775927224572-1b2p60z",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.572Z"
+  },
+  {
+    "id": "1775927224573-z0y6m45",
+    "runId": "test-task",
+    "event": "step.failed",
+    "payload": {
+      "runId": "test-task",
+      "step": "ship",
+      "error": "[vitest] No \"getPRForBranch\" export is defined on the \"../../src/github-api.js\" mock. Did you forget to return it from \"vi.mock\"?\nIf you need to partially mock a module, you can use \"importOriginal\" helper inside:\n"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.573Z"
+  },
+  {
+    "id": "1775927224574-x9wq2ls",
+    "runId": "test-task",
+    "event": "pipeline.failed",
+    "payload": {
+      "runId": "test-task",
+      "error": "Stage failed"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.574Z"
+  },
+  {
+    "id": "1775927224648-lg5rycw",
+    "runId": "test-task",
+    "event": "pipeline.started",
+    "payload": {
+      "runId": "test-task",
+      "issueNumber": 42
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.648Z"
+  },
+  {
+    "id": "1775927224648-gdex3u9",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.648Z"
+  },
+  {
+    "id": "1775927224696-so1nkew",
+    "runId": "int-test",
+    "event": "pipeline.started",
+    "payload": {
+      "runId": "int-test"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.696Z"
+  },
+  {
+    "id": "1775927224698-hjd32bp",
+    "runId": "int-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "int-test",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.698Z"
+  },
+  {
+    "id": "1775927224704-p920c0h",
+    "runId": "int-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "int-test",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.704Z"
+  },
+  {
+    "id": "1775927224706-dg2tu5z",
+    "runId": "int-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "int-test",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.706Z"
+  },
+  {
+    "id": "1775927224711-nyxh5wa",
+    "runId": "int-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "int-test",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.711Z"
+  },
+  {
+    "id": "1775927224713-31yh7kc",
+    "runId": "int-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "int-test",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.713Z"
+  },
+  {
+    "id": "1775927224717-r37czav",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.717Z"
+  },
+  {
+    "id": "1775927224717-0fvc2jh",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.717Z"
+  },
+  {
+    "id": "1775927224719-7k3wblf",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.719Z"
+  },
+  {
+    "id": "1775927224720-2ac2i7f",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.720Z"
+  },
+  {
+    "id": "1775927224722-nbjc4ba",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.722Z"
+  },
+  {
+    "id": "1775927224723-76dolag",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.723Z"
+  },
+  {
+    "id": "1775927224783-2cczv07",
+    "runId": "int-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "int-test",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.783Z"
+  },
+  {
+    "id": "1775927224785-lw7at1z",
+    "runId": "int-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "int-test",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.785Z"
+  },
+  {
+    "id": "1775927224789-gojypig",
+    "runId": "int-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "int-test",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.789Z"
+  },
+  {
+    "id": "1775927224790-81rr9t5",
+    "runId": "int-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "int-test",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.790Z"
+  },
+  {
+    "id": "1775927224802-fq2dku7",
+    "runId": "int-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "int-test",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.802Z"
+  },
+  {
+    "id": "1775927224802-achs5ps",
+    "runId": "int-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "int-test",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.802Z"
+  },
+  {
+    "id": "1775927224806-7zschwp",
+    "runId": "int-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "int-test",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.806Z"
+  },
+  {
+    "id": "1775927224807-m99xumq",
+    "runId": "int-test",
+    "event": "pipeline.success",
+    "payload": {
+      "runId": "int-test"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.807Z"
+  },
+  {
+    "id": "1775927224871-b9jn7os",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.871Z"
+  },
+  {
+    "id": "1775927224872-ck7h7tg",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.872Z"
+  },
+  {
+    "id": "1775927224873-gk1o51l",
+    "runId": "test-task",
+    "event": "step.failed",
+    "payload": {
+      "runId": "test-task",
+      "step": "ship",
+      "error": "[vitest] No \"getPRForBranch\" export is defined on the \"../../src/github-api.js\" mock. Did you forget to return it from \"vi.mock\"?\nIf you need to partially mock a module, you can use \"importOriginal\" helper inside:\n"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.873Z"
+  },
+  {
+    "id": "1775927224874-uf5bld9",
+    "runId": "test-task",
+    "event": "pipeline.failed",
+    "payload": {
+      "runId": "test-task",
+      "error": "Stage failed",
+      "issueNumber": 42
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.874Z"
+  },
+  {
+    "id": "1775927224889-tcjrw3l",
+    "runId": "int-medium",
+    "event": "pipeline.started",
+    "payload": {
+      "runId": "int-medium"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.889Z"
+  },
+  {
+    "id": "1775927224890-rnjhr44",
+    "runId": "int-medium",
+    "event": "step.started",
+    "payload": {
+      "runId": "int-medium",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.890Z"
+  },
+  {
+    "id": "1775927224892-xmvhhgv",
+    "runId": "int-medium",
+    "event": "step.complete",
+    "payload": {
+      "runId": "int-medium",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.892Z"
+  },
+  {
+    "id": "1775927224893-zbee3uk",
+    "runId": "int-medium",
+    "event": "step.started",
+    "payload": {
+      "runId": "int-medium",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.893Z"
+  },
+  {
+    "id": "1775927224901-1uk3wva",
+    "runId": "int-medium",
+    "event": "step.complete",
+    "payload": {
+      "runId": "int-medium",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.901Z"
+  },
+  {
+    "id": "1775927224907-4b82rk2",
+    "runId": "int-medium",
+    "event": "step.started",
+    "payload": {
+      "runId": "int-medium",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.907Z"
+  },
+  {
+    "id": "1775927224943-m71qytx",
+    "runId": "test-task",
+    "event": "pipeline.started",
+    "payload": {
+      "runId": "test-task"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.943Z"
+  },
+  {
+    "id": "1775927224943-9v5ya87",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.943Z"
+  },
+  {
+    "id": "1775927224969-hfazit5",
+    "runId": "int-medium",
+    "event": "step.complete",
+    "payload": {
+      "runId": "int-medium",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.969Z"
+  },
+  {
+    "id": "1775927224969-fryogt8",
+    "runId": "int-medium",
+    "event": "step.started",
+    "payload": {
+      "runId": "int-medium",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.969Z"
+  },
+  {
+    "id": "1775927224972-9s1i8ia",
+    "runId": "int-medium",
+    "event": "step.complete",
+    "payload": {
+      "runId": "int-medium",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.972Z"
+  },
+  {
+    "id": "1775927224973-sm5gmew",
+    "runId": "int-medium",
+    "event": "step.started",
+    "payload": {
+      "runId": "int-medium",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.973Z"
+  },
+  {
+    "id": "1775927224986-ks6w1g1",
+    "runId": "int-medium",
+    "event": "step.complete",
+    "payload": {
+      "runId": "int-medium",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.986Z"
+  },
+  {
+    "id": "1775927224987-cukftg3",
+    "runId": "int-medium",
+    "event": "step.started",
+    "payload": {
+      "runId": "int-medium",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.987Z"
+  },
+  {
+    "id": "1775927224988-rjka2vi",
+    "runId": "int-medium",
+    "event": "step.complete",
+    "payload": {
+      "runId": "int-medium",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.988Z"
+  },
+  {
+    "id": "1775927224988-hvlus3x",
+    "runId": "int-medium",
+    "event": "pipeline.success",
+    "payload": {
+      "runId": "int-medium"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.988Z"
+  },
+  {
+    "id": "1775927224993-91w828g",
+    "runId": "fixci-test",
+    "event": "pipeline.started",
+    "payload": {
+      "runId": "fixci-test"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.993Z"
+  },
+  {
+    "id": "1775927224995-ktajy8t",
+    "runId": "fixci-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "fixci-test",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.995Z"
+  },
+  {
+    "id": "1775927224997-baezm29",
+    "runId": "fixci-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "fixci-test",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.997Z"
+  },
+  {
+    "id": "1775927224998-1f61rjm",
+    "runId": "fixci-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "fixci-test",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:04.998Z"
+  },
+  {
+    "id": "1775927225000-sqn4eyd",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.000Z"
+  },
+  {
+    "id": "1775927225001-6ndl5ak",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.001Z"
+  },
+  {
+    "id": "1775927225002-trv4l5h",
+    "runId": "fixci-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "fixci-test",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.002Z"
+  },
+  {
+    "id": "1775927225003-qv0tecg",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.003Z"
+  },
+  {
+    "id": "1775927225004-yo5h220",
+    "runId": "fixci-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "fixci-test",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.004Z"
+  },
+  {
+    "id": "1775927225006-xt3yb7r",
+    "runId": "fixci-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "fixci-test",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.006Z"
+  },
+  {
+    "id": "1775927225015-3emtg9x",
+    "runId": "fixci-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "fixci-test",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.015Z"
+  },
+  {
+    "id": "1775927225016-bgqwwq4",
+    "runId": "fixci-test",
+    "event": "step.started",
+    "payload": {
+      "runId": "fixci-test",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.016Z"
+  },
+  {
+    "id": "1775927225018-ckrphqd",
+    "runId": "fixci-test",
+    "event": "step.complete",
+    "payload": {
+      "runId": "fixci-test",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.018Z"
+  },
+  {
+    "id": "1775927225018-cf46s1r",
+    "runId": "fixci-test",
+    "event": "pipeline.success",
+    "payload": {
+      "runId": "fixci-test"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.018Z"
+  },
+  {
+    "id": "1775927225027-4w75o06",
+    "runId": "fixci-feedback",
+    "event": "pipeline.started",
+    "payload": {
+      "runId": "fixci-feedback"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.027Z"
+  },
+  {
+    "id": "1775927225030-9f45c6l",
+    "runId": "fixci-feedback",
+    "event": "step.started",
+    "payload": {
+      "runId": "fixci-feedback",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.030Z"
+  },
+  {
+    "id": "1775927225057-blzhksx",
+    "runId": "int-fail",
+    "event": "pipeline.started",
+    "payload": {
+      "runId": "int-fail"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.057Z"
+  },
+  {
+    "id": "1775927225057-tf56fuf",
+    "runId": "int-fail",
+    "event": "step.started",
+    "payload": {
+      "runId": "int-fail",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.057Z"
+  },
+  {
+    "id": "1775927225061-tk8pcqy",
+    "runId": "int-fail",
+    "event": "step.complete",
+    "payload": {
+      "runId": "int-fail",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.061Z"
+  },
+  {
+    "id": "1775927225062-wia42mo",
+    "runId": "int-fail",
+    "event": "step.started",
+    "payload": {
+      "runId": "int-fail",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.062Z"
+  },
+  {
+    "id": "1775927225063-hgwd6kd",
+    "runId": "fix-test",
+    "event": "pipeline.success",
+    "payload": {
+      "runId": "fix-test"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.063Z"
+  },
+  {
+    "id": "1775927225064-2ju2xah",
+    "runId": "int-fail",
+    "event": "step.failed",
+    "payload": {
+      "runId": "int-fail",
+      "step": "plan",
+      "error": "Model unavailable"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.064Z"
+  },
+  {
+    "id": "1775927225065-6574s6j",
+    "runId": "int-fail",
+    "event": "pipeline.failed",
+    "payload": {
+      "runId": "int-fail",
+      "error": "Stage failed"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.065Z"
+  },
+  {
+    "id": "1775927225076-15s3ivn",
+    "runId": "fix-feedback",
+    "event": "pipeline.started",
+    "payload": {
+      "runId": "fix-feedback"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.076Z"
+  },
+  {
+    "id": "1775927225078-29siapg",
+    "runId": "fix-feedback",
+    "event": "step.started",
+    "payload": {
+      "runId": "fix-feedback",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.078Z"
+  },
+  {
+    "id": "1775927225092-iq06tid",
+    "runId": "fixci-feedback",
+    "event": "step.complete",
+    "payload": {
+      "runId": "fixci-feedback",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.092Z"
+  },
+  {
+    "id": "1775927225093-4epd24p",
+    "runId": "fixci-feedback",
+    "event": "step.started",
+    "payload": {
+      "runId": "fixci-feedback",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.093Z"
+  },
+  {
+    "id": "1775927225096-jxdwe1c",
+    "runId": "fixci-feedback",
+    "event": "step.complete",
+    "payload": {
+      "runId": "fixci-feedback",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.096Z"
+  },
+  {
+    "id": "1775927225097-fybljbx",
+    "runId": "fixci-feedback",
+    "event": "step.started",
+    "payload": {
+      "runId": "fixci-feedback",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.097Z"
+  },
+  {
+    "id": "1775927225104-3uj601b",
+    "runId": "fixci-feedback",
+    "event": "step.complete",
+    "payload": {
+      "runId": "fixci-feedback",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.104Z"
+  },
+  {
+    "id": "1775927225105-lgaipm5",
+    "runId": "fixci-feedback",
+    "event": "step.started",
+    "payload": {
+      "runId": "fixci-feedback",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.105Z"
+  },
+  {
+    "id": "1775927225133-upatrkd",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "review-fix"
+    },
+    "hooksFired": [
+      "github-label",
+      "log"
+    ],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.133Z"
+  },
+  {
+    "id": "1775927225148-l50di11",
+    "runId": "fix-feedback",
+    "event": "step.started",
+    "payload": {
+      "runId": "fix-feedback",
+      "step": "verify"
+    },
+    "hooksFired": [
+      "github-label",
+      "log"
+    ],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.148Z"
+  },
+  {
+    "id": "1775927225162-9r8t5es",
+    "runId": "fix-feedback",
+    "event": "step.complete",
+    "payload": {
+      "runId": "fix-feedback",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.162Z"
+  },
+  {
+    "id": "1775927225163-xusii9m",
+    "runId": "fix-feedback",
+    "event": "step.started",
+    "payload": {
+      "runId": "fix-feedback",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.163Z"
+  },
+  {
+    "id": "1775927225181-ayuzb9e",
+    "runId": "fixci-feedback",
+    "event": "step.complete",
+    "payload": {
+      "runId": "fixci-feedback",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.181Z"
+  },
+  {
+    "id": "1775927225182-1yhfzob",
+    "runId": "fixci-feedback",
+    "event": "step.started",
+    "payload": {
+      "runId": "fixci-feedback",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.182Z"
+  },
+  {
+    "id": "1775927225185-4sczxq1",
+    "runId": "fixci-feedback",
+    "event": "step.failed",
+    "payload": {
+      "runId": "fixci-feedback",
+      "step": "ship",
+      "error": "Command failed: git branch --show-current\nfatal: not a git repository (or any of the parent directories): .git\n"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.185Z"
+  },
+  {
+    "id": "1775927225185-agy6drv",
+    "runId": "fixci-feedback",
+    "event": "pipeline.failed",
+    "payload": {
+      "runId": "fixci-feedback",
+      "error": "Stage failed"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.185Z"
+  },
+  {
+    "id": "1775927225210-3udmhy6",
+    "runId": "test-task",
+    "event": "pipeline.started",
+    "payload": {
+      "runId": "test-task"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.210Z"
+  },
+  {
+    "id": "1775927225211-rlt7uk3",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.211Z"
+  },
+  {
+    "id": "1775927225212-w81q7rk",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.212Z"
+  },
+  {
+    "id": "1775927225212-xg4o60m",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.212Z"
+  },
+  {
+    "id": "1775927225213-jo6m6fl",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.213Z"
+  },
+  {
+    "id": "1775927225215-9fatmso",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.215Z"
+  },
+  {
+    "id": "1775927225216-ybjp9hz",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.216Z"
+  },
+  {
+    "id": "1775927225217-3946765",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.217Z"
+  },
+  {
+    "id": "1775927225219-jtagx3c",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.219Z"
+  },
+  {
+    "id": "1775927225219-jzdiohs",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.219Z"
+  },
+  {
+    "id": "1775927225220-4rl7p4t",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.220Z"
+  },
+  {
+    "id": "1775927225221-0qxxps8",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.221Z"
+  },
+  {
+    "id": "1775927225222-9df5da2",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.222Z"
+  },
+  {
+    "id": "1775927225222-q5fkrbl",
+    "runId": "test-task",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-task",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.222Z"
+  },
+  {
+    "id": "1775927225224-eypocoz",
+    "runId": "test-task",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-task",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.224Z"
+  },
+  {
+    "id": "1775927225224-19noece",
+    "runId": "test-task",
+    "event": "pipeline.success",
+    "payload": {
+      "runId": "test-task"
+    },
+    "hooksFired": [
+      "log"
+    ],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.224Z"
+  },
+  {
+    "id": "1775927225234-1io9zd0",
+    "runId": "fix-feedback",
+    "event": "step.complete",
+    "payload": {
+      "runId": "fix-feedback",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.234Z"
+  },
+  {
+    "id": "1775927225235-picnwnv",
+    "runId": "fix-feedback",
+    "event": "step.started",
+    "payload": {
+      "runId": "fix-feedback",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.235Z"
+  },
+  {
+    "id": "1775927225237-o8yhagm",
+    "runId": "fix-feedback",
+    "event": "step.failed",
+    "payload": {
+      "runId": "fix-feedback",
+      "step": "ship",
+      "error": "Command failed: git branch --show-current\nfatal: not a git repository (or any of the parent directories): .git\n"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.237Z"
+  },
+  {
+    "id": "1775927225238-svxbt93",
+    "runId": "fix-feedback",
+    "event": "pipeline.failed",
+    "payload": {
+      "runId": "fix-feedback",
+      "error": "Stage failed"
+    },
+    "hooksFired": [
+      "github-action",
+      "github-label",
+      "dashboard",
+      "log"
+    ],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:05.238Z"
+  },
+  {
+    "id": "1775927226631-2zn420a",
+    "runId": "test-1",
+    "event": "pipeline.started",
+    "payload": {
+      "runId": "test-1"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.631Z"
+  },
+  {
+    "id": "1775927226633-gb6e5jz",
+    "runId": "test-1",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-1",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.633Z"
+  },
+  {
+    "id": "1775927226635-t9vskq1",
+    "runId": "test-1",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-1",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.635Z"
+  },
+  {
+    "id": "1775927226638-sktjkih",
+    "runId": "test-1",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-1",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.638Z"
+  },
+  {
+    "id": "1775927226640-ugcfu7l",
+    "runId": "test-1",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-1",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.641Z"
+  },
+  {
+    "id": "1775927226641-jb0pk27",
+    "runId": "test-1",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-1",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.641Z"
+  },
+  {
+    "id": "1775927226644-opori71",
+    "runId": "test-1",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-1",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.644Z"
+  },
+  {
+    "id": "1775927226644-fd0hd5h",
+    "runId": "test-1",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-1",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.644Z"
+  },
+  {
+    "id": "1775927226646-jwor8ql",
+    "runId": "test-1",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-1",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.646Z"
+  },
+  {
+    "id": "1775927226647-coemfg7",
+    "runId": "test-1",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-1",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.647Z"
+  },
+  {
+    "id": "1775927226649-ikyb7u5",
+    "runId": "test-1",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-1",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.649Z"
+  },
+  {
+    "id": "1775927226649-zaojtjr",
+    "runId": "test-1",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-1",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.649Z"
+  },
+  {
+    "id": "1775927226652-2z85nmj",
+    "runId": "test-1",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-1",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.652Z"
+  },
+  {
+    "id": "1775927226652-avrom6b",
+    "runId": "test-1",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-1",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.652Z"
+  },
+  {
+    "id": "1775927226655-pteru8d",
+    "runId": "test-1",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-1",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.655Z"
+  },
+  {
+    "id": "1775927226656-jd4lkqu",
+    "runId": "test-1",
+    "event": "pipeline.success",
+    "payload": {
+      "runId": "test-1"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.656Z"
+  },
+  {
+    "id": "1775927226664-ao8419p",
+    "runId": "test-1",
+    "event": "pipeline.started",
+    "payload": {
+      "runId": "test-1"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.664Z"
+  },
+  {
+    "id": "1775927226665-j3vvk0s",
+    "runId": "test-1",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-1",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.665Z"
+  },
+  {
+    "id": "1775927226667-67eb5dm",
+    "runId": "test-1",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-1",
+      "step": "taskify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.667Z"
+  },
+  {
+    "id": "1775927226667-5g7f8gz",
+    "runId": "test-1",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-1",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.667Z"
+  },
+  {
+    "id": "1775927226669-7yhxn01",
+    "runId": "test-1",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-1",
+      "step": "plan"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.669Z"
+  },
+  {
+    "id": "1775927226669-bgiek67",
+    "runId": "test-1",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-1",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.669Z"
+  },
+  {
+    "id": "1775927226671-woki1ov",
+    "runId": "test-1",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-1",
+      "step": "build"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.671Z"
+  },
+  {
+    "id": "1775927226671-pozrxqs",
+    "runId": "test-1",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-1",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.671Z"
+  },
+  {
+    "id": "1775927226673-juxj0go",
+    "runId": "test-1",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-1",
+      "step": "verify"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.673Z"
+  },
+  {
+    "id": "1775927226673-ha3dsr4",
+    "runId": "test-1",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-1",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.673Z"
+  },
+  {
+    "id": "1775927226674-zn9plpj",
+    "runId": "test-1",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-1",
+      "step": "review"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.674Z"
+  },
+  {
+    "id": "1775927226675-gpal47v",
+    "runId": "test-1",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-1",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.675Z"
+  },
+  {
+    "id": "1775927226678-yetn72s",
+    "runId": "test-1",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-1",
+      "step": "review-fix"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.678Z"
+  },
+  {
+    "id": "1775927226679-rlll7ch",
+    "runId": "test-1",
+    "event": "step.started",
+    "payload": {
+      "runId": "test-1",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.679Z"
+  },
+  {
+    "id": "1775927226680-w9tdhfy",
+    "runId": "test-1",
+    "event": "step.complete",
+    "payload": {
+      "runId": "test-1",
+      "step": "ship"
+    },
+    "hooksFired": [],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.680Z"
+  },
+  {
+    "id": "1775927226680-06cqql6",
+    "runId": "test-1",
+    "event": "pipeline.success",
+    "payload": {
+      "runId": "test-1"
+    },
+    "hooksFired": [
+      "github-label",
+      "log"
+    ],
+    "hookErrors": {},
+    "emittedAt": "2026-04-11T17:07:06.680Z"
+  }
+]

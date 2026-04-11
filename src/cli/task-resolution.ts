@@ -121,19 +121,39 @@ export function resolveIssueFromPR(prNumber: number): number | undefined {
 
 /**
  * Auto-resolve a task-id for rerun/status commands when no explicit --task-id
- * is provided. Prefers paused taskify runs, then .kody/tasks/ directory scan,
- * then issue comments.
+ * is provided.
+ *
+ * @param preferGitHub  When true (CI context for rerun/approve), checks the GitHub
+ *                      API comment first — the local .kody/tasks/ may not contain
+ *                      the task directory if the pipeline ran on a PR branch.
  */
-export function resolveTaskIdForCommand(issueNumber: number, projectDir: string): string | null {
-  // First: look for a paused standalone taskify run for this issue
+export function resolveTaskIdForCommand(
+  issueNumber: number,
+  projectDir: string,
+  preferGitHub = false,
+): string | null {
+  if (preferGitHub) {
+    // CI / approve context: GitHub comment is the authoritative source.
+    // The pipeline-start comment is guaranteed to exist and references the taskId.
+    const fromComments = resolveTaskIdFromComments(issueNumber)
+    if (fromComments) return fromComments
+
+    // Fall back to local scan (e.g. main branch has the task from a prior run)
+    const fromTaskify = findPausedTaskifyForIssue(issueNumber, projectDir)
+    if (fromTaskify) return fromTaskify
+    const fromTasks = findLatestTaskForIssue(issueNumber, projectDir)
+    if (fromTasks) return fromTasks
+
+    return null
+  }
+
+  // Local run: prefer local .kody/tasks/ scan, then GitHub comment
   const fromTaskify = findPausedTaskifyForIssue(issueNumber, projectDir)
   if (fromTaskify) return fromTaskify
 
-  // Second: scan .kody/tasks/ for the latest task matching this issue
   const fromTasks = findLatestTaskForIssue(issueNumber, projectDir)
   if (fromTasks) return fromTasks
 
-  // Third: scan issue comments for "pipeline started: `<task-id>`"
   const fromComments = resolveTaskIdFromComments(issueNumber)
   if (fromComments) return fromComments
 

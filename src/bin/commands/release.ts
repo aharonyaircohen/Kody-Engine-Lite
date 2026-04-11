@@ -335,9 +335,13 @@ export function runPreReleaseChecks(
   const failures: string[] = []
 
   // 1. CI green on default branch (warning only — test suite in step 3 is the real gate)
-  logger.info("  Checking CI status...")
-  if (!isCIGreenOnBranch(defaultBranch)) {
-    logger.warn(`  CI may not be green on ${defaultBranch} (could be in-progress or from another workflow)`)
+  // Skip this check when running in GitHub Actions — the release workflow itself may still be
+  // in-progress, so isCIGreenOnBranch will often return false incorrectly.
+  if (process.env.GITHUB_ACTIONS !== "true") {
+    logger.info("  Checking CI status...")
+    if (!isCIGreenOnBranch(defaultBranch)) {
+      logger.warn(`  CI may not be green on ${defaultBranch} (could be in-progress or from another workflow)`)
+    }
   }
 
   // 2. No draft/WIP PRs

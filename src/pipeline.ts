@@ -460,41 +460,55 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
 
 // ─── Status Display ─────────────────────────────────────────────────────────
 
-export function printStatus(taskId: string, taskDir: string, projectDir?: string, issueNumber?: number): void {
+/**
+ * Format and return task status as a string.
+ * Also prints to stdout for CLI usage.
+ */
+export function formatStatus(taskId: string, taskDir: string, projectDir?: string, issueNumber?: number): string | null {
   const state = loadState(taskId, taskDir)
-  if (!state) {
-    console.log(`No status found for task ${taskId}`)
-    return
-  }
+  if (!state) return null
 
-  console.log(`\nTask: ${state.taskId}`)
-  console.log(`State: ${state.state}`)
-  console.log(`Created: ${state.createdAt}`)
-  console.log(`Updated: ${state.updatedAt}\n`)
+  const lines: string[] = []
+  lines.push(`**Task:** \`${state.taskId}\``)
+  lines.push(`**State:** ${state.state}`)
+  lines.push(`**Created:** ${state.createdAt}`)
+  lines.push(`**Updated:** ${state.updatedAt}`, "")
 
   for (const stage of STAGES) {
     const s = state.stages[stage.name]
     const icon =
-      s.state === "completed" ? "✓" :
-      s.state === "failed" ? "✗" :
-      s.state === "running" ? "▶" :
+      s.state === "completed" ? "✅" :
+      s.state === "failed" ? "❌" :
+      s.state === "running" ? "▶️" :
       s.state === "timeout" ? "⏱" : "○"
     const extra = s.error ? ` — ${s.error}` : ""
-    console.log(`  ${icon} ${stage.name}: ${s.state}${extra}`)
+    lines.push(`${icon} ${stage.name}: ${s.state}${extra}`)
   }
 
   // Show run history timeline if available
   if (projectDir && issueNumber) {
     const records = readRunHistory(projectDir, issueNumber)
     if (records.length > 0) {
-      console.log(`\nRun History for Issue #${issueNumber}:`)
+      lines.push("", `**Run History for Issue #${issueNumber}:**`)
       for (let i = 0; i < records.length; i++) {
         const r = records[i]
         const date = r.startedAt.split("T")[0]
-        const failInfo = r.failedStage ? ` at ${r.failedStage}` : ""
-        const current = r.runId === taskId ? "  <- current" : ""
-        console.log(`  #${i + 1}  ${r.runId.padEnd(24)} ${r.command.padEnd(8)} ${r.outcome.padEnd(10)} ${date}${failInfo}${current}`)
+        const failInfo = r.failedStage ? ` (failed at ${r.failedStage})` : ""
+        const current = r.runId === taskId ? " ← current" : ""
+        lines.push(`  #${i + 1}  \`${r.runId}\`  ${r.command}  ${r.outcome.padEnd(10)}  ${date}${failInfo}${current}`)
       }
     }
   }
+
+  return lines.join("\n")
+}
+
+/** Legacy: prints status to stdout. Calls formatStatus internally. */
+export function printStatus(taskId: string, taskDir: string, projectDir?: string, issueNumber?: number): void {
+  const text = formatStatus(taskId, taskDir, projectDir, issueNumber)
+  if (!text) {
+    console.log(`No status found for task ${taskId}`)
+    return
+  }
+  console.log("\n" + text)
 }

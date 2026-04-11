@@ -1,7 +1,7 @@
 import * as fs from "fs"
 import * as path from "path"
 import { createRunners } from "./agent-runner.js"
-import { runPipeline, printStatus } from "./pipeline.js"
+import { runPipeline, printStatus, formatStatus } from "./pipeline.js"
 import { runPreflight } from "./preflight.js"
 import { setConfigDir, getProjectConfig, applyModelOverrides } from "./config.js"
 import { setGhCwd, getIssue, postComment, getPRDetails, getPRsForIssue, postPRComment, submitPRReview, getLatestKodyReviewComment, getCIFailureLogs, getLatestFailedRunForBranch, getPRFeedbackSinceLastKodyAction, setLifecycleLabel, setLabel } from "./github-api.js"
@@ -228,8 +228,11 @@ async function main() {
   let taskId = input.taskId
   if (!taskId) {
     // For rerun/status: auto-resolve from .kody/tasks/ or issue comments
+    // In CI (GitHub Actions), the GitHub API comment is the authoritative source —
+    // the local .kody/tasks/ may not contain the task if the pipeline ran on a PR branch.
     if ((input.command === "rerun" || input.command === "status") && input.issueNumber) {
-      const resolved = resolveTaskIdForCommand(input.issueNumber, projectDir)
+      const isCI = process.env.GITHUB_ACTIONS === "true"
+      const resolved = resolveTaskIdForCommand(input.issueNumber, projectDir, isCI)
       if (resolved) {
         taskId = resolved
         logger.info(`Auto-resolved task-id: ${taskId} (from issue #${input.issueNumber})`)
@@ -276,7 +279,18 @@ async function main() {
 
   // Status command — no preflight needed
   if (input.command === "status") {
-    printStatus(taskId, taskDir, projectDir, input.issueNumber)
+    const statusText = formatStatus(taskId, taskDir, projectDir, input.issueNumber)
+    if (statusText) {
+      console.log(statusText)
+      // Post status as issue comment in CI so users see it without digging into logs
+      if (!input.local && input.issueNumber) {
+        try {
+          postComment(input.issueNumber, `## Pipeline Status\n\n${statusText}`)
+        } catch { /* best effort */ }
+      }
+    } else {
+      console.log(`No status found for task ${taskId}`)
+    }
     return
   }
 
