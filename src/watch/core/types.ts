@@ -121,6 +121,8 @@ export interface WatchAgentConfig {
   name: string
   description: string
   schedule: WatchAgentSchedule
+  /** Standard cron expression (5-field). Replaces schedule for new agents. */
+  cron?: string
   reportOnFailure?: boolean
   /** Agent timeout in milliseconds. Default: 20 minutes */
   timeoutMs?: number
@@ -164,6 +166,8 @@ export interface WatchConfig {
   provider?: string
   /** Absolute path to the project directory */
   projectDir: string
+  /** When set, run only this agent (bypasses schedule check). */
+  agentFilter?: string
 }
 
 export interface WatchResult {

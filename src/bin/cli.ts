@@ -88,7 +88,10 @@ if (command === "init") {
   })
 } else if (command === "watch") {
   import("../watch/index.js").then(({ runWatchCommand }) =>
-    runWatchCommand({ dryRun: args.includes("--dry-run") }),
+    runWatchCommand({
+      dryRun: args.includes("--dry-run"),
+      agent: getArg(args, "--agent"),
+    }),
   )
 } else if (command === "release") {
   import("./commands/release.js").then(({ releaseCommand, releaseFinalizeCommand }) => {

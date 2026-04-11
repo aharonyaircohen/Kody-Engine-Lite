@@ -64,7 +64,7 @@ export function parseWatchConfig(cwd: string): WatchConfigParsed {
   return { repo, activityLog, watchModel, agentProvider, agentModelMap }
 }
 
-export async function runWatchCommand(opts: { dryRun: boolean }): Promise<void> {
+export async function runWatchCommand(opts: { dryRun: boolean; agent?: string }): Promise<void> {
   const cwd = process.cwd()
   let litellmProcess: ChildProcess | null = null
 
@@ -144,6 +144,7 @@ export async function runWatchCommand(opts: { dryRun: boolean }): Promise<void> 
     model,
     provider: agentProvider,
     projectDir: cwd,
+    agentFilter: opts.agent,
   }
 
   console.log(`\nKody Watch — repo: ${repo}, dry-run: ${opts.dryRun}\n`)

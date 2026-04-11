@@ -1,7 +1,5 @@
 {
   "name": "readme-health",
   "description": "Checks if README.md exists and documents essential sections",
-  "schedule": {
-    "every": 96
-  }
+  "cron": "0 */12 * * *"
 }

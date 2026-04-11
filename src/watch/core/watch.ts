@@ -8,7 +8,7 @@ import { shouldDedup, markExecuted, cleanupExpiredDedup } from "./dedup.js"
 import { createGitHubClient } from "../clients/github.js"
 import { createConsoleLogger } from "../clients/logger.js"
 import { runWatchAgent } from "../agents/run-agent.js"
-import { shouldRunOnCycle } from "./schedule.js"
+import { shouldAgentRun } from "./schedule.js"
 
 /**
  * Polls GitHub issue labels until one shows kody:done or kody:failed.
@@ -77,7 +77,7 @@ function extractTriggeredIssues(output: string): number[] {
 }
 
 export async function runWatch(config: WatchConfig): Promise<WatchResult> {
-  const { repo, dryRun, stateFile, plugins, agents } = config
+  const { repo, dryRun, stateFile, plugins, agents, agentFilter } = config
 
   const token = process.env.GH_TOKEN || ""
   const github = createGitHubClient(repo, token)
@@ -187,10 +187,21 @@ export async function runWatch(config: WatchConfig): Promise<WatchResult> {
 
   // ── Watch agents (LLM-powered) ────────────────────────────────────────────
 
-  const scheduledAgents = agents.filter((agent) => {
+  let scheduledAgents = agents
+
+  if (agentFilter) {
+    const match = agents.find((a) => a.config.name === agentFilter)
+    if (!match) {
+      console.error(`Agent '${agentFilter}' not found in .kody/watch/agents/`)
+      process.exit(1)
+    }
+    scheduledAgents = [match]
+  } else {
     const now = new Date(ctx.runTimestamp)
-    return shouldRunOnCycle(agent.config.schedule, cycleNumber, state, now)
-  })
+    scheduledAgents = agents.filter((agent) =>
+      shouldAgentRun(agent.config, cycleNumber, now),
+    )
+  }
 
   const agentResults: WatchAgentRunResult[] = []
 

@@ -9,10 +9,13 @@ on:
         type: boolean
         default: false
         description: "Run without executing actions"
+      agent:
+        description: "Agent to run (omit for all)"
+        required: false
+        type: string
 
 concurrency:
   group: kody-watch
-  cancel-in-progress: true
 
 jobs:
   watch:
@@ -71,4 +74,8 @@ jobs:
           REPO: ${{ github.repository }}
           WATCH_ACTIVITY_LOG: ${{ vars.WATCH_ACTIVITY_LOG }}
           DRY_RUN: ${{ inputs.dry_run || 'false' }}
-        run: kody-engine watch ${{ inputs.dry_run == 'true' && '--dry-run' || '' }}
+        run: |
+          ARGS=""
+          [ "${{ inputs.dry_run }}" = "true" ] && ARGS="$ARGS --dry-run"
+          [ -n "${{ inputs.agent }}" ] && ARGS="$ARGS --agent ${{ inputs.agent }}"
+          kody-engine watch $ARGS

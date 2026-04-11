@@ -1,7 +1,5 @@
 {
   "name": "branch-cleanup",
   "description": "Finds stale remote branches with no recent activity and suggests cleanup",
-  "schedule": {
-    "every": 96
-  }
+  "cron": "0 */12 * * *"
 }
