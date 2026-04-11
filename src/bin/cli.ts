@@ -72,6 +72,13 @@ if (command === "init") {
   import("../ci/parse-inputs.js").then(({ runCiParse }) => runCiParse())
 } else if (command === "serve") {
   import("./commands/serve.js").then(({ serveCommand }) => serveCommand(args.slice(1)))
+} else if (command === "chat") {
+  import("./commands/chat.js").then(({ chatCommand }) =>
+    chatCommand(args.slice(1)).catch((err) => {
+      console.error(`Chat failed: ${err instanceof Error ? err.message : err}`)
+      process.exit(1)
+    }),
+  )
 } else if (command === "brain") {
   import("./commands/brain.js").then(({ runBrainCommand }) => runBrainCommand(args.slice(1)))
 } else if (command === "graph") {

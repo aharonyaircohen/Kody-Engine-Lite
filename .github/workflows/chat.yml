@@ -1,0 +1,119 @@
+name: chat
+
+on:
+  workflow_dispatch:
+    inputs:
+      sessionId:
+        required: true
+        description: "Session ID (= taskId) for this chat session"
+        type: string
+      model:
+        description: "Model to use (default: claude-sonnet-4-6)"
+        type: string
+        default: ""
+      dashboardUrl:
+        description: "Dashboard URL to post events to"
+        type: string
+        default: ""
+
+concurrency:
+  group: chat-${{ github.event.inputs.sessionId }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  chat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Generate App token
+        id: app-token
+        if: vars.KODY_APP_ID != ''
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.KODY_APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          repositories: ${{ github.event.repository.name }}
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: true
+          token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_DIR=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_DIR }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Configure git
+        run: |
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+
+      - name: Export project secrets
+        env:
+          ALL_SECRETS: ${{ toJSON(secrets) }}
+        run: |
+          echo "$ALL_SECRETS" | jq -r 'to_entries[] | select(.key | test("^(GITHUB_TOKEN)$") | not) | @json' | while IFS= read -r entry; do
+            KEY=$(echo "$entry" | jq -r '.key')
+            VALUE=$(echo "$entry" | jq -r '.value')
+            DELIM="KODY_EOF_${KEY}"
+            echo "${KEY}<<${DELIM}" >> $GITHUB_ENV
+            echo "${VALUE}" >> $GITHUB_ENV
+            echo "${DELIM}" >> $GITHUB_ENV
+          done
+
+      - name: Set dashboard URL
+        if: github.event.inputs.dashboardUrl != ''
+        run: |
+          echo "KODY_DASHBOARD_ENDPOINTS=[\"{\"url\":\"${{ github.event.inputs.dashboardUrl }}\"}\"]" >> $GITHUB_ENV
+
+      - name: Build TypeScript
+        run: pnpm build
+
+      - name: Run chat session
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+          SESSION_ID: ${{ github.event.inputs.sessionId }}
+          MODEL: ${{ github.event.inputs.model || 'claude-sonnet-4-6' }}
+        run: |
+          npx tsx ./src/bin/cli.ts chat \
+            --session "$SESSION_ID" \
+            --model "$MODEL" \
+            --cwd .
+
+      - name: Upload session artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: chat-session-${{ github.event.inputs.sessionId }}
+          path: |
+            .kody/sessions/${{ github.event.inputs.sessionId }}.jsonl
+            .kody/events/${{ github.event.inputs.sessionId }}.jsonl
+          retention-days: 3

@@ -17,7 +17,10 @@ export type EventName =
   | "user.response"
   | "task.pr.created"
   | "task.pr.merged"
-  | "session.completed";
+  | "session.completed"
+  | "chat.message"
+  | "chat.done"
+  | "chat.error";
 
 // ─── Payloads ────────────────────────────────────────────────────────────────
 
@@ -103,6 +106,31 @@ export interface SessionCompletedPayload {
   tasks?: TaskSummary[];
 }
 
+export interface ChatMessagePayload {
+  runId: string;
+  sessionId: string;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: string;
+  toolCalls?: Array<{
+    name: string;
+    arguments: unknown;
+    result: unknown;
+    status: string;
+  }>;
+}
+
+export interface ChatDonePayload {
+  runId: string;
+  sessionId: string;
+}
+
+export interface ChatErrorPayload {
+  runId: string;
+  sessionId: string;
+  error: string;
+}
+
 // ─── Union Payload Map ───────────────────────────────────────────────────────
 
 export type EventPayload =
@@ -117,7 +145,10 @@ export type EventPayload =
   | UserResponsePayload
   | TaskPrCreatedPayload
   | TaskPrMergedPayload
-  | SessionCompletedPayload;
+  | SessionCompletedPayload
+  | ChatMessagePayload
+  | ChatDonePayload
+  | ChatErrorPayload;
 
 // ─── KodyEvent ───────────────────────────────────────────────────────────────
 
@@ -143,6 +174,9 @@ export interface EventPayloadMap {
   "task.pr.created": TaskPrCreatedPayload;
   "task.pr.merged": TaskPrMergedPayload;
   "session.completed": SessionCompletedPayload;
+  "chat.message": ChatMessagePayload;
+  "chat.done": ChatDonePayload;
+  "chat.error": ChatErrorPayload;
 }
 
 /** Type-safe emit helper */
@@ -160,5 +194,8 @@ export function isEventName(name: string): name is EventName {
     "task.pr.created",
     "task.pr.merged",
     "session.completed",
+    "chat.message",
+    "chat.done",
+    "chat.error",
   ].includes(name);
 }
