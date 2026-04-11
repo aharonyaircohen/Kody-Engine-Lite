@@ -18,33 +18,68 @@ const CYCLE_MS = CRON_INTERVAL_MINUTES * 60 * 1000
 /**
  * Returns true if the agent should fire on this engine cycle.
  *
- * Logic:
- *  - prev is yesterday or earlier: next tick is today → we are in the
- *    pre-tick window → FIRE
- *  - prev is today and prevTime >= nowTime: we are at or after the tick
- *    within today → FIRE (only when prevMins >= nowMins, i.e. at exact tick)
- *  - prev is today and prevTime < nowTime: we fired recently, still in same
- *    window → DON'T fire
+ * Approach: find whether the cron fires today, and if so, whether the current
+ * time falls within the firing window (tick_time to tick_time + CYCLE_MS).
+ *
+ * Step 1 — does the cron fire today? Build "today at tick time" by taking the
+ * cron expression, substituting today's year/month/day, and asking cron-parser
+ * if that date would have matched when evaluated at that exact time. This
+ * avoids the ambiguity of calling prev()/next() on an iterator whose position
+ * may not correspond to "now".
+ *
+ * Step 2 — if the cron fires today, check whether now falls within the window
+ * [tick_time, tick_time + CYCLE_MS]. Fire only once per cycle window.
  */
 export function cronMatches(cron: string, now: Date = new Date()): boolean {
   try {
+    // Strategy: use prev() to find the last tick before "now". If that tick is
+    // today, we're in (or past) the firing window. If it's yesterday or earlier,
+    // the next tick is tomorrow or later — don't fire.
+    // Note: cron-parser treats currentDate as already passed, so at exactly tick
+    // time, prev() returns the previous cycle (not current). We handle this by
+    // checking both prev() and next() to cover the "at the tick" edge case.
     const interval = cronParser.parseExpression(cron, { utc: true, currentDate: now })
     const prev = interval.prev().toDate()
 
     const prevIsToday =
-      prev.getUTCDate() === now.getUTCDate() &&
+      prev.getUTCFullYear() === now.getUTCFullYear() &&
       prev.getUTCMonth() === now.getUTCMonth() &&
-      prev.getUTCFullYear() === now.getUTCFullYear()
+      prev.getUTCDate() === now.getUTCDate()
 
     if (prevIsToday) {
-      // prev is today: fire only if prevTime >= nowTime (at or after tick)
-      const prevMins = prev.getUTCHours() * 60 + prev.getUTCMinutes()
+      // Tick was earlier today. Check if we're still within the firing window
+      // (tick_time to tick_time + CYCLE_MS).
+      const tickMins = prev.getUTCHours() * 60 + prev.getUTCMinutes()
       const nowMins = now.getUTCHours() * 60 + now.getUTCMinutes()
-      return prevMins >= nowMins
-    } else {
-      // prev is yesterday or earlier: next tick is today → we are in the window
-      return now.getTime() - prev.getTime() > CYCLE_MS
+      if (nowMins >= tickMins && nowMins < tickMins + CRON_INTERVAL_MINUTES) return true
+      // Edge case: we're at exactly the NEXT tick time (e.g. hourly cron: at 04:00
+      // prev=03:00 so we missed the 03:00 window, but we might be AT the 04:00 tick).
+      // Check if next tick is also today and we're at or past it.
+      const next = interval.next().toDate()
+      const nextIsToday =
+        next.getUTCFullYear() === now.getUTCFullYear() &&
+        next.getUTCMonth() === now.getUTCMonth() &&
+        next.getUTCDate() === now.getUTCDate()
+      if (nextIsToday) {
+        const nextTickMins = next.getUTCHours() * 60 + next.getUTCMinutes()
+        return nowMins >= nextTickMins && nowMins < nextTickMins + CRON_INTERVAL_MINUTES
+      }
+      return false
     }
+
+    // prev is NOT today. Check if the next tick IS today (we're before today's tick).
+    const next = interval.next().toDate()
+    const nextIsToday =
+      next.getUTCFullYear() === now.getUTCFullYear() &&
+      next.getUTCMonth() === now.getUTCMonth() &&
+      next.getUTCDate() === now.getUTCDate()
+
+    if (!nextIsToday) return false
+
+    // We're before today's tick. Fire if we're at or past the tick time.
+    const tickMins = next.getUTCHours() * 60 + next.getUTCMinutes()
+    const nowMins = now.getUTCHours() * 60 + now.getUTCMinutes()
+    return nowMins >= tickMins && nowMins < tickMins + CRON_INTERVAL_MINUTES
   } catch {
     return false
   }
