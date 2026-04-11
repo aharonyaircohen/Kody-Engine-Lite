@@ -565,7 +565,7 @@ async function main() {
   // started; posting another comment races with the cancellation cascade from the
   // concurrency group and can result in the new run picking up the prior run's URL as taskId.
   if (input.issueNumber && !input.local && !wasAutoResolved) {
-    const runUrl = process.env.RUN_URL ?? ""
+    const runUrl = process.env['RUN-URL'] ?? ""
     const runLink = runUrl ? ` ([logs](${runUrl}))` : ""
     try {
       postComment(

@@ -258,7 +258,7 @@ export async function taskifyCommand(opts: TaskifyOptions): Promise<void> {
   // Post starting comment
   if (issueNumber && !local) {
     const src = mode === "file" ? `file \`${path.basename(prdFile!)}\`` : mode === "ticket" ? `ticket **${ticketId}**` : `issue #${issueNumber} description`
-    const runUrl = process.env.RUN_URL ? ` ([logs](${process.env.RUN_URL}))` : ""
+    const runUrl = process.env['RUN-URL'] ? ` ([logs](${process.env['RUN-URL']}))` : ""
     postComment(issueNumber, `🚀 Kody pipeline started: \`${taskId}\`${runUrl}\n\nKody is decomposing ${src} into tasks...`)
     setLifecycleLabel(issueNumber, "planning")
   }
