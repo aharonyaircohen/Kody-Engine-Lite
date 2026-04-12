@@ -2,6 +2,7 @@ import * as fs from "fs"
 import * as path from "path"
 import { readProjectMemory, mergeBrainWithProject, readBrainMemoryTiered, getBrainBasePath } from "./memory.js"
 import { getProjectConfig } from "./config.js"
+import { searchFactsByScope } from "./memory/graph/queries.js"
 import {
   readProjectMemoryTiered,
   injectTaskContextTiered,
@@ -371,6 +372,34 @@ ${toolsBlock}
 Use browser tools to navigate to pages and take screenshots to verify UI output.`
 }
 
+/**
+ * Build a memory context section for the plan stage by querying graph memory
+ * for facts relevant to the current task scope.
+ */
+function buildMemoryContext(projectDir: string, taskDir: string): string {
+  const taskJsonPath = path.join(taskDir, "task.json")
+  if (!fs.existsSync(taskJsonPath)) return ""
+
+  try {
+    const raw = fs.readFileSync(taskJsonPath, "utf-8")
+    const cleaned = raw.replace(/^```json\s*\n?/m, "").replace(/\n?```\s*$/m, "")
+    const task = JSON.parse(cleaned)
+    const scope: string[] = Array.isArray(task.scope) ? task.scope : []
+    if (scope.length === 0) return ""
+
+    const facts = searchFactsByScope(projectDir, scope, 5)
+    if (facts.length === 0) return ""
+
+    const lines = facts.map(
+      (n) =>
+        `- **${n.room ?? n.hall}**: ${n.content.length > 300 ? n.content.slice(0, 300) + "..." : n.content}`,
+    )
+    return `## Relevant Project Memory\n\n${lines.join("\n")}`
+  } catch {
+    return ""
+  }
+}
+
 export function buildFullPrompt(
   stageName: string,
   taskId: string,
@@ -389,6 +418,14 @@ export function buildFullPrompt(
     const promptTemplate = readPromptFile(stageName, projectDir)
     const prompt = injectTaskContext(promptTemplate, taskId, taskDir, feedback, { projectDir, issueNumber })
     assembled = memory ? `${memory}\n---\n\n${prompt}` : prompt
+  }
+
+  // Inject graph memory for the plan stage
+  if (stageName === "plan") {
+    const memoryBlock = buildMemoryContext(projectDir, taskDir)
+    if (memoryBlock) {
+      assembled = assembled + "\n\n" + memoryBlock
+    }
   }
 
   // Append browser tool guidance when browser verification is available (MCP or CLI-based)

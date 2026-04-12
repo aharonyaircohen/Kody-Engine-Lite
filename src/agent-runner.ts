@@ -3,6 +3,7 @@ import type { AgentRunner, AgentResult, AgentRunnerOptions } from "./types.js"
 import type { KodyConfig } from "./config.js"
 import type { PathLike } from "fs"
 import { createWriteStream, mkdirSync } from "fs"
+import { logger } from "./logger.js"
 
 const SIGKILL_GRACE_MS = 5000
 const STDERR_TAIL_CHARS = 2000
@@ -132,7 +133,18 @@ function checkCommand(command: string, args: string[]): boolean {
 
 // ─── Claude Code Runner ──────────────────────────────────────────────────────
 
+/**
+ * @deprecated Use SDK runner via kody.config.json agent.runners: { type: "sdk" }.
+ * The Claude Code subprocess runner is harder to test, lacks structured output,
+ * and has divergent MCP/allowedTools behavior. This function will be removed in a
+ * future version.
+ */
 export function createClaudeCodeRunner(): AgentRunner {
+  logger.warn(
+    "[kody] DEPRECATED: createClaudeCodeRunner is deprecated. " +
+    "Set agent.runners in kody.config.json to use the SDK runner instead. " +
+    "See: https://docs.kody.dev/litellm",
+  )
   return {
     async run(
       _stageName: string,

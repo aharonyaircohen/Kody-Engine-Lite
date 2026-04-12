@@ -2,7 +2,7 @@ import * as fs from "fs"
 import * as path from "path"
 import { logger } from "./logger.js"
 import { parseJsonSafe } from "./validators.js"
-import { applyBudgetOverrides } from "./definitions.js"
+import { applyBudgetOverrides, resetStageDefinitions } from "./definitions.js"
 
 export interface RunnerConfig {
   type: "claude-code" | "sdk"
@@ -346,4 +346,5 @@ export function getProjectConfig(): KodyConfig {
 export function resetProjectConfig(): void {
   _config = null
   _configDir = null
+  resetStageDefinitions()
 }

@@ -4,6 +4,7 @@ import { logger } from "./logger.js"
 export interface DevServerOptions {
   command: string
   url: string
+  cwd?: string
   readyTimeout?: number
   readyPattern?: string
   envVars?: Record<string, string>
@@ -77,6 +78,7 @@ export async function startDevServer(opts: DevServerOptions): Promise<DevServerH
       stdio: ["ignore", "pipe", "pipe"],
       detached: true,
       shell: true,
+      cwd: opts.cwd,
       env: { ...process.env, ...opts.envVars },
     })
   } catch (err) {

@@ -346,6 +346,7 @@ export async function serveCommand(rawArgs: string[]): Promise<void> {
     devServerHandle = await startDevServer({
       command: config.devServer.command,
       url: config.devServer.url,
+      cwd: projectDir,
       readyPattern: config.devServer.readyPattern,
       readyTimeout: config.devServer.readyTimeout,
     })

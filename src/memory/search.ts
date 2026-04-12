@@ -33,7 +33,7 @@ export interface SearchResult {
 
 interface VocabularyEntry {
   docCount: number    // number of docs this word appears in
-  idf: number         // inverse document frequency
+  idf?: number         // inverse document frequency (set in separate pass)
 }
 
 interface IndexedDoc {
@@ -187,14 +187,15 @@ export function indexEpisode(projectDir: string, episode: Episode): void {
     index.vocabulary[word].docCount++
   }
 
-  // Recompute IDF for all words (cheap enough for small-to-medium corpora)
-  for (const word of Object.keys(index.vocabulary)) {
-    const dc = index.vocabulary[word].docCount
-    index.vocabulary[word].idf = Math.log((index.totalDocs + 1) / (dc + 1))
-  }
-
   index.documents[docId] = doc
   index.totalDocs++
+
+  // Recompute IDF for all words (cheap enough for small-to-medium corpora)
+  // Note: totalDocs is incremented first so the formula uses the correct N
+  for (const word of Object.keys(index.vocabulary)) {
+    const dc = index.vocabulary[word].docCount
+    index.vocabulary[word].idf = Math.log((index.totalDocs + 1) / (dc + 1)) + 1
+  }
 
   writeIndex(projectDir, index)
 }
@@ -223,7 +224,7 @@ export function searchSessions(
       if (!vocab) continue
 
       const termFreq = doc.content.toLowerCase().split(/\s+/).filter(w => w === word).length
-      totalScore += bm25Score(termFreq, doc.wordCount, vocab.idf, AVG_DOC_LEN)
+      totalScore += bm25Score(termFreq, doc.wordCount, vocab.idf!, AVG_DOC_LEN)
     }
 
     if (totalScore > 0) {
@@ -265,6 +266,12 @@ export function removeFromIndex(projectDir: string, episodeId: string): void {
   delete index.documents[episodeId]
   index.totalDocs = Math.max(0, index.totalDocs - 1)
 
+  // Recompute IDF after doc removal
+  for (const word of Object.keys(index.vocabulary)) {
+    const dc = index.vocabulary[word].docCount
+    index.vocabulary[word].idf = Math.log((index.totalDocs + 1) / (dc + 1)) + 1
+  }
+
   writeIndex(projectDir, index)
 }
 
@@ -278,15 +285,46 @@ export function rebuildIndex(projectDir: string): void {
   if (!fs.existsSync(episodesDir)) return
 
   const files = fs.readdirSync(episodesDir).filter(f => f.endsWith(".json") && f !== ".seq")
-  const freshIndex = { vocabulary: {}, documents: {}, totalDocs: 0 }
+  const freshIndex: { vocabulary: Record<string, VocabularyEntry>; documents: Record<string, IndexedDoc>; totalDocs: number } = { vocabulary: {}, documents: {}, totalDocs: 0 }
 
   for (const file of files) {
     try {
       const raw = fs.readFileSync(path.join(episodesDir, file), "utf-8")
       const episode: Episode = JSON.parse(raw)
-      indexEpisode(projectDir, episode)
+
+      const content = episode.rawContent
+      const words = tokenize(content)
+      const wordSet = new Set(words)
+
+      const doc: IndexedDoc = {
+        taskId: episode.taskId,
+        episodeId: episode.id,
+        source: episode.source,
+        content,
+        createdAt: episode.createdAt,
+        wordCount: content.length,
+        positions: getWordPositions(content, wordSet),
+      }
+
+      freshIndex.documents[episode.id] = doc
+      freshIndex.totalDocs++
+
+      for (const word of [...wordSet]) {
+        if (!freshIndex.vocabulary[word]) {
+          freshIndex.vocabulary[word] = { docCount: 0 }
+        }
+        freshIndex.vocabulary[word].docCount++
+      }
     } catch {
       // Skip corrupt episode files
     }
   }
+
+  // Compute IDF for all words using final totalDocs
+  for (const word of Object.keys(freshIndex.vocabulary)) {
+    const dc = freshIndex.vocabulary[word].docCount
+    freshIndex.vocabulary[word].idf = Math.log((freshIndex.totalDocs + 1) / (dc + 1)) + 1
+  }
+
+  writeIndex(projectDir, freshIndex)
 }

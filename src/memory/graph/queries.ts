@@ -104,6 +104,51 @@ export function searchFacts(
   return limit ? matched.slice(0, limit) : matched
 }
 
+/**
+ * Infer memory "rooms" from a file scope array.
+ * e.g. ["src/auth/login.ts", "src/auth/logout.ts"] → ["auth"]
+ * Inlined here to avoid circular import with context-tiers.ts.
+ */
+function inferRoomsFromScope(scope: string[]): string[] {
+  if (scope.length === 0) return []
+  const rooms = new Set<string>()
+  for (const filePath of scope) {
+    const parts = filePath.replace(/\\/g, "/").split("/").filter(Boolean)
+    const meaningful = parts.filter(
+      (p) => p !== "src" && p !== "lib" && p !== "app" && !p.includes("."),
+    )
+    if (meaningful.length > 0) {
+      rooms.add(meaningful[0].toLowerCase())
+    }
+  }
+  return [...rooms]
+}
+
+/**
+ * Search graph memory for facts relevant to the current task scope.
+ * Used by the plan stage to inject relevant project memory into the prompt.
+ */
+export function searchFactsByScope(
+  projectDir: string,
+  scope: string[],
+  limit = 5,
+): GraphNode[] {
+  if (scope.length === 0) return []
+  const rooms = inferRoomsFromScope(scope)
+  const allFacts = getCurrentFacts(projectDir)
+  const firstFile = scope[0]?.split("/").pop()?.replace(/\.[^.]+$/, "") ?? ""
+  const q = rooms.join(" ").toLowerCase()
+
+  return allFacts
+    .filter(
+      (n) =>
+        (n.room && q.includes(n.room)) ||
+        (firstFile && n.content.toLowerCase().includes(firstFile.toLowerCase())),
+    )
+    .sort((a, b) => b.validFrom.localeCompare(a.validFrom))
+    .slice(0, limit)
+}
+
 // ─── Edge Queries ─────────────────────────────────────────────────────────────
 
 /** Get edges pointing away from a node */

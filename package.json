@@ -17,7 +17,8 @@
     "kody": "tsx src/entry.ts",
     "claude": "tsx scripts/kody.ts",
     "build": "tsup",
-    "test": "vitest run",
+    "test": "vitest run --coverage",
+    "test:ci": "vitest run --coverage --reporter=junit --outputFile=coverage/junit.xml",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "pnpm build",
     "release": "npm publish --access public && bash scripts/wait-for-npm.sh"
@@ -30,6 +31,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.5.4",
+    "@vitest/coverage-v8": "^4.1.4",
     "playwright": "^1.59.1",
     "tsup": "^8.5.1",
     "tsx": "^4.21.0",

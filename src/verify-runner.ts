@@ -10,7 +10,15 @@ interface ExecError {
 }
 
 function isExecError(err: unknown): err is ExecError {
-  return typeof err === "object" && err !== null
+  return typeof err === "object" && err !== null &&
+    ("stdout" in err || "stderr" in err || "killed" in err)
+}
+
+function getExecOutput(err: unknown): { stdout: string; stderr: string } {
+  if (isExecError(err)) {
+    return { stdout: (err as ExecError).stdout ?? "", stderr: (err as ExecError).stderr ?? "" }
+  }
+  return { stdout: "", stderr: "" }
 }
 
 export interface VerifyResult {
@@ -71,21 +79,65 @@ function runCommand(
     })
     return { success: true, output: output ?? "", timedOut: false }
   } catch (err: unknown) {
-    const stdout = isExecError(err) ? err.stdout ?? "" : ""
-    const stderr = isExecError(err) ? err.stderr ?? "" : ""
-    const killed = isExecError(err) ? !!err.killed : false
+    const { stdout, stderr } = getExecOutput(err)
+    const killed = isExecError(err) ? !!(err as ExecError).killed : false
     return { success: false, output: `${stdout}${stderr}`, timedOut: killed }
   }
 }
 
-function parseErrors(output: string): string[] {
-  const errors: string[] = []
-  for (const line of output.split("\n")) {
-    if (/error|Error|ERROR|failed|Failed|FAIL|warning:|Warning:|WARN/i.test(line)) {
-      errors.push(line.slice(0, 500))
+type ErrorExtractor = (output: string) => string[]
+
+const ERROR_EXTRACTORS: Record<string, ErrorExtractor> = {
+  tsc: (output) =>
+    output
+      .split("\n")
+      .filter((l) => /^error TS\d+:/i.test(l) || (/\berror\b/i.test(l) && /\.ts\b/.test(l) && /(\(\d+,\d+\)|:\d+:\d+)/.test(l)))
+      .map((l) => l.slice(0, 500)),
+  eslint: (output) => {
+    const lines = output.split("\n")
+    const eslintErrors = lines.filter(
+      (l) =>
+        /^\s*(\d+:\d+\s+)?error /i.test(l) ||
+        /✖ \d+ (problem|error)/i.test(l) ||
+        (/error\b/i.test(l) && /\bfixable\b/i.test(l)),
+    )
+    // Fall back to raw output if no ESLint-formatted errors found
+    if (eslintErrors.length === 0 && /\berror\b/i.test(output)) {
+      return lines.filter((l) => l.trim()).map((l) => l.slice(0, 500))
     }
-  }
-  return errors
+    return eslintErrors.map((l) => l.slice(0, 500))
+  },
+  vitest: (output) =>
+    output
+      .split("\n")
+      .filter(
+        (l) =>
+          /^(FAIL|X)\s+.*\.test\./.test(l) ||
+          /^\s*×|× \d+ (test|tests) failed/i.test(l) ||
+          /AssertionError/.test(l),
+      )
+      .map((l) => l.slice(0, 500)),
+  default: (output) =>
+    output
+      .split("\n")
+      .filter((l) => /\berror\b/i.test(l) && /[A-Z]/.test(l.slice(0, 50)))
+      .map((l) => l.slice(0, 500)),
+}
+
+const COMMAND_TO_EXTRACTOR: Record<string, string> = {
+  typecheck: "tsc",
+  lint: "eslint",
+  test: "vitest",
+  vitest: "vitest",
+  eslint: "eslint",
+  tsc: "tsc",
+}
+
+export function parseErrors(output: string, commandName?: string): string[] {
+  const extractorKey = commandName ? (COMMAND_TO_EXTRACTOR[commandName] ?? "default") : "default"
+  const extractor = ERROR_EXTRACTORS[extractorKey] ?? ERROR_EXTRACTORS.default
+  const errors = extractor(output)
+  return errors.length > 0 ? errors : []
 }
 
 function extractSummary(output: string, cmdName: string): string[] {
@@ -157,7 +209,7 @@ export function runQualityGates(
     }
 
     if (!result.success) {
-      const errors = parseErrors(result.output)
+      const errors = parseErrors(result.output, name)
 
       // When onlyFailOnFiles is set for typecheck, suppress errors that only
       // mention files outside the provided set — these are pre-existing issues
