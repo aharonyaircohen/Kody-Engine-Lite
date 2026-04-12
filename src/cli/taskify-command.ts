@@ -230,26 +230,69 @@ export async function taskifyCommand(opts: TaskifyOptions): Promise<void> {
     }
   }
 
-  // Build project context: memory file + git file tree
+  // Build project context: memory/ directory files + git file tree
   let projectContext: string | undefined
   {
     const parts: string[] = []
+    const MAX_CHARS = 3000
 
-    const memoryPath = path.join(projectDir, ".kody", "memory.md")
-    if (fs.existsSync(memoryPath)) {
+    // Read all memory files from .kody/memory/ directory (preferred)
+    const memoryDir = path.join(projectDir, ".kody", "memory")
+    if (fs.existsSync(memoryDir) && fs.statSync(memoryDir).isDirectory()) {
       try {
-        const content = fs.readFileSync(memoryPath, "utf-8").slice(0, 2000)
-        if (content.trim()) parts.push(`### Project Memory\n${content}`)
-      } catch { /* ignore */ }
+        const memFiles = fs.readdirSync(memoryDir).filter(f => f.endsWith(".md"))
+        if (memFiles.length > 0) {
+          const memParts: string[] = []
+          for (const file of memFiles.sort()) {
+            const content = fs.readFileSync(path.join(memoryDir, file), "utf-8").slice(0, MAX_CHARS)
+            if (content.trim()) {
+              memParts.push(`#### ${file.replace(/\.md$/, "")}\n${content.trim()}`)
+            }
+          }
+          if (memParts.length > 0) {
+            parts.push(`### Project Memory\n${memParts.join("\n\n")}`)
+            logger.info(`  [context] Injected memory from ${memFiles.length} file(s) in .kody/memory/`)
+          }
+        }
+      } catch (e) {
+        logger.info(`  [context] Warning: could not read .kody/memory/ directory: ${e}`)
+      }
     }
 
+    // Also read legacy .kody/memory.md (single-file format) if present
+    const legacyMemory = path.join(projectDir, ".kody", "memory.md")
+    if (parts.length === 0 && fs.existsSync(legacyMemory)) {
+      try {
+        const content = fs.readFileSync(legacyMemory, "utf-8").slice(0, MAX_CHARS)
+        if (content.trim()) {
+          parts.push(`### Project Memory\n${content.trim()}`)
+          logger.info(`  [context] Injected legacy .kody/memory.md`)
+        }
+      } catch (e) {
+        logger.info(`  [context] Warning: could not read .kody/memory.md: ${e}`)
+      }
+    }
+
+    if (parts.length === 0) {
+      logger.info(`  [context] No project memory found in .kody/memory/ or .kody/memory.md`)
+    }
+
+    // Git file tree (helps Claude understand project structure)
     try {
       const output = execSync("git ls-files", { cwd: projectDir, encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] })
       const lines = output.split("\n").filter(Boolean).slice(0, 150)
-      if (lines.length > 0) parts.push(`### File Tree\n\`\`\`\n${lines.join("\n")}\n\`\`\``)
-    } catch { /* not a git repo or git unavailable */ }
+      if (lines.length > 0) {
+        parts.push(`### File Tree\n\`\`\`\n${lines.join("\n")}\n\`\`\``)
+        logger.info(`  [context] Injected file tree (${lines.length} files)`)
+      }
+    } catch (e) {
+      logger.info(`  [context] Could not get git file tree (not a git repo or unavailable)`)
+    }
 
-    if (parts.length > 0) projectContext = parts.join("\n\n")
+    if (parts.length > 0) {
+      projectContext = parts.join("\n\n")
+      logger.info(`  [context] Total context size: ${projectContext.length} chars`)
+    }
   }
 
   // Build prompt from template
