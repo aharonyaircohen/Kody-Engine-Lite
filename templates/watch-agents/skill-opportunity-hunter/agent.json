@@ -1,0 +1,5 @@
+{
+  "name": "skill-opportunity-hunter",
+  "description": "Scans the codebase for patterns worth extracting into Kody skills and creates recommendation issues",
+  "cron": "0 10 * * 0"
+}

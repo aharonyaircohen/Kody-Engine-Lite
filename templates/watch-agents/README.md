@@ -65,6 +65,7 @@ The `agent.md` file is the system prompt injected into the agent's Claude Code s
 | `branch-cleanup` | every 48 cycles (daily) | Identify merged branches that can be deleted |
 | `dependency-checker` | every 48 cycles (daily) | Check for outdated dependencies |
 | `readme-health` | every 48 cycles (daily) | Verify README accuracy against code |
+| `skill-opportunity-hunter` | weekly (Sunday 10:00 UTC) | Find patterns worth extracting into Kody skills |
 
 ## Adding a Custom Agent
 

@@ -167,6 +167,55 @@ Actions are deduplicated within a time window to prevent noise:
 
 Dedup entries older than 24 hours are automatically cleaned up.
 
+## Watch Agents
+
+Kody Watch also runs LLM-powered autonomous agents alongside plugins. Each agent is a folder in `.kody/watch/agents/<name>/` containing an `agent.json` and `agent.md`. Agents get a full Claude Code session with filesystem and GitHub tool access.
+
+### Built-in Agents
+
+| Agent | Schedule | Description |
+|-------|----------|-------------|
+| `stale-pr-reviewer` | every 48 cycles (daily) | Flag PRs with no activity for 7+ days |
+| `todo-scanner` | every 48 cycles (daily) | Find TODO/FIXME/HACK comments and create tracking issues |
+| `branch-cleanup` | every 48 cycles (daily) | Identify merged branches that can be deleted |
+| `dependency-checker` | every 48 cycles (daily) | Check for outdated dependencies |
+| `readme-health` | every 48 cycles (daily) | Verify README accuracy against code |
+| `skill-opportunity-hunter` | weekly (Sunday 10:00 UTC) | Find patterns worth extracting into Kody skills |
+
+### skill-opportunity-hunter
+
+Scans the codebase for patterns that could become reusable Kody skills — shell scripts, CI/CD workflows, repeated CLI calls, custom tooling. For each opportunity found, it creates a GitHub issue with:
+
+- The detected pattern and what it does
+- A suggested skill name and tool interface
+- A confidence rating
+- An optional skill scaffold ready to implement
+
+Example issue created:
+
+```markdown
+## Detected from
+`scripts/deploy.sh` (lines 12–34)
+
+## What it does
+Runs docker build, pushes to ECR, and deploys to ECS.
+
+## Suggested skill name
+`kody-deploy`
+
+## Suggested tools
+- `kody-deploy:run` — execute deploy with env flag
+- `kody-deploy:status` — check ECS task status
+```
+
+Users review and approve before the skill is created — the agent only recommends, it never auto-registers skills.
+
+### Manual Agent Trigger
+
+```bash
+kody watch --agent skill-opportunity-hunter
+```
+
 ## Workflow Permissions
 
 The `kody-watch.yml` workflow needs:
