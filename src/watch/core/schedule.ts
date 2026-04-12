@@ -32,6 +32,17 @@ const CYCLE_MS = CRON_INTERVAL_MINUTES * 60 * 1000
  */
 export function cronMatches(cron: string, now: Date = new Date()): boolean {
   try {
+    // ── Fast path for simple interval crons (e.g. "*/30", "*/15", "*/60") ──
+    const intervalMatch = cron.match(/^(\*|0)\/(\d+)\s+\*\s+\*\s+\*(\s+\S+)*$/)
+    if (intervalMatch) {
+      const intervalMins = parseInt(intervalMatch[2], 10)
+      const nowMins = now.getUTCHours() * 60 + now.getUTCMinutes()
+      const prevTick = Math.floor(nowMins / intervalMins) * intervalMins
+      const windowEnd = prevTick + CRON_INTERVAL_MINUTES
+      return nowMins < windowEnd
+    }
+
+    // ── General path via cron-parser ─────────────────────────────────────────
     // Strategy: use prev() to find the last tick before "now". If that tick is
     // today, we're in (or past) the firing window. If it's yesterday or earlier,
     // the next tick is tomorrow or later — don't fire.
