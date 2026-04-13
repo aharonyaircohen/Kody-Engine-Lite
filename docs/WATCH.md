@@ -218,6 +218,7 @@ Kody Watch also runs LLM-powered autonomous agents alongside plugins. Each agent
 | `readme-health` | every 48 cycles (daily) | Verify README accuracy against code |
 | `skill-opportunity-hunter` | weekly (Sunday 10:00 UTC) | Find patterns worth extracting into Kody skills |
 | `dead-code-cleanup` | weekly (Monday 09:00 UTC) | Find unused exports, dead files, and unreachable code |
+| `agent-health-checker` | daily (10:00 UTC) | Audit all watch agents: file health + GitHub outcome validation |
 
 ### skill-opportunity-hunter
 
@@ -267,10 +268,30 @@ Pre-flight checks for `tsc` and `npx` availability. If no dead code is found, no
 
 **Limits:** Max 50 findings per category (truncation noted in issue).
 
+### agent-health-checker
+
+Audits all installed watch agents to confirm they are healthy and producing real outcomes. Runs daily at 10:00 UTC.
+
+**Phase 1 — File health:** Validates each agent's `agent.json` (valid JSON, required fields) and `agent.md` (non-empty).
+
+**Phase 2 — GitHub outcome validation:** For each agent, checks for issues/PRs/workflows to confirm the agent is actually producing results — not just running.
+
+**Phase 3 — Staleness scoring:**
+
+| Condition | Status |
+|---|---|
+| Files valid + activity within cron interval | 🟢 Healthy |
+| Files valid + no activity in 1–3× cron interval | 🟡 Stale |
+| Files valid + no activity in 3×+ cron interval | 🔴 Unhealthy |
+| Files invalid | 🔴 Broken |
+
+Posts a summary issue labeled `kody:watch:agent-health` with a per-agent status table.
+
 ### Manual Agent Trigger
 
 ```bash
 kody watch --agent skill-opportunity-hunter
+kody watch --agent agent-health-checker
 ```
 
 ## Workflow Permissions

@@ -66,6 +66,7 @@ The `agent.md` file is the system prompt injected into the agent's Claude Code s
 | `readme-health` | `0 9 * * *` (daily 09:00 UTC) | Verify README accuracy against code |
 | `skill-opportunity-hunter` | `0 10 * * 0` (Sunday 10:00 UTC) | Find patterns worth extracting into Kody skills |
 | `dead-code-cleanup` | `0 9 * * 1` (Monday 09:00 UTC) | Find unused exports, dead files, and unreachable code |
+| `agent-health-checker` | `0 10 * * *` (daily 10:00 UTC) | Audit all watch agents: validate file health and verify GitHub outcomes |
 
 ## Adding a Custom Agent
 

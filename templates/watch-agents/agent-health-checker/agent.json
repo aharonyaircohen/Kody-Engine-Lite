@@ -1,0 +1,7 @@
+{
+  "name": "agent-health-checker",
+  "description": "Validates all watch agents: checks file health and verifies they produce actual GitHub outcomes (issues, PRs, workflow runs)",
+  "cron": "0 10 * * *",
+  "reportOnFailure": true,
+  "timeoutMs": 300000
+}
