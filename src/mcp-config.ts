@@ -1,49 +1,61 @@
-import type { McpConfig, KodyConfig } from "./config.js"
+import { MCPServerRegistry } from "./mcp-registry.js"
+import type { McpConfig, KodyConfig, McpServerConfig, McpServerValue } from "./config.js"
 
 const DEFAULT_MCP_STAGES = ["build", "verify", "review", "review-fix"]
 
-const PLAYWRIGHT_SERVER: { command: string; args: string[] } = {
-  command: "npx",
-  args: ["-y", "@anthropic-ai/mcp-playwright"],
-}
-
 /**
- * Ensure the Playwright MCP server is present when a UI task needs it.
- * Returns a new McpConfig with the server injected (never mutates).
+ * Resolve MCP server references (registry names + inline configs) to concrete McpServerConfig objects.
+ *
+ * Accepts a servers map where each value is either:
+ * - A registry name string (e.g. "github") → looked up in MCPServerRegistry
+ * - An inline config object → used as-is (allows overrides)
+ *
+ * Throws if a registry name is unknown.
  */
-export function withPlaywrightIfNeeded(
-  mcpConfig: McpConfig | undefined,
-  hasUI: boolean,
-): McpConfig | undefined {
-  if (!mcpConfig?.enabled || !hasUI) return mcpConfig
-
-  // Already has a playwright server configured
-  const hasPlaywright = Object.keys(mcpConfig.servers).some(
-    (name) => name.toLowerCase().includes("playwright"),
-  )
-  if (hasPlaywright) return mcpConfig
-
-  return {
-    ...mcpConfig,
-    servers: {
-      ...mcpConfig.servers,
-      playwright: PLAYWRIGHT_SERVER,
-    },
+export function resolveMcpServers(
+  servers: Record<string, McpServerValue>,
+): Record<string, McpServerConfig> {
+  const resolved: Record<string, McpServerConfig> = {}
+  for (const [name, value] of Object.entries(servers)) {
+    if (typeof value === "string") {
+      // Registry reference by name
+      const entry = MCPServerRegistry[value]
+      if (!entry) {
+        throw new Error(
+          `Unknown MCP server registry entry: "${value}". ` +
+          `Available: ${Object.keys(MCPServerRegistry).join(", ")}`,
+        )
+      }
+      resolved[name] = {
+        command: entry.command,
+        args: entry.args,
+        env: entry.env,
+      }
+    } else {
+      // Inline config — use as-is (allows overrides of registry entries)
+      resolved[name] = value
+    }
   }
+  return resolved
 }
 
 /**
  * Build the Claude Code MCP config JSON string for --mcp-config.
+ * Resolves registry names to concrete server configs before building JSON.
  * Returns undefined if MCP is disabled or no servers configured.
  */
-export function buildMcpConfigJson(mcpConfig: McpConfig | undefined): string | undefined {
+export function buildMcpConfigJson(
+  mcpConfig: McpConfig | undefined,
+): string | undefined {
   if (!mcpConfig?.enabled) return undefined
-  if (Object.keys(mcpConfig.servers).length === 0) return undefined
+  const servers = mcpConfig.servers ?? {}
+  if (Object.keys(servers).length === 0) return undefined
 
+  const resolvedServers = resolveMcpServers(servers)
   const config: Record<string, unknown> = { mcpServers: {} }
   const mcpServers = config.mcpServers as Record<string, unknown>
 
-  for (const [name, server] of Object.entries(mcpConfig.servers)) {
+  for (const [name, server] of Object.entries(resolvedServers)) {
     mcpServers[name] = {
       command: server.command,
       args: server.args ?? [],
@@ -53,10 +65,9 @@ export function buildMcpConfigJson(mcpConfig: McpConfig | undefined): string | u
   return JSON.stringify(config)
 }
 
-import type { McpServerConfig } from "./config.js"
 
 /**
- * Resolve `${VAR}` placeholders in MCP server env values using process.env.
+ * Resolve ${VAR} placeholders in MCP server env values using process.env.
  * Throws if a referenced variable is not set.
  */
 export function resolveMcpEnvVars(
@@ -96,9 +107,10 @@ export function buildTaskifyMcpConfigJson(config: KodyConfig): string {
       "Add your task management tool's MCP server there.",
     )
   }
-  const resolvedServers = resolveMcpEnvVars(servers)
+  const resolvedServers = resolveMcpServers(servers)
+  const envResolvedServers = resolveMcpEnvVars(resolvedServers)
   const mcpServers: Record<string, unknown> = {}
-  for (const [name, server] of Object.entries(resolvedServers)) {
+  for (const [name, server] of Object.entries(envResolvedServers)) {
     mcpServers[name] = {
       command: server.command,
       args: server.args ?? [],

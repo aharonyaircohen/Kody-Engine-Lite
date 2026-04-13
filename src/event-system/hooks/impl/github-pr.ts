@@ -6,14 +6,14 @@
  * Uses the engine's existing github-api.ts functions.
  */
 
-import type { Hook, HookResult, HookContext } from "../types.js";
+import type { Hook, HookResult, HookContext, HookConfig } from "../types.js";
 import type { KodyEvent } from "../../events/types.js";
 import { createPR } from "../../../github-api.js";
 import { upsertPRState, getPRStatesBySession, markPRCreated } from "../../store/pr-state.js";
 import { logger } from "../../../logger.js";
 
 export const githubPrHook: Hook = {
-  handle(event: KodyEvent, _context: HookContext): HookResult {
+  handle(event: KodyEvent, _context: HookContext, _config?: HookConfig): HookResult {
     const payload = event.payload as unknown as Record<string, unknown>;
 
     try {

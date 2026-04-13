@@ -22,6 +22,12 @@ export interface McpServerConfig {
   env?: Record<string, string>
 }
 
+/**
+ * A server reference in kody.config.json — either a registry name (string)
+ * or an inline server config object.
+ */
+export type McpServerValue = McpServerConfig | string
+
 export interface DevServerConfig {
   /** Command to start the dev server (e.g., "pnpm dev") */
   command: string
@@ -35,7 +41,7 @@ export interface DevServerConfig {
 
 export interface McpConfig {
   enabled: boolean
-  servers: Record<string, McpServerConfig>
+  servers: Record<string, McpServerValue>
   /** Which stages can use MCP tools. Defaults to ["build", "verify", "review", "review-fix"] */
   stages?: string[]
   /** Dev server config — when set, browser tool guidance will include instructions to start and browse */

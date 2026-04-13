@@ -18,6 +18,7 @@ const impls: Partial<Record<HookType, () => Promise<Hook>>> = {
   "github-label": () => import("./impl/github-label.js").then((m) => m.githubLabelHook),
   "github-pr": () => import("./impl/github-pr.js").then((m) => m.githubPrHook),
   "log": () => import("./impl/log.js").then((m) => m.logHook),
+  "webhook": () => import("./impl/webhook.js").then((m) => m.webhookHook),
 };
 
 export class HookRegistry {
@@ -54,7 +55,7 @@ export class HookRegistry {
       }
 
       try {
-        const result = await impl.handle(event, context);
+        const result = await impl.handle(event, context, config);
         results.push(result);
       } catch (err) {
         // Per-hook failure isolation — one crashing doesn't stop others

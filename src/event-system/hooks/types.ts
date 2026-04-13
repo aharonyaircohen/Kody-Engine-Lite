@@ -12,7 +12,8 @@ export type HookType =
   | "github-label"
   | "github-pr"
   | "github-pr-merge"
-  | "log";
+  | "log"
+  | "webhook";
 
 export interface GitHubLabelHookConfig {
   type: "github-label";
@@ -43,12 +44,21 @@ export interface LogHookConfig {
   level?: "debug" | "info" | "warn" | "error";
 }
 
+export interface WebhookHookConfig {
+  type: "webhook";
+  /** Overrides KODY_WEBHOOK_URL env var. */
+  url?: string;
+  /** Overrides KODY_WEBHOOK_TOKEN env var. */
+  token?: string;
+}
+
 export type HookConfig =
   | GitHubLabelHookConfig
   | GitHubActionHookConfig
   | GitHubPrHookConfig
   | GitHubPrMergeHookConfig
-  | LogHookConfig;
+  | LogHookConfig
+  | WebhookHookConfig;
 
 // ============ Hook Implementation ============
 
@@ -69,7 +79,7 @@ export interface HookResult {
 }
 
 export interface Hook {
-  handle(event: KodyEvent, context: HookContext): Promise<HookResult> | HookResult;
+  handle(event: KodyEvent, context: HookContext, config?: HookConfig): Promise<HookResult> | HookResult;
 }
 
 // ============ Registry Types ============

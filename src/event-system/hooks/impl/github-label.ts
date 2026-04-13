@@ -3,13 +3,13 @@
  * @fileType hook-implementation
  */
 
-import type { Hook, HookResult, HookContext } from "../types.js";
+import type { Hook, HookResult, HookContext, HookConfig } from "../types.js";
 import type { KodyEvent } from "../../events/types.js";
 import { setLabel, removeLabel } from "../../../github-api.js";
 import { logger } from "../../../logger.js";
 
 export const githubLabelHook: Hook = {
-  handle(event: KodyEvent, context: HookContext): HookResult {
+  handle(event: KodyEvent, context: HookContext, _config?: HookConfig): HookResult {
     const p = event.payload as unknown as Record<string, unknown>;
     const issueNumber = context.issueNumber ?? (p.issueNumber as number | undefined);
     if (!issueNumber) return { success: true, hookType: "github-label", data: { skipped: "no issueNumber" } };

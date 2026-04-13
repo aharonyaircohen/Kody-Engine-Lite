@@ -13,7 +13,7 @@ import { extractStagePatterns, appendDiary, type DiaryEntry } from "../stage-dia
 import { inferRoomsFromScope } from "../context-tiers.js"
 import { validateTaskJson, validatePlanMd, validateReviewMd, stripFences } from "../validators.js"
 import { getProjectConfig, resolveStageConfig, stageNeedsProxy, getLitellmUrl } from "../config.js"
-import { buildMcpConfigJson, isMcpEnabledForStage, withPlaywrightIfNeeded } from "../mcp-config.js"
+import { buildMcpConfigJson, isMcpEnabledForStage } from "../mcp-config.js"
 import { getRunnerForStage } from "../pipeline/runner-selection.js"
 import { startDevServer, type DevServerHandle } from "../dev-server.js"
 import { logger } from "../logger.js"
@@ -123,10 +123,7 @@ export async function executeAgentStage(
   }
 
   // MCP: pass server config if enabled for this stage
-  // Auto-inject Playwright when the task involves UI
-  const mcpForStage = isMcpEnabledForStage(def.name, config.mcp)
-    ? withPlaywrightIfNeeded(config.mcp, taskHasUI(ctx.taskDir))
-    : undefined
+  const mcpForStage = isMcpEnabledForStage(def.name, config.mcp) ? config.mcp : undefined
   const mcpConfigJson = buildMcpConfigJson(mcpForStage)
   if (mcpConfigJson) {
     logger.info(`  MCP servers enabled for ${def.name}`)

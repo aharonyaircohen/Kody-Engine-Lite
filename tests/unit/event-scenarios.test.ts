@@ -152,8 +152,8 @@ describe("Scenario 1: Chat session lifecycle", () => {
     const history = getEventHistory(runId)
     expect(history).toHaveLength(1)
     expect(history[0].event).toBe("chat.done")
-    // No github-label or other hooks fired (not configured for chat.done)
-    expect(history[0].hooksFired).toEqual([])
+    // No github-label or other hooks fired — only webhook fires for chat.done
+    expect(history[0].hooksFired).toEqual(["webhook"])
   })
 })
 

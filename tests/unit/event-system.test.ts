@@ -278,8 +278,9 @@ describe("HookRegistry", () => {
   it("returns empty array when no hooks configured for event", async () => {
     const event = makeEvent("chat.done", { runId: "run-1", sessionId: "sess-1" })
     const results = await registry.fire(event, makeContext())
-    // chat.done has no hooks configured
-    expect(results).toHaveLength(0)
+    // chat.done fires only the webhook hook
+    expect(results).toHaveLength(1)
+    expect(results[0].hookType).toBe("webhook")
   })
 
   it("isolates per-hook errors — one failing hook does not stop others", async () => {

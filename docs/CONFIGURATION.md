@@ -87,6 +87,65 @@ Empty string = skip that check. Commands are run via `execFileSync` with a 60-se
 
 When `provider` is set to anything other than `"anthropic"`, Kody auto-starts a LiteLLM proxy that routes Claude Code API calls to your provider. See [LiteLLM guide](LITELLM.md).
 
+### MCP Servers
+
+Connect Claude Code to MCP-compatible tools. Servers can be referenced by registry name (recommended) or configured inline.
+
+```json
+{
+  "mcp": {
+    "enabled": true,
+    "servers": {
+      "github": "github",
+      "filesystem": "filesystem",
+      "playwright": "playwright"
+    },
+    "stages": ["build", "verify", "review", "review-fix"]
+  }
+}
+```
+
+**Registry entries:**
+
+| Registry Name | Description |
+|---|---|
+| `github` | GitHub API — issues, PRs, repos, reviews (`GITHUB_TOKEN` env var) |
+| `playwright` | Browser automation via Playwright |
+| `filesystem` | File system access via MCP |
+| `slack` | Slack messaging (`SLACK_BOT_TOKEN` env var) |
+| `brave_search` | Web search (`BRAVE_API_KEY` env var) |
+| `sqlite` | SQLite database access |
+
+**Inline config** — for custom or unregistered MCP servers:
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "my-tool": {
+        "command": "node",
+        "args": ["/path/to/server.js"]
+      }
+    }
+  }
+}
+```
+
+**Override a registry entry** — use inline config to replace the default launch command:
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "github": {
+        "command": "npx",
+        "args": ["-y", "@custom/server-github", "--extra-flag"]
+      }
+    }
+  }
+}
+```
+
 ### Context Tiers
 
 Each pipeline stage gets context injected — memory, plan, prior stage summaries. Later stages accumulate more context. Without tiers, this can consume thousands of tokens. Tiered loading summarizes context to stay within budget:

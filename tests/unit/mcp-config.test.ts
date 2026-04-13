@@ -1,6 +1,77 @@
 import { describe, it, expect } from "vitest"
-import { buildMcpConfigJson, isMcpEnabledForStage, withPlaywrightIfNeeded } from "../../src/mcp-config.js"
+import { buildMcpConfigJson, isMcpEnabledForStage, resolveMcpServers } from "../../src/mcp-config.js"
 import type { McpConfig } from "../../src/config.js"
+
+describe("resolveMcpServers", () => {
+  it("resolves a registry name string to a full server config", () => {
+    const servers = { github: "github" }
+    const resolved = resolveMcpServers(servers)
+    expect(resolved.github).toEqual({
+      command: "npx",
+      args: ["-y", "@modelcontextprotocol/server-github"],
+      env: { GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_TOKEN}" },
+    })
+  })
+
+  it("resolves multiple registry names", () => {
+    const servers = { github: "github", playwright: "playwright" }
+    const resolved = resolveMcpServers(servers)
+    expect(resolved.github.command).toBe("npx")
+    expect(resolved.playwright.command).toBe("npx")
+    expect(resolved.playwright.args).toContain("@anthropic-ai/mcp-playwright")
+  })
+
+  it("preserves inline config objects as-is", () => {
+    const servers = {
+      github: { command: "node", args: ["server.js"] },
+    }
+    const resolved = resolveMcpServers(servers)
+    expect(resolved.github).toEqual({ command: "node", args: ["server.js"] })
+  })
+
+  it("mixes registry names and inline configs", () => {
+    const servers = {
+      github: "github",
+      custom: { command: "node", args: ["custom.js"] },
+    }
+    const resolved = resolveMcpServers(servers)
+    expect(resolved.github.command).toBe("npx")
+    expect(resolved.custom).toEqual({ command: "node", args: ["custom.js"] })
+  })
+
+  it("inline config can override a registry entry", () => {
+    const servers = {
+      github: {
+        command: "npx",
+        args: ["-y", "@custom/server-github", "--extra-flag"],
+      },
+    }
+    const resolved = resolveMcpServers(servers)
+    expect(resolved.github.args).toEqual(["-y", "@custom/server-github", "--extra-flag"])
+    // env should not be inherited from registry when using inline config
+    expect(resolved.github.env).toBeUndefined()
+  })
+
+  it("throws on unknown registry name", () => {
+    const servers = { unknown: "not-a-real-server" as string }
+    expect(() => resolveMcpServers(servers)).toThrow(/Unknown MCP server registry entry: "not-a-real-server"/)
+  })
+
+  it("throws with available registry names in error message", () => {
+    const servers = { foo: "does-not-exist" as string }
+    expect(() => resolveMcpServers(servers)).toThrow(/github/)
+    expect(() => resolveMcpServers(servers)).toThrow(/playwright/)
+    expect(() => resolveMcpServers(servers)).toThrow(/filesystem/)
+  })
+
+  it("server name key can differ from registry entry name", () => {
+    const servers = { mygh: "github" }
+    const resolved = resolveMcpServers(servers)
+    expect(resolved.mygh).toBeDefined()
+    expect(resolved.mygh.command).toBe("npx")
+    expect(resolved.mygh.args).toContain("@modelcontextprotocol/server-github")
+  })
+})
 
 describe("buildMcpConfigJson", () => {
   it("returns undefined when mcp config is undefined", () => {
@@ -20,7 +91,7 @@ describe("buildMcpConfigJson", () => {
     expect(buildMcpConfigJson(mcp)).toBeUndefined()
   })
 
-  it("returns valid JSON with one server", () => {
+  it("returns valid JSON with inline server config", () => {
     const mcp: McpConfig = {
       enabled: true,
       servers: {
@@ -36,19 +107,33 @@ describe("buildMcpConfigJson", () => {
     })
   })
 
-  it("returns valid JSON with multiple servers", () => {
+  it("returns valid JSON with registry reference", () => {
+    const mcp: McpConfig = {
+      enabled: true,
+      servers: { github: "github" },
+    }
+    const json = buildMcpConfigJson(mcp)
+    const parsed = JSON.parse(json!)
+    expect(parsed.mcpServers.github).toEqual({
+      command: "npx",
+      args: ["-y", "@modelcontextprotocol/server-github"],
+      env: { GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_TOKEN}" },
+    })
+  })
+
+  it("mixes registry references and inline configs in JSON output", () => {
     const mcp: McpConfig = {
       enabled: true,
       servers: {
-        playwright: { command: "npx", args: ["@playwright/mcp@latest"] },
-        github: { command: "npx", args: ["-y", "@modelcontextprotocol/server-github"] },
+        github: "github",
+        playwright: { command: "npx", args: ["-y", "@custom/playwright"] },
       },
     }
     const json = buildMcpConfigJson(mcp)
     const parsed = JSON.parse(json!)
     expect(Object.keys(parsed.mcpServers)).toHaveLength(2)
-    expect(parsed.mcpServers.playwright.command).toBe("npx")
-    expect(parsed.mcpServers.github.command).toBe("npx")
+    expect(parsed.mcpServers.github.args).toContain("@modelcontextprotocol/server-github")
+    expect(parsed.mcpServers.playwright.args).toContain("@custom/playwright")
   })
 
   it("includes env when provided", () => {
@@ -140,63 +225,5 @@ describe("isMcpEnabledForStage", () => {
     expect(isMcpEnabledForStage("build", mcp)).toBe(true)
     expect(isMcpEnabledForStage("review", mcp)).toBe(false)
     expect(isMcpEnabledForStage("verify", mcp)).toBe(false)
-  })
-})
-
-describe("withPlaywrightIfNeeded", () => {
-  it("returns undefined when mcp config is undefined", () => {
-    expect(withPlaywrightIfNeeded(undefined, true)).toBeUndefined()
-  })
-
-  it("returns unchanged config when disabled", () => {
-    const mcp: McpConfig = { enabled: false, servers: {} }
-    expect(withPlaywrightIfNeeded(mcp, true)).toBe(mcp)
-  })
-
-  it("returns unchanged config when hasUI is false", () => {
-    const mcp: McpConfig = { enabled: true, servers: {} }
-    expect(withPlaywrightIfNeeded(mcp, false)).toBe(mcp)
-  })
-
-  it("injects playwright server when hasUI and no playwright configured", () => {
-    const mcp: McpConfig = { enabled: true, servers: {} }
-    const result = withPlaywrightIfNeeded(mcp, true)!
-    expect(result.servers.playwright).toBeDefined()
-    expect(result.servers.playwright.command).toBe("npx")
-    expect(result.servers.playwright.args).toContain("@anthropic-ai/mcp-playwright")
-  })
-
-  it("does not mutate original config", () => {
-    const mcp: McpConfig = { enabled: true, servers: {} }
-    withPlaywrightIfNeeded(mcp, true)
-    expect(Object.keys(mcp.servers)).toHaveLength(0)
-  })
-
-  it("skips injection when playwright already configured", () => {
-    const mcp: McpConfig = {
-      enabled: true,
-      servers: { playwright: { command: "npx", args: ["@playwright/mcp@latest"] } },
-    }
-    const result = withPlaywrightIfNeeded(mcp, true)
-    expect(result).toBe(mcp)
-  })
-
-  it("skips injection when server name contains playwright", () => {
-    const mcp: McpConfig = {
-      enabled: true,
-      servers: { "my-playwright-server": { command: "node", args: ["server.js"] } },
-    }
-    const result = withPlaywrightIfNeeded(mcp, true)
-    expect(result).toBe(mcp)
-  })
-
-  it("preserves existing servers when injecting", () => {
-    const mcp: McpConfig = {
-      enabled: true,
-      servers: { github: { command: "npx", args: ["-y", "mcp-github"] } },
-    }
-    const result = withPlaywrightIfNeeded(mcp, true)!
-    expect(result.servers.github).toEqual(mcp.servers.github)
-    expect(result.servers.playwright).toBeDefined()
   })
 })

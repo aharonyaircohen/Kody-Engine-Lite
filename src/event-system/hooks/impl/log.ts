@@ -5,7 +5,7 @@
  * Logs events for development and debugging.
  */
 
-import type { Hook, HookResult, HookContext } from "../types.js";
+import type { Hook, HookResult, HookContext, HookConfig } from "../types.js";
 import type { KodyEvent } from "../../events/types.js";
 import { logger } from "../../../logger.js";
 
@@ -18,7 +18,7 @@ function toLevel(s?: string): Level {
 }
 
 export const logHook: Hook = {
-  handle(event: KodyEvent, _context: HookContext): HookResult {
+  handle(event: KodyEvent, _context: HookContext, _config?: HookConfig): HookResult {
     const payload = event.payload as unknown as Record<string, unknown>;
     const level = toLevel(payload.logLevel as string | undefined);
     const msg = `[event] ${event.name} | ${JSON.stringify(event.payload)}`;

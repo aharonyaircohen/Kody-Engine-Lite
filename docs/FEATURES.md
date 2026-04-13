@@ -304,10 +304,8 @@ Kody can expose MCP servers to the build, verify, review, and review-fix agents 
   "mcp": {
     "enabled": true,
     "servers": {
-      "filesystem": {
-        "command": "npx",
-        "args": ["-y", "@modelcontextprotocol/server-filesystem", "./"]
-      }
+      "github": "github",
+      "filesystem": "filesystem"
     },
     "stages": ["build", "verify", "review", "review-fix"]
   }
@@ -319,13 +317,54 @@ Kody can expose MCP servers to the build, verify, review, and review-fix agents 
 | Field | Required | Description |
 |-------|----------|-------------|
 | `enabled` | Yes | Set to `true` to activate MCP |
-| `servers` | Yes | Map of name → server config |
-| `servers[].command` | Yes | Executable (e.g. `npx`, `node`) |
-| `servers[].args` | No | Arguments passed to the command |
+| `servers` | Yes | Map of server name → registry reference or inline config |
+| `servers[].command` | Yes (inline only) | Executable (e.g. `npx`, `node`) |
+| `servers[].args` | No (inline only) | Arguments passed to the command |
 | `servers[].env` | No | Environment variables for the server |
 | `stages` | No | Which stages get MCP tools. Defaults to `["build", "verify", "review", "review-fix"]` |
 
-**Playwright auto-injection:** If the task involves UI (detected from `devServer` config and `package.json` frontend dependencies), the Playwright MCP server is automatically added to the `build` and `review` stages — no explicit config needed.
+**Registry entries** — reference by name instead of copy-pasting commands:
+
+```json
+{
+  "github": "GitHub API — issues, PRs, repos, reviews",
+  "playwright": "Browser automation via Playwright",
+  "filesystem": "File system access via MCP",
+  "slack": "Slack messaging and workspace access",
+  "brave_search": "Web search via Brave Search API",
+  "sqlite": "SQLite database access"
+}
+```
+
+**Custom servers** — use inline config for unregistered MCP servers:
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "my-server": {
+        "command": "node",
+        "args": ["/path/to/server.js"]
+      }
+    }
+  }
+}
+```
+
+**Override a registry entry** — use inline config to override defaults:
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "github": {
+        "command": "npx",
+        "args": ["-y", "@custom/server-github", "--my-flag"]
+      }
+    }
+  }
+}
+```
 
 **Logs:** When MCP servers are active, you'll see `MCP servers enabled for <stage>` in the pipeline output.
 
