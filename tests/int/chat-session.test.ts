@@ -101,19 +101,17 @@ function claudeStreamJson(responseText: string): string {
 
 // ─── Stub process.exit globally ────────────────────────────────────────────────
 //
-// vi.spyOn(process, "exit").mockImplementation(() => {}) replaces the method
-// but execution continues past process.exit(1) because the no-op doesn't halt.
-// vi.stubGlobal replaces the actual global, so chat.ts sees it at call time.
-// The stub throws a sentinel Error so execution halts and the test can catch it.
+// process.exit is replaced globally so all modules (including chat.ts) see the stub.
+// The stub does NOT throw — it records the exit code and returns normally.
+// Tests that need to verify exit was called check exitCalls directly.
 
 let _mockExitCode: number | undefined
 
 function makeExitStub() {
-  return function processExitStub(code: number = 0): never {
+  return function processExitStub(code: number = 0): void {
     exitCalls.push(code)
     _mockExitCode = code
     processExitThrown = true
-    throw new Error(`process.exit(${code})`)
   }
 }
 
@@ -139,6 +137,40 @@ vi.mock("../../src/github-api.js", () => ({
   postComment: vi.fn().mockResolvedValue(undefined),
 }))
 
+// ─── Mock action-state (for polling tests) ─────────────────────────────────────
+
+let pollInstructionQueue: Array<{ instruction: string | null; cancel: boolean; cancelledBy?: string }> = []
+let upsertChatSessionCalls: string[] = []
+let enqueueChatMessageCalls: Array<{ runId: string; message: string }> = []
+
+vi.mock("../../src/event-system/store/action-state.js", () => ({
+  upsertChatSession: (runId: string, _sessionId: string) => {
+    upsertChatSessionCalls.push(runId)
+    return {
+      runId, actionId: runId, status: "waiting" as const, step: "chat",
+      instructions: [], cancel: false,
+      lastHeartbeat: new Date().toISOString(), createdAt: new Date().toISOString(),
+    }
+  },
+  enqueueChatMessage: (runId: string, message: string) => {
+    enqueueChatMessageCalls.push({ runId, message })
+    return true
+  },
+  pollInstruction: (_runId: string, _actionId: string) => {
+    if (pollInstructionQueue.length === 0) {
+      return { instruction: null, cancel: false, cancelledBy: null, actionId: "", ownerActionId: "" }
+    }
+    const next = pollInstructionQueue.shift()!
+    return { ...next, cancelledBy: next.cancelledBy ?? null, actionId: "", ownerActionId: "" }
+  },
+}))
+
+// ─── Mock LiteLLM proxy ───────────────────────────────────────────────────────
+
+vi.mock("../../src/cli/litellm.js", () => ({
+  ensureLiteLlmProxyForChat: async () => ({ kill: undefined }),
+}))
+
 // ─── Test helpers ───────────────────────────────────────────────────────────────
 
 let tmpDir: string
@@ -155,6 +187,9 @@ beforeEach(async () => {
   exitCalls = []
   _mockExitCode = undefined
   processExitThrown = false
+  pollInstructionQueue = []
+  upsertChatSessionCalls = []
+  enqueueChatMessageCalls = []
 
   // Re-install the process.exit stub for this test.
   // afterEach of the previous test restored the original; put the stub back.
@@ -207,8 +242,8 @@ describe("chat command integration", () => {
       const chatCommand = await loadChatCommand()
       try {
         await chatCommand(["--session", sessionId, "--cwd", tmpDir])
-      } catch (err: unknown) {
-        // Expected: process.exit mock throws to halt execution
+      } catch {
+        // process.exit(1) continues to next line — catches TypeError
       }
       expect(exitCalls).toContain(1)
     })
@@ -217,8 +252,8 @@ describe("chat command integration", () => {
       const chatCommand = await loadChatCommand()
       try {
         await chatCommand([])
-      } catch (err: unknown) {
-        // Expected: process.exit mock throws to halt execution
+      } catch {
+        // process.exit(1) continues to next line — catches TypeError
       }
       expect(exitCalls).toContain(1)
     })
@@ -347,5 +382,45 @@ describe("chat command integration", () => {
       expect(typeof assistant.content).toBe("string")
       expect(assistant.toolCalls).toBeDefined()
     })
+  })
+
+  describe("polling mode (--poll)", () => {
+    it("registers session with upsertChatSession when --poll is passed", async () => {
+      const sessionId = "sess-poll-register"
+      pollInstructionQueue.push({ instruction: null, cancel: false })
+
+      const chatCommand = await loadChatCommand()
+      await chatCommand(["--session", sessionId, "--cwd", tmpDir, "--poll", "--poll-timeout", "100"])
+
+      expect(upsertChatSessionCalls.some((r) => r.startsWith(`chat-${sessionId}-`))).toBe(true)
+    }, 10_000)
+
+    it("exits polling loop when idle timeout is reached", async () => {
+      const sessionId = "sess-poll-idle"
+      pollInstructionQueue.push({ instruction: null, cancel: false })
+
+      const chatCommand = await loadChatCommand()
+      await chatCommand(["--session", sessionId, "--cwd", tmpDir, "--poll", "--poll-timeout", "200"])
+
+      // Should have registered
+      expect(upsertChatSessionCalls.length).toBeGreaterThan(0)
+    }, 10_000)
+
+    it("exits on idle timeout — minimum one poll interval", async () => {
+      const sessionId = "sess-poll-interval"
+      pollInstructionQueue.push({ instruction: null, cancel: false })
+
+      const chatCommand = await loadChatCommand()
+      const start = Date.now()
+      await chatCommand(["--session", sessionId, "--cwd", tmpDir, "--poll", "--poll-interval", "5000", "--poll-timeout", "100"])
+      const elapsed = Date.now() - start
+
+      // With --poll-interval 5000ms and idleTimeout 100ms:
+      // First null poll: idleSince is set, check fires (0ms < 100ms) → sleeps 5s.
+      // Second null poll: 5000ms > 100ms → exits immediately.
+      // Minimum time = one poll interval (~5000ms) + overhead.
+      expect(elapsed).toBeGreaterThanOrEqual(5000)
+      expect(elapsed).toBeLessThan(7000)
+    }, 10_000)
   })
 })

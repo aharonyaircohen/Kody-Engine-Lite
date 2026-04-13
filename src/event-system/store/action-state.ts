@@ -198,3 +198,25 @@ export function expireStaleActions(timeoutMs = 60000): string[] {
   if (expired.length > 0) save(map);
   return expired;
 }
+
+/** Register a chat session in the action-state queue for polling.
+ *
+ * Dashboard calls this via GitHub API (PUT contents) to register a session
+ * before the workflow starts polling.
+ *
+ * @example
+ * upsertChatSession("chat-issue-42-1234", "issue-42")
+ */
+export function upsertChatSession(runId: string, sessionId: string): ActionState | null {
+  return upsertActionState({ runId, sessionId, status: "waiting", step: "chat" });
+}
+
+/** Enqueue a chat message for a running session.
+ *
+ * Dashboard calls this to send a message to a live chat session.
+ *
+ * @returns true if enqueued, false if session not found
+ */
+export function enqueueChatMessage(runId: string, message: string): boolean {
+  return enqueueInstruction(runId, message);
+}

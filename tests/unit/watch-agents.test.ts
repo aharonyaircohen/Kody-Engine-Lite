@@ -287,6 +287,69 @@ describe("dead-code-cleanup agent", () => {
 })
 
 // ============================================================================
+// release-publisher Agent Tests
+// ============================================================================
+
+describe("release-publisher agent", () => {
+  let tmpDir: string
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "release-publisher-test-"))
+  })
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true })
+  })
+
+  function createAgent(json: unknown, md: string) {
+    const agentDir = path.join(tmpDir, ".kody", "watch", "agents", "release-publisher")
+    fs.mkdirSync(agentDir, { recursive: true })
+    fs.writeFileSync(path.join(agentDir, "agent.json"), JSON.stringify(json))
+    fs.writeFileSync(path.join(agentDir, "agent.md"), md)
+  }
+
+  it("loads agent with all required fields", () => {
+    createAgent({
+      name: "release-publisher",
+      description: "Creates a release tracking issue and runs @kody release to open a release PR",
+      cron: "0 10 * * 1",
+    }, "Create release issue and run @kody release.")
+
+    const { agents, warnings } = loadWatchAgents(tmpDir)
+    expect(warnings).toHaveLength(0)
+    expect(agents).toHaveLength(1)
+    expect(agents[0].config.name).toBe("release-publisher")
+    expect(agents[0].config.description).toBe("Creates a release tracking issue and runs @kody release to open a release PR")
+    expect(agents[0].config.cron).toBe("0 10 * * 1")
+  })
+
+  it("parses reportOnFailure when true", () => {
+    createAgent({
+      name: "release-publisher",
+      description: "Creates release issues",
+      cron: "0 10 * * 1",
+      reportOnFailure: true,
+    }, "Create release issue.")
+
+    const { agents } = loadWatchAgents(tmpDir)
+    expect(agents).toHaveLength(1)
+    expect(agents[0].config.reportOnFailure).toBe(true)
+  })
+
+  it("defaults reportOnFailure to false when omitted", () => {
+    createAgent({
+      name: "release-publisher",
+      description: "Creates release issues",
+      cron: "0 10 * * 1",
+    }, "Create release issue.")
+
+    const { agents } = loadWatchAgents(tmpDir)
+    expect(agents).toHaveLength(1)
+    expect(agents[0].config.reportOnFailure).toBe(false)
+  })
+})
+
+// ============================================================================
 // Prompt Builder Tests
 // ============================================================================
 

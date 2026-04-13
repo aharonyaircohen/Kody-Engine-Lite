@@ -1,0 +1,5 @@
+{
+  "name": "release-publisher",
+  "description": "Creates a release tracking issue and runs @kody release to open a release PR",
+  "cron": "0 10 * * 1"
+}

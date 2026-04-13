@@ -22,7 +22,7 @@ permissions:
 jobs:
   chat:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 360
 
     steps:
       - name: Generate App token
@@ -96,6 +96,7 @@ jobs:
           kody-engine chat \
             --session "$SESSION_ID" \
             --model "$MODEL" \
+            --poll \
             --cwd .
 
       - name: Upload session artifacts

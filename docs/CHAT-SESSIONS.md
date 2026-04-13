@@ -117,6 +117,7 @@ The workflow reads the full session file, runs Claude Code with the conversation
 
 ```bash
 kody-engine chat --session <sessionId> [--model <model>] [--cwd <dir>]
+                   [--poll] [--poll-interval <ms>] [--poll-timeout <ms>]
 ```
 
 | Flag | Description |
@@ -124,6 +125,58 @@ kody-engine chat --session <sessionId> [--model <model>] [--cwd <dir>]
 | `--session` | Session ID (required) |
 | `--model` | Model to use (default: from `kody.config.json`) |
 | `--cwd` | Working directory (default: current directory) |
+| `--poll` | Enable polling mode for long-running sessions |
+| `--poll-interval` | Milliseconds between polls (default: 5000) |
+| `--poll-timeout` | Idle timeout in ms (default: 360000 = 6 min) |
+
+## Polling Mode (`--poll`)
+
+For long-running sessions, the chat command enters a polling loop that stays alive for up to 6 hours:
+
+```bash
+kody-engine chat --session <sessionId> --poll [--poll-interval 5000] [--poll-timeout 360000]
+```
+
+```
+Dashboard → enqueues message via GitHub API (PUT action-state.json)
+GitHub Actions → kody chat --poll
+  every 5s: pollInstruction(runId, sessionId)
+    if new instruction: process it → emit chat.message webhook → Dashboard
+    if cancel: emit action.cancelled → emit chat.done → exit
+    if no message for > idleTimeout: emit chat.done → exit
+```
+
+### Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--poll` | — | Enable polling mode (long-running) |
+| `--poll-interval` | `5000` | Milliseconds between polls |
+| `--poll-timeout` | `360000` | Idle timeout in ms (6 min). After this long with no message, session ends |
+
+### Session Lifecycle
+
+1. **Registration**: On startup, the session is registered in `.kody-engine/action-state.json` via `upsertChatSession(runId, sessionId)`.
+2. **Polling**: Every `pollIntervalMs`, the queue is polled for new instructions.
+3. **Message delivery**: When an instruction is found, `processMessage()` runs Claude Code and emits `chat.message` events.
+4. **Idle exit**: If no message arrives for `idleTimeoutMs` (default 6 minutes), `chat.done` is emitted and the session ends.
+5. **Cancellation**: If `cancel=true` appears in the action state, `action.cancelled` fires and the session ends immediately.
+
+### Dashboard Integration
+
+Dashboard enqueues a message by writing to the action-state file via GitHub Contents API:
+
+```bash
+# 1. Enqueue: push instruction onto the queue
+gh api repos/{owner}/{repo}/contents/.kody-engine/action-state.json \
+  --method PUT \
+  --field message "Fix the auth bug" \
+  --field encoding "base64"
+# (Implementation: read → push to instructions[] → write back)
+
+# 2. Webhook: engine POSTs to KODY_WEBHOOK_URL after each message
+# Dashboard receives: { eventName, runId, sessionId, role, content, timestamp }
+```
 
 ## Architecture Notes
 

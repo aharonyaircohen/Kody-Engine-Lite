@@ -52,6 +52,8 @@ let listActionStates!: (...args: any[]) => any
 let deleteActionState!: (...args: any[]) => any
 let isActionStale!: (...args: any[]) => any
 let expireStaleActions!: (...args: any[]) => any
+let upsertChatSession!: (...args: any[]) => any
+let enqueueChatMessage!: (...args: any[]) => any
 
 // pr-state
 let upsertPRState!: (...args: any[]) => any
