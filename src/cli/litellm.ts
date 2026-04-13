@@ -221,7 +221,10 @@ export async function tryStartLitellm(
 
   const { spawn } = await import("child_process")
   const child = spawn(cmd, args, {
-    stdio: ["ignore", "pipe", "pipe"],
+    // Ignore stdin (no input needed), discard stdout/stderr to prevent pipe
+    // buffer from filling up and blocking LiteLLM when the proxy is running
+    // long-term. Health checks confirm readiness — we don't need LiteLLM output.
+    stdio: ["ignore", "ignore", "ignore"],
     detached: true,
     env: (() => {
       // Build env without DATABASE_URL — it may be set for the project's dev server
@@ -232,10 +235,6 @@ export async function tryStartLitellm(
     })(),
   })
 
-  // Capture stderr for debugging
-  let proxyStderr = ""
-  child.stderr?.on("data", (chunk: Buffer) => { proxyStderr += chunk.toString() })
-
   // Wait for health
   for (let i = 0; i < 30; i++) {
     await new Promise((r) => setTimeout(r, 2000))
@@ -245,9 +244,6 @@ export async function tryStartLitellm(
     }
   }
 
-  if (proxyStderr) {
-    logger.warn(`LiteLLM stderr: ${proxyStderr.slice(-1000)}`)
-  }
   logger.warn("LiteLLM proxy failed to start within 60s")
   child.kill()
   return null
