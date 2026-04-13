@@ -9,9 +9,10 @@ import type {
 import { STAGES } from "../definitions.js"
 import { logger } from "../logger.js"
 import { executeAgentStage } from "./agent.js"
-import { detectReviewVerdict } from "../review-standalone.js"
+import { detectReviewVerdict, formatReviewComment } from "../review-standalone.js"
 import { createEpisode } from "../memory/graph/index.js"
 import { inferRoom, writeFactOnce } from "../memory/graph/index.js"
+import { postPRComment } from "../github-api.js"
 
 const MAX_REVIEW_FIX_ITERATIONS = 2
 
@@ -173,6 +174,17 @@ export async function executeReviewWithFix(
       writeReviewConventions(ctx.projectDir, ctx.taskDir, finalReviewContent, ctx.taskId)
     } catch (err) {
       logger.warn(`  Graph write failed: ${err instanceof Error ? err.message : String(err)}`)
+    }
+
+    // Post review to PR
+    if (ctx.input.prNumber && !ctx.input.local) {
+      try {
+        const comment = formatReviewComment(finalReviewContent, ctx.taskId)
+        postPRComment(ctx.input.prNumber, comment)
+        logger.info(`  Review posted to PR #${ctx.input.prNumber}`)
+      } catch (err) {
+        logger.warn(`  Failed to post review to PR: ${err instanceof Error ? err.message : String(err)}`)
+      }
     }
   }
 
