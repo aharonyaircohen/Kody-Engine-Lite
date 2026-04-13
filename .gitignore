@@ -37,3 +37,6 @@ tasks/
 
 # Demo recording intermediates (final videos live in docs/assets/)
 demo/videos/
+
+# Test coverage
+coverage/
