@@ -25,14 +25,33 @@ export interface TaskPRState {
   createdAt: string;
 }
 
-const DATA_DIR = path.join(process.cwd(), ".kody-engine");
-const FILE = path.join(DATA_DIR, "pr-state.json");
+// ─── Configurable data directory ───────────────────────────────────────────
+
+let _dataDir: string | null = null;
+
+/** Override the data directory (for testing). Defaults to process.cwd()/.kody-engine. */
+export function _setDataDir(dir: string | null): void {
+  _dataDir = dir;
+}
+
+function getDataDir(): string {
+  // _dataDir holds the project root; .kody-engine is always a subdirectory of it.
+  const base = _dataDir ?? path.join(process.cwd(), ".kody-engine");
+  return path.join(base, ".kody-engine");
+}
+
+// ─── Persistence ───────────────────────────────────────────────────────────
+
+function getFilePath(): string {
+  return path.join(getDataDir(), "pr-state.json");
+}
 
 function load(): Map<string, TaskPRState> {
   const map = new Map<string, TaskPRState>();
   try {
-    if (!fs.existsSync(FILE)) return map;
-    const arr: TaskPRState[] = JSON.parse(fs.readFileSync(FILE, "utf-8"));
+    const file = getFilePath();
+    if (!fs.existsSync(file)) return map;
+    const arr: TaskPRState[] = JSON.parse(fs.readFileSync(file, "utf-8"));
     for (const pr of arr) {
       map.set(pr.runId, pr);
     }
@@ -44,8 +63,8 @@ function load(): Map<string, TaskPRState> {
 
 function save(map: Map<string, TaskPRState>): void {
   try {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.writeFileSync(FILE, JSON.stringify([...map.values()], null, 2));
+    fs.mkdirSync(getDataDir(), { recursive: true });
+    fs.writeFileSync(getFilePath(), JSON.stringify([...map.values()], null, 2));
   } catch {
     // Ignore write errors
   }

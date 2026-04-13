@@ -8,7 +8,7 @@ import { shouldDedup, markExecuted, cleanupExpiredDedup } from "./dedup.js"
 import { createGitHubClient } from "../clients/github.js"
 import { createConsoleLogger } from "../clients/logger.js"
 import { runWatchAgent } from "../agents/run-agent.js"
-import { shouldAgentRun } from "./schedule.js"
+import { shouldAgentRun, cronMatches } from "./schedule.js"
 
 /**
  * Polls GitHub issue labels until one shows kody:done or kody:failed.
@@ -119,9 +119,10 @@ export async function runWatch(config: WatchConfig): Promise<WatchResult> {
   try {
   // ── Deterministic plugins ──────────────────────────────────────────────────
 
+  const now = new Date(ctx.runTimestamp)
   const scheduledPlugins = plugins.filter((plugin) => {
-    if (!plugin.schedule || !plugin.schedule.everyHours) return true
-    return cycleNumber % plugin.schedule.everyHours === 0
+    if (!plugin.schedule) return true
+    return cronMatches(plugin.schedule.cron, now)
   })
 
   log.info(

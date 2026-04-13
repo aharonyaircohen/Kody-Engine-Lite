@@ -2,7 +2,11 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import * as fs from "fs"
 import * as path from "path"
 import * as os from "os"
+import { fileURLToPath } from "url"
 import { detectBasicConfig, buildConfig, detectArchitectureBasic } from "../../src/bin/cli.js"
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const PKG_ROOT = path.resolve(__dirname, "..", "..")
 
 describe("detectBasicConfig", () => {
   let tmpDir: string
@@ -446,6 +450,130 @@ describe("detectArchitectureBasic", () => {
     fs.writeFileSync(path.join(tmpDir, "package.json"), "not json")
     const items = detectArchitectureBasic(tmpDir)
     expect(items).toEqual([])
+  })
+})
+
+// ── Skill installation ─────────────────────────────────────────────────────────
+
+describe("Kody skill template", () => {
+  const SKILL_PATH = path.join(PKG_ROOT, "templates", "skills", "kody", "SKILL.md")
+
+  it("skill template exists at the expected path", () => {
+    expect(fs.existsSync(SKILL_PATH), `Missing skill template at ${SKILL_PATH}`).toBe(true)
+  })
+
+  it("skill has frontmatter with name, description, and version", () => {
+    const content = fs.readFileSync(SKILL_PATH, "utf-8")
+    expect(content.startsWith("---"), "Skill must have YAML frontmatter").toBe(true)
+    expect(content, "Skill must have a name field").toMatch(/^name:\s*\S+/m)
+    expect(content, "Skill must have a description field").toMatch(/^description:\s*.+/m)
+    expect(content, "Skill must have a version field").toMatch(/^version:\s*\S+/m)
+  })
+
+  it("skill name is 'kody'", () => {
+    const content = fs.readFileSync(SKILL_PATH, "utf-8")
+    const match = content.match(/^name:\s*(.+)/m)
+    expect(match?.[1].trim()).toBe("kody")
+  })
+
+  it("skill covers all four parts: issue-writing, triggering, monitoring, verifying", () => {
+    const content = fs.readFileSync(SKILL_PATH, "utf-8")
+    expect(content, "Skill must cover Part 1: Writing Kody-Ready Issues").toMatch(/## Part 1/)
+    expect(content, "Skill must cover Part 2: Triggering the Kody Pipeline").toMatch(/## Part 2/)
+    expect(content, "Skill must cover Part 3: Monitoring the Pipeline").toMatch(/## Part 3/)
+    expect(content, "Skill must cover Part 4: Verifying Success").toMatch(/## Part 4/)
+  })
+
+  it("skill covers all @kody trigger commands", () => {
+    const content = fs.readFileSync(SKILL_PATH, "utf-8")
+    const commands = ["@kody", "@kody fix", "@kody rerun", "@kody approve", "@kody bootstrap", "@kody hotfix", "@kody review", "@kody decompose"]
+    for (const cmd of commands) {
+      expect(content, `Skill must cover "${cmd}" command`).toMatch(new RegExp(cmd.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
+    }
+  })
+
+  it("skill covers lifecycle labels", () => {
+    const content = fs.readFileSync(SKILL_PATH, "utf-8")
+    const labels = ["kody:planning", "kody:building", "kody:verifying", "kody:review", "kody:done", "kody:failed", "kody:waiting", "kody:paused"]
+    for (const label of labels) {
+      expect(content, `Skill must mention "${label}" label`).toMatch(new RegExp(label))
+    }
+  })
+
+  it("skill covers complexity labels (low, medium, high)", () => {
+    const content = fs.readFileSync(SKILL_PATH, "utf-8")
+    expect(content).toMatch(/kody:low/)
+    expect(content).toMatch(/kody:medium/)
+    expect(content).toMatch(/kody:high/)
+  })
+
+  it("skill has a quick reference summary table", () => {
+    const content = fs.readFileSync(SKILL_PATH, "utf-8")
+    expect(content, "Skill must have a Summary quick reference table").toMatch(/## Summary — Quick Reference/)
+  })
+})
+
+describe("init skill copy logic", () => {
+  let tmpDir: string
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kody-init-skill-test-"))
+    fs.mkdirSync(path.join(tmpDir, ".github", "workflows"), { recursive: true })
+    fs.writeFileSync(path.join(tmpDir, ".github", "workflows", "kody.yml"), "dummy workflow")
+    fs.writeFileSync(path.join(tmpDir, "kody.config.json"), JSON.stringify({ github: { owner: "o", repo: "r" } }))
+  })
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true })
+  })
+
+  it("copies skill to .claude/skills/kody/SKILL.md when not present", () => {
+    // Simulate the init step 7 logic
+    const skillSrc = path.join(PKG_ROOT, "templates", "skills", "kody", "SKILL.md")
+    const skillDest = path.join(tmpDir, ".claude", "skills", "kody", "SKILL.md")
+
+    fs.mkdirSync(path.dirname(skillDest), { recursive: true })
+    fs.copyFileSync(skillSrc, skillDest)
+
+    expect(fs.existsSync(skillDest)).toBe(true)
+    const content = fs.readFileSync(skillDest, "utf-8")
+    expect(content).toContain("## Part 1")
+  })
+
+  it("does NOT overwrite skill when already present", () => {
+    // Pre-existing skill
+    const skillDest = path.join(tmpDir, ".claude", "skills", "kody", "SKILL.md")
+    fs.mkdirSync(path.dirname(skillDest), { recursive: true })
+    fs.writeFileSync(skillDest, "existing skill content")
+
+    // Simulate the "exists && !force" guard — skill should NOT be copied
+    const skillSrc = path.join(PKG_ROOT, "templates", "skills", "kody", "SKILL.md")
+    if (fs.existsSync(skillDest)) {
+      // skip — do not overwrite
+    } else {
+      fs.mkdirSync(path.dirname(skillDest), { recursive: true })
+      fs.copyFileSync(skillSrc, skillDest)
+    }
+
+    expect(fs.readFileSync(skillDest, "utf-8")).toBe("existing skill content")
+  })
+
+  it("skill copy uses --force to overwrite existing skill", () => {
+    const skillDest = path.join(tmpDir, ".claude", "skills", "kody", "SKILL.md")
+    fs.mkdirSync(path.dirname(skillDest), { recursive: true })
+    fs.writeFileSync(skillDest, "old content")
+
+    const skillSrc = path.join(PKG_ROOT, "templates", "skills", "kody", "SKILL.md")
+    const force = true
+
+    if (force || !fs.existsSync(skillDest)) {
+      fs.mkdirSync(path.dirname(skillDest), { recursive: true })
+      fs.copyFileSync(skillSrc, skillDest)
+    }
+
+    const content = fs.readFileSync(skillDest, "utf-8")
+    expect(content).not.toBe("old content")
+    expect(content).toContain("## Part 1")
   })
 })
 

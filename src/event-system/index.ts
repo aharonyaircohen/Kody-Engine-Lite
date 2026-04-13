@@ -37,6 +37,7 @@ export {
   expireStaleActions,
   type ActionState,
   type ActionStatus,
+  _setDataDir as _setActionStateDataDir,
 } from "./store/action-state.js";
 export {
   logEvent,
@@ -44,6 +45,7 @@ export {
   getLastEvent,
   getLastEventOfType,
   countEvents,
+  _setDataDir as _setEventLogDataDir,
   type EventLogEntry,
 } from "./store/event-log.js";
 export {
@@ -54,10 +56,9 @@ export {
   getPRStatesBySession,
   getOpenPRsForSession,
   listPRStates,
+  _setDataDir as _setPrStateDataDir,
   type TaskPRState,
   type PRStatus,
 } from "./store/pr-state.js";
-export { parseDashboardEndpoints, resolveDashboardUrl } from "./config/environments.js";
-export type { DashboardEndpoint } from "./config/environments.js";
 export { registry } from "./hooks/registry.js";
 export type { Hook, HookResult, HookContext, HookConfig, HookType } from "./hooks/types.js";

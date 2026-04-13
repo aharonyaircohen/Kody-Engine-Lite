@@ -192,11 +192,28 @@ export function initCommand(opts: { force: boolean }, pkgRoot: string) {
     console.log("  ○ kody-watch.yml template not found — skipping")
   }
 
-  // ── Step 6: Format, commit and push ──
+  // ── Step 7: Install Kody skill ──
+  console.log("\n── Kody Skill ──")
+  const kodySkillSrc = path.join(templatesDir, "skills", "kody", "SKILL.md")
+  const kodySkillDest = path.join(cwd, ".claude", "skills", "kody", "SKILL.md")
+  if (fs.existsSync(kodySkillSrc)) {
+    if (fs.existsSync(kodySkillDest) && !opts.force) {
+      console.log("  ○ .claude/skills/kody/SKILL.md (exists)")
+    } else {
+      fs.mkdirSync(path.dirname(kodySkillDest), { recursive: true })
+      fs.copyFileSync(kodySkillSrc, kodySkillDest)
+      console.log("  ✓ .claude/skills/kody/SKILL.md")
+    }
+  } else {
+    console.log("  ○ Kody skill template not found in package — skipping")
+  }
+
+  // ── Step 8: Format, commit and push ──
   console.log("\n── Git ──")
   const filesToCommit = [
     ".github/workflows/kody.yml",
     ".github/workflows/kody-watch.yml",
+    ".claude/skills/kody/SKILL.md",
     "kody.config.json",
   ].filter((f) => fs.existsSync(path.join(cwd, f)))
 

@@ -25,7 +25,7 @@ Both `agent.json` and `agent.md` are required — agents missing either file are
 {
   "name": "my-agent",
   "description": "What this agent does",
-  "schedule": { "every": 48 },
+  "cron": "0 9 * * 1",
   "reportOnFailure": true
 }
 ```
@@ -34,8 +34,7 @@ Both `agent.json` and `agent.md` are required — agents missing either file are
 |-------|------|----------|-------------|
 | `name` | string | yes | Unique agent name |
 | `description` | string | yes | Brief description of what the agent monitors |
-| `schedule` | object | no | Scheduling configuration |
-| `schedule.every` | number | no | Run every N cycles (default: 1 = every 30 min). Use 48 for daily. |
+| `cron` | string | yes | Standard 5-field cron expression (UTC). Use [crontab.guru](https://crontab.guru) to verify. Examples: `"0 9 * * 1"` = Monday 09:00 UTC, `"0 */12 * * *"` = every 12 hours |
 | `reportOnFailure` | boolean | no | When `true`, the orchestrator posts the agent's captured output to the activity log issue if the agent fails or times out. Default: `false`. |
 | `timeoutMs` | number | no | Agent timeout in milliseconds. Default: 1,200,000 (20 minutes). |
 
@@ -58,18 +57,19 @@ The `agent.md` file is the system prompt injected into the agent's Claude Code s
 
 ## Built-in Agents
 
-| Agent | Schedule | Description |
-|-------|----------|-------------|
-| `stale-pr-reviewer` | every 48 cycles (daily) | Flag PRs with no activity for 7+ days |
-| `todo-scanner` | every 48 cycles (daily) | Find TODO/FIXME/HACK comments and create tracking issues |
-| `branch-cleanup` | every 48 cycles (daily) | Identify merged branches that can be deleted |
-| `dependency-checker` | every 48 cycles (daily) | Check for outdated dependencies |
-| `readme-health` | every 48 cycles (daily) | Verify README accuracy against code |
-| `skill-opportunity-hunter` | weekly (Sunday 10:00 UTC) | Find patterns worth extracting into Kody skills |
+| Agent | Cron | Description |
+|-------|------|-------------|
+| `stale-pr-reviewer` | `0 9 * * *` (daily 09:00 UTC) | Flag PRs with no activity for 7+ days |
+| `todo-scanner` | `0 9 * * *` (daily 09:00 UTC) | Find TODO/FIXME/HACK comments and create tracking issues |
+| `branch-cleanup` | `0 9 * * *` (daily 09:00 UTC) | Identify merged branches that can be deleted |
+| `dependency-checker` | `0 9 * * *` (daily 09:00 UTC) | Check for outdated dependencies |
+| `readme-health` | `0 9 * * *` (daily 09:00 UTC) | Verify README accuracy against code |
+| `skill-opportunity-hunter` | `0 10 * * 0` (Sunday 10:00 UTC) | Find patterns worth extracting into Kody skills |
+| `dead-code-cleanup` | `0 9 * * 1` (Monday 09:00 UTC) | Find unused exports, dead files, and unreachable code |
 
 ## Adding a Custom Agent
 
 1. Create a folder: `.kody/watch/agents/my-agent/`
-2. Add `agent.json` with name, description, and schedule
+2. Add `agent.json` with name, description, and cron expression
 3. Add `agent.md` with instructions for the agent
-4. Commit and push — the agent will run on the next matching watch cycle
+4. Commit and push — the agent will run on the next matching cron schedule

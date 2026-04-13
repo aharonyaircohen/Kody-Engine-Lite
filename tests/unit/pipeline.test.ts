@@ -210,7 +210,7 @@ describe("complexity detection ordering", () => {
     const state = await runPipeline(ctx)
 
     // Pipeline should pause for questions
-    expect(state.state).toBe("failed")
+    expect(state.state).toBe("paused")
     expect(state.stages.taskify.error).toContain("paused")
 
     // But complexity label should have been set before the pause

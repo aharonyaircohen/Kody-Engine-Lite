@@ -1,11 +1,6 @@
 /**
  * Discovers and loads watch agent definitions from .kody/watch/agents/<name>/ folders.
  * Each agent folder must contain agent.json (config) and agent.md (system prompt).
- *
- * agent.json supports two formats:
- *   - New: { name, description, cron, reportOnFailure, timeoutMs }
- *   - Legacy: { name, description, schedule: { runAt, everyHours, everyDays, days } }
- * The cron field takes priority; if absent, schedule is used (backward compat).
  */
 
 import * as fs from "fs"
@@ -32,49 +27,17 @@ function validateAgentConfig(raw: unknown, dirName: string): WatchAgentConfig | 
   if (typeof obj.description !== "string" || !obj.description.trim()) {
     return `${dirName}: agent.json missing required "description" (string)`
   }
-
-  // New format: flat cron field
-  if (typeof obj.cron === "string" && obj.cron.trim()) {
-    return {
-      name: obj.name.trim(),
-      description: obj.description.trim(),
-      schedule: {},
-      cron: obj.cron.trim(),
-      reportOnFailure: obj.reportOnFailure === true,
-      timeoutMs:
-        typeof obj.timeoutMs === "number" && obj.timeoutMs > 0 ? obj.timeoutMs : undefined,
-    }
+  if (typeof obj.cron !== "string" || !obj.cron.trim()) {
+    return `${dirName}: agent.json missing required "cron" (string, e.g. "0 9 * * *")`
   }
-
-  // Legacy format: schedule object
-  let everyHours = 1
-  let runAt: string | undefined
-  let days: number | undefined
-  if (obj.schedule && typeof obj.schedule === "object") {
-    const sched = obj.schedule as Record<string, unknown>
-    if (sched.everyHours !== undefined) {
-      if (typeof sched.everyHours !== "number" || sched.everyHours < 1 || !Number.isInteger(sched.everyHours)) {
-        return `${dirName}: schedule.everyHours must be an integer >= 1`
-      }
-      everyHours = sched.everyHours
-    }
-    if (typeof sched.runAt === "string" && sched.runAt.trim()) {
-      runAt = sched.runAt.trim()
-    }
-    if (typeof sched.days === "number" && sched.days > 0 && Number.isInteger(sched.days)) {
-      days = sched.days
-    }
-  }
-
-  const timeoutMs =
-    typeof obj.timeoutMs === "number" && obj.timeoutMs > 0 ? obj.timeoutMs : undefined
 
   return {
     name: obj.name.trim(),
     description: obj.description.trim(),
-    schedule: { everyHours, ...(runAt && { runAt }), ...(days !== undefined && { days }) },
+    cron: obj.cron.trim(),
     reportOnFailure: obj.reportOnFailure === true,
-    timeoutMs,
+    timeoutMs:
+      typeof obj.timeoutMs === "number" && obj.timeoutMs > 0 ? obj.timeoutMs : undefined,
   }
 }
 

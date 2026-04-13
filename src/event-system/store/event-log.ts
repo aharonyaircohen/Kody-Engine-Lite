@@ -20,19 +20,36 @@ export interface EventLogEntry {
   emittedAt: string;
 }
 
-// ─── Persistence ───────────────────────────────────────────────────────────
+// ─── Configurable data directory ───────────────────────────────────────────
 
-const DATA_DIR = path.join(process.cwd(), ".kody-engine");
-const FILE = path.join(DATA_DIR, "event-log.json");
+let _dataDir: string | null = null;
+
+/** Override the data directory (for testing). Defaults to process.cwd()/.kody-engine. */
+export function _setDataDir(dir: string | null): void {
+  _dataDir = dir;
+}
+
+function getDataDir(): string {
+  // _dataDir holds the project root; .kody-engine is always a subdirectory of it.
+  const base = _dataDir ?? path.join(process.cwd(), ".kody-engine");
+  return path.join(base, ".kody-engine");
+}
+
+// ─── Persistence ───────────────────────────────────────────────────────────
 
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+function getFilePath(): string {
+  return path.join(getDataDir(), "event-log.json");
+}
+
 function load(): EventLogEntry[] {
   try {
-    if (!fs.existsSync(FILE)) return [];
-    return JSON.parse(fs.readFileSync(FILE, "utf-8")) as EventLogEntry[];
+    const file = getFilePath();
+    if (!fs.existsSync(file)) return [];
+    return JSON.parse(fs.readFileSync(file, "utf-8")) as EventLogEntry[];
   } catch {
     return [];
   }
@@ -40,9 +57,10 @@ function load(): EventLogEntry[] {
 
 function save(entries: EventLogEntry[]): void {
   try {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+    const dir = getDataDir();
+    fs.mkdirSync(dir, { recursive: true });
     // Keep last 10k entries to avoid unbounded growth
-    fs.writeFileSync(FILE, JSON.stringify(entries.slice(-10000), null, 2));
+    fs.writeFileSync(getFilePath(), JSON.stringify(entries.slice(-10000), null, 2));
   } catch {
     // Ignore write errors
   }

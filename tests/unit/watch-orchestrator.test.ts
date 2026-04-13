@@ -77,7 +77,7 @@ describe("watch orchestrator — reportOnFailure", () => {
 
     const config = makeConfig({
       agents: [{
-        config: { name: "test-agent", description: "Test", schedule: { every: 1 }, reportOnFailure: true },
+        config: { name: "test-agent", description: "Test", cron: "* * * * *", reportOnFailure: true },
         systemPrompt: "test",
         dirPath: "/tmp",
       }],
@@ -105,7 +105,7 @@ describe("watch orchestrator — reportOnFailure", () => {
 
     const config = makeConfig({
       agents: [{
-        config: { name: "slow-agent", description: "Slow", schedule: { every: 1 }, reportOnFailure: true },
+        config: { name: "slow-agent", description: "Slow", cron: "* * * * *", reportOnFailure: true },
         systemPrompt: "test",
         dirPath: "/tmp",
       }],
@@ -137,7 +137,7 @@ describe("watch orchestrator — reportOnFailure", () => {
 
     const config = makeConfig({
       agents: [{
-        config: { name: "good-agent", description: "Good", schedule: { every: 1 }, reportOnFailure: true },
+        config: { name: "good-agent", description: "Good", cron: "* * * * *", reportOnFailure: true },
         systemPrompt: "test",
         dirPath: "/tmp",
       }],
@@ -163,7 +163,7 @@ describe("watch orchestrator — reportOnFailure", () => {
 
     const config = makeConfig({
       agents: [{
-        config: { name: "quiet-agent", description: "Quiet", schedule: { every: 1 }, reportOnFailure: false },
+        config: { name: "quiet-agent", description: "Quiet", cron: "* * * * *", reportOnFailure: false },
         systemPrompt: "test",
         dirPath: "/tmp",
       }],
@@ -188,7 +188,7 @@ describe("watch orchestrator — reportOnFailure", () => {
     const config = makeConfig({
       activityLog: undefined,
       agents: [{
-        config: { name: "no-log-agent", description: "No log", schedule: { every: 1 }, reportOnFailure: true },
+        config: { name: "no-log-agent", description: "No log", cron: "* * * * *", reportOnFailure: true },
         systemPrompt: "test",
         dirPath: "/tmp",
       }],
@@ -213,7 +213,7 @@ describe("watch orchestrator — reportOnFailure", () => {
 
     const config = makeConfig({
       agents: [{
-        config: { name: "verbose-agent", description: "Verbose", schedule: { every: 1 }, reportOnFailure: true },
+        config: { name: "verbose-agent", description: "Verbose", cron: "* * * * *", reportOnFailure: true },
         systemPrompt: "test",
         dirPath: "/tmp",
       }],
@@ -253,12 +253,12 @@ describe("watch orchestrator — reportOnFailure", () => {
     const config = makeConfig({
       agents: [
         {
-          config: { name: "agent-1", description: "A1", schedule: { every: 1 }, reportOnFailure: true },
+          config: { name: "agent-1", description: "A1", cron: "* * * * *", reportOnFailure: true },
           systemPrompt: "test",
           dirPath: "/tmp",
         },
         {
-          config: { name: "agent-2", description: "A2", schedule: { every: 1 } },
+          config: { name: "agent-2", description: "A2", cron: "* * * * *", },
           systemPrompt: "test",
           dirPath: "/tmp",
         },
@@ -279,7 +279,7 @@ describe("watch orchestrator — reportOnFailure", () => {
 
     const config = makeConfig({
       agents: [{
-        config: { name: "custom-timeout", description: "Custom", schedule: { every: 1 }, timeoutMs: 3600000 },
+        config: { name: "custom-timeout", description: "Custom", cron: "* * * * *", timeoutMs: 3600000 },
         systemPrompt: "test",
         dirPath: "/tmp",
       }],
@@ -302,7 +302,7 @@ describe("watch orchestrator — reportOnFailure", () => {
 
     const config = makeConfig({
       agents: [{
-        config: { name: "default-timeout", description: "Default", schedule: { every: 1 } },
+        config: { name: "default-timeout", description: "Default", cron: "* * * * *", },
         systemPrompt: "test",
         dirPath: "/tmp",
       }],

@@ -190,7 +190,7 @@ export function generateQaGuideFallback(discovery: QaDiscovery): string {
     `1. Navigate to \`${discovery.loginPage ?? "/login"}\``,
     "2. Enter credentials from the test accounts table above",
     "3. Submit the login form",
-    "4. Verify redirect to dashboard or home page",
+    "4. Verify redirect to home page",
   )
 
   if (discovery.authFiles.length > 0) {

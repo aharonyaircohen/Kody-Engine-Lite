@@ -17,7 +17,6 @@ import { logger } from "../../logger.js";
 const impls: Partial<Record<HookType, () => Promise<Hook>>> = {
   "github-label": () => import("./impl/github-label.js").then((m) => m.githubLabelHook),
   "github-pr": () => import("./impl/github-pr.js").then((m) => m.githubPrHook),
-  "dashboard": () => import("./impl/dashboard.js").then((m) => m.dashboardHook),
   "log": () => import("./impl/log.js").then((m) => m.logHook),
 };
 

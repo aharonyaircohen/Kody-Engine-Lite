@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest"
 
-import { shouldRunOnCycle } from "../../src/watch/core/schedule"
-import type { StateStore } from "../../src/watch/core/types"
+import { cronMatches } from "../../src/watch/core/schedule"
 import { shouldDedup, markExecuted, cleanupExpiredDedup } from "../../src/watch/core/dedup"
 import { JsonStateStore, IssueCommentStateStore } from "../../src/watch/core/state"
 import { PluginRegistry } from "../../src/watch/plugins/registry"
@@ -46,6 +45,57 @@ function createAction(overrides?: Partial<ActionRequest>): ActionRequest {
     ...overrides,
   }
 }
+
+// ============================================================================
+// cronMatches Tests
+// ============================================================================
+
+describe("cronMatches", () => {
+  it("matches daily cron within the 30-min window", () => {
+    // 09:10 is within [09:00, 09:30) window
+    expect(cronMatches("0 9 * * *", new Date("2026-04-13T09:10:00Z"))).toBe(true)
+    expect(cronMatches("0 9 * * *", new Date("2026-04-13T09:00:00Z"))).toBe(true)
+    expect(cronMatches("0 9 * * *", new Date("2026-04-13T09:29:59Z"))).toBe(true)
+  })
+
+  it("does not match daily cron outside the 30-min window", () => {
+    expect(cronMatches("0 9 * * *", new Date("2026-04-13T09:30:00Z"))).toBe(false)
+    expect(cronMatches("0 9 * * *", new Date("2026-04-13T08:59:59Z"))).toBe(false)
+  })
+
+  it("matches weekly cron on the correct day within window", () => {
+    // April 13 2026 is a Monday (day-of-week = 1)
+    expect(cronMatches("0 9 * * 1", new Date("2026-04-13T09:05:00Z"))).toBe(true)
+  })
+
+  it("does not match weekly cron on wrong day", () => {
+    // April 14 2026 is Tuesday
+    expect(cronMatches("0 9 * * 1", new Date("2026-04-14T09:05:00Z"))).toBe(false)
+  })
+
+  it("matches hourly cron within the 30-min window", () => {
+    expect(cronMatches("0 * * * *", new Date("2026-04-13T09:15:00Z"))).toBe(true)
+  })
+
+  it("matches interval cron (*/30) at minute 10 within the 09:00 window", () => {
+    expect(cronMatches("*/30 * * * *", new Date("2026-04-13T09:10:00Z"))).toBe(true)
+  })
+
+  it("matches interval cron (*/30) at minute 35 within the 09:30 window", () => {
+    expect(cronMatches("*/30 * * * *", new Date("2026-04-13T09:35:00Z"))).toBe(true)
+  })
+
+  it("matches interval cron (*/30) continuously through the hour (09:00-09:59)", () => {
+    // The fast path matches when nowMins < windowEnd where windowEnd = floor(nowMins/interval) * interval + 30
+    // This means */30 fires continuously except at the exact xx:30 boundary
+    expect(cronMatches("*/30 * * * *", new Date("2026-04-13T09:00:00Z"))).toBe(true)
+    expect(cronMatches("*/30 * * * *", new Date("2026-04-13T09:31:00Z"))).toBe(true)
+  })
+
+  it("returns false for invalid cron expression", () => {
+    expect(cronMatches("not-a-cron", new Date())).toBe(false)
+  })
+})
 
 // ============================================================================
 // Dedup Tests
@@ -268,175 +318,5 @@ describe("PluginRegistry", () => {
     const all = registry.getAll()
     all.push({ name: "b", description: "", domain: "", async run() { return [] } })
     expect(registry.getAll()).toHaveLength(1)
-  })
-})
-
-// ============================================================================
-// Cycle Filtering Tests
-// ============================================================================
-
-describe("cycle filtering", () => {
-  it("runs plugin with no schedule every cycle", () => {
-    const plugin: WatchPlugin = {
-      name: "always",
-      description: "",
-      domain: "",
-      async run() { return [] },
-    }
-    // No schedule = always run
-    const shouldRun = !plugin.schedule || !plugin.schedule.every || 5 % plugin.schedule.every === 0
-    expect(shouldRun).toBe(true)
-  })
-
-  it("runs plugin when cycle matches schedule.every", () => {
-    const plugin: WatchPlugin = {
-      name: "daily",
-      description: "",
-      domain: "",
-      schedule: { every: 48 },
-      async run() { return [] },
-    }
-    expect(48 % plugin.schedule!.every! === 0).toBe(true)
-    expect(96 % plugin.schedule!.every! === 0).toBe(true)
-  })
-
-  it("skips plugin when cycle does not match", () => {
-    const plugin: WatchPlugin = {
-      name: "daily",
-      description: "",
-      domain: "",
-      schedule: { every: 48 },
-      async run() { return [] },
-    }
-    expect(1 % plugin.schedule!.every! === 0).toBe(false)
-    expect(47 % plugin.schedule!.every! === 0).toBe(false)
-  })
-})
-
-// ============================================================================
-// shouldRunOnCycle Tests
-// ============================================================================
-
-describe("shouldRunOnCycle", () => {
-  // Use an in-memory mock so set/get/save work predictably without file I/O
-  let store: StateStore
-  beforeEach(() => {
-    const data = new Map<string, unknown>()
-    store = {
-      get: <T>(key: string) => data.get(key) as T | undefined,
-      set: <T>(key: string, value: T) => { data.set(key, value) },
-      save: () => {},
-    }
-  })
-
-  // ── Priority: runAt must be checked before everyHours/everyDays ─────────────
-
-  it("runAt takes priority over everyHours (runAt is checked first)", () => {
-    // This is the bug: without runAt-first ordering, everyHours logic
-    // would run every cycle since JSON objects are truthy
-    const schedule = { runAt: "04:00", days: 7, everyHours: 1 }
-    // Cycle 1, outside the 04:00 window → false (even though everyHours=1)
-    const result = shouldRunOnCycle(schedule, 1, store, new Date("2026-04-11T03:00:00Z"))
-    expect(result).toBe(false)
-  })
-
-  it("runAt takes priority over everyDays (runAt is checked first)", () => {
-    // The bug: everyDays was checked before runAt, so runAt agents ran every cycle
-    const schedule = { runAt: "04:00", days: 7, everyDays: 1 }
-    const result = shouldRunOnCycle(schedule, 1, store, new Date("2026-04-11T03:00:00Z"))
-    expect(result).toBe(false)
-  })
-
-  // ── runAt ─────────────────────────────────────────────────────────────────
-
-  it("returns true when current time is within the runAt window", () => {
-    const schedule = { runAt: "04:00", days: 1 }
-    // 04:05 is within [04:00, 04:15) window (CRON_INTERVAL_MINUTES = 15)
-    const result = shouldRunOnCycle(schedule, 1, store, new Date("2026-04-11T04:05:00Z"))
-    expect(result).toBe(true)
-  })
-
-  it("returns false when current time is before the runAt window", () => {
-    const schedule = { runAt: "04:00", days: 1 }
-    const result = shouldRunOnCycle(schedule, 1, store, new Date("2026-04-11T03:55:00Z"))
-    expect(result).toBe(false)
-  })
-
-  it("returns false when current time is after the runAt window", () => {
-    const schedule = { runAt: "04:00", days: 1 }
-    // 04:20 is past the [04:00, 04:15) window
-    const result = shouldRunOnCycle(schedule, 1, store, new Date("2026-04-11T04:20:00Z"))
-    expect(result).toBe(false)
-  })
-
-  it("returns false within the window but before enough days have elapsed", () => {
-    // Last run was 3 days ago, but days=7 requires 6.5+ days
-    store.set("schedule:lastRunAt:04:00", new Date("2026-04-08T04:10:00Z").toISOString())
-    const schedule = { runAt: "04:00", days: 7 }
-    const result = shouldRunOnCycle(schedule, 1, store, new Date("2026-04-11T04:05:00Z"))
-    expect(result).toBe(false)
-  })
-
-  it("returns true within the window when enough days have elapsed", () => {
-    // Last run was 8 days ago, days=7 allows 6.5+ days
-    store.set("schedule:lastRunAt:04:00", new Date("2026-04-03T04:10:00Z").toISOString())
-    const schedule = { runAt: "04:00", days: 7 }
-    const result = shouldRunOnCycle(schedule, 1, store, new Date("2026-04-11T04:05:00Z"))
-    expect(result).toBe(true)
-  })
-
-  it("returns true when no prior run exists (first run)", () => {
-    const schedule = { runAt: "04:00", days: 7 }
-    const result = shouldRunOnCycle(schedule, 1, store, new Date("2026-04-11T04:05:00Z"))
-    expect(result).toBe(true)
-  })
-
-  it("returns false for invalid runAt format", () => {
-    const schedule = { runAt: "not-a-time" } as any
-    const result = shouldRunOnCycle(schedule, 1, store, new Date())
-    expect(result).toBe(false)
-  })
-
-  // ── everyHours ─────────────────────────────────────────────────────────────
-
-  it("runs when cycleNumber is a multiple of everyHours", () => {
-    const schedule = { everyHours: 4 }
-    expect(shouldRunOnCycle(schedule, 4, store, new Date())).toBe(true)
-    expect(shouldRunOnCycle(schedule, 8, store, new Date())).toBe(true)
-    expect(shouldRunOnCycle(schedule, 12, store, new Date())).toBe(true)
-  })
-
-  it("skips when cycleNumber is not a multiple of everyHours", () => {
-    const schedule = { everyHours: 4 }
-    expect(shouldRunOnCycle(schedule, 1, store, new Date())).toBe(false)
-    expect(shouldRunOnCycle(schedule, 3, store, new Date())).toBe(false)
-    expect(shouldRunOnCycle(schedule, 5, store, new Date())).toBe(false)
-  })
-
-  it("runs every cycle when everyHours is 0 or invalid", () => {
-    const schedule = { everyHours: 0 } as any
-    expect(shouldRunOnCycle(schedule, 1, store, new Date())).toBe(true)
-    expect(shouldRunOnCycle(schedule, 999, store, new Date())).toBe(true)
-  })
-
-  // ── everyDays ───────────────────────────────────────────────────────────────
-
-  it("runs when cycleNumber matches everyDays interval", () => {
-    // 96 cycles = 24 hours (96 * 15min = 24h)
-    const schedule = { everyDays: 1 }
-    expect(shouldRunOnCycle(schedule, 96, store, new Date())).toBe(true)
-    expect(shouldRunOnCycle(schedule, 192, store, new Date())).toBe(true)
-  })
-
-  it("skips when cycleNumber does not match everyDays interval", () => {
-    const schedule = { everyDays: 1 }
-    expect(shouldRunOnCycle(schedule, 1, store, new Date())).toBe(false)
-    expect(shouldRunOnCycle(schedule, 95, store, new Date())).toBe(false)
-  })
-
-  // ── No schedule ─────────────────────────────────────────────────────────────
-
-  it("returns true when schedule is undefined", () => {
-    expect(shouldRunOnCycle(undefined, 1, store, new Date())).toBe(true)
   })
 })

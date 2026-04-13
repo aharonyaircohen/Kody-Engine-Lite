@@ -135,8 +135,8 @@ GitHub Actions workflows are stateless — each run starts fresh. Session histor
 
 Events are delivered via two paths:
 
-1. **HTTP POST** — The `dashboardHook` fires on each event, POSTing directly to the dashboard's `/api/kody/events` endpoint. This is the primary path for real-time delivery.
-2. **Local file** — Each event is also appended to `.kody/events/<sessionId>.jsonl` in the workflow run directory. This serves as a backup poll source for the SSE endpoint.
+1. **Event system** — chat events are emitted through Kody's internal event system, where they are logged and can trigger registered hooks (e.g. GitHub labels).
+2. **Local file** — each event is also appended to `.kody/events/<sessionId>.jsonl`. External systems can poll this file for events.
 
 ### Concurrency
 

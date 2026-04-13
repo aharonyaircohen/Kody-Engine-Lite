@@ -120,6 +120,42 @@ That's it. No interval config, no plugin list. The 30-minute tick and plugin sch
 }
 ```
 
+## Scheduling with Cron
+
+All agents and plugins use **standard 5-field cron expressions** in **UTC**.
+
+### Cron format
+
+```
+┌───────────── minute (0–59)
+│ ┌───────────── hour (0–23)
+│ │ ┌───────────── day of month (1–31)
+│ │ │ ┌───────────── month (1–12)
+│ │ │ │ ┌───────────── day of week (0–6, Sun=0)
+│ │ │ │ │
+* * * * *
+```
+
+### How the 30-minute engine affects scheduling
+
+Kody Watch fires every 30 minutes via GitHub Actions. When your cron fires, the engine checks whether the current time falls within a 30-minute window starting at the cron tick. For example, `0 9 * * *` (09:00 UTC) fires at any point between 09:00 and 09:29 UTC.
+
+### Common schedules
+
+| Schedule | Cron | When it fires |
+|----------|------|---------------|
+| Every 30 min | `* * * * *` | Every engine tick |
+| Every 6 hours | `0 */6 * * *` | 00:00, 06:00, 12:00, 18:00 UTC |
+| Every 12 hours | `0 */12 * * *` | 00:00, 12:00 UTC |
+| Daily at 09:00 | `0 9 * * *` | 09:00 UTC |
+| Weekly Monday 09:00 | `0 9 * * 1` | Every Monday 09:00 UTC |
+| Weekly Sunday 10:00 | `0 10 * * 0` | Every Sunday 10:00 UTC |
+
+### Tools
+
+- [crontab.guru](https://crontab.guru) — interactive cron expression editor
+- [cronitore](https://cronitore.com) — cron scheduler visualizer
+
 ## Manual Triggering
 
 Use `--agent` to run a single plugin on demand without waiting for the next scheduled tick:
@@ -181,6 +217,7 @@ Kody Watch also runs LLM-powered autonomous agents alongside plugins. Each agent
 | `dependency-checker` | every 48 cycles (daily) | Check for outdated dependencies |
 | `readme-health` | every 48 cycles (daily) | Verify README accuracy against code |
 | `skill-opportunity-hunter` | weekly (Sunday 10:00 UTC) | Find patterns worth extracting into Kody skills |
+| `dead-code-cleanup` | weekly (Monday 09:00 UTC) | Find unused exports, dead files, and unreachable code |
 
 ### skill-opportunity-hunter
 
@@ -209,6 +246,26 @@ Runs docker build, pushes to ECR, and deploys to ECS.
 ```
 
 Users review and approve before the skill is created — the agent only recommends, it never auto-registers skills.
+
+### dead-code-cleanup
+
+Scans for five categories of dead code:
+
+| Category | Detection method |
+|----------|----------------|
+| Unused exports | `tsc --noUnusedLocals` |
+| Unused imports/variables | ESLint `no-unused-vars` rules |
+| Unreachable code | Comments after `return`/`throw`/`break` |
+| Dead files | Files with exports but never imported |
+| Git-inactive files | No commits in 90+ days |
+
+Pre-flight checks for `tsc` and `npx` availability. If no dead code is found, no issue is created. One consolidated issue is created per cycle, grouped by category.
+
+**Pre-flight:** Skips all detection if `tsc` or `npx` is not installed.
+
+**Deduplication:** If an open issue with label `kody:watch:dead-code` already exists, the agent appends findings as a comment instead of creating a duplicate.
+
+**Limits:** Max 50 findings per category (truncation noted in issue).
 
 ### Manual Agent Trigger
 

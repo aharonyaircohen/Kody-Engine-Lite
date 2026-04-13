@@ -60,19 +60,20 @@ Use the `owner/repo@skill-name` from the results as the `skill` field value.
 
 ## What the Engine Does NOT Do
 
-- Ship skill files (no `skills/` directory in the package)
 - Hardcode tool-to-skill mappings in source code
 - Inject skill content into prompts (Claude Code handles this natively)
 - Know about specific tools or skills by name
 - Auto-search skills.sh to guess which skill to install
 - Have a `defaults/tools.yml` or default tool declarations
 
+> **Exception:** The engine ships one bundled skill — `templates/skills/kody/SKILL.md` — installed via `kody init` into `.claude/skills/kody/`. This skill teaches the agent how to write Kody-ready issues and interact with the pipeline. It is the only engine-shipped skill; all other skills come from skills.sh.
+
 ## Decision Log
 
 | Decision | Choice | Why |
 |----------|--------|-----|
 | Tool declarations location | `.kody/tools.yml` only | Single source of truth, no merge complexity |
-| Skill source | skills.sh exclusively | Standard ecosystem, no engine-shipped skills |
+| Skill source | skills.sh + one bundled exception | Standard ecosystem; Kody skill is bundled intentionally for self-referential use |
 | Skill installation | `npx skills add` via `skill` field | Explicit package ref, no auto-search guessing |
 | Prompt injection | None — Claude Code loads skills natively | Engine stays out of the skill business |
 | Setup/skill failure | Log warning, continue pipeline | Optional tooling should never block work |
@@ -88,6 +89,7 @@ Use the `owner/repo@skill-name` from the results as the `skill` field value.
 | `.kody/tools.yml` | Target repo | User declares their tools and skill refs |
 | `.claude/skills/` | Target repo | skills.sh installs skills here |
 | `.agents/skills/` | Target repo | skills.sh installs skills here |
+| `templates/skills/` | Engine | Bundled skills installed by `kody init` into target repos |
 
 ## Adding a New Tool (User Flow)
 
@@ -106,4 +108,6 @@ Use the `owner/repo@skill-name` from the results as the `skill` field value.
 
 ## Adding a New Built-in Skill (Wrong)
 
-Don't. Skills come from skills.sh. If a skill doesn't exist on skills.sh for a tool, create it there — not in the engine.
+Don't — unless it's the Kody self-referential skill. Skills come from skills.sh. If a skill doesn't exist on skills.sh for a tool, create it there — not in the engine.
+
+The one exception is `templates/skills/kody/SKILL.md`, which teaches the agent to interact with the Kody pipeline itself. This is self-referential by design and cannot come from skills.sh. Add new bundled skills to `templates/skills/` and update `src/bin/commands/init.ts` to install them.

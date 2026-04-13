@@ -103,7 +103,7 @@ describe("risk gate", () => {
 
     const state = await runPipeline(ctx)
 
-    expect(state.state).toBe("failed")
+    expect(state.state).toBe("paused")
     expect(state.stages.taskify.state).toBe("completed")
     expect(state.stages.plan.state).toBe("completed")
     expect(state.stages.plan.error).toContain("risk gate")

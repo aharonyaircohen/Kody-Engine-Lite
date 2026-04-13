@@ -12,7 +12,6 @@ export type HookType =
   | "github-label"
   | "github-pr"
   | "github-pr-merge"
-  | "dashboard"
   | "log";
 
 export interface GitHubLabelHookConfig {
@@ -39,11 +38,6 @@ export interface GitHubPrMergeHookConfig {
   mergeMethod?: "merge" | "squash" | "rebase";
 }
 
-export interface DashboardHookConfig {
-  type: "dashboard";
-  channel?: "chat" | "pipeline" | "notifications";
-}
-
 export interface LogHookConfig {
   type: "log";
   level?: "debug" | "info" | "warn" | "error";
@@ -54,7 +48,6 @@ export type HookConfig =
   | GitHubActionHookConfig
   | GitHubPrHookConfig
   | GitHubPrMergeHookConfig
-  | DashboardHookConfig
   | LogHookConfig;
 
 // ============ Hook Implementation ============
@@ -66,7 +59,6 @@ export interface HookContext {
   issueNumber?: number;
   githubOwner?: string;
   githubRepo?: string;
-  dashboardUrl?: string;
 }
 
 export interface HookResult {

@@ -180,7 +180,7 @@ export const configHealthPlugin: WatchPlugin = {
   name: "config-health",
   description: "Validate kody.config.json, secrets, quality commands, and .kody/ integrity",
   domain: "config",
-  schedule: { everyHours: 48 },
+  schedule: { cron: "0 9 * * *" },
 
   async run(ctx): Promise<ActionRequest[]> {
     const findings = validateConfig(process.cwd(), ctx.repo)

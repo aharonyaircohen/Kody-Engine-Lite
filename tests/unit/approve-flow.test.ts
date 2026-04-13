@@ -102,8 +102,8 @@ describe("approve flow: question pause", () => {
 
     const state = await runPipeline(ctx)
 
-    // Pipeline should be "failed" (paused)
-    expect(state.state).toBe("failed")
+    // Pipeline should be "paused" (question gate)
+    expect(state.state).toBe("paused")
     // Taskify completed but with paused error
     expect(state.stages.taskify.state).toBe("completed")
     expect(state.stages.taskify.error).toContain("paused")
@@ -446,8 +446,8 @@ describe("paused state detection", () => {
 
       const state = await runPipeline(ctx)
 
-      // State is "failed" (that's how pause is tracked)
-      expect(state.state).toBe("failed")
+      // State is "paused" (question gate)
+      expect(state.state).toBe("paused")
 
       // But it's actually paused — detectable by "paused" in error
       const isPaused = Object.values(state.stages).some(

@@ -236,6 +236,7 @@ Generates the workflow and config files deterministically. No LLM is called. Use
 Creates:
 - `.github/workflows/kody.yml`
 - `.github/workflows/kody-watch.yml`
+- `.claude/skills/kody/SKILL.md` — Kody pipeline skill (issue-writing, triggering, monitoring, verifying)
 - `kody.config.json`
 
 Run `bootstrap` next to generate repo-aware step files.

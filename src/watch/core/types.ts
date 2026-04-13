@@ -18,14 +18,8 @@ export interface WatchPlugin {
 }
 
 export interface PluginSchedule {
-  /** Run every N hours */
-  everyHours?: number
-  /** Run every N days */
-  everyDays?: number
-  /** Time-of-day to run (HH:mm format, e.g. "02:00") */
-  runAt?: string
-  /** Run every N days (used with runAt, default: 1) */
-  days?: number
+  /** Standard cron expression (5-field, UTC). Replaces all other schedule fields. */
+  cron: string
 }
 
 export interface ActionRequest {
@@ -106,23 +100,11 @@ export interface IssueInfo {
 // Watch Agents — LLM-powered autonomous agents loaded from .kody/watch/agents/
 // ============================================================================
 
-export interface WatchAgentSchedule {
-  /** Run every N hours */
-  everyHours?: number
-  /** Run every N days */
-  everyDays?: number
-  /** Time-of-day to run (HH:mm format, e.g. "02:00") */
-  runAt?: string
-  /** Run every N days (used with runAt, default: 1) */
-  days?: number
-}
-
 export interface WatchAgentConfig {
   name: string
   description: string
-  schedule: WatchAgentSchedule
-  /** Standard cron expression (5-field). Replaces schedule for new agents. */
-  cron?: string
+  /** Standard cron expression (5-field, UTC). Required for all agents. */
+  cron: string
   reportOnFailure?: boolean
   /** Agent timeout in milliseconds. Default: 20 minutes */
   timeoutMs?: number

@@ -31,7 +31,6 @@ export const hookConfig: HookConfigMap = {
   "step.waiting": [
     { type: "github-action" },
     { type: "github-label", labels: ["paused"], remove: ["active"] },
-    { type: "dashboard", channel: "chat" },
     { type: "log" },
   ],
   "step.complete": [
@@ -51,7 +50,6 @@ export const hookConfig: HookConfigMap = {
   // User interaction
   "user.response": [
     { type: "github-action" },
-    { type: "dashboard", channel: "chat" },
     { type: "log", level: "debug" },
   ],
 
@@ -69,7 +67,6 @@ export const hookConfig: HookConfigMap = {
   "session.completed": [
     { type: "github-pr", create: true },
     { type: "github-label", labels: ["session-complete"] },
-    { type: "dashboard", channel: "chat" },
     { type: "log" },
   ],
 };

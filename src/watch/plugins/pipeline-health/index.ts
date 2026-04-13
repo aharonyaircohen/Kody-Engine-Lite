@@ -168,7 +168,7 @@ export const pipelineHealthPlugin: WatchPlugin = {
   name: "pipeline-health",
   description: "Monitor .kody/tasks/ for stalled, failed, or stuck pipeline runs",
   domain: "pipeline",
-  schedule: { everyHours: 1 },
+  schedule: { cron: "* * * * *" },
 
   async run(ctx): Promise<ActionRequest[]> {
     const tasks = discoverTasks(process.cwd())

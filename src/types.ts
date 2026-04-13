@@ -42,7 +42,7 @@ export interface StageState {
 
 export interface PipelineStatus {
   taskId: string
-  state: "running" | "completed" | "failed"
+  state: "running" | "completed" | "failed" | "paused"
   stages: Record<StageName, StageState>
   sessions?: Record<string, string>
   createdAt: string

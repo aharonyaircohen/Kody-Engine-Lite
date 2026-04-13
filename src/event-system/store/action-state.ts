@@ -36,16 +36,33 @@ interface ActionStateUpdate {
   cancelledBy?: string;
 }
 
+// ─── Configurable data directory ───────────────────────────────────────────
+
+let _dataDir: string | null = null;
+
+/** Override the data directory (for testing). Defaults to process.cwd()/.kody-engine. */
+export function _setDataDir(dir: string | null): void {
+  _dataDir = dir;
+}
+
+function getDataDir(): string {
+  // _dataDir holds the project root; .kody-engine is always a subdirectory of it.
+  const base = _dataDir ?? path.join(process.cwd(), ".kody-engine");
+  return path.join(base, ".kody-engine");
+}
+
 // ─── Persistence ───────────────────────────────────────────────────────────
 
-const DATA_DIR = path.join(process.cwd(), ".kody-engine");
-const FILE = path.join(DATA_DIR, "action-state.json");
+function getFilePath(): string {
+  return path.join(getDataDir(), "action-state.json");
+}
 
 function load(): Map<string, ActionState> {
   const map = new Map<string, ActionState>();
   try {
-    if (!fs.existsSync(FILE)) return map;
-    const arr: ActionState[] = JSON.parse(fs.readFileSync(FILE, "utf-8"));
+    const file = getFilePath();
+    if (!fs.existsSync(file)) return map;
+    const arr: ActionState[] = JSON.parse(fs.readFileSync(file, "utf-8"));
     for (const s of arr) {
       map.set(s.runId, s);
     }
@@ -57,8 +74,8 @@ function load(): Map<string, ActionState> {
 
 function save(map: Map<string, ActionState>): void {
   try {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.writeFileSync(FILE, JSON.stringify([...map.values()], null, 2));
+    fs.mkdirSync(getDataDir(), { recursive: true });
+    fs.writeFileSync(getFilePath(), JSON.stringify([...map.values()], null, 2));
   } catch {
     // Ignore write errors
   }
@@ -111,15 +128,18 @@ export interface PollResult {
   ownerActionId: string;
 }
 
-/** Pop the next instruction from the queue (FIFO). */
+/** Pop the next instruction from the queue (FIFO). Persists the queue change. */
 export function pollInstruction(runId: string, callerActionId: string): PollResult {
   const map = load();
   const state = map.get(runId);
   if (!state) {
     return { instruction: null, cancel: false, cancelledBy: null, actionId: "", ownerActionId: "" };
   }
+  const instruction = state.instructions.shift() ?? null;
+  map.set(runId, state);
+  save(map);
   return {
-    instruction: state.instructions.shift() ?? null,
+    instruction,
     cancel: state.cancel,
     cancelledBy: state.cancelledBy ?? null,
     actionId: state.actionId,

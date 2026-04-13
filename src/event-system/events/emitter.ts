@@ -4,7 +4,6 @@
  */
 
 import type { KodyEvent, EventName, EventPayloadMap } from "./types.js";
-import { parseDashboardEndpoints } from "../config/environments.js";
 import { isEventName } from "./types.js";
 import type { HookContext } from "../hooks/types.js";
 import { HookRegistry } from "../hooks/registry.js";
@@ -86,14 +85,11 @@ export class KodyEmitter {
       {},
     );
 
-    // 4. Fire hook registry (GitHub labels, PRs, dashboard, etc.)
-    const endpoints = parseDashboardEndpoints(process.env.KODY_DASHBOARD_ENDPOINTS);
-    const dashboardUrl = endpoints[0]?.url ?? null;
+    // 4. Fire hook registry (GitHub labels, PRs, etc.)
     const context: HookContext = {
       runId,
       sessionId: (event.payload as { sessionId?: string }).sessionId,
       issueNumber: (event.payload as { issueNumber?: number }).issueNumber,
-      dashboardUrl: dashboardUrl ?? undefined,
     };
     try {
       const hookResults = await this.registry.fire(event, context);

@@ -115,7 +115,7 @@ export interface ChatMessagePayload {
   toolCalls?: Array<{
     name: string;
     arguments: unknown;
-    result: unknown;
+    result?: unknown;
     status: string;
   }>;
 }

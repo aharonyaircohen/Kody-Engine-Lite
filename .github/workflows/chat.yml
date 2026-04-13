@@ -11,10 +11,6 @@ on:
         description: "Model to use (default: claude-sonnet-4-6)"
         type: string
         default: ""
-      dashboardUrl:
-        description: "Dashboard URL to post events to"
-        type: string
-        default: ""
 
 concurrency:
   group: chat-${{ github.event.inputs.sessionId }}
@@ -87,11 +83,6 @@ jobs:
             echo "${VALUE}" >> $GITHUB_ENV
             echo "${DELIM}" >> $GITHUB_ENV
           done
-
-      - name: Set dashboard URL
-        if: github.event.inputs.dashboardUrl != ''
-        run: |
-          echo "KODY_DASHBOARD_ENDPOINTS=[\"{\"url\":\"${{ github.event.inputs.dashboardUrl }}\"}\"]" >> $GITHUB_ENV
 
       - name: Install kody-engine
         run: npm install -g @kody-ade/engine

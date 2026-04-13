@@ -3,8 +3,8 @@
  *
  * Reads session history from `.kody/sessions/<sessionId>.jsonl`,
  * runs Claude Code with the conversation context, and emits
- * chat events (chat.message, chat.done, chat.error) to the dashboard
- * via HTTP POST to the dashboard hook endpoint.
+ * chat events (chat.message, chat.done, chat.error) to the
+ * local event store and event system.
  *
  * Usage:
  *   kody chat --session <sessionId> --message <text>  # CLI: message creates session file
@@ -20,6 +20,7 @@ import { getAnthropicApiKeyOrDummy } from "../../config.js"
 import { anyStageNeedsProxy, getLitellmUrl } from "../../config.js"
 import { logger } from "../../logger.js"
 import { ensureLiteLlmProxyForChat } from "../../cli/litellm.js"
+import { emit } from "../../event-system/index.js"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,63 +36,6 @@ export interface ToolCall {
   arguments: unknown
   result?: unknown
   status: "completed" | "failed" | "in_progress"
-}
-
-// ─── Event emission ───────────────────────────────────────────────────────────
-
-function getDashboardUrl(): string | null {
-  const endpoints = process.env.KODY_DASHBOARD_ENDPOINTS
-  if (!endpoints) return null
-  try {
-    const parsed = JSON.parse(endpoints) as Array<{ url: string }>
-    return parsed[0]?.url ?? null
-  } catch {
-    return null
-  }
-}
-
-function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
-}
-
-async function emitEvent(
-  name: string,
-  payload: Record<string, unknown>,
-  runId: string,
-  projectDir: string,
-): Promise<void> {
-  const dashboardUrl = getDashboardUrl()
-  const sessionId = payload.sessionId as string
-
-  // Also write to local event file so SSE can poll it
-  const sessionDir = path.join(projectDir, ".kody", "events")
-  fs.mkdirSync(sessionDir, { recursive: true })
-  const eventFile = path.join(sessionDir, `${sessionId}.jsonl`)
-  const entry = {
-    id: generateId(),
-    runId,
-    event: name,
-    payload,
-    emittedAt: new Date().toISOString(),
-  }
-  fs.appendFileSync(eventFile, JSON.stringify(entry) + "\n")
-
-  // POST to dashboard hook
-  if (dashboardUrl) {
-    try {
-      const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 5000)
-      await fetch(`${dashboardUrl}/api/kody/events`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ event: name, payload, channel: "chat" }),
-        signal: controller.signal,
-      })
-      clearTimeout(timeout)
-    } catch (err) {
-      logger.debug(`[chat] dashboard emit error (non-fatal): ${err}`)
-    }
-  }
 }
 
 // ─── Session reading ──────────────────────────────────────────────────────────
@@ -222,14 +166,14 @@ export async function chatCommand(rawArgs: string[]): Promise<void> {
   }
 
   // Emit user message event
-  await emitEvent("chat.message", {
+  await emit("chat.message", {
     runId,
     sessionId,
     role: "user",
     content: lastUserMsg.content,
     timestamp: lastUserMsg.timestamp,
     toolCalls: [],
-  }, runId, projectDir)
+  })
 
   // Run Claude Code
   let assistantText = ""
@@ -329,14 +273,14 @@ export async function chatCommand(rawArgs: string[]): Promise<void> {
   }
 
   // Emit assistant message event
-  await emitEvent("chat.message", {
+  await emit("chat.message", {
     runId,
     sessionId,
     role: "assistant",
     content: assistantText,
     timestamp: assistantTimestamp,
     toolCalls,
-  }, runId, projectDir)
+  })
 
   // Append assistant response to session file
   appendToSession(sessionId, projectDir, {
@@ -347,7 +291,7 @@ export async function chatCommand(rawArgs: string[]): Promise<void> {
   })
 
   // Emit done
-  await emitEvent("chat.done", { runId, sessionId }, runId, projectDir)
+  await emit("chat.done", { runId, sessionId })
 
   // Stop LiteLLM proxy if we started it
   if (killProxy) killProxy()
