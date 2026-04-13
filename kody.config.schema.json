@@ -315,6 +315,12 @@
           "default": "",
           "examples": ["curl -X POST $SLACK_WEBHOOK -d '{\"text\": \"Released v$VERSION\"}'"]
         },
+        "e2eCommand": {
+          "type": "string",
+          "description": "Shell command to run E2E tests as a release gate. Runs before publishCommand. $VERSION is interpolated at runtime. Empty = skip (no E2E gate).",
+          "default": "",
+          "examples": ["pnpm test:e2e", "npm run e2e", "playwright test"]
+        },
         "releaseBranch": {
           "type": "string",
           "description": "Target branch for release PRs. Defaults to git.defaultBranch if not set."

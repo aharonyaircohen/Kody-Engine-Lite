@@ -1,0 +1,7 @@
+{
+  "name": "system-test",
+  "description": "Runs all E2E tests against the preview deployment and reports failures",
+  "domain": "qa",
+  "labels": ["kody:watch:system-test"],
+  "cron": "0 8 * * *"
+}

@@ -51,6 +51,7 @@ export interface ReleaseConfig {
   versionFiles: string[]
   publishCommand: string
   notifyCommand: string
+  e2eCommand: string
   releaseBranch: string
   labels: string[]
   draftRelease: boolean
@@ -89,6 +90,7 @@ export function getReleaseConfig(config: KodyConfig): ReleaseConfig {
     versionFiles: ["package.json"],
     publishCommand: "",
     notifyCommand: "",
+    e2eCommand: "",
     releaseBranch: config.git.defaultBranch,
     labels: ["kody:release"],
     draftRelease: false,
@@ -99,6 +101,7 @@ export function getReleaseConfig(config: KodyConfig): ReleaseConfig {
     // Read from env vars — these override any kody.yml value
     publishCommand: process.env.KODY_PUBLISH_COMMAND ?? config.release.publishCommand ?? defaults.publishCommand,
     notifyCommand: process.env.KODY_NOTIFY_COMMAND ?? config.release.notifyCommand ?? defaults.notifyCommand,
+    e2eCommand: process.env.KODY_E2E_COMMAND ?? config.release.e2eCommand ?? defaults.e2eCommand,
     releaseBranch: config.release.releaseBranch ?? defaults.releaseBranch,
     labels: config.release.labels ?? defaults.labels,
     draftRelease: config.release.draftRelease ?? defaults.draftRelease,
@@ -530,24 +533,34 @@ export async function releaseFinalizeCommand(input: ReleaseInput): Promise<void>
     }
   }
 
-  // 3. Publish
-  logger.info("Step 3/5: Publish")
+  // E2E gate — runs before publish to block bad releases
+  if (rc.e2eCommand) {
+    logger.info("Step 3/6: E2E gate")
+    const success = runShellHook(rc.e2eCommand, version, "e2e", input.dryRun)
+    if (!success) {
+      logger.error("E2E gate failed — publish blocked")
+      process.exit(1)
+    }
+  }
+
+  // 4. Publish
+  logger.info("Step 4/6: Publish")
   if (input.noPublish || !rc.publishCommand) {
     logger.info("  Publish skipped")
   } else {
     runShellHook(rc.publishCommand, version, "publish", input.dryRun)
   }
 
-  // 4. Notify
-  logger.info("Step 4/5: Notify")
+  // 5. Notify
+  logger.info("Step 5/6: Notify")
   if (input.noNotify || !rc.notifyCommand) {
     logger.info("  Notifications skipped")
   } else {
     runShellHook(rc.notifyCommand, version, "notify", input.dryRun)
   }
 
-  // 5. Cleanup
-  logger.info("Step 5/5: Cleanup")
+  // 6. Cleanup
+  logger.info("Step 6/6: Cleanup")
   if (input.dryRun) {
     logger.info(`  [dry-run] Would delete branch: ${releaseBranch}`)
   } else {
@@ -557,9 +570,9 @@ export async function releaseFinalizeCommand(input: ReleaseInput): Promise<void>
     }
   }
 
-  // 6. Sync dev branch
+  // 7. Sync dev branch
   const devBranch = process.env.KODY_DEV_BRANCH ?? "dev"
-  logger.info(`Step 6/6: Sync dev branch (${devBranch})`)
+  logger.info(`Step 7/7: Sync dev branch (${devBranch})`)
   if (input.dryRun) {
     logger.info(`  [dry-run] Would merge ${rc.releaseBranch} → ${devBranch} and create sync PR`)
   } else {
