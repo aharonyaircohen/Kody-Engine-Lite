@@ -85,6 +85,8 @@ async function importStores() {
   deleteActionState = actionState.deleteActionState
   isActionStale = actionState.isActionStale
   expireStaleActions = actionState.expireStaleActions
+  upsertChatSession = actionState.upsertChatSession
+  enqueueChatMessage = actionState.enqueueChatMessage
 
   // pr-state
   const prState = await import("../../src/event-system/store/pr-state.js")
@@ -254,6 +256,8 @@ describe("action-state", () => {
     deleteActionState = actionState.deleteActionState
     isActionStale = actionState.isActionStale
     expireStaleActions = actionState.expireStaleActions
+    upsertChatSession = actionState.upsertChatSession
+    enqueueChatMessage = actionState.enqueueChatMessage
   })
 
   describe("upsertActionState", () => {
@@ -332,6 +336,52 @@ describe("action-state", () => {
       const result = pollInstruction("action-1", "act-1")
       expect(result.cancel).toBe(true)
       expect(result.cancelledBy).toBe("user")
+    })
+  })
+
+  describe("upsertChatSession", () => {
+    it("creates a chat session with status=waiting and step=chat", () => {
+      const state = upsertChatSession("chat-run-1", "sess-abc")
+      expect(state).not.toBeNull()
+      expect(state!.runId).toBe("chat-run-1")
+      expect(state!.sessionId).toBe("sess-abc")
+      expect(state!.status).toBe("waiting")
+      expect(state!.step).toBe("chat")
+    })
+
+    it("updates an existing chat session without changing runId", () => {
+      upsertChatSession("chat-run-1", "sess-abc")
+      const updated = upsertChatSession("chat-run-1", "sess-xyz")
+      expect(updated).not.toBeNull()
+      expect(updated!.sessionId).toBe("sess-xyz")
+      expect(updated!.status).toBe("waiting")
+    })
+
+    it("is callable multiple times for the same runId", () => {
+      upsertChatSession("chat-run-1", "sess-1")
+      upsertChatSession("chat-run-1", "sess-2")
+      upsertChatSession("chat-run-1", "sess-3")
+      const state = getActionState("chat-run-1")
+      expect(state?.sessionId).toBe("sess-3")
+    })
+  })
+
+  describe("enqueueChatMessage", () => {
+    it("returns false when no session exists", () => {
+      expect(enqueueChatMessage("unknown-run", "hello")).toBe(false)
+    })
+
+    it("enqueues a message for an existing chat session", () => {
+      upsertChatSession("chat-run-1", "sess-1")
+      const result = enqueueChatMessage("chat-run-1", "Fix the login bug")
+      expect(result).toBe(true)
+    })
+
+    it("makes the message available via pollInstruction", () => {
+      upsertChatSession("chat-run-1", "sess-1")
+      enqueueChatMessage("chat-run-1", "Run the tests")
+      const polled = pollInstruction("chat-run-1", "chat-run-1")
+      expect(polled.instruction).toBe("Run the tests")
     })
   })
 

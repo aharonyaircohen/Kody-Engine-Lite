@@ -40,3 +40,4 @@ demo/videos/
 
 # Test coverage
 coverage/
+.kody-engine/
