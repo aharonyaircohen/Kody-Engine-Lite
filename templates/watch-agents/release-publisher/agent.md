@@ -50,6 +50,15 @@ This will:
 
 After `kody release` completes, extract the **new version** from the PR title (format: `chore: release v1.2.3`).
 
+If `package.json` version was bumped, regenerate `pnpm-lock.yaml` to avoid CI failures:
+
+```bash
+pnpm install
+git add pnpm-lock.yaml
+git commit --amend --no-edit
+git push
+```
+
 Post a comment on the tracking issue:
 ```
 ✅ Release PR created: {PR_URL}
