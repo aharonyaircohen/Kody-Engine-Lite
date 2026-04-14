@@ -381,6 +381,17 @@ export function submitPRReview(
   }
 }
 
+export function mergePR(prNumber: number): boolean {
+  try {
+    gh(["pr", "merge", String(prNumber), "--squash", "--auto"])
+    logger.info(`  PR #${prNumber} merged`)
+    return true
+  } catch (err) {
+    logger.error(`  Failed to merge PR #${prNumber}: ${ghErrorMessage(err)}`)
+    return false
+  }
+}
+
 export function getCIFailureLogs(
   runId: string | number,
   maxLength: number = 8000,

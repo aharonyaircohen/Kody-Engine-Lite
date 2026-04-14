@@ -103,6 +103,8 @@ if (command === "init") {
       noPublish: args.includes("--no-publish"),
       noNotify: args.includes("--no-notify"),
       issueNumber: issueStr ? parseInt(issueStr, 10) : undefined,
+      version: getArg(args, "--version") ?? undefined,
+      merge: args.includes("--merge"),
       cwd: getArg(args, "--cwd"),
     }
     return input.finalize ? releaseFinalizeCommand(input) : releaseCommand(input)

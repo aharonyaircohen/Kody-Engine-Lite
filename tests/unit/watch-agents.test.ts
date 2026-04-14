@@ -311,7 +311,7 @@ describe("release-publisher agent", () => {
   it("loads agent with all required fields", () => {
     createAgent({
       name: "release-publisher",
-      description: "Creates a release tracking issue and runs @kody release to open a release PR",
+      description: "Automates the full release lifecycle: creates tracking issue, runs kody release, monitors PR until ready, merges to main, and finalizes (E2E gate, tag, GitHub Release, publish, notify)",
       cron: "0 10 * * 1",
     }, "Create release issue and run @kody release.")
 
@@ -319,7 +319,7 @@ describe("release-publisher agent", () => {
     expect(warnings).toHaveLength(0)
     expect(agents).toHaveLength(1)
     expect(agents[0].config.name).toBe("release-publisher")
-    expect(agents[0].config.description).toBe("Creates a release tracking issue and runs @kody release to open a release PR")
+    expect(agents[0].config.description).toBe("Automates the full release lifecycle: creates tracking issue, runs kody release, monitors PR until ready, merges to main, and finalizes (E2E gate, tag, GitHub Release, publish, notify)")
     expect(agents[0].config.cron).toBe("0 10 * * 1")
   })
 

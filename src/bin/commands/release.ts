@@ -33,6 +33,8 @@ import {
   getBlockingPRs,
   deleteRemoteBranch,
   findMergedPRByHead,
+  getPRForBranch,
+  mergePR,
 } from "../../github-api.js"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -44,6 +46,10 @@ export interface ReleaseInput {
   noPublish?: boolean
   noNotify?: boolean
   issueNumber?: number
+  /** Explicit version for finalize (avoids reading from merged package.json) */
+  version?: string
+  /** If true, finalize will merge the release PR after E2E passes */
+  merge?: boolean
   cwd?: string
 }
 
@@ -502,16 +508,28 @@ export async function releaseFinalizeCommand(input: ReleaseInput): Promise<void>
 
   logger.info(`${prefix}Finalizing release...`)
 
-  // Read version from the (now merged) version file
-  const version = getCurrentVersion(cwd, rc.versionFiles)
+  // Version: use explicit --version if provided, otherwise read from merged package.json
+  const version = input.version ?? getCurrentVersion(cwd, rc.versionFiles)
   const tag = `v${version}`
   const releaseBranch = `release/v${version}`
 
   logger.info(`  Version: ${version}`)
   logger.info(`  Tag: ${tag}`)
 
-  // 1. Create and push tag
-  logger.info("Step 1/5: Create git tag")
+  // 1. E2E gate FIRST — blocks all further steps if it fails
+  if (rc.e2eCommand) {
+    logger.info("Step 1/6: E2E gate")
+    const success = runShellHook(rc.e2eCommand, version, "e2e", input.dryRun)
+    if (!success) {
+      logger.error("E2E gate failed — release blocked")
+      process.exit(1)
+    }
+  } else {
+    logger.info("Step 1/6: E2E gate (skipped — no e2eCommand configured)")
+  }
+
+  // 2. Create and push tag
+  logger.info("Step 2/6: Create git tag")
   if (input.dryRun) {
     logger.info(`  [dry-run] Would create tag: ${tag}`)
   } else {
@@ -520,8 +538,8 @@ export async function releaseFinalizeCommand(input: ReleaseInput): Promise<void>
     logger.info(`  Tag ${tag} created and pushed`)
   }
 
-  // 2. Create GitHub Release
-  logger.info("Step 2/5: Create GitHub Release")
+  // 3. Create GitHub Release
+  logger.info("Step 3/6: Create GitHub Release")
   const mergedPR = findMergedPRByHead(releaseBranch)
   const releaseBody = mergedPR?.body ?? `Release ${version}`
 
@@ -534,50 +552,69 @@ export async function releaseFinalizeCommand(input: ReleaseInput): Promise<void>
     }
   }
 
-  // E2E gate — runs before publish to block bad releases
-  if (rc.e2eCommand) {
-    logger.info("Step 3/6: E2E gate")
-    const success = runShellHook(rc.e2eCommand, version, "e2e", input.dryRun)
-    if (!success) {
-      logger.error("E2E gate failed — publish blocked")
-      process.exit(1)
+  // 4. Merge PR (if --merge flag)
+  if (input.merge) {
+    logger.info("Step 4/6: Merge release PR")
+    if (input.dryRun) {
+      logger.info(`  [dry-run] Would merge PR for branch: ${releaseBranch}`)
+    } else {
+      const pr = findMergedPRByHead(releaseBranch)
+      if (pr) {
+        logger.info(`  PR already merged: #${pr.number}`)
+      } else {
+        // Find open PR for this release branch and merge it
+        const openPr = getPRForBranch(releaseBranch)
+        if (!openPr) {
+          logger.error(`  No open PR found for branch: ${releaseBranch}`)
+          process.exit(1)
+        }
+        const merged = mergePR(openPr.number)
+        if (!merged) {
+          logger.error(`  Failed to merge PR #${openPr.number}`)
+          process.exit(1)
+        }
+      }
     }
+  } else {
+    logger.info("Step 4/6: Merge release PR (skipped — use --merge to merge)")
   }
 
-  // 4. Publish
-  logger.info("Step 4/6: Publish")
+  // 5. Publish
+  logger.info("Step 5/6: Publish")
   if (input.noPublish || !rc.publishCommand) {
     logger.info("  Publish skipped")
   } else {
     runShellHook(rc.publishCommand, version, "publish", input.dryRun)
   }
 
-  // 5. Notify
-  logger.info("Step 5/6: Notify")
+  // 6. Notify
+  logger.info("Step 6/6: Notify")
   if (input.noNotify || !rc.notifyCommand) {
     logger.info("  Notifications skipped")
   } else {
     runShellHook(rc.notifyCommand, version, "notify", input.dryRun)
   }
 
-  // 6. Cleanup
-  logger.info("Step 6/6: Cleanup")
-  if (input.dryRun) {
-    logger.info(`  [dry-run] Would delete branch: ${releaseBranch}`)
-  } else {
+  // Cleanup (only after merge)
+  if (!input.merge) {
+    logger.info("  Cleanup skipped (PR not merged)")
+  } else if (!input.dryRun) {
     deleteRemoteBranch(releaseBranch)
-    if (mergedPR) {
-      postPRComment(mergedPR.number, `Released in v${version}`)
+    const pr = findMergedPRByHead(releaseBranch)
+    if (pr) {
+      postPRComment(pr.number, `Released in v${version}`)
     }
   }
 
   logger.info(`\n${prefix}Release v${version} complete!`)
 
   if (input.issueNumber && !input.dryRun) {
+    const releaseUrl = `https://github.com/${config.github.owner}/${config.github.repo}/releases/tag/${tag}`
     postComment(input.issueNumber,
       `🚀 **Release v${version} finalized!**\n\n` +
       `- Tag: \`${tag}\`\n` +
-      `- [GitHub Release](https://github.com/${config.github.owner}/${config.github.repo}/releases/tag/${tag})\n` +
+      `- [GitHub Release](${releaseUrl})\n` +
+      (input.merge ? `- Merged to main\n` : "") +
       (rc.publishCommand ? `- Published\n` : "") +
       (rc.notifyCommand ? `- Notification sent\n` : ""),
     )
