@@ -323,7 +323,8 @@
         },
         "releaseBranch": {
           "type": "string",
-          "description": "Target branch for release PRs. Defaults to git.defaultBranch if not set."
+          "description": "Production branch — E2E gates PRs into this branch. Release PR targets git.defaultBranch. Defaults to 'main'.",
+          "default": "main"
         },
         "labels": {
           "type": "array",
