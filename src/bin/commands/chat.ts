@@ -274,6 +274,130 @@ async function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+// ─── Git sync helpers ──────────────────────────────────────────────────────────
+
+async function gitCmd(cwd: string, token: string, cmd: string, captureStderr = true): Promise<{ok: boolean; out: string}> {
+  const { execSync } = await import("child_process")
+  const env: Record<string, string | undefined> = {
+    ...process.env,
+    GIT_TERMINAL_PROMPT: "0",
+    GITHUB_TOKEN: token,
+    GH_TOKEN: token,
+  }
+  try {
+    const stdio: Array<"pipe" | "ignore"> = captureStderr ? ["pipe", "pipe", "pipe"] : ["pipe", "ignore", "ignore"]
+    const out = execSync(cmd, { cwd, env, stdio: stdio as unknown as "pipe" })
+    return { ok: true, out: out ? String(out) : "" }
+  } catch (e) {
+    const err = e instanceof Error ? e.message : String(e)
+    return { ok: false, out: err }
+  }
+}
+
+async function gitPushAuth(repoDir: string, token: string): Promise<boolean> {
+  // Use GitHub Contents API to push action-state.json.
+  // This avoids git operations that fail in shallow clones with dirty working trees.
+  const { execSync } = await import("child_process")
+  const env: Record<string, string | undefined> = {
+    ...process.env,
+    GIT_TERMINAL_PROMPT: "0",
+    GITHUB_TOKEN: token,
+  }
+  // Get the remote URL to extract owner/repo
+  const remoteUrl = String(
+    execSync("git remote get-url origin", { cwd: repoDir, env, stdio: "pipe" }),
+  ).trim()
+  const match = remoteUrl.match(/github\.com[/:]([^/]+)\/([^/.]+)/)
+  if (!match) {
+    console.error(`[chat:github] could not parse remote URL: ${remoteUrl}`)
+    return false
+  }
+  const [, owner, repo] = match
+  const filePath = ".kody-engine/action-state.json"
+  const shaUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`
+  // Read current file content from engine's data dir path (.kody-engine/action-state.json).
+  const localPath = path.join(repoDir, ".kody-engine", "action-state.json")
+  const currentContent = fs.readFileSync(localPath, "utf-8")
+  // Get current SHA from GitHub
+  const shaCmd = `curl -s -H "Authorization: Bearer ${token}" -H "Accept: application/vnd.github.v3+json" "${shaUrl}"`
+  let sha: string
+  try {
+    const shaResult = String(execSync(shaCmd, { cwd: repoDir, env, stdio: ["pipe", "pipe", "pipe"] }))
+    const shaJson = JSON.parse(shaResult)
+    sha = shaJson.sha
+  } catch {
+    sha = "" // File might not exist yet
+  }
+  // Push via GitHub API
+  const pushUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`
+  const body = JSON.stringify({
+    message: "chore: update chat session state",
+    content: Buffer.from(currentContent).toString("base64"),
+    sha: sha || undefined,
+  })
+  const pushCmd = `curl -s -X PUT -H "Authorization: Bearer ${token}" -H "Content-Type: application/json" -d '${body.replace(/'/g, "'\\''")}' "${pushUrl}"`
+  try {
+    const pushResult = String(execSync(pushCmd, { cwd: repoDir, env, stdio: ["pipe", "pipe", "pipe"] }))
+    const pushJson = JSON.parse(pushResult)
+    if (pushJson.content) {
+      return true
+    }
+    console.error(`[chat:github] push failed: ${pushResult.slice(0, 200)}`)
+    return false
+  } catch (e) {
+    const err = e instanceof Error ? e.message : String(e)
+    console.error(`[chat:github] push failed: ${err.slice(0, 300)}`)
+    return false
+  }
+}
+
+async function gitPullWithRebase(repoDir: string, token: string): Promise<void> {
+  // Use GitHub Contents API to fetch action-state.json directly from origin.
+  // This avoids git operations that fail in shallow clones with dirty working trees.
+  // GitHub always serves the latest committed version of the file.
+  try {
+    const { execSync } = await import("child_process")
+    const env: Record<string, string | undefined> = {
+      ...process.env,
+      GIT_TERMINAL_PROMPT: "0",
+      GITHUB_TOKEN: token,
+    }
+    // Get the remote URL to extract owner/repo
+    const remoteUrl = String(
+      execSync("git remote get-url origin", { cwd: repoDir, env, stdio: "pipe" }),
+    ).trim()
+    // Parse: https://github.com/owner/repo.git or git@github.com:owner/repo.git
+    const match = remoteUrl.match(/github\.com[/:]([^/]+)\/([^/.]+)/)
+    if (!match) {
+      console.error(`[chat:github] could not parse remote URL: ${remoteUrl}`)
+      return
+    }
+    const [, owner, repo] = match
+    const filePath = ".kody-engine/action-state.json"
+    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`
+    const curlCmd = `curl -s -H "Authorization: Bearer ${token}" -H "Accept: application/vnd.github.v3.raw" "${url}"`
+    const result = execSync(curlCmd, { cwd: repoDir, env, stdio: ["pipe", "pipe", "pipe"] })
+    const content = String(result).trim()
+    if (content && content.startsWith("[")) {
+      // Write to engine's data dir path (.kody-engine/) so pollInstruction reads it.
+      const actionStateDir = path.join(repoDir, ".kody-engine")
+      const actionStatePath = path.join(actionStateDir, "action-state.json")
+      execSync(`mkdir -p "${actionStateDir}" && cat > "${actionStatePath}"`, {
+        cwd: repoDir,
+        env,
+        stdio: ["pipe", "pipe", "pipe"],
+        input: content,
+      })
+      console.error(`[chat:github] synced action-state.json from origin (${content.length} bytes)`)
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    console.error(`[chat:github] sync failed: ${msg.slice(0, 200)}`)
+  }
+}
+
+// ─── Polling loop ────────────────────────────────────────────────────────────
+
 async function runPollingLoop(
   runId: string,
   sessionId: string,
@@ -283,20 +407,47 @@ async function runPollingLoop(
   pollIntervalMs: number,
   idleTimeoutMs: number,
 ): Promise<void> {
+  console.error(`[chat:runPollingLoop] ENTERED — runId=${runId}`)
+
   // Register this session so Dashboard can find it
   upsertChatSession(runId, sessionId)
+  console.error(`[chat:startup] registered runId=${runId} sessionId=${sessionId}`)
+
+  // Commit the initial registration so subsequent git pulls can see it
+  const ghToken = process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN ?? undefined
+  console.error(`[chat:startup] GH_TOKEN present: ${!!ghToken}`)
+  if (ghToken) {
+    const ok = await gitPushAuth(projectDir, ghToken)
+    console.error(`[chat:startup] git push ${ok ? "ok" : "FAILED"}`)
+  } else {
+    console.error("[chat:git] no GH_TOKEN — skipping push, state is local only")
+  }
 
   logger.info(`[chat:polling] session=${sessionId} idleTimeout=${idleTimeoutMs}ms`)
+  console.error(`[chat:polling] STARTED — session=${sessionId} pollInterval=${pollIntervalMs}ms idleTimeout=${idleTimeoutMs}ms`)
 
   // lastMessageAt = when the last message was successfully processed.
   // idleSince  = when we first started waiting with no pending instruction.
   //               null means we are not currently in an idle window.
   let lastMessageAt = Date.now()
   let idleSince: number | null = null
+  let idleDebugLogged = false
 
   while (true) {
     // Poll for new messages
-    const result = pollInstruction(runId, sessionId)
+    let result = pollInstruction(runId, sessionId)
+
+    // If no message in our own queue, also check for queued initial message
+    // (written by the workflow with runId = "chat-<sessionId>-init")
+    if (!result.instruction) {
+      const initRunId = `chat-${sessionId}-init`
+      result = pollInstruction(initRunId, sessionId)
+      if (result.instruction) {
+        console.error(`[chat:polling] found queued init message from runId=${initRunId}`)
+      }
+    }
+
+    console.error(`[chat:polling] poll result: instruction=${!!result.instruction} cancel=${result.cancel}`)
 
     if (result.cancel) {
       logger.info(`[chat:polling] cancelled by=${result.cancelledBy}`)
@@ -309,14 +460,21 @@ async function runPollingLoop(
       // Got a message — reset idle tracking and process it
       idleSince = null
       lastMessageAt = Date.now()
-      logger.info(`[chat:polling] processing message: "${result.instruction.slice(0, 60)}..."`)
+      console.error(`[chat:polling] processing: "${result.instruction.slice(0, 60)}..."`)
 
       try {
         await processMessage(runId, sessionId, projectDir, result.instruction, model, usesProxy)
       } catch (err) {
         const error = err instanceof Error ? err.message : String(err)
-        logger.error(`[chat:polling] message failed: ${error}`)
+        console.error(`[chat:polling] message failed: ${error}`)
         await emit("chat.error", { runId, sessionId, error })
+      }
+
+      // Push consumed state to GitHub so gitPullWithRebase doesn't re-download the queued message.
+      // This breaks the infinite loop where GitHub sync would overwrite the consumed state.
+      const ghToken2 = process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN ?? undefined
+      if (ghToken2) {
+        await gitPushAuth(projectDir, ghToken2)
       }
 
       // After processing, loop immediately to check for more messages
@@ -324,12 +482,36 @@ async function runPollingLoop(
     }
 
     // No instruction received. Start or extend the idle window.
-    if (idleSince === null) idleSince = Date.now()
+    if (idleSince === null) {
+      idleSince = Date.now()
+      console.error(`[chat:polling] idle — waiting ${pollIntervalMs}ms until next poll`)
+      idleDebugLogged = false
+    }
+
+    // Pull latest action-state.json from repo so Dashboard's enqueued messages are visible.
+    const ghToken = process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN ?? undefined
+    if (ghToken) {
+      await gitPullWithRebase(projectDir, ghToken)
+    }
+
+    // Debug: read and log the actual action-state.json content after first pull
+    if (!idleDebugLogged) {
+      idleDebugLogged = true
+      try {
+        const fs = await import("fs")
+        const actionStatePath = path.join(projectDir, ".kody-engine", "action-state.json")
+        const content = fs.readFileSync(actionStatePath, "utf-8")
+        console.error(`[chat:debug] action-state after pull: ${content.slice(0, 500)}`)
+      } catch (e) {
+        console.error(`[chat:debug] could not read action-state: ${e instanceof Error ? e.message : String(e)}`)
+      }
+    }
 
     // Check idle timeout BEFORE sleeping: if we've been idle for > idleTimeoutMs, exit now
     // without waiting for another poll interval.
-    if (Date.now() - idleSince > idleTimeoutMs) {
-      logger.info(`[chat:polling] idle timeout reached (${idleTimeoutMs}ms)`)
+    const idleElapsed = Date.now() - (idleSince ?? Date.now())
+    if (idleElapsed > idleTimeoutMs) {
+      console.error(`[chat:polling] idle timeout reached (${idleElapsed}ms > ${idleTimeoutMs}ms) — exiting`)
       await emit("chat.done", { runId, sessionId })
       return
     }
@@ -342,11 +524,13 @@ async function runPollingLoop(
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 export async function chatCommand(rawArgs: string[]): Promise<void> {
+  process.stderr.write(`[chat:cmd] rawArgs=${JSON.stringify(rawArgs)}\n`)
   const sessionId = getArg(rawArgs, "--session")
   const message = getArg(rawArgs, "--message")
   const model = getArg(rawArgs, "--model")
   const cwd = getArg(rawArgs, "--cwd")
   const isPolling = rawArgs.includes("--poll")
+  console.error(`[chat:cmd] isPolling=${isPolling} message=${!!message} sessionId=${sessionId}`)
 
   if (!sessionId) {
     console.error(

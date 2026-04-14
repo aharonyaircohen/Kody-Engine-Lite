@@ -117,8 +117,8 @@ async function runSubprocess(
 
   const errDetail = stderr.slice(-STDERR_TAIL_CHARS) || stdout.slice(-STDERR_TAIL_CHARS)
   return {
-    outcome: code === null ? "timed_out" : "failed",
-    error: `Exit code ${code}\n${errDetail}`,
+    outcome: code === null || code === 143 ? "timed_out" : "failed",
+    error: `Exit code ${code}${code === 143 ? " (SIGTERM — internal timeout)" : ""}\n${errDetail}`,
   }
 }
 
@@ -257,11 +257,12 @@ export function createSdkRunner(): AgentRunner {
       } catch (e) {
         clearTimeout(timer)
         const err = e instanceof Error ? e.message : String(e)
-        if (err.includes("maximum number of turns")) {
-          return { outcome: "timed_out", output, error: "maxTurns" }
-        }
-        if (err.includes("maximum budget")) {
-          return { outcome: "timed_out", output, error: "maxBudget" }
+        if (
+          err.includes("maximum number of turns") ||
+          err.includes("maximum budget") ||
+          err.includes("aborted")
+        ) {
+          return { outcome: "timed_out", output, error: err }
         }
         return { outcome: "failed", output, error: err }
       }

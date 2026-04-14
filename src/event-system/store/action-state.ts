@@ -46,8 +46,8 @@ export function _setDataDir(dir: string | null): void {
 }
 
 function getDataDir(): string {
-  // _dataDir holds the project root; .kody-engine is always a subdirectory of it.
-  const base = _dataDir ?? path.join(process.cwd(), ".kody-engine");
+  // _dataDir holds the project root; .kody-engine is a subdirectory of it.
+  const base = _dataDir ?? process.cwd();
   return path.join(base, ".kody-engine");
 }
 

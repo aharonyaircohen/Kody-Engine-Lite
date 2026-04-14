@@ -173,6 +173,7 @@ export async function executeAgentStage(
     allowedTools: def.allowedTools,
     outputFormat: def.outputFormat,
     agents: subAgents,
+    agentLogFile: path.join(ctx.taskDir, "logs", `${def.name}.log`),
   })
 
   let retries = 0
@@ -193,16 +194,26 @@ export async function executeAgentStage(
     const failureContext = buildFailureContext(lastResult)
     const retryPrompt = prompt + failureContext
 
+    // Discard the failed session so the retry gets a fresh one — Claude CLI rejects
+    // resuming a session that was already marked as in-use by the failed attempt.
+    delete sessions[SESSION_GROUP[def.name]]
+
     logger.info(`  retry ${retries}/${maxRetries} with model=${model}`)
+    const retrySessionInfo = getSessionInfo(def.name, sessions)
+    if (retrySessionInfo) {
+      logger.info(`  session: ${SESSION_GROUP[def.name]} (fresh retry)`)
+    }
     lastResult = await runner.run(def.name, retryPrompt, model, def.timeout, ctx.taskDir, {
       cwd: ctx.projectDir,
       env: extraEnv,
+      ...retrySessionInfo,
       mcpConfigJson,
       maxTurns: def.maxTurns,
       maxBudgetUsd: def.maxBudgetUsd,
       allowedTools: def.allowedTools,
       outputFormat: def.outputFormat,
       agents: subAgents,
+      agentLogFile: path.join(ctx.taskDir, "logs", `${def.name}.log`),
     })
   }
 
@@ -252,10 +263,13 @@ export async function executeAgentStage(
           const retryResult = await runner.run(def.name, retryPrompt, model, def.timeout, ctx.taskDir, {
             cwd: ctx.projectDir,
             env: extraEnv,
+            ...sessionInfo,
+            mcpConfigJson,
             maxTurns: def.maxTurns,
             maxBudgetUsd: def.maxBudgetUsd,
             allowedTools: def.allowedTools,
             outputFormat: def.outputFormat,
+            agentLogFile: path.join(ctx.taskDir, "logs", `${def.name}.log`),
           })
           if (retryResult.outcome === "completed" && retryResult.output) {
             const stripped = stripFences(retryResult.output)

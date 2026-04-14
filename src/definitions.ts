@@ -2,7 +2,7 @@ import type { StageDefinition } from "./types.js"
 
 // Default budget/turn limits per stage
 export const DEFAULT_BUDGETS: Record<string, { maxTurns: number; maxBudgetUsd: number }> = {
-  taskify:     { maxTurns: 20,  maxBudgetUsd: 0.50 },
+  taskify:     { maxTurns: 30,  maxBudgetUsd: 1.50 },
   plan:        { maxTurns: 30,  maxBudgetUsd: 1.00 },
   build:       { maxTurns: 100, maxBudgetUsd: 5.00 },
   verify:      { maxTurns: 20,  maxBudgetUsd: 0.50 },
