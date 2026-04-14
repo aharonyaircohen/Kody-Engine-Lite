@@ -19,11 +19,32 @@ Read `kody.config.json` from the repo root:
 cat kody.config.json
 ```
 
-Parse `release.e2eCommand`. If it is empty or not set, write a skip entry to the memory file and exit silently.
+Parse `release.e2eCommand`. If it is empty or not set, skip silently and exit.
 
-If set, store the value — this is the command to run.
+### Step 2: Create a tracking issue
 
-### Step 2: Run E2E tests
+First, check if there is already an open issue with the label `kody:watch:system-test` for today. If one already exists, use it. If not, create one:
+
+1. `gh issue list --label kody:watch:system-test --state open` — check for existing
+2. If none found, `gh issue create`:
+   - Title: `Watch: System Test — {date}`
+   - Labels: `kody:watch:system-test`
+   - Body: Brief description noting E2E tests will run against `PREVIEW_URL`
+
+Store the issue number — all subsequent posts go to this issue.
+
+### Step 3: Trigger @kody release
+
+On the issue, post:
+```
+@kody release --issue-number {issue_number}
+```
+
+This triggers the release workflow for this cycle.
+
+### Step 4: Run E2E tests
+
+Wait briefly for the release workflow to start, then run the E2E suite:
 
 Set `NEXT_PUBLIC_SERVER_URL` to `PREVIEW_URL` so tests hit the preview:
 ```bash
@@ -39,7 +60,7 @@ echo "EXIT_CODE=$EXIT_CODE"
 
 Capture the exit code. If the command fails, record the output for error reporting.
 
-### Step 3: Write to memory file
+### Step 5: Write to memory file
 
 Read the existing `.kody/memory/watch-system-test.json` if it exists to get `totalCycles`.
 
@@ -65,9 +86,9 @@ Write to `.kody/memory/watch-system-test.json`:
 
 Keep only the last 100 entries in the `cycles` array.
 
-### Step 4: Post to digest issue
+### Step 6: Post results to the tracking issue
 
-If `WATCH_DIGEST_ISSUE_SYSTEM_TEST` env var is set, post a comment:
+Post a comment on the issue created in Step 2:
 ```
 ## watch-system-test | Cycle {{cycleNumber}} | {{timestamp}}
 
@@ -83,13 +104,3 @@ If `WATCH_DIGEST_ISSUE_SYSTEM_TEST` env var is set, post a comment:
 
 Report saved to `.kody/memory/watch-system-test.json`
 ```
-
-### Step 5: Create GitHub issue for failures
-
-If the E2E run failed and `WATCH_DIGEST_ISSUE_SYSTEM_TEST` is set, create a GitHub issue:
-1. `gh issue create`
-2. Title: `Watch: System Test — E2E failed on preview`
-3. Body: E2E command, target URL, exit code, truncated error output, cycle number, timestamp
-4. Labels: `kody:watch:system-test`, `bug`
-
-Only create an issue if this is a **new failure** (previous cycle was passing). Check the memory file to determine the previous status.
