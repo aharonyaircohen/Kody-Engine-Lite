@@ -321,6 +321,12 @@
           "default": "",
           "examples": ["pnpm test:e2e", "npm run e2e", "playwright test"]
         },
+        "timeoutMs": {
+          "type": "integer",
+          "description": "Timeout in milliseconds for e2eCommand, publishCommand, and notifyCommand. Default: 600000 (10 minutes).",
+          "default": 600000,
+          "examples": [600000, 1200000, 1800000]
+        },
         "releaseBranch": {
           "type": "string",
           "description": "Production branch — E2E gates PRs into this branch. Release PR targets git.defaultBranch. Defaults to 'main'.",

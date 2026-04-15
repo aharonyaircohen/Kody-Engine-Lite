@@ -58,6 +58,7 @@ export interface ReleaseConfig {
   publishCommand: string
   notifyCommand: string
   e2eCommand: string
+  timeoutMs: number
   releaseBranch: string
   labels: string[]
   draftRelease: boolean
@@ -97,6 +98,7 @@ export function getReleaseConfig(config: KodyConfig): ReleaseConfig {
     publishCommand: "",
     notifyCommand: "",
     e2eCommand: "",
+    timeoutMs: 600_000,
     releaseBranch: config.git.defaultBranch,
     labels: ["kody:release"],
     draftRelease: false,
@@ -108,6 +110,7 @@ export function getReleaseConfig(config: KodyConfig): ReleaseConfig {
     publishCommand: process.env.KODY_PUBLISH_COMMAND ?? config.release.publishCommand ?? defaults.publishCommand,
     notifyCommand: process.env.KODY_NOTIFY_COMMAND ?? config.release.notifyCommand ?? defaults.notifyCommand,
     e2eCommand: process.env.KODY_E2E_COMMAND ?? config.release.e2eCommand ?? defaults.e2eCommand,
+    timeoutMs: config.release.timeoutMs ?? defaults.timeoutMs,
     releaseBranch: config.release.releaseBranch ?? defaults.releaseBranch,
     labels: config.release.labels ?? defaults.labels,
     draftRelease: config.release.draftRelease ?? defaults.draftRelease,
@@ -314,6 +317,7 @@ export function runShellHook(
   version: string,
   label: string,
   dryRun: boolean,
+  timeoutMs = 600_000,
 ): boolean {
   if (!command) return true
 
@@ -326,7 +330,7 @@ export function runShellHook(
 
   try {
     logger.info(`  Running ${label}: ${interpolated}`)
-    execSync(interpolated, { stdio: "inherit", timeout: 300_000 })
+    execSync(interpolated, { stdio: "inherit", timeout: timeoutMs })
     return true
   } catch (err) {
     logger.error(`  ${label} failed: ${err instanceof Error ? err.message : String(err)}`)
@@ -519,7 +523,7 @@ export async function releaseFinalizeCommand(input: ReleaseInput): Promise<void>
   // 1. E2E gate FIRST — blocks all further steps if it fails
   if (rc.e2eCommand) {
     logger.info("Step 1/6: E2E gate")
-    const success = runShellHook(rc.e2eCommand, version, "e2e", input.dryRun)
+    const success = runShellHook(rc.e2eCommand, version, "e2e", input.dryRun, rc.timeoutMs)
     if (!success) {
       logger.error("E2E gate failed — release blocked")
       process.exit(1)
@@ -584,7 +588,7 @@ export async function releaseFinalizeCommand(input: ReleaseInput): Promise<void>
   if (input.noPublish || !rc.publishCommand) {
     logger.info("  Publish skipped")
   } else {
-    runShellHook(rc.publishCommand, version, "publish", input.dryRun)
+    runShellHook(rc.publishCommand, version, "publish", input.dryRun, rc.timeoutMs)
   }
 
   // 6. Notify
@@ -592,7 +596,7 @@ export async function releaseFinalizeCommand(input: ReleaseInput): Promise<void>
   if (input.noNotify || !rc.notifyCommand) {
     logger.info("  Notifications skipped")
   } else {
-    runShellHook(rc.notifyCommand, version, "notify", input.dryRun)
+    runShellHook(rc.notifyCommand, version, "notify", input.dryRun, rc.timeoutMs)
   }
 
   // Cleanup (only after merge)
