@@ -87,23 +87,115 @@ function stripAnsi(str: string): string {
   return str.replace(/\x1b\[[0-9;]*m/g, "")
 }
 
+// ─── Domain Classification ────────────────────────────────────────────────────
+
+const DOMAIN_KEYWORDS: Array<[RegExp[], string]> = [
+  [[/\bsecurity\b/i, /\bxss\b/i, /\binjection\b/i, /\bcsrf\b/i, /\bauth\b/i, /\bauthn\b/i, /\bauthz\b/i], "domain:security"],
+  [[/\bbug\b/i, /\bfix\b/i, /\bbroken\b/i, /\bcrash\b/i, /\berror\b/i, /\bfails?\b/i], "domain:bugfix"],
+  [[/\brefactor\b/i, /\brestructure\b/i, /\bcleanup\b/i, /\brewrite\b/i], "domain:refactor"],
+  [[/\bdocs?\b/i, /\breadme\b/i, /\bcomment\b/i, /\bchangelog\b/i], "domain:docs"],
+  [[/\bfeature\b/i, /\badd\b/i, /\bimplement\b/i, /\bnew\b/i, /\benhancement\b/i], "domain:feature"],
+]
+
+function classifyDomain(text: string): string | null {
+  for (const [keywords, label] of DOMAIN_KEYWORDS) {
+    if (keywords.some((r) => r.test(text))) return label
+  }
+  return null
+}
+
+// ─── File Scope Extraction ───────────────────────────────────────────────────
+
+/**
+ * Extract meaningful file/directory scope from context.md.
+ * Picks unique top-level segments to avoid noise while staying specific.
+ * e.g. "scripts/inspector/plugins/project/security-scanner/rules.ts" → "scripts/inspector/..."
+ */
+function extractFileScope(taskDir: string): string | null {
+  const contextPath = path.join(taskDir, "context.md")
+  if (!fs.existsSync(contextPath)) return null
+  const content = fs.readFileSync(contextPath, "utf-8")
+
+  const filePaths = content.match(/[\w./\\-]+\.(ts|tsx|js|jsx|json|md|yml|yaml|sql)/gi)
+  if (!filePaths || filePaths.length === 0) return null
+
+  // Deduplicate and compress to top-3 most specific unique directories
+  const dirs = new Set<string>()
+  for (const fp of filePaths) {
+    const normalized = fp.replace(/\\/g, "/")
+    const parts = normalized.split("/").filter(Boolean)
+    // Take first 2 meaningful segments (skip "src", "lib", "app")
+    const meaningful = parts.filter((p) => p !== "src" && p !== "lib" && p !== "app" && !p.startsWith("."))
+    if (meaningful.length >= 2) {
+      dirs.add(meaningful.slice(0, 2).join("/"))
+    } else if (meaningful.length === 1) {
+      dirs.add(meaningful[0])
+    }
+  }
+  if (dirs.size === 0) return null
+  const top = [...dirs].slice(0, 3)
+  return `files:${top.join(",")}`
+}
+
+/**
+ * Extract a short fix descriptor from plan.md.
+ * Prioritizes added diff lines (+ lines = actual new code) over descriptions.
+ */
+function extractFixDescriptor(taskDir: string): string | null {
+  const planPath = path.join(taskDir, "plan.md")
+  if (!fs.existsSync(planPath)) return null
+  const plan = fs.readFileSync(planPath, "utf-8")
+  const lines = plan.split("\n").map((l) => l.trim()).filter(Boolean)
+
+  // First pass: added diff lines (+ prefix = new code, most specific)
+  for (const line of lines) {
+    if (/^\+/.test(line) && !/^\+\+\+/.test(line)) {
+      const cleaned = line.replace(/^\+/, "").trim()
+      if (cleaned.length > 0 && cleaned.length < 80) {
+        return `fix:${cleaned.replace(/\s+/g, " ").slice(0, 50)}`
+      }
+    }
+  }
+
+  // Second pass: removed diff lines (- prefix)
+  for (const line of lines) {
+    if (/^-/.test(line) && !/^---/.test(line)) {
+      const cleaned = line.replace(/^-/, "").trim()
+      if (cleaned.length > 0 && cleaned.length < 80) {
+        return `fix:${cleaned.replace(/\s+/g, " ").slice(0, 50)}`
+      }
+    }
+  }
+
+  // Fall back to first non-header description line
+  for (const line of lines) {
+    if (!line.startsWith("#") && line.length > 10 && line.length < 120) {
+      return `fix:${line.slice(0, 60)}`
+    }
+  }
+  return null
+}
+
 /**
  * Extract patterns from build stage output.
  */
-function extractBuildPatterns(taskDir: string): string[] {
+export function extractBuildPatterns(taskDir: string): string[] {
   const contextPath = path.join(taskDir, "context.md")
   if (!fs.existsSync(contextPath)) return []
   const context = fs.readFileSync(contextPath, "utf-8")
   const patterns: string[] = []
 
-  // File creation patterns
-  const created = context.match(/(?:created?|wrote|added)\s+(\S+\.\w+)/gi)
+  // File creation patterns — what was actually built
+  const created = context.match(/(?:created?|wrote|added)\s+([^\s]+)/gi)
   if (created) {
-    const files = created.map((m) => m.replace(/^(?:created?|wrote|added)\s+/i, "")).slice(0, 5)
-    patterns.push(`files.created:${files.join(",")}`)
+    const files = created
+      .map((m) => m.replace(/^(?:created?|wrote|added)\s+/i, ""))
+      .filter((f) => f.includes("."))
+      .slice(0, 5)
+    if (files.length > 0) patterns.push(`files.created:${files.join(",")}`)
   }
 
-  // Import patterns observed
+  // Import patterns observed in context
   if (/@\//i.test(context)) patterns.push("imports:path-alias(@/)")
   if (/\.js['"]|\.js extension/i.test(context)) patterns.push("imports:explicit-js-ext")
   if (/from ['"]\.{1,2}\//i.test(context)) patterns.push("imports:relative-paths")
@@ -147,24 +239,38 @@ function extractVerifyPatterns(taskDir: string): string[] {
 }
 
 /**
- * Extract patterns from review stage output.
+ * Extract patterns from review stage — driven by task context, not keyword scraping.
+ *
+ * Uses the actual task files (task.md, context.md, plan.md) which contain
+ * ground-truth information about what was worked on. The review.md verdict
+ * is used only to confirm PASS/FAIL, not to guess findings.
  */
 function extractReviewPatterns(taskDir: string): string[] {
+  const taskPath = path.join(taskDir, "task.md")
   const reviewPath = path.join(taskDir, "review.md")
-  if (!fs.existsSync(reviewPath)) return []
-  const review = fs.readFileSync(reviewPath, "utf-8")
   const patterns: string[] = []
 
-  // Verdict
-  if (/verdict.*pass/i.test(review)) patterns.push("verdict:PASS")
-  if (/verdict.*fail/i.test(review)) patterns.push("verdict:FAIL")
+  // 1. Verdict — only reliable thing from review.md
+  if (fs.existsSync(reviewPath)) {
+    const review = fs.readFileSync(reviewPath, "utf-8")
+    if (/verdict.*pass/i.test(review)) patterns.push("verdict:PASS")
+    else if (/verdict.*fail/i.test(review)) patterns.push("verdict:FAIL")
+  }
 
-  // Common findings
-  if (/error handling/i.test(review)) patterns.push("finding:error-handling")
-  if (/type safety|type assertion|as unknown/i.test(review)) patterns.push("finding:type-safety")
-  if (/test coverage|missing test/i.test(review)) patterns.push("finding:test-coverage")
-  if (/security|injection|xss|csrf/i.test(review)) patterns.push("finding:security")
-  if (/naming|convention/i.test(review)) patterns.push("finding:naming-convention")
+  // 2. Domain — from task description (ground truth about what this issue is)
+  if (fs.existsSync(taskPath)) {
+    const task = fs.readFileSync(taskPath, "utf-8")
+    const domain = classifyDomain(task)
+    if (domain) patterns.push(domain)
+  }
+
+  // 3. File scope — from context.md (what files were in scope for this task)
+  const fileScope = extractFileScope(taskDir)
+  if (fileScope) patterns.push(fileScope)
+
+  // 4. Fix descriptor — from plan.md (what specifically was changed)
+  const fixDesc = extractFixDescriptor(taskDir)
+  if (fixDesc) patterns.push(fixDesc)
 
   return patterns
 }
