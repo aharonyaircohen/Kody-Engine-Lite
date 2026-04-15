@@ -117,6 +117,8 @@ export interface KodyConfig {
     notifyCommand?: string
     /** Shell command to run E2E tests as a release gate. $VERSION is interpolated. Empty = skip. */
     e2eCommand?: string
+    /** Timeout in ms for e2eCommand, publishCommand, notifyCommand. Default: 600000 (10 min). */
+    timeoutMs?: number
     /** Target branch for release PRs. Defaults to git.defaultBranch. */
     releaseBranch?: string
     /** Labels to add to the release PR. Default: ["release"] */
@@ -331,6 +333,7 @@ export function getProjectConfig(): KodyConfig {
               publishCommand: raw.release.publishCommand ?? "",
               notifyCommand: raw.release.notifyCommand ?? "",
               e2eCommand: raw.release.e2eCommand ?? "",
+              timeoutMs: raw.release.timeoutMs ?? 600_000,
               releaseBranch: raw.release.releaseBranch ?? undefined,
               labels: raw.release.labels ?? ["kody:release"],
               draftRelease: raw.release.draftRelease ?? false,
