@@ -5,9 +5,7 @@
     "sessionId": "chat-test-1776271459",
     "status": "waiting",
     "step": "chat",
-    "instructions": [
-      "hello chat"
-    ],
+    "instructions": [],
     "cancel": false,
     "lastHeartbeat": "2026-04-15T16:44:49.000Z",
     "createdAt": "2026-04-15T16:44:49.000Z"
