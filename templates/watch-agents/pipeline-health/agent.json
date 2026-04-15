@@ -1,0 +1,5 @@
+{
+  "name": "pipeline-health",
+  "description": "Monitor .kody/tasks/ for stalled, failed, or stuck pipeline runs",
+  "cron": "* * * * *"
+}

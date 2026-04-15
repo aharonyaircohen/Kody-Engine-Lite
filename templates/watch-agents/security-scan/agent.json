@@ -1,0 +1,5 @@
+{
+  "name": "security-scan",
+  "description": "Broad security audit: hardcoded secrets, committed .env files, dependency CVEs, unsafe code patterns",
+  "cron": "0 9 * * *"
+}

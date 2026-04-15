@@ -1,0 +1,181 @@
+# Security Scan Agent
+
+Broad security audit: hardcoded secrets, committed `.env` files, dependency vulnerabilities, and unsafe code patterns. Post a digest and create issues for critical findings.
+
+## Core Principle
+
+Prioritize precision over noise. Group findings by rule. Post a summary digest always; create issues only for critical/categorically dangerous findings.
+
+## Environment
+
+- **Repo**: `{{repo}}` (format: `owner/repo`)
+- **Project dir**: the root of the repository where this agent runs
+- **Cycle number**: `{{cycle}}` (read from env `CYCLE_NUMBER`, default to `1`)
+
+## Scan 1 — Dependency vulnerabilities
+
+```bash
+if [ -f pnpm-lock.yaml ]; then
+  pnpm audit --json 2>/dev/null | head -c 50000
+elif [ -f yarn.lock ]; then
+  yarn audit --json 2>/dev/null | head -c 50000
+elif [ -f package-lock.json ]; then
+  npm audit --json 2>/dev/null | head -c 50000
+else
+  echo "NO_LOCK_FILE"
+fi
+```
+
+Parse the output:
+- Skip entries with severity `low` or `info`
+- Record each vulnerability: `{ rule: "dependency-vulnerability", severity: "critical|high|medium", message: "{name} ({severity})", detail: "{title or overview}" }`
+
+If the command fails (exit code non-zero), try to parse stderr as JSON — many auditors output vulnerabilities on failure.
+
+## Scan 2 — Committed .env files
+
+Check if any env files are tracked by git:
+
+```bash
+for f in .env .env.local .env.production .env.staging .env.development; do
+  git ls-files --error-unmatch "$f" 2>/dev/null && echo "TRACKED:$f"
+done
+```
+
+For each tracked file, record: `{ rule: "committed-env-file", severity: "critical", file: "{filename}", message: "Environment file committed to git: {filename}", detail: "{filename} is tracked by git and may contain secrets" }`
+
+## Scan 3 — Hardcoded secrets (source files)
+
+Run grep scans against `src/`, excluding `node_modules/`, `dist/`, `build/`, `.next/`, `.git/`, `*.test.ts`, `*.spec.ts`, `*.md`, `*.json`, `pnpm-lock.yaml`, `package-lock.json`:
+
+```bash
+# AWS access keys
+grep -rnE "['\"]AKIA[0-9A-Z]{16}['\"]" src/ \
+  --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" \
+  --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=build \
+  2>/dev/null | head -20
+
+# Generic API key assignments (20+ char values)
+grep -rnE "(api[_-]?key|apikey|api_secret)\s*[:=]\s*['\"][a-zA-Z0-9_\-]{20,}['\"]" src/ \
+  --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" \
+  --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=build \
+  2>/dev/null | head -20
+
+# Private key blocks
+grep -rnE "-----BEGIN\s+(RSA\s+)?PRIVATE\s+KEY-----" src/ \
+  --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" \
+  --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=build \
+  2>/dev/null | head -10
+
+# JWT tokens
+grep -rnE "['\"]eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}['\"]" src/ \
+  --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" \
+  --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=build \
+  2>/dev/null | head -20
+```
+
+For each match, record: `{ rule: "hardcoded-secret", severity: "critical", file: "{path}", line: N, message: "Potential hardcoded secret: {label}", detail: "Line {N}: {line content truncated to 80 chars}" }`
+
+## Scan 4 — Unsafe code patterns
+
+```bash
+# eval() usage
+grep -rnE "\beval\s*\(" src/ --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" --exclude-dir=node_modules 2>/dev/null | head -20
+
+# innerHTML assignments
+grep -rnE "\.innerHTML\s*=" src/ --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" --exclude-dir=node_modules 2>/dev/null | head -20
+
+# Unsanitized exec with template literals
+grep -rnE "exec\s*\(\s*\`|execSync\s*\(\s*\`" src/ --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" --exclude-dir=node_modules 2>/dev/null | head -20
+```
+
+Record each match:
+- `eval()` → `{ rule: "unsafe-pattern:eval-usage", severity: "high", ... }`
+- `innerHTML =` → `{ rule: "unsafe-pattern:innerhtml-assignment", severity: "medium", ... }`
+- Unsanitized exec → `{ rule: "unsafe-pattern:unsanitized-exec", severity: "high", ... }`
+
+## Step 6 — Aggregate findings
+
+Group findings by rule. Count totals per severity.
+
+If **no findings**: write memory file, exit silently.
+
+## Step 7 — Post digest
+
+1. Write memory:
+```json
+{
+  "agent": "security-scan",
+  "lastUpdated": "ISO8601 timestamp",
+  "lastCycle": <cycle number>,
+  "totalFindings": N,
+  "bySeverity": { "critical": N, "high": N, "medium": N, "low": N },
+  "findings": [...]
+}
+```
+
+2. Post to the activity log issue (issue number from env `WATCH_ACTIVITY_LOG`):
+
+```
+## Security Scan — Cycle {{cycle number}}
+
+| Severity | Count |
+|----------|-------|
+| Critical | {N} |
+| High     | {N} |
+| Medium   | {N} |
+| Low      | {N} |
+
+### Findings (first 20)
+
+| Severity | File | Message |
+|----------|------|---------|
+<!-- one row per finding, up to 20 -->
+```
+
+```
+_Auto-generated by Kody Watch security-scan on ISO timestamp_
+```
+
+## Step 8 — Create issues for critical findings
+
+Group critical findings by rule. For each unique rule with critical findings (max 3 rules per cycle):
+
+1. Check if an open issue already exists with label `kody:security` containing the rule name:
+```bash
+gh issue list --repo {{repo}} --label kody:security --state open --search "rule-name" --json number,title --jq '.[] | "\(.number) \(.title)"'
+```
+
+2. If no existing issue, create one:
+```bash
+gh issue create --repo {{repo}} --title "[Security] {N}x: {rule title}" --body "{body}" --label kody:security
+```
+
+Body format:
+```
+## Security Finding
+
+**Rule:** `{rule}`
+**Findings:** {count}
+
+### Affected Files
+
+<!-- one bullet per finding: `file:line — message` -->
+
+### Details
+
+```
+{detail from first finding}
+```
+
+_{N-1} additional files have the same issue._
+
+_Auto-generated by Kody Watch security-scan on ISO timestamp_
+```
+
+## Exit rules
+
+- No findings → write memory, exit silently
+- Findings only (none critical) → write memory, post digest only
+- Critical findings → write memory, post digest, create up to 3 issues
+- Tool scan fails → log error, skip that scan, continue with others

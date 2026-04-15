@@ -8,9 +8,6 @@ import type { ChildProcess } from "child_process"
 
 import { runWatch } from "./core/watch.js"
 import { createPluginRegistry } from "./plugins/registry.js"
-import { pipelineHealthPlugin } from "./plugins/pipeline-health/index.js"
-import { securityScanPlugin } from "./plugins/security-scan/index.js"
-import { configHealthPlugin } from "./plugins/config-health/index.js"
 import { loadWatchAgents } from "./agents/loader.js"
 import { checkLitellmHealth, tryStartLitellm, generateLitellmConfig } from "../cli/litellm.js"
 import { LITELLM_DEFAULT_URL } from "../config.js"
@@ -81,11 +78,8 @@ export async function runWatchCommand(opts: { dryRun: boolean; agent?: string })
     process.exit(1)
   }
 
-  // Register deterministic plugins
+  // Register deterministic plugins (e.g. system-health, performance-monitor)
   const registry = createPluginRegistry()
-  registry.register(pipelineHealthPlugin)
-  registry.register(securityScanPlugin)
-  registry.register(configHealthPlugin)
 
   // Discover watch agents
   const { agents, warnings } = loadWatchAgents(cwd)
@@ -161,7 +155,7 @@ export async function runWatchCommand(opts: { dryRun: boolean; agent?: string })
     const agentSummary = result.agentsRun > 0
       ? `, ${result.agentsRun} agents`
       : ""
-    console.log(`\nCycle #${result.cycleNumber} complete: ${result.pluginsRun} plugins${agentSummary}, ${result.actionsExecuted} actions, ${result.actionsDeduplicated} deduplicated`)
+    console.log(`\nCycle #${result.cycleNumber} complete: ${result.agentsRun} watch agents, ${result.actionsExecuted} actions, ${result.actionsDeduplicated} deduplicated`)
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     console.error(`Watch failed: ${message}`)
