@@ -6,6 +6,7 @@ import { readNodes, writeNodes, readEdges, writeEdges } from "./store.js"
 // Re-export readEdges so tests can import from queries.ts
 export { readEdges } from "./store.js"
 import { getEpisode } from "./episode.js"
+import { inferRoomsFromScope } from "../../utils/scope.js"
 import {
   nodeIdWithTimestamp,
   edgeId,
@@ -102,26 +103,6 @@ export function searchFacts(
     .sort((a, b) => b.validFrom.localeCompare(a.validFrom)) // newest first
 
   return limit ? matched.slice(0, limit) : matched
-}
-
-/**
- * Infer memory "rooms" from a file scope array.
- * e.g. ["src/auth/login.ts", "src/auth/logout.ts"] → ["auth"]
- * Inlined here to avoid circular import with context-tiers.ts.
- */
-function inferRoomsFromScope(scope: string[]): string[] {
-  if (scope.length === 0) return []
-  const rooms = new Set<string>()
-  for (const filePath of scope) {
-    const parts = filePath.replace(/\\/g, "/").split("/").filter(Boolean)
-    const meaningful = parts.filter(
-      (p) => p !== "src" && p !== "lib" && p !== "app" && !p.includes("."),
-    )
-    if (meaningful.length > 0) {
-      rooms.add(meaningful[0].toLowerCase())
-    }
-  }
-  return [...rooms]
 }
 
 /**

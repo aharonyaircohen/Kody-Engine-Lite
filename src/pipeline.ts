@@ -74,7 +74,7 @@ function ensureFeatureBranchIfNeeded(ctx: PipelineContext): void {
 
 // ─── Lock ───────────────────────────────────────────────────────────────────
 
-function acquireLock(taskDir: string): void {
+export function acquireLock(taskDir: string): void {
   const lockPath = path.join(taskDir, ".lock")
 
   // Check for existing lock and stale PID
@@ -111,7 +111,7 @@ function acquireLock(taskDir: string): void {
   }
 }
 
-function releaseLock(taskDir: string): void {
+export function releaseLock(taskDir: string): void {
   try { fs.unlinkSync(path.join(taskDir, ".lock")) } catch { /* ignore */ }
 }
 

@@ -7,6 +7,110 @@ import { runPipeline, printStatus } from "../../src/pipeline.js"
 import { resetProjectConfig, setConfigDir } from "../../src/config.js"
 import * as gitUtils from "../../src/git-utils.js"
 
+// ─── Lock tests ─────────────────────────────────────────────────────────────
+
+describe("pipeline lock", () => {
+  let taskDir: string
+
+  beforeEach(() => {
+    taskDir = fs.mkdtempSync(path.join(os.tmpdir(), "kody-lock-test-"))
+  })
+
+  afterEach(() => {
+    fs.rmSync(taskDir, { recursive: true, force: true })
+  })
+
+  it("acquireLock creates a lock file with the current PID", async () => {
+    const { acquireLock, releaseLock } = await import("../../src/pipeline.js")
+    acquireLock(taskDir)
+    const lockPath = path.join(taskDir, ".lock")
+    expect(fs.existsSync(lockPath)).toBe(true)
+    const pid = parseInt(fs.readFileSync(lockPath, "utf-8").trim(), 10)
+    expect(pid).toBe(process.pid)
+    releaseLock(taskDir)
+  })
+
+  it("releaseLock removes the lock file", async () => {
+    const { acquireLock, releaseLock } = await import("../../src/pipeline.js")
+    acquireLock(taskDir)
+    releaseLock(taskDir)
+    expect(fs.existsSync(path.join(taskDir, ".lock"))).toBe(false)
+  })
+
+  it("acquireLock removes stale lock when PID is not alive", async () => {
+    const { acquireLock, releaseLock } = await import("../../src/pipeline.js")
+    const lockPath = path.join(taskDir, ".lock")
+    fs.writeFileSync(lockPath, "999999")
+    acquireLock(taskDir)
+    const pid = parseInt(fs.readFileSync(lockPath, "utf-8").trim(), 10)
+    expect(pid).toBe(process.pid)
+    releaseLock(taskDir)
+  })
+
+  it("acquireLock throws when lock is held by another process", async () => {
+    const { acquireLock } = await import("../../src/pipeline.js")
+    const lockPath = path.join(taskDir, ".lock")
+    fs.writeFileSync(lockPath, String(process.pid))
+    expect(() => acquireLock(taskDir)).toThrow("Pipeline already running")
+  })
+
+  it("acquireLock overwrites corrupt lock (non-numeric PID)", async () => {
+    const { acquireLock, releaseLock } = await import("../../src/pipeline.js")
+    const lockPath = path.join(taskDir, ".lock")
+    fs.writeFileSync(lockPath, "not-a-number")
+    acquireLock(taskDir)
+    const pid = parseInt(fs.readFileSync(lockPath, "utf-8").trim(), 10)
+    expect(pid).toBe(process.pid)
+    releaseLock(taskDir)
+  })
+})
+
+describe("pipeline state", () => {
+  let taskDir: string
+
+  beforeEach(() => {
+    taskDir = fs.mkdtempSync(path.join(os.tmpdir(), "kody-state-test-"))
+  })
+
+  afterEach(() => {
+    fs.rmSync(taskDir, { recursive: true, force: true })
+  })
+
+  it("initState creates a running state with all stages pending", async () => {
+    const { initState } = await import("../../src/pipeline/state.js")
+    const state = initState("test-task-001")
+    expect(state.taskId).toBe("test-task-001")
+    expect(state.state).toBe("running")
+    expect(Object.keys(state.stages).length).toBeGreaterThan(0)
+    for (const s of Object.values(state.stages)) {
+      expect(s.state).toBe("pending")
+    }
+  })
+
+  it("writeState and loadState round-trip correctly", async () => {
+    const { initState, writeState, loadState } = await import("../../src/pipeline/state.js")
+    const state = initState("round-trip-test")
+    const updated = writeState(state, taskDir)
+    const loaded = loadState("round-trip-test", taskDir)
+    expect(loaded).not.toBeNull()
+    expect(loaded!.taskId).toBe("round-trip-test")
+    expect(loaded!.state).toBe("running")
+  })
+
+  it("loadState returns null for unknown task", async () => {
+    const { loadState } = await import("../../src/pipeline/state.js")
+    expect(loadState("nonexistent", taskDir)).toBeNull()
+  })
+
+  it("loadState returns null for corrupt JSON", async () => {
+    const { loadState } = await import("../../src/pipeline/state.js")
+    fs.mkdirSync(taskDir, { recursive: true })
+    fs.writeFileSync(path.join(taskDir, "status.json"), "not valid json{{{")
+    expect(loadState("any-task", taskDir)).toBeNull()
+  })
+})
+
+
 vi.mock("../../src/github-api.js", () => ({
   setLifecycleLabel: vi.fn(),
   setLabel: vi.fn(),
