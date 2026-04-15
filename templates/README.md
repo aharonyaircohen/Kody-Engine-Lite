@@ -13,15 +13,18 @@ This directory contains the canonical source for all GitHub Actions workflows sh
 
 The `bootstrap` command copies these templates into a target repository's `.github/workflows/` directory. The engine installs them as symlinks pointing back here so they stay in sync with the package version.
 
-## Symlink Rule
+## File Organization
 
-`.github/workflows/*.yml` files in the engine repo itself are **symlinks** to `../templates/`, not copies. This ensures:
+The `.github/workflows/kody.yml` file is the **canonical source**. The `templates/kody.yml` is a **symlink** pointing to `../.github/workflows/kody.yml`. This is inverted from the typical pattern because:
 
-- `templates/` is the **single source of truth** for all shipped workflows
-- Changes to templates are immediately reflected without manual copying
-- No drift between what's shipped and what's in the repo
+- GitHub Actions requires real files in `.github/workflows/` (symlinks are not followed)
+- When the npm package is published, `templates/` ships the symlink
+- When `kody-engine init` runs in a target repo, `fs.copyFileSync` follows the symlink and writes the **real file content** into the target's `.github/workflows/kody.yml`
 
-If you need to edit a workflow, edit the file in `templates/`. The symlink in `.github/workflows/` will automatically reflect the change.
+This means:
+- Edit `.github/workflows/kody.yml` directly — it's the one place to change the workflow
+- The symlink in `templates/` keeps them in sync for npm packaging
+- No manual copying needed — `init` handles it automatically
 
 ## Repo-Specific Workflows
 
