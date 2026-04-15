@@ -88,7 +88,7 @@ jobs:
           node-version: 22
 
       - name: Install Kody Engine
-        run: npm install -g @kody-ade/engine
+        run: npm install -g @kody-ade/engine@~0.1.118
 
       - name: Validate author
         id: safety
@@ -175,10 +175,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Install Kody Engine
-        run: npm install -g @kody-ade/engine
+        run: npm install -g @kody-ade/engine@~0.1.118
 
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code
+        run: npm install -g @anthropic-ai/claude-code@~2.1.108
 
       - name: Install LiteLLM proxy
         run: pip install 'litellm[proxy]' prisma && python -m prisma py fetch
