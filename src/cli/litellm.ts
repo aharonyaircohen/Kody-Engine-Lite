@@ -219,21 +219,26 @@ export async function tryStartLitellm(
     }
   }
 
+  // Capture LiteLLM output to temp file for diagnostics
+  const litellmOutPath = path.join(os.tmpdir(), `kody-litellm-${Date.now()}.log`)
+  const outFd = fs.openSync(litellmOutPath, "w")
+
   const { spawn } = await import("child_process")
   const child = spawn(cmd, args, {
-    // Ignore stdin (no input needed), discard stdout/stderr to prevent pipe
-    // buffer from filling up and blocking LiteLLM when the proxy is running
-    // long-term. Health checks confirm readiness — we don't need LiteLLM output.
-    stdio: ["ignore", "ignore", "ignore"],
+    stdio: ["ignore", outFd, outFd], // capture stdout+stderr to file for diagnostics
     detached: true,
     env: (() => {
-      // Build env without DATABASE_URL — it may be set for the project's dev server
-      // but causes LiteLLM to try initializing Prisma DB which is not needed for proxy mode
+      // Strip DATABASE_URL — it may be set for the project's dev server but causes
+      // LiteLLM to try initializing Prisma DB which is not needed for proxy mode.
+      // Strip AI_BASE_URL — if unreachable from the runner (e.g. internal VPN URL),
+      // it can block LiteLLM's HTTP server from starting.
       const env = { ...process.env, ...dotenvVars } as Record<string, string>
       delete env.DATABASE_URL
+      delete env.AI_BASE_URL
       return env
     })(),
   })
+  fs.closeSync(outFd)
 
   // Wait for health
   for (let i = 0; i < 30; i++) {
@@ -243,6 +248,17 @@ export async function tryStartLitellm(
       return child
     }
   }
+
+  // On failure: log captured output for diagnostics, then clean up
+  try {
+    const output = fs.readFileSync(litellmOutPath, "utf-8")
+    if (output.length > 0) {
+      logger.warn(`LiteLLM output (${output.length} chars):\n${output.slice(0, 3000)}`)
+    } else {
+      logger.warn("LiteLLM output: (empty)")
+    }
+  } catch { /* no output captured */ }
+  try { fs.unlinkSync(litellmOutPath) } catch { /* best effort */ }
 
   logger.warn("LiteLLM proxy failed to start within 60s")
   child.kill()
