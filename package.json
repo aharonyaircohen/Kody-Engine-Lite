@@ -1,6 +1,6 @@
 {
   "name": "@kody-ade/engine",
-  "version": "0.1.121",
+  "version": "0.1.122",
   "description": "Kody ADE — the free, autonomous development engine. Issue to tested, reviewed PR.",
   "license": "MIT",
   "type": "module",
