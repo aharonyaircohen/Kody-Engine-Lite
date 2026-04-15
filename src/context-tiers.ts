@@ -5,6 +5,7 @@ import type { StageName } from "./types.js"
 import { readRunHistory, formatRunHistoryForPrompt, formatRunHistoryCompressed } from "./run-history.js"
 import { compressMemoryContent } from "./compress.js"
 import * as graph from "./memory/graph/index.js"
+import { inferRoomsFromScope } from "./utils/scope.js"
 
 // --- Types ---
 
@@ -293,24 +294,9 @@ export function inferRoomFromFilename(filename: string): string | null {
  * Infer relevant rooms from task scope (file paths).
  *
  * Extracts the first significant directory from each scope path.
- * Returns null if scope is empty (no room filtering).
+ * Re-exported here for backward compatibility; implementation lives in utils/scope.ts.
  */
-export function inferRoomsFromScope(scope: string[]): string[] | null {
-  if (scope.length === 0) return null
-
-  const rooms = new Set<string>()
-  for (const filePath of scope) {
-    // "src/auth/withAuth.ts" → ["src", "auth", "withAuth.ts"]
-    const parts = filePath.replace(/\\/g, "/").split("/").filter(Boolean)
-    // Skip "src" as it's not meaningful, take the next directory
-    const meaningful = parts.filter((p) => p !== "src" && p !== "lib" && p !== "app" && !p.includes("."))
-    if (meaningful.length > 0) {
-      rooms.add(meaningful[0].toLowerCase())
-    }
-  }
-
-  return rooms.size > 0 ? [...rooms] : null
-}
+export { inferRoomsFromScope } from "./utils/scope.js"
 
 // ─── Tiered Memory Reader ────────────────────────────────────────────────
 

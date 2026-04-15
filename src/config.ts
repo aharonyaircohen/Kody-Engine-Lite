@@ -228,18 +228,48 @@ export function stageNeedsProxy(stageConfig: StageConfig): boolean {
   return stageConfig.provider !== "claude" && stageConfig.provider !== "anthropic"
 }
 
+/** Cache for anyStageNeedsProxy result — keyed by config content so tests with different configs don't share cache */
+let _proxyNeededCacheKey: string | null = null
+let _proxyNeededCacheValue: boolean | null = null
+
 /** Check if any stage uses a non-claude provider (i.e. LiteLLM is needed) */
 export function anyStageNeedsProxy(config: KodyConfig): boolean {
+  const cacheKey = buildProxyCacheKey(config)
+  if (_proxyNeededCacheKey === cacheKey && _proxyNeededCacheValue !== null) {
+    return _proxyNeededCacheValue
+  }
+
   // Check per-stage configs
   if (config.agent.stages) {
     for (const sc of Object.values(config.agent.stages)) {
-      if (stageNeedsProxy(sc)) return true
+      if (stageNeedsProxy(sc)) {
+        _proxyNeededCacheKey = cacheKey
+        _proxyNeededCacheValue = true
+        return true
+      }
     }
   }
   // Check default
-  if (config.agent.default && stageNeedsProxy(config.agent.default)) return true
+  if (config.agent.default && stageNeedsProxy(config.agent.default)) {
+    _proxyNeededCacheKey = cacheKey
+    _proxyNeededCacheValue = true
+    return true
+  }
   // Legacy fallback
-  return needsLitellmProxy(config)
+  const result = needsLitellmProxy(config)
+  _proxyNeededCacheKey = cacheKey
+  _proxyNeededCacheValue = result
+  return result
+}
+
+function buildProxyCacheKey(config: KodyConfig): string {
+  const stages = config.agent.stages
+  const default_ = config.agent.default
+  const provider = config.agent.provider
+  const stagesKey = stages
+    ? Object.entries(stages).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}=${v.provider}`).join(";")
+    : ""
+  return `${stagesKey}|${default_?.provider ?? ""}|${provider ?? ""}`
 }
 
 /** Get the LiteLLM proxy URL */
@@ -355,5 +385,7 @@ export function getProjectConfig(): KodyConfig {
 export function resetProjectConfig(): void {
   _config = null
   _configDir = null
+  _proxyNeededCacheKey = null
+  _proxyNeededCacheValue = null
   resetStageDefinitions()
 }

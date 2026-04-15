@@ -33,10 +33,10 @@ jobs:
 
       - name: Install Claude Code
         if: hashFiles('.kody/watch/agents/*/agent.json') != ''
-        run: npm install -g @anthropic-ai/claude-code
+        run: npm install -g @anthropic-ai/claude-code@~2.1.108
 
       - name: Install Kody Engine
-        run: npm install -g @kody-ade/engine
+        run: npm install -g @kody-ade/engine@~0.1.118
 
       - name: Install LiteLLM proxy
         if: hashFiles('.kody/watch/agents/*/agent.json') != ''

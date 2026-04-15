@@ -151,22 +151,99 @@ function extractVerifyPatterns(taskDir: string): string[] {
  */
 function extractReviewPatterns(taskDir: string): string[] {
   const reviewPath = path.join(taskDir, "review.md")
-  if (!fs.existsSync(reviewPath)) return []
-  const review = fs.readFileSync(reviewPath, "utf-8")
+  const review = fs.existsSync(reviewPath) ? fs.readFileSync(reviewPath, "utf-8") : ""
   const patterns: string[] = []
 
   // Verdict
   if (/verdict.*pass/i.test(review)) patterns.push("verdict:PASS")
   if (/verdict.*fail/i.test(review)) patterns.push("verdict:FAIL")
 
-  // Common findings
+  // Common findings from review
   if (/error handling/i.test(review)) patterns.push("finding:error-handling")
   if (/type safety|type assertion|as unknown/i.test(review)) patterns.push("finding:type-safety")
   if (/test coverage|missing test/i.test(review)) patterns.push("finding:test-coverage")
   if (/security|injection|xss|csrf/i.test(review)) patterns.push("finding:security")
   if (/naming|convention/i.test(review)) patterns.push("finding:naming-convention")
 
+  // Also extract investigation facts from context.md
+  patterns.push(...extractInvestigationFacts(taskDir))
+
   return patterns
+}
+
+/**
+ * Extract concrete investigation facts from context.md.
+ * These capture what was found, fixed, and confirmed — not just generic verdict tags.
+ */
+function extractInvestigationFacts(taskDir: string): string[] {
+  const contextPath = path.join(taskDir, "context.md")
+  if (!fs.existsSync(contextPath)) return []
+  const context = fs.readFileSync(contextPath, "utf-8")
+  const facts: string[] = []
+
+  // Route count — "5 routes" / "N routes investigated"
+  const routeMatch = context.match(/(\d+)\s+(?:routes?|endpoints?)/i)
+  if (routeMatch) facts.push(`investigation:${routeMatch[1]}-routes-flagged`)
+
+  // What was fixed — extract endpoint name and auth change
+  // e.g. "copilotkit/route.ts" + "auth: 'public'" → "fix:copilotkit-GET-auth-public"
+  const fixMatch = context.match(/fixed[:\s]+.*?[\/`'"](\w+)[\/`'"].*?(?:auth[:\s]+['"](\w+)['"]|wrapped with)/i)
+  if (fixMatch) {
+    const endpoint = fixMatch[1].toLowerCase()
+    const authLevel = fixMatch[2]?.toLowerCase()
+    facts.push(authLevel ? `fix:${endpoint}-auth-${authLevel}` : `fix:${endpoint}`)
+  }
+
+  // Explicit "was wrapped with" patterns (e.g. withApiHandler)
+  const wrappedMatch = context.match(/wrapped with.*?[\`'"](\w+)[\`'"].*?(?:auth[:\s]+['"](\w+)['"])/i)
+  if (wrappedMatch) {
+    facts.push(wrappedMatch[2] ? `fix:endpoint-auth-${wrappedMatch[2].toLowerCase()}` : `fix:endpoint-auth`)
+  }
+
+  // Auth level anywhere in context (e.g. "auth: 'public'" or "auth: 'authenticated'")
+  const authMatch = context.match(/auth[:=\s]+['"]?(\w+)['"]?/i)
+  if (authMatch) {
+    facts.push(`auth:${authMatch[1].toLowerCase()}`)
+  }
+
+  // Confirmation that other things were already correct
+  const confirmed = context.match(/(?:already|was|were)\s+(?:correct|protected|fixed|done)\b/gi)
+  if (confirmed && confirmed.length > 0) {
+    facts.push(`confirmed:${confirmed.length}-items-already-correct`)
+  }
+
+  // "Already protected" / "already had auth" patterns
+  if (/already (?:properly )?(?:protected|has auth|had auth|done)/i.test(context)) {
+    facts.push("confirmed:existing-protection")
+  }
+
+  // Scanner source (if mentioned)
+  if (/security.?scan|scanner|github.?secret/i.test(context)) {
+    facts.push("source:security-scanner")
+  }
+
+  // Specific vulnerability types
+  if (/missing auth|without auth|unauthenticated/i.test(context)) {
+    facts.push("finding:missing-auth")
+  }
+  if (/unprotected route|no auth on/i.test(context)) {
+    facts.push("finding:unprotected-route")
+  }
+  if (/get handler.*no auth|get.*without/i.test(context)) {
+    facts.push("finding:get-handler-no-auth")
+  }
+
+  // API route patterns
+  if (/api\/.*route/i.test(context)) {
+    facts.push("scope:api-route")
+  }
+
+  // GET vs POST distinction
+  if (/\bGET\b.*(?:handler|route)/i.test(context)) {
+    facts.push("handler:GET")
+  }
+
+  return facts
 }
 
 /**

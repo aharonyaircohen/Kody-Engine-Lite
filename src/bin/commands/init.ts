@@ -44,11 +44,25 @@ export function initCommand(opts: { force: boolean }, pkgRoot: string) {
   const gitignorePath = path.join(cwd, ".gitignore")
   if (fs.existsSync(gitignorePath)) {
     const content = fs.readFileSync(gitignorePath, "utf-8")
+    let changed = false
+
+    // Remove legacy .tasks/ entry
     if (content.includes(".tasks/")) {
       const updated = content.replace(/\n?\.tasks\/\n?/g, "\n")
       fs.writeFileSync(gitignorePath, updated)
-      console.log("  ✓ .gitignore (removed legacy .tasks/ — tasks now committed in .kody/tasks/)")
-    } else {
+      console.log("  ✓ .gitignore (removed legacy .tasks/)")
+      changed = true
+    }
+
+    // Add .kody-engine/ to prevent event logs from appearing in PR artifacts
+    if (!content.includes(".kody-engine/")) {
+      const updated = content.trimEnd() + "\n\n# Kody Engine\n.kody-engine/\n"
+      fs.writeFileSync(gitignorePath, updated)
+      console.log("  ✓ .gitignore (added .kody-engine/ — event logs will not appear in PRs)")
+      changed = true
+    }
+
+    if (!changed) {
       console.log("  ○ .gitignore (ok)")
     }
   }

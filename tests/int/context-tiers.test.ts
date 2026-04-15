@@ -97,8 +97,8 @@ describe("Integration: context and memory", () => {
       expect(inferRoomsFromScope(["app/components/Button.tsx"])).toEqual(["components"])
     })
 
-    it("returns null for empty scope", () => {
-      expect(inferRoomsFromScope([])).toBeNull()
+    it("returns empty array for empty scope", () => {
+      expect(inferRoomsFromScope([])).toEqual([])
     })
   })
 })

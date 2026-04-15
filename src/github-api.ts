@@ -113,7 +113,7 @@ export function closeIssue(issueNumber: number): void {
     gh(["issue", "close", String(issueNumber)])
     logger.info(`  Issue #${issueNumber} closed`)
   } catch (err) {
-    logger.warn(`  Failed to close issue #${issueNumber}: ${err}`)
+    logger.warn(`  Failed to close issue #${issueNumber}: ${ghErrorMessage(err)}`)
   }
 }
 
@@ -144,7 +144,7 @@ export function setLabel(issueNumber: number, label: string): void {
     gh(["issue", "edit", String(issueNumber), "--add-label", label])
     logger.info(`  Label added: ${label}`)
   } catch (err) {
-    logger.warn(`  Failed to set label ${label}: ${err}`)
+    logger.warn(`  Failed to set label ${label}: ${ghErrorMessage(err)}`)
   }
 }
 
@@ -164,7 +164,7 @@ export function postComment(issueNumber: number, body: string): void {
     )
     logger.info(`  Comment posted on #${issueNumber}`)
   } catch (err) {
-    logger.warn(`  Failed to post comment: ${err}`)
+    logger.warn(`  Failed to post comment: ${ghErrorMessage(err)}`)
   }
 }
 
@@ -201,7 +201,7 @@ export function updatePR(
     )
     logger.info(`  PR #${prNumber} body updated`)
   } catch (err) {
-    logger.warn(`  Failed to update PR #${prNumber}: ${err}`)
+    logger.warn(`  Failed to update PR #${prNumber}: ${ghErrorMessage(err)}`)
   }
 }
 
@@ -316,7 +316,7 @@ export function getPRsForIssue(
     }
     return merged
   } catch (err) {
-    logger.error(`  Failed to get PRs for issue #${issueNumber}: ${err}`)
+    logger.error(`  Failed to get PRs for issue #${issueNumber}: ${ghErrorMessage(err)}`)
     return []
   }
 }
@@ -358,7 +358,7 @@ export function postPRComment(prNumber: number, body: string): void {
     )
     logger.info(`  Comment posted on PR #${prNumber}`)
   } catch (err) {
-    logger.warn(`  Failed to post PR comment: ${err}`)
+    logger.warn(`  Failed to post PR comment: ${ghErrorMessage(err)}`)
   }
 }
 
@@ -376,7 +376,7 @@ export function submitPRReview(
     logger.info(`  PR review submitted on #${prNumber}: ${event}`)
     return true
   } catch (err) {
-    logger.warn(`  Failed to submit PR review: ${err}`)
+    logger.warn(`  Failed to submit PR review: ${ghErrorMessage(err)}`)
     return false
   }
 }
@@ -437,7 +437,7 @@ export function getLatestKodyReviewComment(prNumber: number): string | null {
     ])
     return output.trim() || null
   } catch (err) {
-    logger.warn(`  Failed to get review comments for PR #${prNumber}: ${err}`)
+    logger.warn(`  Failed to get review comments for PR #${prNumber}: ${ghErrorMessage(err)}`)
     return null
   }
 }
@@ -502,7 +502,7 @@ export function getPRFeedbackSinceLastKodyAction(prNumber: number): string | nul
 
     return parts.join("\n\n")
   } catch (err) {
-    logger.warn(`  Failed to get PR feedback for #${prNumber}: ${err}`)
+    logger.warn(`  Failed to get PR feedback for #${prNumber}: ${ghErrorMessage(err)}`)
     return null
   }
 }
@@ -707,6 +707,13 @@ export function getMergedPRsSinceDate(
 const ATTACHMENT_URL_PATTERN =
   /https:\/\/(?:github\.com\/user-attachments\/assets|user-images\.githubusercontent\.com)\/[^\s)"'<>]+/g
 
+const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024 // 5MB per file
+
+const ALLOWED_ATTACHMENT_EXTENSIONS = new Set([
+  ".png", ".jpg", ".jpeg", ".gif", ".webp",
+  ".pdf", ".txt", ".md", ".json", ".yaml", ".yml", ".xml", ".svg",
+])
+
 export function downloadIssueAttachments(
   body: string,
   taskDir: string,
@@ -739,10 +746,20 @@ export function downloadIssueAttachments(
     }
     usedFilenames.add(filename)
 
+    const ext = path.extname(filename).toLowerCase()
+    if (!ALLOWED_ATTACHMENT_EXTENSIONS.has(ext)) {
+      logger.warn(`  Skipping disallowed attachment type '${ext}': ${url}`)
+      continue
+    }
+
     const filePath = path.join(attachDir, filename)
 
     try {
       const data = execFileSync("curl", ["-sL", url], { timeout: API_TIMEOUT_MS })
+      if (data.length > MAX_ATTACHMENT_SIZE) {
+        logger.warn(`  Skipping attachment exceeding ${MAX_ATTACHMENT_SIZE} bytes: ${url} (${data.length} bytes)`)
+        continue
+      }
       fs.writeFileSync(filePath, data)
       downloadedFiles.push(filePath)
       updatedBody = updatedBody.split(url).join(filePath)
