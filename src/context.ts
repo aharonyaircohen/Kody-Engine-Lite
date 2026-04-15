@@ -305,21 +305,63 @@ playwright-cli open ${serverUrl ?? "http://localhost:3000"}
 npx playwright test --grep "homepage" --reporter=list
 \`\`\`
 
-Alternatively, write and run a short Playwright script to verify the UI:
+Alternatively, write and run a short Playwright script to verify the UI with console and network capture:
 \`\`\`bash
 node -e "
 const { chromium } = require('playwright');
+const fs = require('fs');
+
 (async () => {
+  // Ensure artifact directories exist
+  fs.mkdirSync('/tmp/kody-artifacts/screenshots', { recursive: true });
+  fs.mkdirSync('/tmp/kody-artifacts/videos', { recursive: true });
+  fs.mkdirSync('/tmp/kody-artifacts/traces', { recursive: true });
+
   const browser = await chromium.launch();
-  const page = await browser.newPage();
+  const context = await browser.newContext({
+    recordVideo: { dir: '/tmp/kody-artifacts/videos/' }
+  });
+
+  // Start trace recording
+  await context.tracing.start({ screenshots: true, snapshots: true });
+
+  const page = await context.newPage();
+
+  // Collect console errors and warnings
+  const consoleErrors = [];
+  page.on('console', msg => {
+    if (msg.type() === 'error' || msg.type() === 'warning') {
+      consoleErrors.push({ type: msg.type(), text: msg.text() });
+    }
+  });
+
+  // Collect network errors (4xx/5xx responses)
+  const networkErrors = [];
+  page.on('response', response => {
+    if (response.status() >= 400) {
+      networkErrors.push({ url: response.url(), status: response.status() });
+    }
+  });
+
   await page.goto('${serverUrl ?? "http://localhost:3000"}');
-  await page.screenshot({ path: '/tmp/verify.png', fullPage: true });
+  await page.screenshot({ path: '/tmp/kody-artifacts/screenshots/verify.png', fullPage: true });
   console.log('Title:', await page.title());
+
+  // Stop trace recording and save
+  await context.tracing.stop({ path: '/tmp/kody-artifacts/traces/trace.zip' });
+
+  // Close context to finalize video recording
+  await context.close();
   await browser.close();
+
+  // Print captured artifacts
+  console.log('CONSOLE ERRORS:', JSON.stringify(consoleErrors, null, 2));
+  console.log('NETWORK ERRORS:', JSON.stringify(networkErrors, null, 2));
+  console.log('Artifacts saved to /tmp/kody-artifacts/');
 })();
 "
 \`\`\`
-Use the screenshot output and page title to verify the UI is rendering correctly.`
+Use the screenshot output, console errors, and network errors to verify the UI is rendering correctly.`
 
   const toolsBlock = hasMcpPlaywright ? mcpTools : cliTools
 
@@ -332,32 +374,62 @@ ${devServerBlock}
 ${toolsBlock}
 
 ### Verification Steps (DO ALL OF THESE)
-1. Start the dev server (see above)
-2. Navigate to the affected page(s)
-3. Take a screenshot or snapshot to verify elements are present
-4. **Test interactions**: if the task involves buttons, forms, search, toggles, or any interactive elements — click them, type into them, and verify the result
-5. If the task mentions responsive behavior, test at different viewport widths (e.g., 1200px, 768px, 480px)
-6. Kill the dev server when done
+1. Create artifact dirs: \`mkdir -p /tmp/kody-artifacts/{screenshots,videos,traces}\`
+2. Start the dev server (see above)
+3. Navigate to the affected page(s) — capture console errors and network failures
+4. Take screenshots to \`/tmp/kody-artifacts/screenshots/\`
+5. **Test interactions**: if the task involves buttons, forms, search, toggles, or any interactive elements — click them, type into them, and verify the result
+6. If the task mentions responsive behavior, test at different viewport widths (e.g., 1200px, 768px, 480px)
+7. Report ALL console errors and network failures (4xx/5xx) in your output
+8. Kill the dev server when done
 
 Do NOT skip the browser verification. The visual check AND interaction testing are required parts of implementing UI changes.`
   }
 
   if (stageName === "review") {
+    // Check for build stage browser artifacts to feed into review
+    const buildArtifactsDir = path.join(taskDir, "artifacts", "build")
+    let buildArtifactsNote = ""
+    if (fs.existsSync(buildArtifactsDir)) {
+      const screenshotsDir = path.join(buildArtifactsDir, "screenshots")
+      const tracesDir = path.join(buildArtifactsDir, "traces")
+      const screenshots = fs.existsSync(screenshotsDir) ? fs.readdirSync(screenshotsDir) : []
+      const traces = fs.existsSync(tracesDir) ? fs.readdirSync(tracesDir) : []
+      if (screenshots.length > 0 || traces.length > 0) {
+        buildArtifactsNote = `\n### Build Stage Browser Artifacts\n`
+        if (screenshots.length > 0) {
+          buildArtifactsNote += `Screenshots from build stage:\n`
+          for (const shot of screenshots) {
+            buildArtifactsNote += `- \`${path.join(screenshotsDir, shot)}\`\n`
+          }
+        }
+        if (traces.length > 0) {
+          buildArtifactsNote += `Traces from build stage:\n`
+          for (const trace of traces) {
+            buildArtifactsNote += `- \`${path.join(tracesDir, trace)}\`\n`
+          }
+        }
+        buildArtifactsNote += `Use the Read tool to examine these artifacts.`
+      }
+    }
+
     return `## Browser Visual Verification (MANDATORY for UI review)
 
 This task involves UI changes. You MUST visually verify the implementation using the browser tools before giving your verdict.
 ${devServerBlock}
 
-${toolsBlock}
+${toolsBlock}${buildArtifactsNote}
 
 ### Review Verification Steps (DO ALL OF THESE)
-1. Start the dev server (see above)
-2. Navigate to the affected page(s)
-3. Take a screenshot or snapshot to verify elements, layout, and text content
-4. **Test interactions**: click buttons, fill forms, test search — verify the UI responds correctly
-5. If the task mentions responsive behavior, test at different viewport widths
-6. Include your browser verification findings in the review (what you saw, what you interacted with, what worked/failed)
-7. Kill the dev server when done
+1. Create artifact dirs: \`mkdir -p /tmp/kody-artifacts/{screenshots,videos,traces}\`
+2. Start the dev server (see above)
+3. Navigate to the affected page(s) — capture console errors and network failures
+4. Take screenshots to \`/tmp/kody-artifacts/screenshots/\`
+5. **Test interactions**: click buttons, fill forms, test search — verify the UI responds correctly
+6. If the task mentions responsive behavior, test at different viewport widths
+7. Include your browser verification findings in the review (what you saw, what you interacted with, what worked/failed)
+8. Report ALL console errors and network failures (4xx/5xx) in your output
+9. Kill the dev server when done
 
 Do NOT skip the browser verification. A review of UI changes without visual AND interaction verification is incomplete.`
   }

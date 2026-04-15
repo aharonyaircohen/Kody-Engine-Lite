@@ -355,6 +355,37 @@ function appendStageContext(taskDir: string, stageName: string, output?: string)
     summary = "(stage completed via tool use — no text output)"
   }
 
-  const entry = `\n### ${stageName} (${timestamp})\n${summary}\n`
+  // Copy browser artifacts if they exist
+  let artifactsNote = ""
+  const artifactsSource = "/tmp/kody-artifacts"
+  if (fs.existsSync(artifactsSource)) {
+    const stageArtifactsDir = path.join(taskDir, "artifacts", stageName)
+    fs.mkdirSync(stageArtifactsDir, { recursive: true })
+    fs.cpSync(artifactsSource, stageArtifactsDir, { recursive: true })
+
+    // List captured files
+    const capturedFiles: string[] = []
+    const walkDir = (dir: string, base: string = ""): void => {
+      const entries = fs.readdirSync(dir, { withFileTypes: true })
+      for (const entry of entries) {
+        const relPath = base ? `${base}/${entry.name}` : entry.name
+        if (entry.isDirectory()) {
+          walkDir(path.join(dir, entry.name), relPath)
+        } else {
+          capturedFiles.push(relPath)
+        }
+      }
+    }
+    walkDir(stageArtifactsDir)
+
+    if (capturedFiles.length > 0) {
+      artifactsNote = `\nArtifacts: ${capturedFiles.join(", ")}`
+    }
+
+    // Clean up for the next stage
+    fs.rmSync(artifactsSource, { recursive: true, force: true })
+  }
+
+  const entry = `\n### ${stageName} (${timestamp})\n${summary}${artifactsNote}\n`
   fs.appendFileSync(contextPath, entry)
 }
