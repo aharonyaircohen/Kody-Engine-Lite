@@ -5,9 +5,26 @@
 
 import * as fs from "fs"
 import * as path from "path"
-import type { WatchAgentConfig, WatchAgentDefinition } from "../core/types.js"
+import type { AgentNotifyConfig, WatchAgentConfig, WatchAgentDefinition } from "../core/types.js"
 
 const AGENTS_DIR = ".kody/watch/agents"
+
+function buildNotifyConfig(raw: unknown): AgentNotifyConfig | undefined {
+  if (raw === undefined || raw === null || raw === false) return undefined
+  if (raw === true) return { channels: ["slack"], color: "good", when: "always" }
+  if (typeof raw !== "object") return undefined
+  const obj = raw as Record<string, unknown>
+  const channels = Array.isArray(obj.channels)
+    ? obj.channels.filter((c) => typeof c === "string")
+    : ["slack"]
+  const color = typeof obj.color === "string" ? obj.color : "good"
+  const when = (
+    ["always", "on-critical", "on-action", "on-failure", "never"] as const
+  ).includes(obj.when as string)
+    ? (obj.when as "always" | "on-critical" | "on-action" | "on-failure" | "never")
+    : "always"
+  return { channels, color, when }
+}
 
 interface LoadResult {
   agents: WatchAgentDefinition[]
@@ -31,6 +48,8 @@ function validateAgentConfig(raw: unknown, dirName: string): WatchAgentConfig | 
     return `${dirName}: agent.json missing required "cron" (string, e.g. "0 9 * * *")`
   }
 
+  const notify = buildNotifyConfig(obj.notify)
+
   return {
     name: obj.name.trim(),
     description: obj.description.trim(),
@@ -38,6 +57,7 @@ function validateAgentConfig(raw: unknown, dirName: string): WatchAgentConfig | 
     reportOnFailure: obj.reportOnFailure === true,
     timeoutMs:
       typeof obj.timeoutMs === "number" && obj.timeoutMs > 0 ? obj.timeoutMs : undefined,
+    notify,
   }
 }
 

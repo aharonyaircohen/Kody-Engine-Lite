@@ -2,6 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import * as fs from "fs"
 import * as path from "path"
 import * as os from "os"
+import { execSync as realExecSync } from "child_process"
+
+const { mockExecSync } = vi.hoisted(() => ({
+  mockExecSync: vi.fn<(...args: Parameters<typeof realExecSync>) => void>(),
+}))
 
 vi.mock("../../src/watch/agents/run-agent", () => ({
   runWatchAgent: vi.fn(),
@@ -18,6 +23,10 @@ vi.mock("../../src/watch/clients/logger", () => ({
     warn: () => {},
     error: () => {},
   }),
+}))
+
+vi.mock("child_process", () => ({
+  execSync: mockExecSync,
 }))
 
 import { runWatch } from "../../src/watch/core/watch"
@@ -315,5 +324,243 @@ describe("watch orchestrator — reportOnFailure", () => {
       expect.anything(),
       expect.objectContaining({ timeoutMs: undefined }),
     )
+  })
+})
+
+// ============================================================================
+// notify hook
+// ============================================================================
+
+describe("watch orchestrator — notify", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "notify-orch-test-"))
+    mockCreateGitHubClient.mockReturnValue({
+      postComment: () => {},
+      getIssue: () => ({ body: null, title: null }),
+      getIssueComments: () => [],
+      updateComment: () => {},
+      getOpenIssues: () => [],
+      createIssue: () => null,
+      searchIssues: () => [],
+    })
+  })
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true })
+  })
+
+  it("calls execSync with correct args when notify is configured and agent completes", async () => {
+    mockRunWatchAgent.mockResolvedValue({ agentName: "notify-agent", outcome: "completed" })
+    const config = makeConfig({
+      projectDir: "/project/root",
+      agents: [{
+        config: {
+          name: "notify-agent",
+          description: "Test",
+          cron: "* * * * *",
+          notify: { channels: ["slack"], color: "good", when: "always" },
+        },
+        systemPrompt: "test",
+        dirPath: "/tmp",
+      }],
+    })
+
+    await runWatch(config)
+
+    expect(mockExecSync).toHaveBeenCalledTimes(1)
+    const [cmd, opts] = mockExecSync.mock.calls[0] as [string, { cwd: string; stdio: string }]
+    expect(cmd).toContain("NOTIFY_RESULT=ok")
+    expect(cmd).toContain("pnpm tsx scripts/kody/notify.ts")
+    expect(cmd).toContain("--agent notify-agent")
+    expect(cmd).toContain("--channels slack")
+    expect(cmd).toContain("--when always")
+    expect(cmd).toContain("--color good")
+    expect(cmd).toContain("--title")
+    expect(cmd).toContain("Cycle 1")
+    expect(opts.cwd).toBe("/project/root")
+    expect(opts.stdio).toBe("pipe")
+  })
+
+  it("sets NOTIFY_RESULT=failure when agent fails", async () => {
+    mockRunWatchAgent.mockResolvedValue({ agentName: "fail-agent", outcome: "failed", error: "boom" })
+    const config = makeConfig({
+      projectDir: "/project/root",
+      agents: [{
+        config: {
+          name: "fail-agent",
+          description: "Test",
+          cron: "* * * * *",
+          notify: { channels: ["slack"], color: "danger", when: "on-failure" },
+        },
+        systemPrompt: "test",
+        dirPath: "/tmp",
+      }],
+    })
+
+    await runWatch(config)
+
+    expect(mockExecSync).toHaveBeenCalledTimes(1)
+    const [cmd] = mockExecSync.mock.calls[0] as [string]
+    expect(cmd).toContain("NOTIFY_RESULT=failure")
+    expect(cmd).toContain("--color danger")
+  })
+
+  it("uses notify:true shorthand defaults", async () => {
+    mockRunWatchAgent.mockResolvedValue({ agentName: "shorthand-agent", outcome: "completed" })
+    const config = makeConfig({
+      projectDir: "/project/root",
+      agents: [{
+        config: {
+          name: "shorthand-agent",
+          description: "Test",
+          cron: "* * * * *",
+          notify: true,
+        },
+        systemPrompt: "test",
+        dirPath: "/tmp",
+      }],
+    })
+
+    await runWatch(config)
+
+    expect(mockExecSync).toHaveBeenCalledTimes(1)
+    const [cmd] = mockExecSync.mock.calls[0] as [string]
+    expect(cmd).toContain("--channels slack")
+    expect(cmd).toContain("--color good")
+    expect(cmd).toContain("--when always")
+  })
+
+  it("joins multiple channels with comma", async () => {
+    mockRunWatchAgent.mockResolvedValue({ agentName: "multi-agent", outcome: "completed" })
+    const config = makeConfig({
+      projectDir: "/project/root",
+      agents: [{
+        config: {
+          name: "multi-agent",
+          description: "Test",
+          cron: "* * * * *",
+          notify: { channels: ["slack", "slack-dev"], when: "always" },
+        },
+        systemPrompt: "test",
+        dirPath: "/tmp",
+      }],
+    })
+
+    await runWatch(config)
+
+    const [cmd] = mockExecSync.mock.calls[0] as [string]
+    expect(cmd).toContain("--channels slack,slack-dev")
+  })
+
+  it("does NOT call execSync when notify is omitted", async () => {
+    mockRunWatchAgent.mockResolvedValue({ agentName: "no-notify", outcome: "completed" })
+    const config = makeConfig({
+      agents: [{
+        config: { name: "no-notify", description: "No notify", cron: "* * * * *" },
+        systemPrompt: "test",
+        dirPath: "/tmp",
+      }],
+    })
+
+    await runWatch(config)
+
+    expect(mockExecSync).not.toHaveBeenCalled()
+  })
+
+  it("still calls execSync when notify.when is 'never' — gating is the script's job", async () => {
+    mockRunWatchAgent.mockResolvedValue({ agentName: "never-agent", outcome: "completed" })
+    const config = makeConfig({
+      agents: [{
+        config: {
+          name: "never-agent",
+          description: "Never",
+          cron: "* * * * *",
+          notify: { when: "never" },
+        },
+        systemPrompt: "test",
+        dirPath: "/tmp",
+      }],
+    })
+
+    await runWatch(config)
+
+    // The engine does not gate internally — it always calls execSync and lets
+    // notify.ts enforce the when condition.
+    expect(mockExecSync).toHaveBeenCalled()
+    const [cmd] = mockExecSync.mock.calls[0] as [string]
+    expect(cmd).toContain("--when never")
+  })
+
+  it("does NOT fail the watch cycle when execSync throws", async () => {
+    mockRunWatchAgent.mockResolvedValue({ agentName: "notify-fails", outcome: "completed" })
+    mockExecSync.mockImplementation(() => { throw new Error("notify.ts not found") })
+
+    const config = makeConfig({
+      agents: [{
+        config: {
+          name: "notify-fails",
+          description: "Test",
+          cron: "* * * * *",
+          notify: { when: "always" },
+        },
+        systemPrompt: "test",
+        dirPath: "/tmp",
+      }],
+    })
+
+    // Should not throw
+    const result = await runWatch(config)
+
+    // Watch cycle should still succeed
+    expect(result.agentResults).toHaveLength(1)
+    expect(result.agentResults[0].outcome).toBe("completed")
+  })
+
+  it("sets title with cycle number and outcome", async () => {
+    mockRunWatchAgent.mockResolvedValue({ agentName: "cycle-agent", outcome: "completed" })
+    const config = makeConfig({
+      projectDir: "/project/root",
+      agents: [{
+        config: {
+          name: "cycle-agent",
+          description: "Test",
+          cron: "* * * * *",
+          notify: { when: "always" },
+        },
+        systemPrompt: "test",
+        dirPath: "/tmp",
+      }],
+    })
+
+    await runWatch(config)
+
+    const [cmd] = mockExecSync.mock.calls[0] as [string]
+    expect(cmd).toContain("watch-cycle-agent")
+    expect(cmd).toContain("Cycle 1")
+    expect(cmd).toContain("ok")
+  })
+
+  it("sets body to error message when agent fails", async () => {
+    mockRunWatchAgent.mockResolvedValue({ agentName: "error-agent", outcome: "failed", error: "network timeout" })
+    const config = makeConfig({
+      projectDir: "/project/root",
+      agents: [{
+        config: {
+          name: "error-agent",
+          description: "Test",
+          cron: "* * * * *",
+          notify: { when: "always" },
+        },
+        systemPrompt: "test",
+        dirPath: "/tmp",
+      }],
+    })
+
+    await runWatch(config)
+
+    const [cmd] = mockExecSync.mock.calls[0] as [string]
+    expect(cmd).toContain("failure")
+    expect(cmd).toContain("network timeout")
   })
 })

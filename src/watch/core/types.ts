@@ -113,7 +113,23 @@ export interface WatchAgentConfig {
    * Default interval: 30s. Default timeout: 2h.
    */
   waitFor?: boolean
+  /**
+   * Notification configuration for the agent cycle.
+   * If omitted, no notification is sent.
+   */
+  notify?: AgentNotifyConfig | true
 }
+
+export interface AgentNotifyConfig {
+  /** Channel names to notify (must match keys in .kody/watch/notify.config.json). Default: ["slack"]. */
+  channels?: string[]
+  /** Attachment color for Slack. Default: "good". */
+  color?: string
+  /** When to fire the notification. Default: "always". */
+  when?: "always" | "on-critical" | "on-action" | "on-failure" | "never"
+}
+
+export type NotifyResult = "ok" | "critical" | "action" | "failure"
 
 export interface WatchAgentDefinition {
   config: WatchAgentConfig

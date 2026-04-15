@@ -9,6 +9,179 @@ import { cronMatches } from "../../src/watch/core/schedule"
 import type { WatchAgentDefinition } from "../../src/watch/core/types"
 
 // ============================================================================
+// notify field parsing — loadWatchAgents
+// ============================================================================
+
+describe("loadWatchAgents — notify field", () => {
+  let tmpDir: string
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "notify-agent-test-"))
+  })
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true })
+  })
+
+  function createAgent(name: string, json: unknown, md = "Do the thing.") {
+    const agentDir = path.join(tmpDir, ".kody", "watch", "agents", name)
+    fs.mkdirSync(agentDir, { recursive: true })
+    fs.writeFileSync(path.join(agentDir, "agent.json"), JSON.stringify(json))
+    fs.writeFileSync(path.join(agentDir, "agent.md"), md)
+  }
+
+  it("omits notify when field is absent", () => {
+    createAgent("no-notify", {
+      name: "no-notify",
+      description: "No notify",
+      cron: "0 9 * * *",
+    })
+    const { agents } = loadWatchAgents(tmpDir)
+    expect(agents).toHaveLength(1)
+    expect(agents[0].config.notify).toBeUndefined()
+  })
+
+  it("omits notify when field is null", () => {
+    createAgent("null-notify", {
+      name: "null-notify",
+      description: "Null notify",
+      cron: "0 9 * * *",
+      notify: null,
+    })
+    const { agents } = loadWatchAgents(tmpDir)
+    expect(agents[0].config.notify).toBeUndefined()
+  })
+
+  it("omits notify when field is false", () => {
+    createAgent("false-notify", {
+      name: "false-notify",
+      description: "False notify",
+      cron: "0 9 * * *",
+      notify: false,
+    })
+    const { agents } = loadWatchAgents(tmpDir)
+    expect(agents[0].config.notify).toBeUndefined()
+  })
+
+  it("defaults to slack/good/always when notify is true", () => {
+    createAgent("true-notify", {
+      name: "true-notify",
+      description: "Shorthand notify",
+      cron: "0 9 * * *",
+      notify: true,
+    })
+    const { agents } = loadWatchAgents(tmpDir)
+    expect(agents[0].config.notify).toEqual({
+      channels: ["slack"],
+      color: "good",
+      when: "always",
+    })
+  })
+
+  it("parses full notify object with all fields", () => {
+    createAgent("full-notify", {
+      name: "full-notify",
+      description: "Full notify config",
+      cron: "0 9 * * *",
+      notify: {
+        channels: ["slack", "slack-dev"],
+        color: "danger",
+        when: "on-failure",
+      },
+    })
+    const { agents } = loadWatchAgents(tmpDir)
+    expect(agents[0].config.notify).toEqual({
+      channels: ["slack", "slack-dev"],
+      color: "danger",
+      when: "on-failure",
+    })
+  })
+
+  it("defaults channels to ['slack'] when omitted", () => {
+    createAgent("no-channels", {
+      name: "no-channels",
+      description: "No channels",
+      cron: "0 9 * * *",
+      notify: { color: "warning" },
+    })
+    const { agents } = loadWatchAgents(tmpDir)
+    expect(agents[0].config.notify!.channels).toEqual(["slack"])
+  })
+
+  it("defaults color to 'good' when omitted", () => {
+    createAgent("no-color", {
+      name: "no-color",
+      description: "No color",
+      cron: "0 9 * * *",
+      notify: { when: "on-action" },
+    })
+    const { agents } = loadWatchAgents(tmpDir)
+    expect(agents[0].config.notify!.color).toBe("good")
+  })
+
+  it("defaults when to 'always' when omitted", () => {
+    createAgent("no-when", {
+      name: "no-when",
+      description: "No when",
+      cron: "0 9 * * *",
+      notify: { channels: ["slack"], color: "danger" },
+    })
+    const { agents } = loadWatchAgents(tmpDir)
+    expect(agents[0].config.notify!.when).toBe("always")
+  })
+
+  it("accepts all valid when values", () => {
+    const values = ["always", "on-critical", "on-action", "on-failure", "never"] as const
+    for (const v of values) {
+      const name = `when-${v}`
+      createAgent(name, {
+        name,
+        description: `When = ${v}`,
+        cron: "0 9 * * *",
+        notify: { when: v },
+      })
+    }
+    const { agents } = loadWatchAgents(tmpDir)
+    expect(agents).toHaveLength(5)
+    const whens = agents.map((a) => a.config.notify!.when).sort()
+    expect(whens).toEqual(["always", "never", "on-action", "on-critical", "on-failure"])
+  })
+
+  it("defaults when to 'always' for invalid when value", () => {
+    createAgent("bad-when", {
+      name: "bad-when",
+      description: "Bad when",
+      cron: "0 9 * * *",
+      notify: { when: "on-error" } as any,
+    })
+    const { agents } = loadWatchAgents(tmpDir)
+    expect(agents[0].config.notify!.when).toBe("always")
+  })
+
+  it("filters non-string channels out of channels array", () => {
+    createAgent("mixed-channels", {
+      name: "mixed-channels",
+      description: "Mixed channels",
+      cron: "0 9 * * *",
+      notify: { channels: ["slack", 123, null, "discord"] as any },
+    })
+    const { agents } = loadWatchAgents(tmpDir)
+    expect(agents[0].config.notify!.channels).toEqual(["slack", "discord"])
+  })
+
+  it("defaults channels to ['slack'] when channels is not an array", () => {
+    createAgent("bad-channels", {
+      name: "bad-channels",
+      description: "Bad channels",
+      cron: "0 9 * * *",
+      notify: { channels: "slack" } as any,
+    })
+    const { agents } = loadWatchAgents(tmpDir)
+    expect(agents[0].config.notify!.channels).toEqual(["slack"])
+  })
+})
+
+// ============================================================================
 // Loader Tests
 // ============================================================================
 

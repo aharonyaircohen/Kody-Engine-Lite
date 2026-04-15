@@ -4,6 +4,7 @@
 
 import type { ActionRequest, WatchConfig, WatchContext, WatchResult, WatchAgentRunResult } from "./types.js"
 import { createStateStore } from "./state.js"
+import { execSync } from "child_process"
 import { shouldDedup, markExecuted, cleanupExpiredDedup } from "./dedup.js"
 import { createGitHubClient } from "../clients/github.js"
 import { createConsoleLogger } from "../clients/logger.js"
@@ -252,9 +253,48 @@ export async function runWatch(config: WatchConfig): Promise<WatchResult> {
         if (result.outcome === "completed") {
           log.info({ agent: agent.config.name }, "Watch agent completed")
         } else {
-          const errMsg = `Agent ${agent.config.name}: ${result.outcome}${result.error ? ` — ${result.error}` : ""}`
+          const errMsg = `Agent ${agent.config.name} — ${result.outcome}${result.error ? ` — ${result.error}` : ""}`
           errors.push(errMsg)
           log.warn({ agent: agent.config.name, outcome: result.outcome }, "Watch agent did not complete")
+        }
+
+        // End-of-cycle notification — outside the agent try/catch so execSync failures
+        // do not pollute the agent's own outcome or add a duplicate result entry.
+        if (agent.config.notify) {
+          const raw = agent.config.notify
+          const nc = raw === true
+            ? { channels: ["slack"], color: "good", when: "always" as const }
+            : {
+                channels: Array.isArray((raw as { channels?: string[] }).channels)
+                  ? (raw as { channels: string[] }).channels
+                  : ["slack"],
+                color: typeof (raw as { color?: string }).color === "string"
+                  ? (raw as { color: string }).color
+                  : "good",
+                when: (raw as { when?: string }).when ?? "always",
+              }
+          const outcome = result.outcome === "completed" ? "ok" : "failure"
+          const title = `watch-${agent.config.name} | Cycle ${ctx.cycleNumber} — ${outcome}`
+          const body = result.error
+            ? `Error: ${result.error}`
+            : "Cycle completed successfully"
+          const cmd = [
+            `NOTIFY_RESULT=${outcome}`,
+            `NOTIFY_CYCLE=${ctx.cycleNumber}`,
+            "pnpm tsx scripts/kody/notify.ts",
+            "--agent", agent.config.name,
+            "--channels", nc.channels.join(","),
+            "--when", nc.when,
+            "--color", nc.color,
+            "--title", `"${title}"`,
+            "--body", `"${body}"`,
+          ].join(" ")
+          try {
+            execSync(cmd, { cwd: ctx.projectDir, stdio: "pipe" })
+            log.debug({ agent: agent.config.name }, "Notification sent")
+          } catch {
+            log.warn({ agent: agent.config.name }, "Notification failed — continuing")
+          }
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
@@ -262,6 +302,7 @@ export async function runWatch(config: WatchConfig): Promise<WatchResult> {
         log.error({ agent: agent.config.name, error: message }, "Watch agent failed")
         agentResults.push({ agentName: agent.config.name, outcome: "failed", error: message })
       }
+
     }
   } else if (scheduledAgents.length > 0 && dryRun) {
     log.info(

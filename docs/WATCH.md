@@ -294,6 +294,115 @@ kody watch --agent skill-opportunity-hunter
 kody watch --agent agent-health-checker
 ```
 
+## Notifications
+
+Watch agents can send Slack (or any webhook-based) notifications at end of cycle. The engine calls a project-provided `scripts/kody/notify.ts` script after each agent completes. This keeps notification logic in the project so teams can customize it per-project.
+
+### How It Works
+
+After each agent cycle, the engine checks whether the agent has a `notify` config. If so, it calls:
+
+```bash
+NOTIFY_RESULT=<ok|failure> NOTIFY_CYCLE=<N> \
+  pnpm tsx scripts/kody/notify.ts \
+  --agent <name> --channels <csv> --when <condition> \
+  --color <color> --title "<title>" --body "<body>"
+```
+
+`notify.ts` is responsible for reading webhook URLs from `.kody/watch/notify.config.json` and firing the actual webhooks.
+
+### `notify` in `agent.json`
+
+Add a `notify` section to any agent's `agent.json`:
+
+```jsonc
+{
+  "name": "analytics",
+  "description": "Verifies Mixpanel event firing and checks for PII leaks",
+  "cron": "0 8 * * *",
+  "notify": {
+    "channels": ["slack"],
+    "color": "danger",
+    "when": "on-failure"
+  }
+}
+```
+
+**Fields:**
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `channels` | `string[]` | `["slack"]` | Channel names matching keys in `notify.config.json` |
+| `color` | `string` | `"good"` | Attachment color: `"good"`, `"warning"`, `"danger"`, or a hex string |
+| `when` | `string` | `"always"` | When to fire — see below |
+
+**Shorthand:** `notify: true` means `channels: ["slack"]`, `color: "good"`, `when: "always"`.
+
+**Opting out:** Omit `notify` entirely, or set `when: "never"`.
+
+### `when` Conditions
+
+| Condition | Fires when `NOTIFY_RESULT` equals |
+|-----------|----------------------------------|
+| `always` | always |
+| `on-critical` | `critical` |
+| `on-action` | `action` |
+| `on-failure` | `failure` |
+| `never` | never |
+
+### `NOTIFY_RESULT` Values
+
+The engine sets `NOTIFY_RESULT` automatically:
+
+| Agent outcome | `NOTIFY_RESULT` |
+|---------------|----------------|
+| Cycle completed | `ok` |
+| Cycle failed / timed out | `failure` |
+
+Agents can override this by setting `NOTIFY_RESULT` themselves before calling `notify.ts` explicitly (see below).
+
+### Project Files (Reference Implementation)
+
+The engine does not ship notification scripts — each project provides them. A-Guy's implementation serves as the reference:
+
+**`.kody/watch/notify.config.json`** — channel definitions (webhook URLs):
+
+```jsonc
+{
+  "channels": {
+    "slack": {
+      "enabled": true,
+      "webhookUrl": "$SLACK_WEBHOOK_URL"
+    },
+    "slack-dev": {
+      "enabled": false,
+      "webhookUrl": "$SLACK_WEBHOOK_URL_DEV"
+    }
+  }
+}
+```
+
+**`scripts/kody/notify.ts`** — dispatcher. Run with `pnpm tsx scripts/kody/notify.ts` with the arguments above. Reads channel webhook URLs from `notify.config.json` and fires webhooks, enforcing the `when` gating. Exit 0 on success or silent skip; non-zero on HTTP errors.
+
+To add a new channel (Discord, PagerDuty, etc.), add an entry to `notify.config.json` — no script changes needed.
+
+### Explicit Agent Notifications (Semantic Results)
+
+The engine's end-of-cycle call uses generic title/body (`watch-<name> | Cycle N — ok/failure`). For richer notifications with domain-specific context, agents call `notify.ts` explicitly in `agent.md` steps, setting `NOTIFY_RESULT` to `critical` or `action` based on what the agent discovered.
+
+Example (from `analytics` agent):
+
+```bash
+# Send alert before filing issues — agent has counted PII findings
+NOTIFY_RESULT=critical pnpm tsx scripts/kody/notify.ts \
+  --agent analytics \
+  --channels slack \
+  --when on-critical \
+  --color danger \
+  --title "watch-analytics | Cycle {cycle} — Critical findings detected" \
+  --body "PII findings: {piiCount} | Console errors: {errorCount}"
+```
+
 ## Workflow Permissions
 
 The `kody-watch.yml` workflow needs:
