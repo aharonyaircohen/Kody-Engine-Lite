@@ -1,0 +1,26 @@
+[
+  {
+    "actionId": "chat-chat-test-1776271459-init",
+    "runId": "chat-chat-test-1776271459-init",
+    "sessionId": "chat-test-1776271459",
+    "status": "waiting",
+    "step": "chat",
+    "instructions": [
+      "hello chat"
+    ],
+    "cancel": false,
+    "lastHeartbeat": "2026-04-15T16:44:49.000Z",
+    "createdAt": "2026-04-15T16:44:49.000Z"
+  },
+  {
+    "runId": "chat-chat-test-1776271459-1776271490334",
+    "actionId": "chat-chat-test-1776271459-1776271490334",
+    "sessionId": "chat-test-1776271459",
+    "status": "waiting",
+    "step": "chat",
+    "instructions": [],
+    "cancel": false,
+    "lastHeartbeat": "2026-04-15T16:44:50.469Z",
+    "createdAt": "2026-04-15T16:44:50.469Z"
+  }
+]
