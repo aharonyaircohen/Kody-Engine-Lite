@@ -20,8 +20,26 @@ export function loadState(taskId: string, taskDir: string): PipelineStatus | nul
     )
     if (!result.ok) {
       logger.warn(`  Corrupt status.json: ${result.error}`)
-      return null
+      return loadStateFromBackup(taskId, taskDir)
     }
+    if (result.data.taskId !== taskId) return null
+    return result.data
+  } catch {
+    // Unexpected error (e.g., file deleted between existsSync and read) — try backup
+    return loadStateFromBackup(taskId, taskDir)
+  }
+}
+
+function loadStateFromBackup(taskId: string, taskDir: string): PipelineStatus | null {
+  const bak = path.join(taskDir, "status.json.bak")
+  if (!fs.existsSync(bak)) return null
+  try {
+    logger.warn(`  Restoring status.json from backup`)
+    const result = parseJsonSafe<PipelineStatus>(
+      fs.readFileSync(bak, "utf-8"),
+      ["taskId", "state", "stages", "createdAt", "updatedAt"],
+    )
+    if (!result.ok) return null
     if (result.data.taskId !== taskId) return null
     return result.data
   } catch {
@@ -36,9 +54,15 @@ export function writeState(state: PipelineStatus, taskDir: string): PipelineStat
   }
   const target = path.join(taskDir, "status.json")
   const tmp = target + ".tmp"
+  const bak = target + ".bak"
+
+  // Backup existing status.json before overwriting (crash recovery)
+  if (fs.existsSync(target)) {
+    try { fs.copyFileSync(target, bak) } catch { /* best effort */ }
+  }
+
   fs.writeFileSync(tmp, JSON.stringify(updated, null, 2))
   fs.renameSync(tmp, target)
-  // Return the new state instead of mutating the caller's reference
   return updated
 }
 

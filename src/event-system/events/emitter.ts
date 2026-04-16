@@ -14,6 +14,22 @@ type EventHandler<N extends EventName = EventName> = (
   event: KodyEvent<N>,
 ) => void | Promise<void>;
 
+const HANDLER_TIMEOUT_MS = 5_000
+
+async function safeCall(handler: EventHandler, event: KodyEvent): Promise<void> {
+  try {
+    const result = handler(event)
+    if (result instanceof Promise) {
+      const timeout = new Promise<never>((_r, reject) => {
+        setTimeout(() => reject(new Error("Handler timeout")), HANDLER_TIMEOUT_MS)
+      })
+      await Promise.race([result, timeout])
+    }
+  } catch (err) {
+    logger.debug(`[emitter] handler error (timeout or exception): ${err instanceof Error ? err.message : err}`)
+  }
+}
+
 export class KodyEmitter {
   private handlers = new Map<string, Set<EventHandler>>();
   private globalHandlers = new Set<EventHandler>();
@@ -66,12 +82,12 @@ export class KodyEmitter {
 
     logger.debug(`[event] ${event.name} | ${JSON.stringify(event.payload)}`);
 
-    // 1. Fire in-process handlers
+    // 1. Fire in-process handlers (with timeout guard)
     const handlers = this.handlers.get(event.name);
     if (handlers) {
-      await Promise.allSettled([...handlers].map((h) => h(event)));
+      await Promise.allSettled([...handlers].map((h) => safeCall(h, event)));
     }
-    await Promise.allSettled([...this.globalHandlers].map((h) => h(event)));
+    await Promise.allSettled([...this.globalHandlers].map((h) => safeCall(h, event)));
 
     // 2. Extract runId from payload for logging
     const runId = (event.payload as { runId?: string }).runId ?? "unknown";

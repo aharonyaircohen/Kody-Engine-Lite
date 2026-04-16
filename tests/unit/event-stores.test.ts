@@ -500,6 +500,27 @@ describe("pr-state", () => {
     listPRStates = prState.listPRStates
   })
 
+  describe("data directory", () => {
+    it("does not double-nest .kody-engine when _dataDir is null (production default)", async () => {
+      // Exercise the production default path (null _dataDir).
+      // Remove any stale double-nested directory that may exist from prior test runs.
+      const doubleNestedDir = path.join(process.cwd(), ".kody-engine", ".kody-engine")
+      fs.rmSync(doubleNestedDir, { recursive: true, force: true })
+
+      const prState = await import("../../src/event-system/store/pr-state.js")
+      ;(prState._setDataDir as (d: string | null) => void)(null)
+
+      upsertPRState({ runId: "path-check-default", title: "T", body: "", head: "h" })
+
+      const dataDir = path.join(process.cwd(), ".kody-engine")
+      const correct = path.join(dataDir, "pr-state.json")
+      const wrong  = path.join(dataDir, ".kody-engine", "pr-state.json")
+
+      expect(fs.existsSync(correct), `expected ${correct} to exist`).toBe(true)
+      expect(fs.existsSync(wrong),   `expected ${wrong} NOT to exist (got double-nested path)`).toBe(false)
+    })
+  })
+
   describe("upsertPRState", () => {
     it("creates a new PR state", () => {
       const pr = upsertPRState({

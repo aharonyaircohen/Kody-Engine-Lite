@@ -1,9 +1,15 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest"
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import * as fs from "fs"
 import * as path from "path"
 import * as os from "os"
-import { deriveBranchName, getDefaultBranch } from "../../src/git-utils.js"
+import { execFileSync } from "child_process"
+import { deriveBranchName, getDefaultBranch, pushBranch } from "../../src/git-utils.js"
 import { resetProjectConfig, setConfigDir } from "../../src/config.js"
+
+// Stub execFileSync so pushBranch doesn't actually run git
+vi.mock("child_process", () => ({
+  execFileSync: vi.fn(() => ""),
+}))
 
 describe("deriveBranchName", () => {
   it("generates branch from issue number and title", () => {
@@ -114,5 +120,66 @@ describe("ensureFeatureBranch logic", () => {
 
   it("creates from empty branch (detached HEAD)", () => {
     expect(shouldCreateNewBranch("", 42, "42-add-search")).toBe("create")
+  })
+})
+
+describe("pushBranch", () => {
+  beforeEach(() => {
+    vi.mocked(execFileSync).mockReset()
+  })
+
+  it("pushes normally when fast-forward succeeds", () => {
+    execFileSync.mockReturnValue("")
+
+    pushBranch("/some/cwd")
+
+    expect(execFileSync).toHaveBeenCalledTimes(1)
+    expect(execFileSync).toHaveBeenCalledWith(
+      "git",
+      ["push", "-u", "origin", "HEAD"],
+      expect.objectContaining({ cwd: "/some/cwd" }),
+    )
+  })
+
+  it("retries with --force-with-lease when fast-forward fails", () => {
+    execFileSync
+      .mockImplementationOnce(() => { throw new Error("non-fast-forward") })
+      .mockReturnValueOnce("")
+
+    pushBranch()
+
+    expect(execFileSync).toHaveBeenCalledTimes(2)
+    expect(execFileSync).toHaveBeenNthCalledWith(2, "git",
+      ["push", "--force-with-lease", "-u", "origin", "HEAD"],
+      expect.any(Object),
+    )
+  })
+
+  it("falls back to --force when --force-with-lease fails with lease error", () => {
+    execFileSync
+      // fast-forward fails
+      .mockImplementationOnce(() => { throw new Error("non-fast-forward") })
+      // --force-with-lease fails with lease divergence
+      .mockImplementationOnce(() => {
+        throw Object.assign(new Error("error: failed to push some refs to 'https://github.com/foo/bar'\nhint: Updates were rejected because the remote contains work that you do not"), { status: 1, stderr: "force-with-lease" })
+      })
+      // --force succeeds
+      .mockReturnValueOnce("")
+
+    pushBranch()
+
+    expect(execFileSync).toHaveBeenCalledTimes(3)
+    expect(execFileSync).toHaveBeenNthCalledWith(3, "git",
+      ["push", "--force", "-u", "origin", "HEAD"],
+      expect.any(Object),
+    )
+  })
+
+  it("re-throws non-lease errors from --force-with-lease", () => {
+    execFileSync
+      .mockImplementationOnce(() => { throw new Error("non-fast-forward") })
+      .mockImplementationOnce(() => { throw Object.assign(new Error("authentication failed"), { status: 128 }) })
+
+    expect(() => pushBranch()).toThrow("authentication failed")
   })
 })

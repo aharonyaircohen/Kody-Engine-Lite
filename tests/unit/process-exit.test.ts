@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest"
+import { describe, it, expect, vi, beforeEach } from "vitest"
 
 /**
  * Tests for process exit behavior after pipeline completion.
@@ -104,5 +104,45 @@ describe("litellm cleanup on exit", () => {
     const cleanup = () => { if (ref) { ref.kill(); ref = null } }
 
     expect(() => cleanup()).not.toThrow()
+  })
+})
+
+describe("unhandledRejection handler", () => {
+  // Stub process.exit before importing entry.ts so the registered
+  // unhandledRejection handler doesn't kill the test runner.
+  beforeEach(() => {
+    vi.stubGlobal("process", {
+      ...process,
+      exit: vi.fn() as typeof process.exit,
+      on: vi.fn() as typeof process.on,
+    })
+  })
+
+  it("is exported from entry.ts", async () => {
+    const entry = await import("../../src/entry.js")
+    expect(typeof entry.handleFatalError).toBe("function")
+  })
+
+  it("handleFatalError is callable without throwing in local mode", async () => {
+    const originalArgv = [...process.argv]
+    const originalEnv = process.env.GITHUB_ACTIONS
+    process.argv = ["node", "kody-engine", "--local"]
+    delete process.env.GITHUB_ACTIONS
+
+    const { handleFatalError } = await import("../../src/entry.js")
+    expect(() => handleFatalError("❌ test")).not.toThrow()
+
+    process.argv = originalArgv
+    if (originalEnv !== undefined) process.env.GITHUB_ACTIONS = originalEnv
+  })
+
+  it("handleFatalError is callable without throwing when no issue context", async () => {
+    const originalArgv = [...process.argv]
+    process.argv = ["node", "kody-engine"]
+
+    const { handleFatalError } = await import("../../src/entry.js")
+    expect(() => handleFatalError("❌ test")).not.toThrow()
+
+    process.argv = originalArgv
   })
 })

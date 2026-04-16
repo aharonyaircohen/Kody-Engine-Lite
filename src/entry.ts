@@ -21,18 +21,53 @@ import { loadToolDeclarations, detectTools } from "./tools.js"
 import { findParentRunId } from "./run-history.js"
 import { resolveIssueFromPR } from "./cli/task-resolution.js"
 
-// Handle SIGTERM (sent by GitHub Actions on job cancel/timeout)
-// Post a failure comment and update labels before dying
-process.on("SIGTERM", () => {
+// Extract fatal-error cleanup to share between SIGTERM, unhandledRejection, and main().catch()
+export function handleFatalError(label: string, msg?: string): void {
   const issueStr = process.argv.find((_, i, a) => a[i - 1] === "--issue-number") ?? process.env.ISSUE_NUMBER
   const isLocal = process.argv.includes("--local") || !process.env.GITHUB_ACTIONS
   if (issueStr && !isLocal) {
     const issueNumber = parseInt(issueStr, 10)
-    try { postComment(issueNumber, "❌ Pipeline killed (job timeout or cancellation)") } catch { /* best effort */ }
+    try { postComment(issueNumber, label) } catch { /* best effort */ }
     try { setLabel(issueNumber, "kody:failed") } catch { /* best effort */ }
   }
+  if (msg) console.error(msg)
+}
+
+// Handle SIGTERM (sent by GitHub Actions on job cancel/timeout)
+process.on("SIGTERM", () => {
+  handleFatalError("❌ Pipeline killed (job timeout or cancellation)")
   process.exit(143)
 })
+
+// Handle unhandled promise rejections — prevent silent crashes that skip cleanup
+process.on("unhandledRejection", (reason) => {
+  const msg = reason instanceof Error ? reason.message : String(reason)
+  handleFatalError(`❌ Pipeline crashed (unhandled rejection): ${msg.slice(0, 200)}`)
+  process.exit(1)
+})
+
+const MAX_LITELLM_RETRIES = 3
+
+async function startLitellmWithRetry(
+  litellmUrl: string,
+  projectDir: string,
+  generatedConfig?: string,
+): Promise<ReturnType<typeof tryStartLitellm>> {
+  for (let attempt = 1; attempt <= MAX_LITELLM_RETRIES; attempt++) {
+    const process = await tryStartLitellm(litellmUrl, projectDir, generatedConfig)
+    if (process) return process
+    if (attempt < MAX_LITELLM_RETRIES) {
+      const delay = Math.min(1000 * 2 ** (attempt - 1), 10000)
+      logger.info(`  LiteLLM start attempt ${attempt} failed — retrying in ${delay}ms...`)
+      await new Promise((r) => setTimeout(r, delay))
+    }
+  }
+  logger.error(
+    `LiteLLM failed to start after ${MAX_LITELLM_RETRIES} attempts. ` +
+    "Install it with: pip install 'litellm[proxy]'",
+  )
+  process.exit(1)
+}
 
 async function ensureLitellmProxy(
   config: KodyConfig,
@@ -59,20 +94,12 @@ async function ensureLitellmProxy(
     if (needsRestart) {
       logger.info("LiteLLM proxy has stale model config — restarting with updated models")
       await killExistingProxy(litellmUrl)
-      litellmProcess = await tryStartLitellm(litellmUrl, projectDir, generatedConfig)
-      if (!litellmProcess) {
-        logger.error("Failed to restart LiteLLM proxy")
-        process.exit(1)
-      }
+      litellmProcess = await startLitellmWithRetry(litellmUrl, projectDir, generatedConfig)
     } else {
       logger.info(`LiteLLM proxy already running at ${litellmUrl}`)
     }
   } else {
-    litellmProcess = await tryStartLitellm(litellmUrl, projectDir, generatedConfig)
-    if (!litellmProcess) {
-      logger.error("LiteLLM is configured but could not be started. Install it with: pip install 'litellm[proxy]'")
-      process.exit(1)
-    }
+    litellmProcess = await startLitellmWithRetry(litellmUrl, projectDir, generatedConfig)
   }
 
   // Don't set ANTHROPIC_BASE_URL globally — per-stage agent.ts sets it only when needed
@@ -827,18 +854,6 @@ async function main() {
 
 main().catch(async (err) => {
   const msg = err instanceof Error ? err.message : String(err)
-  console.error(msg)
-
-  // Post crash comment if we have issue context
-  const issueStr = process.argv.find((_, i, a) => a[i - 1] === "--issue-number") ?? process.env.ISSUE_NUMBER
-  const isLocal = process.argv.includes("--local") || !process.env.GITHUB_ACTIONS
-  if (issueStr && !isLocal) {
-    try {
-      postComment(parseInt(issueStr, 10), `❌ Pipeline crashed: ${msg.slice(0, 200)}`)
-    } catch {
-      // Best effort
-    }
-  }
-
+  handleFatalError(`❌ Pipeline crashed: ${msg.slice(0, 200)}`, msg)
   process.exit(1)
 })
