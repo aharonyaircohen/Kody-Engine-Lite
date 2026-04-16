@@ -15,24 +15,28 @@ describe("workflow template", () => {
 
   const template = fs.readFileSync(templatePath, "utf-8")
 
-  it("recognizes bootstrap as valid mode", () => {
-    expect(template).toContain("bootstrap")
-    // The parse step invokes the TS parser via ci-parse
+  it("recognizes bootstrap as valid mode via ci-build-args", () => {
+    // ci-build-args handles bootstrap: outputs "bootstrap" for MODE=bootstrap
+    // The YAML delegates all mode routing to ci-build-args
     expect(template).toContain("kody-engine ci-parse")
+    expect(template).toContain("kody-engine $(kody-engine ci-build-args)")
   })
 
-  it("orchestrate handles bootstrap mode", () => {
-    expect(template).toContain('MODE" = "bootstrap"')
-    expect(template).toContain("kody-engine bootstrap")
+  it("orchestrate handles bootstrap mode via ci-build-args", () => {
+    // MODE is passed as env var, routing handled by kody-engine ci-build-args
+    expect(template).toContain("MODE:")
+    expect(template).toContain("kody-engine ci-build-args")
   })
 
   it("runs kody-engine bootstrap for bootstrap mode", () => {
-    expect(template).toContain("kody-engine bootstrap")
+    // kody-engine ci-build-args outputs "bootstrap" for MODE=bootstrap, piped to kody-engine
+    expect(template).toContain("kody-engine $(kody-engine ci-build-args)")
   })
 
-  it("has separate bootstrap path from normal pipeline", () => {
-    // Bootstrap should be in an if/else with normal pipeline
-    expect(template).toContain('if [ "$MODE" = "bootstrap" ]')
+  it("uses ci-build-args for mode routing instead of shell if/elif", () => {
+    // Mode routing is now in TypeScript (ci-build-args), not shell conditionals
+    expect(template).not.toContain('if [ "$MODE" = "bootstrap" ]')
+    expect(template).toContain("kody-engine ci-build-args")
   })
 
   it("includes all required workflow triggers", () => {

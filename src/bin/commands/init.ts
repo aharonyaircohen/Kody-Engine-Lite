@@ -129,67 +129,54 @@ export function initCommand(opts: { force: boolean }, pkgRoot: string) {
   }
 
   // ── Step 5: Kody Watch (opt-in) ──
+  // Note: watch is now merged into kody.yml. Only install agents/config here.
   console.log("\n── Kody Watch ──")
-  const watchWorkflowSrc = path.join(templatesDir, "kody-watch.yml")
-  const watchWorkflowDest = path.join(cwd, ".github", "workflows", "kody-watch.yml")
-  if (fs.existsSync(watchWorkflowSrc)) {
-    if (fs.existsSync(watchWorkflowDest) && !opts.force) {
-      console.log("  ○ .github/workflows/kody-watch.yml (exists)")
-    } else {
-      // Install watch workflow + add config
-      fs.mkdirSync(path.dirname(watchWorkflowDest), { recursive: true })
-      fs.copyFileSync(watchWorkflowSrc, watchWorkflowDest)
-      console.log("  ✓ .github/workflows/kody-watch.yml")
 
-      // Add watch section to config
-      if (fs.existsSync(configDest)) {
-        try {
-          const config = JSON.parse(fs.readFileSync(configDest, "utf-8"))
-          if (!config.watch) {
-            config.watch = { enabled: true }
-            fs.writeFileSync(configDest, JSON.stringify(config, null, 2) + "\n")
-            console.log("  ✓ Added watch config to kody.config.json")
-          }
-        } catch { /* config parse error */ }
+  // Add watch section to config
+  if (fs.existsSync(configDest)) {
+    try {
+      const config = JSON.parse(fs.readFileSync(configDest, "utf-8"))
+      if (!config.watch) {
+        config.watch = { enabled: true }
+        fs.writeFileSync(configDest, JSON.stringify(config, null, 2) + "\n")
+        console.log("  ✓ Added watch config to kody.config.json")
       }
+    } catch { /* config parse error */ }
+  }
 
-      console.log("  ℹ Kody Watch will monitor pipeline health every 30 minutes")
-      console.log("  ℹ Activity log issue will be created during bootstrap")
+  // Install template watch agents
+  const agentTemplatesDir = path.join(templatesDir, "watch-agents")
+  const watchAgentsDir = path.join(cwd, ".kody", "watch", "agents")
+  if (fs.existsSync(agentTemplatesDir)) {
+    const agentDirs = fs.readdirSync(agentTemplatesDir, { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+    for (const agentDir of agentDirs) {
+      const destDir = path.join(watchAgentsDir, agentDir.name)
+      if (fs.existsSync(destDir) && !opts.force) {
+        console.log(`  ○ .kody/watch/agents/${agentDir.name} (exists)`)
+        continue
+      }
+      fs.mkdirSync(destDir, { recursive: true })
+      const srcDir = path.join(agentTemplatesDir, agentDir.name)
+      for (const file of fs.readdirSync(srcDir)) {
+        fs.copyFileSync(path.join(srcDir, file), path.join(destDir, file))
+      }
+      console.log(`  ✓ .kody/watch/agents/${agentDir.name}`)
     }
 
-    // Install template watch agents
-    const agentTemplatesDir = path.join(templatesDir, "watch-agents")
-    const watchAgentsDir = path.join(cwd, ".kody", "watch", "agents")
-    if (fs.existsSync(agentTemplatesDir)) {
-      const agentDirs = fs.readdirSync(agentTemplatesDir, { withFileTypes: true })
-        .filter((d) => d.isDirectory())
-      for (const agentDir of agentDirs) {
-        const destDir = path.join(watchAgentsDir, agentDir.name)
-        if (fs.existsSync(destDir) && !opts.force) {
-          console.log(`  ○ .kody/watch/agents/${agentDir.name} (exists)`)
-          continue
-        }
-        fs.mkdirSync(destDir, { recursive: true })
-        const srcDir = path.join(agentTemplatesDir, agentDir.name)
-        for (const file of fs.readdirSync(srcDir)) {
-          fs.copyFileSync(path.join(srcDir, file), path.join(destDir, file))
-        }
-        console.log(`  ✓ .kody/watch/agents/${agentDir.name}`)
-      }
-
-      // Copy watch agents README
-      const readmeSrc = path.join(agentTemplatesDir, "README.md")
-      if (fs.existsSync(readmeSrc)) {
-        const readmeDest = path.join(watchAgentsDir, "README.md")
-        if (!fs.existsSync(readmeDest) || opts.force) {
-          fs.mkdirSync(watchAgentsDir, { recursive: true })
-          fs.copyFileSync(readmeSrc, readmeDest)
-          console.log("  ✓ .kody/watch/agents/README.md")
-        }
+    // Copy watch agents README
+    const readmeSrc = path.join(agentTemplatesDir, "README.md")
+    if (fs.existsSync(readmeSrc)) {
+      const readmeDest = path.join(watchAgentsDir, "README.md")
+      if (!fs.existsSync(readmeDest) || opts.force) {
+        fs.mkdirSync(watchAgentsDir, { recursive: true })
+        fs.copyFileSync(readmeSrc, readmeDest)
+        console.log("  ✓ .kody/watch/agents/README.md")
       }
     }
+    console.log("  ℹ Kody Watch runs every 30 minutes via kody.yml schedule trigger")
   } else {
-    console.log("  ○ kody-watch.yml template not found — skipping")
+    console.log("  ○ watch-agents template not found — skipping")
   }
 
   // ── Step 7: Install Kody skill ──
@@ -212,7 +199,6 @@ export function initCommand(opts: { force: boolean }, pkgRoot: string) {
   console.log("\n── Git ──")
   const filesToCommit = [
     ".github/workflows/kody.yml",
-    ".github/workflows/kody-watch.yml",
     ".claude/skills/kody/SKILL.md",
     "kody.config.json",
   ].filter((f) => fs.existsSync(path.join(cwd, f)))

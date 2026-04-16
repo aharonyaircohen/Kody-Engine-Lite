@@ -70,6 +70,22 @@ if (command === "init") {
   import("../cli/test-model-command.js").then(({ runTestModelCommand }) => runTestModelCommand())
 } else if (command === "ci-parse") {
   import("../ci/parse-inputs.js").then(({ runCiParse }) => runCiParse())
+} else if (command === "ci-export-secrets") {
+  import("../ci/export-secrets.js").then(({ runExportSecrets }) => runExportSecrets())
+} else if (command === "ci-build-args") {
+  import("../ci/build-args.js").then(({ runBuildArgs }) => runBuildArgs())
+} else if (command === "ci-summarize") {
+  import("../ci/summarize.js").then(({ runSummarize }) => runSummarize())
+} else if (command === "ci-close-issue") {
+  import("../ci/close-issue.js").then(({ runCloseIssue }) => runCloseIssue().catch((err: unknown) => {
+    console.error(err)
+    process.exit(1)
+  }))
+} else if (command === "fix-ci-trigger") {
+  import("../ci/fix-ci-trigger.js").then(({ runFixCiTrigger }) => runFixCiTrigger().catch((err: unknown) => {
+    console.error(err)
+    process.exit(1)
+  }))
 } else if (command === "serve") {
   import("./commands/serve.js").then(({ serveCommand }) => serveCommand(args.slice(1)))
 } else if (command === "chat") {

@@ -27,6 +27,10 @@ on:
       model:
         type: string
         default: ""
+      agent:
+        description: "Agent to run (omit for all, used by watch)"
+        required: false
+        type: string
       sessionId:
         description: "Session ID for chat mode (kody-engine chat)"
         type: string
@@ -55,6 +59,9 @@ on:
   push:
     branches: [main, dev]
     paths: ["src/**", "kody.config.json", "package.json"]
+
+  schedule:
+    - cron: "*/30 * * * *"
 
 concurrency:
   group: kody-${{ github.event.inputs.task_id || github.event.issue.number || github.event.pull_request.number || github.event.workflow_run.id || github.sha }}
@@ -200,15 +207,7 @@ jobs:
       - name: Export project secrets
         env:
           ALL_SECRETS: ${{ toJSON(secrets) }}
-        run: |
-          echo "$ALL_SECRETS" | jq -r 'to_entries[] | select(.key | test("^(GITHUB_TOKEN)$") | not) | @json' | while IFS= read -r entry; do
-            KEY=$(echo "$entry" | jq -r '.key')
-            VALUE=$(echo "$entry" | jq -r '.value')
-            DELIM="KODY_EOF_${KEY}"
-            echo "${KEY}<<${DELIM}" >> $GITHUB_ENV
-            echo "${VALUE}" >> $GITHUB_ENV
-            echo "${DELIM}" >> $GITHUB_ENV
-          done
+        run: kody-engine ci-export-secrets
 
       - name: Run Kody pipeline
         env:
@@ -231,83 +230,14 @@ jobs:
           NO_NOTIFY: ${{ needs.parse.outputs.no_notify }}
           REVERT_TARGET: ${{ needs.parse.outputs.revert_target }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          if [ "$MODE" = "release" ]; then
-            echo "Running release..."
-            ARGS=""
-            [ "$FINALIZE" = "true" ] && ARGS="$ARGS --finalize"
-            [ -n "$BUMP" ] && ARGS="$ARGS --bump=$BUMP"
-            [ "$NO_PUBLISH" = "true" ] && ARGS="$ARGS --no-publish"
-            [ "$NO_NOTIFY" = "true" ] && ARGS="$ARGS --no-notify"
-            [ "$DRY_RUN" = "true" ] && ARGS="$ARGS --dry-run"
-            [ -n "$ISSUE_NUMBER" ] && ARGS="$ARGS --issue-number $ISSUE_NUMBER"
-            kody-engine release $ARGS
-          elif [ "$MODE" = "revert" ]; then
-            echo "Running revert..."
-            ARGS=""
-            [ -n "$REVERT_TARGET" ] && ARGS="$ARGS --target $REVERT_TARGET"
-            [ -n "$ISSUE_NUMBER" ] && ARGS="$ARGS --issue-number $ISSUE_NUMBER"
-            [ "$DRY_RUN" = "true" ] && ARGS="$ARGS --dry-run"
-            kody-engine revert $ARGS
-          elif [ "$MODE" = "bootstrap" ]; then
-            echo "Running bootstrap..."
-            kody-engine bootstrap
-          elif [ "$MODE" = "taskify" ]; then
-            echo "Running taskify..."
-            ARGS=""
-            [ -n "$TICKET_ID" ] && ARGS="$ARGS --ticket $TICKET_ID"
-            [ -n "$PRD_FILE" ] && ARGS="$ARGS --file $PRD_FILE"
-            [ -n "$ISSUE_NUMBER" ] && ARGS="$ARGS --issue-number $ISSUE_NUMBER"
-            [ -n "$TASK_ID" ] && ARGS="$ARGS --task-id $TASK_ID"
-            kody-engine taskify $ARGS
-          else
-            CMD="run"
-            [ "$MODE" = "rerun" ] && CMD="rerun"
-            [ "$MODE" = "fix" ] && CMD="fix"
-            [ "$MODE" = "fix-ci" ] && CMD="fix-ci"
-            [ "$MODE" = "review" ] && CMD="review"
-            [ "$MODE" = "resolve" ] && CMD="resolve"
-            [ "$MODE" = "status" ] && CMD="status"
-            [ "$MODE" = "hotfix" ] && CMD="hotfix"
-            ARGS="--issue-number $ISSUE_NUMBER"
-            [ -n "$TASK_ID" ] && ARGS="$ARGS --task-id $TASK_ID"
-            [ -n "$PR_NUMBER" ] && ARGS="$ARGS --pr-number $PR_NUMBER"
-            [ -n "$FROM_STAGE" ] && ARGS="$ARGS --from $FROM_STAGE"
-            [ -n "$COMPLEXITY" ] && ARGS="$ARGS --complexity $COMPLEXITY"
-            # FEEDBACK is also passed via env var (avoids shell escaping issues)
-            [ -n "$FEEDBACK" ] && ARGS="$ARGS --feedback \"$FEEDBACK\""
-            [ "$DRY_RUN" = "true" ] && ARGS="$ARGS --dry-run"
-            [ "$AUTO_MODE" = "true" ] && ARGS="$ARGS --auto-mode"
-            kody-engine $CMD $ARGS
-          fi
+        run: kody-engine $(kody-engine ci-build-args)
 
       - name: Pipeline summary
         if: always()
-        run: |
-          TASK_ID="${{ github.event.inputs.task_id || needs.parse.outputs.task_id }}"
-          STATUS_FILE=".kody/tasks/${TASK_ID}/status.json"
-          if [ -f "$STATUS_FILE" ]; then
-            STATE=$(jq -r '.state' "$STATUS_FILE")
-            ICON="❌"
-            [ "$STATE" = "completed" ] && ICON="✅"
-            echo "## ${ICON} Kody Pipeline: \`${TASK_ID}\`" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Status:** ${STATE}" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "| Stage | State |" >> $GITHUB_STEP_SUMMARY
-            echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
-            for stage in taskify plan build verify review review-fix ship; do
-              SSTATE=$(jq -r ".stages[\"$stage\"].state // \"—\"" "$STATUS_FILE")
-              case "$SSTATE" in
-                completed) SICON="✅" ;;
-                failed)    SICON="❌" ;;
-                timeout)   SICON="⏱" ;;
-                running)   SICON="▶️" ;;
-                *)         SICON="○" ;;
-              esac
-              echo "| ${stage} | ${SICON} ${SSTATE} |" >> $GITHUB_STEP_SUMMARY
-            done
-          fi
+        env:
+          TASK_ID: ${{ github.event.inputs.task_id || needs.parse.outputs.task_id }}
+          TASK_DIR: .kody/tasks
+        run: kody-engine ci-summarize
 
       - name: Upload artifacts
         if: always()
@@ -337,37 +267,10 @@ jobs:
           repositories: ${{ github.event.repository.name }}
 
       - name: Close linked issue
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
-          script: |
-            // Extract issue number from branch name (e.g. "42-feature-name")
-            const branch = context.payload.pull_request.head.ref;
-            const match = branch.match(/^(\d+)-/);
-            if (!match) return;
-            const issueNumber = parseInt(match[1], 10);
-
-            // Verify the issue exists and is open
-            try {
-              const { data: issue } = await github.rest.issues.get({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issueNumber,
-              });
-              if (issue.state === 'closed') return;
-              if (issue.pull_request) return; // Skip if it's a PR, not an issue
-
-              await github.rest.issues.update({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issueNumber,
-                state: 'closed',
-                state_reason: 'completed',
-              });
-              core.info(`Closed issue #${issueNumber} after PR #${context.payload.pull_request.number} was merged`);
-            } catch (e) {
-              core.warning(`Could not close issue #${issueNumber}: ${e.message}`);
-            }
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+          PAYLOAD: ${{ toJSON(github.event) }}
+        run: kody-engine ci-close-issue
 
   # ─── Error Notifications ─────────────────────────────────────────────────────
   notify-parse-error:
@@ -411,62 +314,131 @@ jobs:
     if: >-
       github.event_name == 'workflow_run' &&
       github.event.workflow_run.conclusion == 'failure' &&
-      github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.pull_requests[0]
+      github.event.workflow_run.event == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       issues: write
       pull-requests: write
     steps:
-      - name: Check loop guard and post fix-ci comment
+      - name: Generate App token
+        id: app-token
+        if: vars.KODY_APP_ID != ''
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.KODY_APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          repositories: ${{ github.event.repository.name }}
+
+      - name: Run fix-ci-trigger
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+          PAYLOAD: ${{ toJSON(github.event) }}
+        run: kody-engine fix-ci-trigger
+
+  # ─── Auto-Merge After Kody Fix ───────────────────────────────────────────────
+  auto-merge-after-fix:
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      pull-requests: write
+      contents: write
+    steps:
+      - name: Auto merge PR
         uses: actions/github-script@v7
         with:
           script: |
             const pr = context.payload.workflow_run.pull_requests[0];
+            if (!pr) {
+              core.info('No PR associated with this workflow run, skipping');
+              return;
+            }
             const prNumber = pr.number;
 
-            // Check recent comments for existing fix-ci attempt (last 24h)
+            // Loop guard: already merged
+            if (pr.merged) {
+              core.info(`PR #${prNumber} already merged, skipping`);
+              return;
+            }
+
+            // Loop guard: cooldown — skip if "auto-merged" comment in last 60 min
             const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: prNumber,
               per_page: 30,
             });
-
-            const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-            const recentFixCi = comments.data.filter(
-              (c) => c.body.includes('@kody fix-ci') && new Date(c.created_at) > oneDayAgo
+            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+            const recentMerge = comments.data.find(
+              (c) => c.body.includes('auto-merged') && new Date(c.created_at) > oneHourAgo
             );
-
-            if (recentFixCi.length >= 1) {
-              core.info('Loop guard: @kody fix-ci already commented in last 24h, skipping');
+            if (recentMerge) {
+              core.info('Loop guard: auto-merge already attempted in last 60 min, skipping');
               return;
             }
 
-            // Check if last commit was from a bot (kody's previous fix attempt)
-            const commits = await github.rest.pulls.listCommits({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: prNumber,
-              per_page: 1,
-            });
-            const lastAuthor = commits.data[commits.data.length - 1]?.commit?.author?.name;
-            if (lastAuthor === 'github-actions[bot]' || lastAuthor === 'kody[bot]') {
-              core.info('Loop guard: last commit from bot, skipping');
+            // Wait for CI to pass (poll up to ~15 min)
+            let ciPassed = false;
+            for (let i = 0; i < 18; i++) {
+              await new Promise(r => setTimeout(r, 50 * 1000)); // 50s between checks
+              const runs = await github.rest.actions.listWorkflowRunsForBranch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'ci.yml',
+                branch: pr.head.ref,
+                per_page: 1,
+              });
+              if (runs.data.workflow_runs.length > 0) {
+                const status = runs.data.workflow_runs[0].conclusion;
+                core.info(`CI run ${runs.data.workflow_runs[0].id} conclusion: ${status}`);
+                if (status === 'success') {
+                  ciPassed = true;
+                  break;
+                }
+                if (status === 'failure' || status === 'cancelled' || status === 'timed_out') {
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: prNumber,
+                    body: `@kody auto-merge skipped: CI failed again after fix.\n\n[View CI logs](${runs.data.workflow_runs[0].html_url})`,
+                  });
+                  return;
+                }
+              }
+            }
+
+            if (!ciPassed) {
+              core.info('CI did not pass in time, skipping auto-merge');
               return;
             }
 
-            // Post fix-ci comment
-            const runId = context.payload.workflow_run.id;
-            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber,
-              body: `@kody fix-ci\nCI failed: [View logs](${runUrl})\nRun ID: ${runId}`,
-            });
-            core.info(`Posted @kody fix-ci on PR #${prNumber} for run ${runId}`);
+            // Squash merge
+            try {
+              await github.rest.pulls.merge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+                merge_method: 'squash',
+                delete_branch: true,
+              });
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: `@kody auto-merged ✅`,
+              });
+              core.info(`Auto-merged PR #${prNumber}`);
+            } catch (e) {
+              if (e.status === 405) {
+                core.info(`PR #${prNumber} merge conflict or not ready, skipping`);
+              } else {
+                throw e;
+              }
+            }
 
   # ─── Chat ────────────────────────────────────────────────────────────────────
   chat:
@@ -528,15 +500,7 @@ jobs:
       - name: Export project secrets
         env:
           ALL_SECRETS: ${{ toJSON(secrets) }}
-        run: |
-          echo "$ALL_SECRETS" | jq -r 'to_entries[] | select(.key | test("^(GITHUB_TOKEN)$") | not) | @json' | while IFS= read -r entry; do
-            KEY=$(echo "$entry" | jq -r '.key')
-            VALUE=$(echo "$entry" | jq -r '.value')
-            DELIM="KODY_EOF_${KEY}"
-            echo "${KEY}<<${DELIM}" >> $GITHUB_ENV
-            echo "${VALUE}" >> $GITHUB_ENV
-            echo "${DELIM}" >> $GITHUB_ENV
-          done
+        run: kody-engine ci-export-secrets
 
       - name: Install kody-engine
         run: npm install -g @kody-ade/engine@latest --force
@@ -595,3 +559,60 @@ jobs:
             .kody/events/${{ github.event.inputs.sessionId }}.jsonl
           retention-days: 3
 
+  # ─── Watch ───────────────────────────────────────────────────────────────────
+  watch:
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.agent != '')
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    concurrency:
+      group: kody-watch
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Claude Code
+        if: hashFiles('.kody/watch/agents/*/agent.json') != ''
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Install Kody Engine
+        run: npm install -g @kody-ade/engine
+
+      - name: Install LiteLLM proxy
+        if: hashFiles('.kody/watch/agents/*/agent.json') != ''
+        run: pip install 'litellm[proxy]' prisma && python -m prisma py fetch
+
+      - name: Export project secrets
+        env:
+          ALL_SECRETS: ${{ toJSON(secrets) }}
+        run: kody-engine ci-export-secrets
+
+      - name: Verify GH_TOKEN source
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
+          GH_TOKEN_DEFAULT: ${{ github.token }}
+        run: |
+          if [ "$GH_TOKEN" = "$GH_TOKEN_DEFAULT" ]; then
+            echo "GH_TOKEN is the default github.token (GH_PAT secret may be empty)"
+          else
+            echo "GH_TOKEN is from GH_PAT secret"
+          fi
+          echo "Token prefix: ${GH_TOKEN:0:4}..."
+          gh auth status
+
+      - name: Run Kody Watch
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
+          REPO: ${{ github.repository }}
+          WATCH_ACTIVITY_LOG: ${{ vars.WATCH_ACTIVITY_LOG }}
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+        run: |
+          ARGS=""
+          [ "${{ inputs.dry_run }}" = "true" ] && ARGS="$ARGS --dry-run"
+          [ -n "${{ inputs.agent }}" ] && ARGS="$ARGS --agent ${{ inputs.agent }}"
+          kody-engine watch $ARGS
