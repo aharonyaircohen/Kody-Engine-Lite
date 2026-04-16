@@ -151,6 +151,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_review' ||
       (github.event_name == 'issue_comment' && needs.parse.result == 'success' && needs.parse.outputs.valid == 'true')
+    needs: [parse]
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
