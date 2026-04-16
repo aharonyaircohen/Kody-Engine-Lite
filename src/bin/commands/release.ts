@@ -8,7 +8,7 @@
 
 import * as fs from "fs"
 import * as path from "path"
-import { execFileSync } from "child_process"
+import { execFileSync, execSync } from "child_process"
 import { logger } from "../../logger.js"
 import { getProjectConfig, type KodyConfig } from "../../config.js"
 import {
