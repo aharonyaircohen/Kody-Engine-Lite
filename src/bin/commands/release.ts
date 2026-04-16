@@ -8,7 +8,7 @@
 
 import * as fs from "fs"
 import * as path from "path"
-import { execSync } from "child_process"
+import { execFileSync } from "child_process"
 import { logger } from "../../logger.js"
 import { getProjectConfig, type KodyConfig } from "../../config.js"
 import {
@@ -330,7 +330,7 @@ export function runShellHook(
 
   try {
     logger.info(`  Running ${label}: ${interpolated}`)
-    execSync(interpolated, { stdio: "inherit", timeout: timeoutMs })
+    execFileSync(interpolated, { stdio: "inherit", timeout: timeoutMs, shell: true })
     return true
   } catch (err) {
     logger.error(`  ${label} failed: ${err instanceof Error ? err.message : String(err)}`)
