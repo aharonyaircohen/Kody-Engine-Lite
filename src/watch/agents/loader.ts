@@ -18,11 +18,11 @@ function buildNotifyConfig(raw: unknown): AgentNotifyConfig | undefined {
     ? obj.channels.filter((c) => typeof c === "string")
     : ["slack"]
   const color = typeof obj.color === "string" ? obj.color : "good"
-  const when = (
-    ["always", "on-critical", "on-action", "on-failure", "never"] as const
-  ).includes(obj.when as string)
-    ? (obj.when as "always" | "on-critical" | "on-action" | "on-failure" | "never")
-    : "always"
+  const validWhen = ["always", "on-critical", "on-action", "on-failure", "never"] as const
+  const when: (typeof validWhen)[number] =
+    validWhen.includes(obj.when as (typeof validWhen)[number])
+      ? (obj.when as (typeof validWhen)[number])
+      : "always"
   return { channels, color, when }
 }
 
