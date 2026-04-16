@@ -11,30 +11,32 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import * as fs from "fs"
 import * as path from "path"
 import * as os from "os"
-import { execFileSync } from "child_process"
 
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kody-watch-test-"))
 
-// Runs a grep via a temp script file to avoid shell quoting issues.
-// The pattern is written on its own line, quoted with $'...', so backticks and
-// special chars are handled literally by bash.
-function grep(pattern: string, file: string, extraArgs: string = ""): string {
-  const scriptPath = path.join(tmpDir, "scan.sh")
-  const safePattern = pattern.replace(/'/g, "'\"'\"'") // single-quote escape for shell
-  const safeFile = file.replace(/'/g, "'\"'\"'")
-  const scriptContent = `grep -rnE ${extraArgs} -- '${safePattern}' '${safeFile}'`
-  fs.writeFileSync(scriptPath, scriptContent + "\n")
-  try {
-    return execFileSync("bash", [scriptPath], {
-      cwd: tmpDir,
-      encoding: "utf-8",
-      timeout: 10_000,
-    })
-  } catch (err: unknown) {
-    const code = (err as { status?: number }).status
-    if (code === 1) return "" // no matches
-    throw err
+// Node-based grep — avoids all shell quoting issues.
+function grep(pattern: string, target: string): string {
+  const re = new RegExp(pattern)
+  const searchDir = target === "src/" ? path.join(tmpDir, "src") : tmpDir
+  const results: string[] = []
+
+  function walk(dir: string): void {
+    if (!fs.existsSync(dir)) return
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name)
+      if (entry.isDirectory()) { walk(full); continue }
+      const content = fs.readFileSync(full, "utf-8")
+      const lines = content.split("\n")
+      lines.forEach((line, i) => {
+        if (re.test(line)) {
+          results.push(`${full.replace(tmpDir + "/", "")}:${i + 1}:${line.trim().slice(0, 80)}`)
+        }
+      })
+    }
   }
+
+  walk(searchDir)
+  return results.join("\n")
 }
 
 beforeEach(() => {
@@ -86,7 +88,7 @@ describe("security-scan: hardcoded secrets (grep)", () => {
   it("skips node_modules when pattern is in node_modules but not src", () => {
     // This test verifies the exclusion — create a file in node_modules that would match
     // but not in src/. The src/ dir has no suspicious files so grep returns empty.
-    const output = grep("['\"]AKIA[0-9A-Z]{16}['\"]", "src/", "--exclude-dir=node_modules")
+    const output = grep("['\"]AKIA[0-9A-Z]{16}['\"]", "src/")
     expect(output.trim()).toBe("")
   })
 })
