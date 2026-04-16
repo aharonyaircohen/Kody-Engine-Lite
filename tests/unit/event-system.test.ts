@@ -206,6 +206,39 @@ describe("KodyEmitter", () => {
       expect(result.emittedAt).toBeInstanceOf(Date)
       expect((result.payload as any).runId).toBe("run-1")
     })
+
+    it("does not block emit when a handler is slow (times out gracefully)", async () => {
+      // Patch setTimeout globally for this test — make timeout fire at 50ms
+      const realSetTimeout = globalThis.setTimeout
+      vi.stubGlobal("setTimeout", (fn: () => void, ms?: number) => {
+        // Any timeout > 0 used by safeCall (5000ms) → cap to 50ms
+        return realSetTimeout(fn, ms && ms > 100 ? 50 : ms)
+      })
+
+      emitter.on("pipeline.started", async () => {
+        await new Promise((r) => setTimeout(r, 200))
+      })
+
+      const start = Date.now()
+      await emitter.emit("pipeline.started", { runId: "run-1" })
+      const elapsed = Date.now() - start
+
+      // Should have returned well before 200ms (timeout fires at ~50ms)
+      expect(elapsed).toBeLessThan(150)
+
+      vi.stubGlobal("setTimeout", realSetTimeout)
+    }, 5_000)
+
+    it("fast handlers complete before emit returns", async () => {
+      let fastCalled = false
+      emitter.on("pipeline.started", async () => {
+        fastCalled = true
+      })
+
+      await emitter.emit("pipeline.started", { runId: "run-1" })
+
+      expect(fastCalled).toBe(true)
+    })
   })
 
   describe("removeAllListeners()", () => {

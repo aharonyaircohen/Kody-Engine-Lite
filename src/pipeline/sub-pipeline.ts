@@ -81,11 +81,20 @@ export async function runSubPipeline(
     fs.writeFileSync(path.join(subTaskDir, "plan.md"), slicedPlan)
 
     // 4. Write constraints.json (exclusive file ownership)
+    // Preserve any existing forbiddenFiles set by runSubPipelinesParallel
+    let forbiddenFiles: string[] = []
+    const existingConstraintsPath = path.join(subTaskDir, "constraints.json")
+    if (fs.existsSync(existingConstraintsPath)) {
+      try {
+        const existing = JSON.parse(fs.readFileSync(existingConstraintsPath, "utf-8"))
+        forbiddenFiles = existing.forbiddenFiles ?? []
+      } catch { /* use empty array */ }
+    }
     const constraints = {
       allowedFiles: subTask.scope,
-      forbiddenFiles: [] as string[], // populated by caller if needed
+      forbiddenFiles,
     }
-    fs.writeFileSync(path.join(subTaskDir, "constraints.json"), JSON.stringify(constraints, null, 2))
+    fs.writeFileSync(existingConstraintsPath, JSON.stringify(constraints, null, 2))
 
     // 5. Build sub-pipeline context
     const subCtx: PipelineContext = {
@@ -161,21 +170,22 @@ export async function runSubPipelinesParallel(
   const pending = [...subTasks]
 
   // Write forbidden files (sibling scopes) into each sub-task's constraints
+  // Create directories synchronously first so constraints are always available before
+  // the parallel sub-pipelines start (avoids the race where runSubPipeline creates
+  // the directory after we check fs.existsSync).
   for (const subTask of subTasks) {
     const siblingFiles = subTasks
       .filter((st) => st.id !== subTask.id)
       .flatMap((st) => st.scope)
 
     const subTaskDir = path.join(parentCtx.taskDir, "subtasks", subTask.id)
+    fs.mkdirSync(subTaskDir, { recursive: true })
     const constraintsPath = path.join(subTaskDir, "constraints.json")
-    // Only update if dir exists (it's created in runSubPipeline, but we set up constraints pre-emptively)
-    if (fs.existsSync(subTaskDir)) {
-      const constraints = {
-        allowedFiles: subTask.scope,
-        forbiddenFiles: siblingFiles,
-      }
-      fs.writeFileSync(constraintsPath, JSON.stringify(constraints, null, 2))
+    const constraints = {
+      allowedFiles: subTask.scope,
+      forbiddenFiles: siblingFiles,
     }
+    fs.writeFileSync(constraintsPath, JSON.stringify(constraints, null, 2))
   }
 
   while (pending.length > 0) {

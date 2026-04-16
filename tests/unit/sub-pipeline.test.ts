@@ -13,7 +13,7 @@ vi.mock("../../src/git-utils.js", () => ({
   commitAll: vi.fn().mockReturnValue({ success: true, hash: "abc1234", message: "test" }),
 }))
 
-import { runSubPipeline } from "../../src/pipeline/sub-pipeline.js"
+import { runSubPipeline, runSubPipelinesParallel } from "../../src/pipeline/sub-pipeline.js"
 
 describe("runSubPipeline", () => {
   let tmpDir: string
@@ -128,5 +128,85 @@ describe("runSubPipeline", () => {
     const result = await runSubPipeline(parentCtx, subTask, "", worktreeDir)
     expect(result.outcome).toBe("failed")
     expect(result.error).toBeTruthy()
+  })
+})
+
+describe("runSubPipelinesParallel", () => {
+  let tmpDir: string
+  let taskDir: string
+  let worktreeDir: string
+
+  const mockRunner = {
+    run: vi.fn().mockResolvedValue({ outcome: "completed", output: "done" }),
+    healthCheck: vi.fn().mockResolvedValue(true),
+  }
+
+  const parentCtx: PipelineContext = {
+    taskId: "test-task",
+    taskDir: "",
+    projectDir: "",
+    runners: { claude: mockRunner },
+    sessions: {},
+    input: { mode: "full", local: true },
+  }
+
+  const subTask1: SubTaskDefinition = {
+    id: "part-1",
+    title: "API",
+    description: "API task",
+    scope: ["src/api/a.ts"],
+    plan_steps: [],
+    depends_on: [],
+    shared_context: "",
+  }
+
+  const subTask2: SubTaskDefinition = {
+    id: "part-2",
+    title: "UI",
+    description: "UI task",
+    scope: ["src/ui/b.ts"],
+    plan_steps: [],
+    depends_on: [],
+    shared_context: "",
+  }
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kody-parallel-test-"))
+    taskDir = path.join(tmpDir, "task")
+    worktreeDir = path.join(tmpDir, "worktree")
+    fs.mkdirSync(taskDir, { recursive: true })
+    fs.mkdirSync(worktreeDir, { recursive: true })
+    parentCtx.taskDir = taskDir
+    parentCtx.projectDir = worktreeDir
+  })
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true })
+    vi.clearAllMocks()
+  })
+
+  it("writes constraints.json for each sub-task before parallel execution", async () => {
+    const worktreePaths = new Map([
+      ["part-1", path.join(worktreeDir, "part-1")],
+      ["part-2", path.join(worktreeDir, "part-2")],
+    ])
+    fs.mkdirSync(path.join(worktreeDir, "part-1"), { recursive: true })
+    fs.mkdirSync(path.join(worktreeDir, "part-2"), { recursive: true })
+
+    await runSubPipelinesParallel(parentCtx, [subTask1, subTask2], "Plan", worktreePaths, 2)
+
+    const constraints1 = JSON.parse(
+      fs.readFileSync(path.join(taskDir, "subtasks", "part-1", "constraints.json"), "utf-8"),
+    )
+    const constraints2 = JSON.parse(
+      fs.readFileSync(path.join(taskDir, "subtasks", "part-2", "constraints.json"), "utf-8"),
+    )
+
+    // part-1's forbiddenFiles should include part-2's scope
+    expect(constraints1.forbiddenFiles).toContain("src/ui/b.ts")
+    expect(constraints1.allowedFiles).toEqual(["src/api/a.ts"])
+    // part-2's forbiddenFiles should include part-1's scope
+    expect(constraints2.forbiddenFiles).toContain("src/api/a.ts")
+    expect(constraints2.allowedFiles).toEqual(["src/ui/b.ts"])
   })
 })

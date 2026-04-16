@@ -346,7 +346,20 @@ export function pushBranch(cwd?: string): void {
     // Use --force-with-lease for safe overwrite (refuses if remote changed
     // since our last fetch, protecting against concurrent pushes).
     logger.info("  Push rejected (non-fast-forward), retrying with --force-with-lease")
-    git(["push", "--force-with-lease", "-u", "origin", "HEAD"], { cwd, timeout: 120_000 })
+    try {
+      git(["push", "--force-with-lease", "-u", "origin", "HEAD"], { cwd, timeout: 120_000 })
+    } catch (leaseErr) {
+      // --force-with-lease itself failed — detect if it's a lease divergence
+      // (remote changed since our last fetch, which is expected on reruns).
+      const msg = leaseErr instanceof Error ? leaseErr.message : String(leaseErr)
+      const isLease = /force-with-lease|lease|contains work that you do not/.test(msg)
+      if (isLease) {
+        logger.warn("  --force-with-lease rejected (remote diverged), forcing push")
+        git(["push", "--force", "-u", "origin", "HEAD"], { cwd, timeout: 120_000 })
+      } else {
+        throw leaseErr
+      }
+    }
   }
   logger.info("  Pushed to origin")
 }
