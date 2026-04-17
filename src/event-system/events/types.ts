@@ -68,6 +68,8 @@ export interface StepFailedPayload {
   runId: string;
   step: string;
   error?: string;
+  /** Granular runner failure category: timed_out | max_turns | max_budget | aborted | failed. */
+  failureCategory?: string;
 }
 
 export interface UserResponsePayload {

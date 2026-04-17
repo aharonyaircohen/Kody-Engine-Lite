@@ -60,26 +60,30 @@ function setup(): { tmpDir: string; cleanup: () => void } {
 }
 
 describe("fix-ci command: entry.ts defaults", () => {
-  it("fix-ci defaults fromStage to build", () => {
-    const command = "fix-ci"
-    let fromStage: string | undefined = undefined
-
-    if ((command === "fix" || command === "fix-ci") && !fromStage) {
-      fromStage = "build"
+  function resolveFromStage(
+    command: string,
+    feedback: string | undefined,
+    explicit: string | undefined,
+  ): string | undefined {
+    if ((command === "fix" || command === "fix-ci") && !explicit) {
+      return feedback?.trim() ? "plan" : "build"
     }
+    return explicit
+  }
 
-    expect(fromStage).toBe("build")
+  it("fix-ci with empty feedback defaults fromStage to build", () => {
+    expect(resolveFromStage("fix-ci", undefined, undefined)).toBe("build")
+    expect(resolveFromStage("fix-ci", "", undefined)).toBe("build")
+  })
+
+  it("fix-ci with CI failure logs as feedback defaults fromStage to plan", () => {
+    const feedback = "## CI Failure Logs (run 12345)\n\nerror TS2345"
+    expect(resolveFromStage("fix-ci", feedback, undefined)).toBe("plan")
   })
 
   it("fix-ci with explicit --from overrides default", () => {
-    const command = "fix-ci"
-    let fromStage: string | undefined = "verify"
-
-    if ((command === "fix" || command === "fix-ci") && !fromStage) {
-      fromStage = "build"
-    }
-
-    expect(fromStage).toBe("verify")
+    expect(resolveFromStage("fix-ci", "some feedback", "verify")).toBe("verify")
+    expect(resolveFromStage("fix-ci", undefined, "build")).toBe("build")
   })
 
   it("fix-ci mode maps to rerun", () => {

@@ -94,4 +94,54 @@ describe("formatPipelineSummary", () => {
     const md = formatPipelineSummary(state)
     expect(md).toMatch(/\| verify\s*\|.*timeout/)
   })
+
+  it("surfaces failureCategory in the status column for failed stages", () => {
+    const state = makeState({
+      state: "failed",
+      stages: {
+        ...makeState().stages,
+        build: {
+          state: "failed",
+          retries: 0,
+          error: "[max_turns] maximum number of turns reached",
+          failureCategory: "max_turns",
+        },
+      },
+    })
+    const md = formatPipelineSummary(state)
+    expect(md).toMatch(/\| build\s*\|\s*failed \(max_turns\)/)
+  })
+
+  it("surfaces failureCategory in the status column for timed-out stages", () => {
+    const state = makeState({
+      state: "failed",
+      stages: {
+        ...makeState().stages,
+        build: {
+          state: "timeout",
+          retries: 0,
+          error: "Stage timed out",
+          failureCategory: "timed_out",
+        },
+      },
+    })
+    const md = formatPipelineSummary(state)
+    expect(md).toMatch(/\| build\s*\|\s*timeout \(timed_out\)/)
+  })
+
+  it("does not add a category suffix for completed stages even if failureCategory is set", () => {
+    const state = makeState()
+    // Defensive: completed stages should never carry a category, but tolerate
+    // the case where a stage was retried successfully after a prior failure.
+    state.stages.build = {
+      state: "completed",
+      retries: 1,
+      startedAt: "2026-04-01T12:01:30.000Z",
+      completedAt: "2026-04-01T12:03:30.000Z",
+      failureCategory: "max_turns",
+    }
+    const md = formatPipelineSummary(state)
+    expect(md).toMatch(/\| build\s*\|\s*completed\s*\|/)
+    expect(md).not.toContain("max_turns")
+  })
 })

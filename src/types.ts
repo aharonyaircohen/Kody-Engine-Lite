@@ -16,6 +16,19 @@ export type PipelineState =
   | "failed"
   | "timeout"
 
+/**
+ * Granular failure category for runner outcomes. Separates real time-based
+ * aborts from exhausted limits and external interruption, so pipeline-level
+ * summaries and diagnostics can distinguish them instead of lumping everything
+ * into "timed_out".
+ */
+export type FailureCategory =
+  | "timed_out"   // wall-clock timeout elapsed, we aborted the agent
+  | "max_turns"   // SDK hit its max_turns cap
+  | "max_budget"  // SDK hit its max_budget cap
+  | "aborted"     // AbortController fired before timeout (e.g. SIGTERM from CI)
+  | "failed"      // everything else
+
 export interface StageDefinition {
   name: StageName
   type: StageType
@@ -38,6 +51,8 @@ export interface StageState {
   error?: string
   outputFile?: string
   promptTokens?: number
+  /** Granular failure category (set only when state is "failed" or "timeout"). */
+  failureCategory?: FailureCategory
 }
 
 export interface PipelineStatus {
@@ -55,6 +70,8 @@ export interface StageResult {
   error?: string
   retries: number
   promptTokens?: number
+  /** Granular category when outcome != "completed" (for diagnostics/summary). */
+  failureCategory?: FailureCategory
 }
 
 export interface AgentResult {
@@ -62,6 +79,8 @@ export interface AgentResult {
   output?: string
   error?: string
   structuredOutput?: unknown
+  /** Granular category when outcome != "completed". */
+  failureCategory?: FailureCategory
 }
 
 export interface AgentRunnerOptions {
@@ -109,6 +128,9 @@ export interface PipelineContext {
   tools?: ResolvedTool[]
   input: {
     mode: "full" | "rerun" | "status"
+    /** Raw CLI command name (e.g. "fix", "fix-ci", "run"). Used by stages that
+     *  need to distinguish fix-mode from other rerun flows (e.g. ship guard). */
+    command?: string
     fromStage?: string
     dryRun?: boolean
     issueNumber?: number

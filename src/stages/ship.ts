@@ -22,6 +22,41 @@ import {
 } from "../github-api.js"
 import { getProjectConfig } from "../config.js"
 
+/**
+ * Pure predicate for the fix-mode ship guard. Returns true when the pipeline
+ * ran fix/fix-ci with non-empty feedback but produced no source-file changes —
+ * that combination means human scope was dropped silently, and ship should
+ * fail loudly instead of pushing an empty commit.
+ */
+export function shouldFailFixModeShip(
+  command: string | undefined,
+  feedback: string | undefined,
+  hasSourceChanges: boolean,
+): boolean {
+  if (command !== "fix" && command !== "fix-ci") return false
+  if (!feedback?.trim()) return false
+  return !hasSourceChanges
+}
+
+function detectSourceChangesVsBase(projectDir: string, base: string): boolean {
+  try {
+    const diff = execFileSync(
+      "git",
+      ["diff", "--name-only", `${base}...HEAD`],
+      { cwd: projectDir, encoding: "utf-8", stdio: "pipe" },
+    )
+    return diff
+      .split("\n")
+      .map((f) => f.trim())
+      .filter(Boolean)
+      .some((f) => !f.startsWith(".kody/"))
+  } catch {
+    // If git diff fails (e.g. detached HEAD, missing base), don't block ship —
+    // the guard is a safety net, not a hard invariant.
+    return true
+  }
+}
+
 export function buildPrBody(ctx: PipelineContext): string {
   const sections: string[] = []
 
@@ -130,6 +165,21 @@ export function executeShipStage(
   try {
     const head = getCurrentBranch(ctx.projectDir)
     const base = getDefaultBranch(ctx.projectDir)
+
+    // Fix-mode guard: if the human supplied feedback but no source file (outside
+    // .kody/) changed between base and HEAD, the pipeline silently dropped new
+    // scope. Fail loudly so it can't slip through as an empty artifact commit.
+    if (shouldFailFixModeShip(
+      ctx.input.command,
+      ctx.input.feedback,
+      detectSourceChangesVsBase(ctx.projectDir, base),
+    )) {
+      const msg =
+        "fix-mode with non-empty feedback produced no source-file changes — failing ship to surface the dropped scope"
+      logger.error(`  ${msg}`)
+      fs.writeFileSync(shipPath, `# Ship\n\nFAILED: ${msg}\n`)
+      return { outcome: "failed", outputFile: "ship.md", retries: 0, error: msg }
+    }
 
     // Commit task artifacts (.kody/tasks/), memory updates (.kody/memory/),
     // and graph facts (.kody/graph/) so they persist in the PR

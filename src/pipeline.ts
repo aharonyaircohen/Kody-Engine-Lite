@@ -356,19 +356,33 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
 
       commitAfterStage(ctx, def)
     } else {
-      // Failed or timed out
+      // Failed or timed out — track the granular failureCategory separately
+      // from the coarse `state` so summaries can count real timeouts vs.
+      // exhausted limits vs. external aborts vs. plain failures.
       const isTimeout = result.outcome === "timed_out"
+      const category = result.failureCategory
+      const errorSuffix = category ? ` [${category}]` : ""
       state.stages[def.name] = {
         state: isTimeout ? "timeout" : "failed",
         retries: result.retries,
-        error: isTimeout ? "Stage timed out" : (result.error ?? "Stage failed"),
+        error: isTimeout
+          ? `Stage timed out${errorSuffix}`
+          : `${result.error ?? "Stage failed"}`,
         promptTokens: result.promptTokens,
+        failureCategory: category,
       }
       state.state = "failed"
       state.sessions = ctx.sessions
       writeState(state, ctx.taskDir)
-      logger.error(`[${def.name}] ${isTimeout ? "⏱ timed out" : `✗ failed: ${result.error}`}`)
-      emit("step.failed", { runId: ctx.taskId, step: def.name, error: isTimeout ? "Stage timed out" : result.error }).catch((err) =>
+      logger.error(
+        `[${def.name}] ${isTimeout ? "⏱ timed out" : "✗ failed"}${errorSuffix}${result.error ? `: ${result.error}` : ""}`,
+      )
+      emit("step.failed", {
+        runId: ctx.taskId,
+        step: def.name,
+        error: isTimeout ? "Stage timed out" : result.error,
+        failureCategory: category,
+      }).catch((err) =>
         logger.debug(`[event] step.failed error: ${err}`),
       )
       if (ctx.input.issueNumber && !ctx.input.local) {

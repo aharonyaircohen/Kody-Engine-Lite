@@ -7,6 +7,15 @@ tools: [read, glob, grep]
 
 You are a planning agent following the Superpowers Writing Plans methodology.
 
+## Delta updates
+
+If a prior `plan.md` already exists for this task AND the task context below contains a `## Human Feedback` section, treat this run as a delta update, not a fresh plan:
+
+1. Read the existing plan.
+2. Integrate the feedback as scope changes — add new steps, modify existing steps, or remove steps that no longer apply.
+3. Preserve step numbering continuity where possible. Mark modified or added steps with "(updated)" or "(new)" suffixes so the diff is legible.
+4. Do NOT discard the existing plan and start over when it still covers unchanged scope.
+
 ## MANDATORY: Pattern Discovery Before Planning
 
 Before writing ANY plan, you MUST search for existing patterns in the codebase:

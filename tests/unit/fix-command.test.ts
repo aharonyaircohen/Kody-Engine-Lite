@@ -173,27 +173,31 @@ describe("fix command: skips taskify and plan", () => {
 })
 
 describe("fix command: entry.ts defaults", () => {
-  it("fix defaults fromStage to build", () => {
-    // Simulating entry.ts logic
-    const command = "fix"
-    let fromStage: string | undefined = undefined
-
-    if (command === "fix" && !fromStage) {
-      fromStage = "build"
+  function resolveFromStage(
+    command: string,
+    feedback: string | undefined,
+    explicit: string | undefined,
+  ): string | undefined {
+    if ((command === "fix" || command === "fix-ci") && !explicit) {
+      return feedback?.trim() ? "plan" : "build"
     }
+    return explicit
+  }
 
-    expect(fromStage).toBe("build")
+  it("fix with empty feedback defaults fromStage to build (fast path preserved)", () => {
+    expect(resolveFromStage("fix", undefined, undefined)).toBe("build")
+    expect(resolveFromStage("fix", "", undefined)).toBe("build")
+    expect(resolveFromStage("fix", "   ", undefined)).toBe("build")
   })
 
-  it("fix with explicit --from overrides default", () => {
-    const command = "fix"
-    let fromStage: string | undefined = "verify"
+  it("fix with non-empty feedback defaults fromStage to plan (re-plan before build)", () => {
+    expect(resolveFromStage("fix", "Add proper error handling", undefined)).toBe("plan")
+    expect(resolveFromStage("fix", "Use middleware pattern", undefined)).toBe("plan")
+  })
 
-    if (command === "fix" && !fromStage) {
-      fromStage = "build"
-    }
-
-    expect(fromStage).toBe("verify")
+  it("fix with explicit --from overrides default even when feedback is present", () => {
+    expect(resolveFromStage("fix", "Add feature X", "verify")).toBe("verify")
+    expect(resolveFromStage("fix", undefined, "build")).toBe("build")
   })
 
   it("fix mode maps to rerun", () => {

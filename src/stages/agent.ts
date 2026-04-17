@@ -224,7 +224,13 @@ export async function executeAgentStage(
   }
 
   if (lastResult.outcome !== "completed") {
-    return { outcome: lastResult.outcome, error: lastResult.error, retries, promptTokens }
+    return {
+      outcome: lastResult.outcome,
+      error: lastResult.error,
+      retries,
+      promptTokens,
+      failureCategory: lastResult.failureCategory,
+    }
   }
 
   const result = lastResult

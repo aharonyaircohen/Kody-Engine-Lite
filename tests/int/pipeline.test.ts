@@ -161,4 +161,82 @@ describe("Integration: full pipeline dry-run", () => {
     // Stages after plan should still be pending
     expect(state.stages.build.state).toBe("pending")
   })
+
+  it("propagates runner failureCategory into stage state", async () => {
+    const taskDir = path.join(tmpDir, ".kody/tasks", "int-maxturns")
+    fs.mkdirSync(taskDir, { recursive: true })
+    fs.writeFileSync(path.join(taskDir, "task.md"), "Max-turns test")
+
+    const turnsRunner: AgentRunner = {
+      async run(stageName: string): Promise<AgentResult> {
+        if (stageName === "taskify") {
+          return {
+            outcome: "completed",
+            output: JSON.stringify({
+              task_type: "feature", title: "T", description: "D",
+              scope: [], risk_level: "high",
+            }),
+          }
+        }
+        if (stageName === "build") {
+          return {
+            outcome: "failed",
+            error: "[max_turns] maximum number of turns reached",
+            failureCategory: "max_turns",
+          }
+        }
+        return { outcome: "completed", output: "ok" }
+      },
+      async healthCheck() { return true },
+    }
+
+    const ctx: PipelineContext = {
+      taskId: "int-maxturns",
+      taskDir,
+      projectDir: tmpDir,
+      runners: { claude: turnsRunner },
+      input: { mode: "full", local: true },
+    }
+
+    const state = await runPipeline(ctx)
+    expect(state.state).toBe("failed")
+    expect(state.stages.build.state).toBe("failed")
+    expect(state.stages.build.failureCategory).toBe("max_turns")
+    // Status persisted to disk (so resume / rerun can see the category too)
+    const statusRaw = fs.readFileSync(path.join(taskDir, "status.json"), "utf-8")
+    const status = JSON.parse(statusRaw)
+    expect(status.stages.build.failureCategory).toBe("max_turns")
+  })
+
+  it("propagates timed_out outcome as timeout state with failureCategory", async () => {
+    const taskDir = path.join(tmpDir, ".kody/tasks", "int-timeout")
+    fs.mkdirSync(taskDir, { recursive: true })
+    fs.writeFileSync(path.join(taskDir, "task.md"), "Timeout test")
+
+    const timeoutRunner: AgentRunner = {
+      async run(stageName: string): Promise<AgentResult> {
+        if (stageName === "taskify") {
+          return {
+            outcome: "timed_out",
+            error: "Abort after 120000ms",
+            failureCategory: "timed_out",
+          }
+        }
+        return { outcome: "completed", output: "ok" }
+      },
+      async healthCheck() { return true },
+    }
+
+    const ctx: PipelineContext = {
+      taskId: "int-timeout",
+      taskDir,
+      projectDir: tmpDir,
+      runners: { claude: timeoutRunner },
+      input: { mode: "full", local: true },
+    }
+
+    const state = await runPipeline(ctx)
+    expect(state.stages.taskify.state).toBe("timeout")
+    expect(state.stages.taskify.failureCategory).toBe("timed_out")
+  })
 })

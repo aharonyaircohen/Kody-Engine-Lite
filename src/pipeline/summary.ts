@@ -47,7 +47,12 @@ export function formatPipelineSummary(
   for (const def of STAGES) {
     const s = state.stages[def.name]
     if (!s) continue
-    const status = STATUS_ICONS[s.state] ?? s.state
+    const baseStatus = STATUS_ICONS[s.state] ?? s.state
+    // Surface the granular category on failed/timeout rows so the reader
+    // can distinguish real timeouts from exhausted limits at a glance.
+    const status = s.failureCategory && (s.state === "failed" || s.state === "timeout")
+      ? `${baseStatus} (${s.failureCategory})`
+      : baseStatus
     const duration = stageDuration(s)
     const retries = s.retries ?? 0
     lines.push(`| ${def.name} | ${status} | ${duration} | ${retries} |`)

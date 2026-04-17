@@ -4,6 +4,14 @@ import type { KodyConfig } from "./config.js"
 import type { PathLike } from "fs"
 import { createWriteStream, mkdirSync } from "fs"
 import { logger } from "./logger.js"
+import {
+  RingBuffer,
+  classifySdkError,
+  openAgentLog,
+  serializeSdkMessage,
+  writeCrashDump,
+  type SerializedSdkMessage,
+} from "./agent-runner-log.js"
 
 const SIGKILL_GRACE_MS = 5000
 const STDERR_TAIL_CHARS = 2000
@@ -200,10 +208,14 @@ export function createClaudeCodeRunner(): AgentRunner {
 
 import { query, type AgentDefinition, type OutputFormat } from "@anthropic-ai/claude-agent-sdk"
 
+const CRASH_BUFFER_CAPACITY = 50
+const STALL_INTERVAL_MS = 60_000
+const SOFT_TIMEOUT_RATIO = 0.8
+
 export function createSdkRunner(): AgentRunner {
   return {
     async run(
-      _stageName: string,
+      stageName: string,
       prompt: string,
       model: string,
       timeout: number,
@@ -211,9 +223,47 @@ export function createSdkRunner(): AgentRunner {
       options?: AgentRunnerOptions,
     ): Promise<AgentResult> {
       const abortController = new AbortController()
-      const timer = setTimeout(() => abortController.abort(), timeout)
+      let timerFired = false
+      const startMs = Date.now()
+      const timer = setTimeout(() => {
+        timerFired = true
+        abortController.abort()
+      }, timeout)
 
       const baseTools = "Bash,Edit,Read,Write,Glob,Grep"
+
+      // Observability: per-stage JSONL log + ring buffer for crash dumps.
+      // stageName is used in the file path so concurrent stages don't clash.
+      const safeStageName = stageName || "agent"
+      const agentLog = openAgentLog(taskDir, safeStageName)
+      const recentMessages = new RingBuffer<SerializedSdkMessage>(CRASH_BUFFER_CAPACITY)
+
+      // Stall / soft-timeout observability: warn when the SDK goes quiet or
+      // when we're close to the hard timeout, with a snapshot of the last
+      // known activity so postmortems don't have to guess.
+      let lastMessageAt = startMs
+      let lastActivity: { type: string; tool?: string } = { type: "(awaiting first message)" }
+      const describeActivity = (): string => {
+        const nowMs = Date.now()
+        const sinceMsg = Math.round((nowMs - lastMessageAt) / 1000)
+        const total = Math.round((nowMs - startMs) / 1000)
+        const toolPart = lastActivity.tool ? ` tool=${lastActivity.tool}` : ""
+        return `last=${lastActivity.type}${toolPart} sinceMsg=${sinceMsg}s totalElapsed=${total}s`
+      }
+      const stallInterval = setInterval(() => {
+        if (Date.now() - lastMessageAt > STALL_INTERVAL_MS) {
+          logger.warn(
+            `  [${safeStageName}] no SDK activity for ${Math.round((Date.now() - lastMessageAt) / 1000)}s — ${describeActivity()}`,
+          )
+        }
+      }, STALL_INTERVAL_MS)
+      // Soft warning at 80% of budget so postmortems see a warning before the
+      // hard abort, with the last activity captured at that moment.
+      const softTimer = setTimeout(() => {
+        logger.warn(
+          `  [${safeStageName}] 80% of timeout budget used — ${describeActivity()}`,
+        )
+      }, Math.floor(timeout * SOFT_TIMEOUT_RATIO))
 
       let output = ""
       let structuredOutput: unknown = null
@@ -246,6 +296,13 @@ export function createSdkRunner(): AgentRunner {
         })
 
         for await (const msg of result) {
+          // Observability: record every message, not just the final result.
+          const serialized = serializeSdkMessage(msg)
+          agentLog.write(serialized)
+          recentMessages.push(serialized)
+          lastMessageAt = Date.now()
+          lastActivity = { type: serialized.type, tool: serialized.tool }
+
           if (msg.type === "result" && msg.subtype === "success") {
             output = msg.result ?? ""
             structuredOutput = msg.structured_output ?? null
@@ -253,18 +310,45 @@ export function createSdkRunner(): AgentRunner {
         }
 
         clearTimeout(timer)
+        clearTimeout(softTimer)
+        clearInterval(stallInterval)
+        agentLog.close()
         return { outcome: "completed", output, structuredOutput }
       } catch (e) {
         clearTimeout(timer)
+        clearTimeout(softTimer)
+        clearInterval(stallInterval)
         const err = e instanceof Error ? e.message : String(e)
-        if (
-          err.includes("maximum number of turns") ||
-          err.includes("maximum budget") ||
-          err.includes("aborted")
-        ) {
-          return { outcome: "timed_out", output, error: err }
+        const elapsedMs = Date.now() - startMs
+        const category = classifySdkError(err, elapsedMs, timeout, timerFired)
+
+        const crashPath = writeCrashDump(
+          taskDir,
+          safeStageName,
+          recentMessages.snapshot(),
+          err,
+          category,
+          elapsedMs,
+        )
+        if (crashPath) {
+          logger.warn(
+            `  [${safeStageName}] agent crash dump written: ${crashPath} — ${describeActivity()}`,
+          )
         }
-        return { outcome: "failed", output, error: err }
+        agentLog.close()
+
+        // Map granular category to the coarse AgentResult.outcome consumed by
+        // stage executors. Callers that need the fine-grained category read
+        // failureCategory directly.
+        const outcome: AgentResult["outcome"] =
+          category === "timed_out" ? "timed_out" : "failed"
+
+        return {
+          outcome,
+          output,
+          error: `[${category}] ${err}`,
+          failureCategory: category,
+        }
       }
     },
 

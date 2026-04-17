@@ -653,11 +653,6 @@ async function main() {
     process.exit(1)
   }
 
-  // Fix command defaults to --from build
-  if ((input.command === "fix" || input.command === "fix-ci") && !input.fromStage) {
-    input.fromStage = "build"
-  }
-
   // Fix-CI on a PR: fetch CI failure logs as context
   if (input.command === "fix-ci" && input.prNumber) {
     // Resolve CI run ID from arg, feedback body, or latest failed run
@@ -710,6 +705,13 @@ async function main() {
     if (feedbackParts.length > 0) {
       input.feedback = feedbackParts.join("\n\n")
     }
+  }
+
+  // Fix command defaults (must run AFTER feedback auto-injection above):
+  // with non-empty feedback, re-plan first so the updated scope reaches build.
+  // With no feedback, keep the review-only fast path.
+  if ((input.command === "fix" || input.command === "fix-ci") && !input.fromStage) {
+    input.fromStage = input.feedback?.trim() ? "plan" : "build"
   }
 
   const config = getProjectConfig()
@@ -785,6 +787,7 @@ async function main() {
     tools: detectedTools.length > 0 ? detectedTools : undefined,
     input: {
       mode: (input.command === "rerun" || input.command === "fix" || input.command === "fix-ci") ? "rerun" : "full",
+      command: input.command,
       fromStage: input.fromStage,
       dryRun: input.dryRun,
       issueNumber: input.issueNumber,
