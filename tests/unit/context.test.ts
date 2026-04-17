@@ -83,10 +83,10 @@ describe("resolveModel", () => {
   beforeEach(() => resetProjectConfig())
   afterEach(() => resetProjectConfig())
 
-  it("maps tier to configured model name", () => {
+  it("maps tier to configured model name (returns bare model from provider/model spec)", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "kody-defaults-"))
     fs.writeFileSync(path.join(dir, "kody.config.json"), JSON.stringify({
-      agent: { modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" } }
+      agent: { modelMap: { cheap: "claude/test-model-cheap", mid: "claude/test-model-mid", strong: "claude/test-model-strong" } }
     }))
     setConfigDir(dir)
     expect(resolveModel("cheap")).toBe("test-model-cheap")
@@ -98,7 +98,7 @@ describe("resolveModel", () => {
   it("throws for unknown tier with no config fallback", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "kody-defaults-"))
     fs.writeFileSync(path.join(dir, "kody.config.json"), JSON.stringify({
-      agent: { modelMap: { cheap: "test-cheap" } }
+      agent: { modelMap: { cheap: "claude/test-cheap" } }
     }))
     setConfigDir(dir)
     expect(() => resolveModel("unknown")).toThrow("No model configured for tier")
@@ -109,7 +109,7 @@ describe("resolveModel", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kody-model-test-"))
     fs.writeFileSync(
       path.join(tmpDir, "kody.config.json"),
-      JSON.stringify({ agent: { modelMap: { cheap: "custom-cheap", mid: "custom-mid", strong: "custom-strong" } } }),
+      JSON.stringify({ agent: { modelMap: { cheap: "claude/custom-cheap", mid: "claude/custom-mid", strong: "claude/custom-strong" } } }),
     )
     setConfigDir(tmpDir)
     expect(resolveModel("cheap")).toBe("custom-cheap")

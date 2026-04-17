@@ -9,15 +9,16 @@ import type { ChildProcess } from "child_process"
 import { runWatch } from "./core/watch.js"
 import { createPluginRegistry } from "./plugins/registry.js"
 import { loadWatchAgents } from "./agents/loader.js"
-import { checkLitellmHealth, tryStartLitellm, generateLitellmConfig } from "../cli/litellm.js"
-import { LITELLM_DEFAULT_URL } from "../config.js"
+import { checkLitellmHealth, tryStartLitellm, generateLitellmConfigFromStages } from "../cli/litellm.js"
+import { LITELLM_DEFAULT_URL, parseProviderModel } from "../config.js"
 import type { WatchConfig } from "./core/types.js"
 
 export interface WatchConfigParsed {
   repo: string
   activityLog?: number
+  /** "provider/model" string from watch.model (or fallback). */
   watchModel?: string
-  agentProvider?: string
+  /** Tier → "provider/model" string. */
   agentModelMap?: Record<string, string>
 }
 
@@ -26,7 +27,6 @@ export function parseWatchConfig(cwd: string): WatchConfigParsed {
   let repo = process.env.REPO || ""
   let activityLog: number | undefined
   let watchModel: string | undefined
-  let agentProvider: string | undefined
   let agentModelMap: Record<string, string> | undefined
 
   if (fs.existsSync(configPath)) {
@@ -40,9 +40,6 @@ export function parseWatchConfig(cwd: string): WatchConfigParsed {
       }
       if (config.watch?.model) {
         watchModel = config.watch.model
-      }
-      if (config.watch?.provider) {
-        agentProvider = config.watch.provider
       }
       if (config.agent?.modelMap) {
         agentModelMap = config.agent.modelMap
@@ -58,14 +55,14 @@ export function parseWatchConfig(cwd: string): WatchConfigParsed {
     activityLog = parseInt(activityLogEnv, 10) || undefined
   }
 
-  return { repo, activityLog, watchModel, agentProvider, agentModelMap }
+  return { repo, activityLog, watchModel, agentModelMap }
 }
 
 export async function runWatchCommand(opts: { dryRun: boolean; agent?: string }): Promise<void> {
   const cwd = process.cwd()
   let litellmProcess: ChildProcess | null = null
 
-  const { repo: parsedRepo, activityLog, watchModel, agentProvider, agentModelMap } = parseWatchConfig(cwd)
+  const { repo: parsedRepo, activityLog, watchModel, agentModelMap } = parseWatchConfig(cwd)
   let repo = parsedRepo
 
   if (!repo) {
@@ -87,40 +84,51 @@ export async function runWatchCommand(opts: { dryRun: boolean; agent?: string })
     console.warn(`  Agent warning: ${w}`)
   }
 
-  // Resolve watch model: watch.model > agent.modelMap.watch > agent.modelMap.default > fallback
-  const resolvedModel = watchModel
+  // Resolve watch model: watch.model > agent.modelMap.watch > agent.modelMap.cheap > any
+  const resolvedSpec = watchModel
     ?? agentModelMap?.watch
-    ?? agentModelMap?.default
+    ?? agentModelMap?.cheap
+    ?? (agentModelMap ? Object.values(agentModelMap)[0] : undefined)
     ?? ""
-  if (agents.length > 0 && !resolvedModel) {
-    console.error("No watch model configured — set watch.model or agent.modelMap in kody.config.json")
+  if (agents.length > 0 && !resolvedSpec) {
+    console.error("No watch model configured — set watch.model or agent.modelMap in kody.config.json (format: 'provider/model')")
     process.exit(1)
   }
-  if (agents.length > 0 && !agentProvider) {
-    console.error("No watch provider configured — set watch.provider in kody.config.json")
-    process.exit(1)
+
+  // Parse provider and bare model name out of the "provider/model" string.
+  let provider: string | undefined
+  let model = resolvedSpec
+  if (resolvedSpec) {
+    const parsed = parseProviderModel(resolvedSpec)
+    provider = parsed.provider
+    model = parsed.model
   }
-  const model = resolvedModel
-  const needsProxy = agentProvider && agentProvider !== "claude" && agentProvider !== "anthropic"
+  const needsProxy = provider !== undefined && provider !== "claude" && provider !== "anthropic"
 
   if (agents.length > 0) {
     console.log(`  Found ${agents.length} watch agent(s): ${agents.map((a) => a.config.name).join(", ")}`)
-    console.log(`  Model: ${model}${agentProvider ? ` (provider: ${agentProvider})` : ""}`)
+    console.log(`  Model: ${model}${provider ? ` (provider: ${provider})` : ""}`)
 
     // Start LiteLLM proxy if needed for non-claude providers
     if (needsProxy && !opts.dryRun) {
       const litellmUrl = LITELLM_DEFAULT_URL
       const isHealthy = await checkLitellmHealth(litellmUrl)
       if (!isHealthy) {
-        // Build a model map that includes the watch model
-        const proxyModelMap = { ...agentModelMap, watch: model }
-        const generatedConfig = generateLitellmConfig(agentProvider!, proxyModelMap)
-        console.log(`  Starting LiteLLM proxy for ${agentProvider}...`)
+        // Build the proxy model list: parse modelMap entries + the watch model itself.
+        const proxyModels: { provider: string; model: string }[] = []
+        if (agentModelMap) {
+          for (const value of Object.values(agentModelMap)) {
+            try { proxyModels.push(parseProviderModel(value)) } catch { /* skip malformed */ }
+          }
+        }
+        proxyModels.push({ provider: provider!, model })
+        const generatedConfig = generateLitellmConfigFromStages(proxyModels)
+        console.log(`  Starting LiteLLM proxy for ${provider}...`)
         litellmProcess = await tryStartLitellm(litellmUrl, cwd, generatedConfig)
         if (litellmProcess) {
           console.log(`  LiteLLM proxy started`)
         } else {
-          console.warn(`  LiteLLM proxy failed to start — agents using ${agentProvider} may fail`)
+          console.warn(`  LiteLLM proxy failed to start — agents using ${provider} may fail`)
         }
       } else {
         console.log(`  LiteLLM proxy already running`)
@@ -136,7 +144,7 @@ export async function runWatchCommand(opts: { dryRun: boolean; agent?: string })
     activityLog,
     agents,
     model,
-    provider: agentProvider,
+    provider,
     projectDir: cwd,
     agentFilter: opts.agent,
   }

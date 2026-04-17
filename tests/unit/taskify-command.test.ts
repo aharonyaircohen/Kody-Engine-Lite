@@ -40,7 +40,7 @@ function setupTest(): { tmpDir: string; cleanup: () => void } {
     path.join(tmpDir, "kody.config.json"),
     JSON.stringify({
       quality: { typecheck: "true", lint: "", lintFix: "", formatFix: "", testUnit: "true" },
-      agent: { defaultRunner: "claude", modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" } },
+      agent: { defaultRunner: "claude", modelMap: { cheap: "claude/test-model-cheap", mid: "claude/test-model-mid", strong: "claude/test-model-strong" } },
     }),
   )
   setConfigDir(tmpDir)
@@ -274,7 +274,7 @@ describe("taskifyCommand", () => {
     // MCP config required so buildTaskifyMcpConfigJson doesn't throw
     fs.writeFileSync(path.join(tmpDir, "kody.config.json"), JSON.stringify({
       quality: { typecheck: "true", lint: "", lintFix: "", formatFix: "", testUnit: "true" },
-      agent: { defaultRunner: "claude", modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" } },
+      agent: { defaultRunner: "claude", modelMap: { cheap: "claude/test-model-cheap", mid: "claude/test-model-mid", strong: "claude/test-model-strong" } },
       mcp: { enabled: true, servers: { tm: { command: "npx" } } },
     }))
     resetProjectConfig()
@@ -315,7 +315,7 @@ describe("taskifyCommand", () => {
     // No mcp config in kody.config.json — should not throw
     fs.writeFileSync(path.join(tmpDir, "kody.config.json"), JSON.stringify({
       quality: { typecheck: "true", lint: "", lintFix: "", formatFix: "", testUnit: "true" },
-      agent: { defaultRunner: "claude", modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" } },
+      agent: { defaultRunner: "claude", modelMap: { cheap: "claude/test-model-cheap", mid: "claude/test-model-mid", strong: "claude/test-model-strong" } },
     }))
     resetProjectConfig()
     setConfigDir(tmpDir)
@@ -387,7 +387,7 @@ describe("taskifyCommand", () => {
     // No mcp config
     fs.writeFileSync(path.join(tmpDir, "kody.config.json"), JSON.stringify({
       quality: { typecheck: "true", lint: "", lintFix: "", formatFix: "", testUnit: "true" },
-      agent: { defaultRunner: "claude", modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" } },
+      agent: { defaultRunner: "claude", modelMap: { cheap: "claude/test-model-cheap", mid: "claude/test-model-mid", strong: "claude/test-model-strong" } },
     }))
     resetProjectConfig()
     setConfigDir(tmpDir)
@@ -406,7 +406,7 @@ describe("taskifyCommand", () => {
 
     fs.writeFileSync(path.join(tmpDir, "kody.config.json"), JSON.stringify({
       quality: { typecheck: "true", lint: "", lintFix: "", formatFix: "", testUnit: "true" },
-      agent: { defaultRunner: "claude", modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" } },
+      agent: { defaultRunner: "claude", modelMap: { cheap: "claude/test-model-cheap", mid: "claude/test-model-mid", strong: "claude/test-model-strong" } },
       mcp: { enabled: true, servers: { tm: { command: "npx" } } },
     }))
     resetProjectConfig()
@@ -426,7 +426,7 @@ describe("taskifyCommand", () => {
 
     fs.writeFileSync(path.join(tmpDir, "kody.config.json"), JSON.stringify({
       quality: { typecheck: "true", lint: "", lintFix: "", formatFix: "", testUnit: "true" },
-      agent: { defaultRunner: "claude", modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" } },
+      agent: { defaultRunner: "claude", modelMap: { cheap: "claude/test-model-cheap", mid: "claude/test-model-mid", strong: "claude/test-model-strong" } },
       mcp: { enabled: true, servers: { tm: { command: "npx" } } },
     }))
     resetProjectConfig()
@@ -451,7 +451,7 @@ describe("taskifyCommand", () => {
 
     fs.writeFileSync(path.join(tmpDir, "kody.config.json"), JSON.stringify({
       quality: { typecheck: "true", lint: "", lintFix: "", formatFix: "", testUnit: "true" },
-      agent: { defaultRunner: "claude", modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" } },
+      agent: { defaultRunner: "claude", modelMap: { cheap: "claude/test-model-cheap", mid: "claude/test-model-mid", strong: "claude/test-model-strong" } },
       mcp: { enabled: true, servers: { tm: { command: "npx" } } },
     }))
     resetProjectConfig()
@@ -473,7 +473,7 @@ describe("taskifyCommand", () => {
 
     fs.writeFileSync(path.join(tmpDir, "kody.config.json"), JSON.stringify({
       quality: { typecheck: "true", lint: "", lintFix: "", formatFix: "", testUnit: "true" },
-      agent: { defaultRunner: "claude", modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" } },
+      agent: { defaultRunner: "claude", modelMap: { cheap: "claude/test-model-cheap", mid: "claude/test-model-mid", strong: "claude/test-model-strong" } },
       mcp: { enabled: true, servers: { tm: { command: "npx" } } },
     }))
     resetProjectConfig()
@@ -494,7 +494,7 @@ describe("taskifyCommand", () => {
 
     fs.writeFileSync(path.join(tmpDir, "kody.config.json"), JSON.stringify({
       quality: { typecheck: "true", lint: "", lintFix: "", formatFix: "", testUnit: "true" },
-      agent: { defaultRunner: "claude", modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" } },
+      agent: { defaultRunner: "claude", modelMap: { cheap: "claude/test-model-cheap", mid: "claude/test-model-mid", strong: "claude/test-model-strong" } },
       mcp: { enabled: true, servers: { tm: { command: "npx" } } },
     }))
     resetProjectConfig()
@@ -518,7 +518,7 @@ describe("taskifyCommand", () => {
 
     fs.writeFileSync(path.join(tmpDir, "kody.config.json"), JSON.stringify({
       quality: { typecheck: "true", lint: "", lintFix: "", formatFix: "", testUnit: "true" },
-      agent: { defaultRunner: "claude", modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" } },
+      agent: { defaultRunner: "claude", modelMap: { cheap: "claude/test-model-cheap", mid: "claude/test-model-mid", strong: "claude/test-model-strong" } },
       mcp: { enabled: true, servers: { tm: { command: "npx" } } },
     }))
     resetProjectConfig()
@@ -541,7 +541,7 @@ describe("taskifyCommand", () => {
 
     fs.writeFileSync(path.join(tmpDir, "kody.config.json"), JSON.stringify({
       quality: { typecheck: "true", lint: "", lintFix: "", formatFix: "", testUnit: "true" },
-      agent: { defaultRunner: "claude", modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" } },
+      agent: { defaultRunner: "claude", modelMap: { cheap: "claude/test-model-cheap", mid: "claude/test-model-mid", strong: "claude/test-model-strong" } },
       mcp: { enabled: true, servers: { tm: { command: "npx" } } },
     }))
     resetProjectConfig()
@@ -572,7 +572,7 @@ describe("prompt template rendering", () => {
   function withMcp(dir: string) {
     fs.writeFileSync(path.join(dir, "kody.config.json"), JSON.stringify({
       quality: { typecheck: "true", lint: "", lintFix: "", formatFix: "", testUnit: "true" },
-      agent: { defaultRunner: "claude", modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" } },
+      agent: { defaultRunner: "claude", modelMap: { cheap: "claude/test-model-cheap", mid: "claude/test-model-mid", strong: "claude/test-model-strong" } },
       mcp: { enabled: true, servers: { tm: { command: "npx" } } },
     }))
     resetProjectConfig()
@@ -836,7 +836,7 @@ describe("priority label merging", () => {
   function setupMcpConfig(dir: string) {
     fs.writeFileSync(path.join(dir, "kody.config.json"), JSON.stringify({
       quality: { typecheck: "true", lint: "", lintFix: "", formatFix: "", testUnit: "true" },
-      agent: { defaultRunner: "claude", modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" } },
+      agent: { defaultRunner: "claude", modelMap: { cheap: "claude/test-model-cheap", mid: "claude/test-model-mid", strong: "claude/test-model-strong" } },
       mcp: { enabled: true, servers: { tm: { command: "npx" } } },
     }))
     resetProjectConfig()
@@ -951,7 +951,7 @@ describe("codebase context injection", () => {
   function withMcp(dir: string) {
     fs.writeFileSync(path.join(dir, "kody.config.json"), JSON.stringify({
       quality: { typecheck: "true", lint: "", lintFix: "", formatFix: "", testUnit: "true" },
-      agent: { defaultRunner: "claude", modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" } },
+      agent: { defaultRunner: "claude", modelMap: { cheap: "claude/test-model-cheap", mid: "claude/test-model-mid", strong: "claude/test-model-strong" } },
       mcp: { enabled: true, servers: { tm: { command: "npx" } } },
     }))
     resetProjectConfig()
@@ -1052,6 +1052,6 @@ function getMinimalConfig(tmpDir: string) {
     quality: { typecheck: "true", lint: "", lintFix: "", formatFix: "", testUnit: "true" },
     git: { defaultBranch: "main" },
     github: { owner: "test", repo: "test" },
-    agent: { modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" } },
+    agent: { modelMap: { cheap: "claude/test-model-cheap", mid: "claude/test-model-mid", strong: "claude/test-model-strong" } },
   }
 }

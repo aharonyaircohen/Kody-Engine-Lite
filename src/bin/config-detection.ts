@@ -55,8 +55,11 @@ export function buildConfig(cwd: string, basic: { defaultBranch: string; owner: 
     git: { defaultBranch: basic.defaultBranch },
     github: { owner: basic.owner, repo: basic.repo },
     agent: {
-      provider: "anthropic",
-      modelMap: { cheap: "claude-haiku-4-5-20251001", mid: "claude-sonnet-4-6", strong: "claude-opus-4-6" },
+      modelMap: {
+        cheap: "claude/claude-haiku-4-5-20251001",
+        mid: "claude/claude-sonnet-4-6",
+        strong: "claude/claude-opus-4-6",
+      },
     },
   }
 

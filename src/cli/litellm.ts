@@ -4,7 +4,7 @@ import * as path from "path"
 import { execFileSync } from "child_process"
 
 import { logger } from "../logger.js"
-import { providerApiKeyEnvVar, getLitellmUrl } from "../config.js"
+import { providerApiKeyEnvVar, getLitellmUrl, parseProviderModel } from "../config.js"
 
 export async function checkLitellmHealth(url: string): Promise<boolean> {
   try {
@@ -63,57 +63,17 @@ export async function checkModelHealth(
 }
 
 /**
- * Generate LiteLLM config YAML from provider + modelMap.
- * Maps all Anthropic model IDs (that Claude Code might send) to the provider's model.
- */
-export function generateLitellmConfig(
-  provider: string,
-  modelMap: Record<string, string>,
-): string {
-  const apiKeyVar = providerApiKeyEnvVar(provider)
-  const entries: string[] = ["model_list:"]
-
-  // Deduplicate: multiple tiers may map to the same provider model
-  const seen = new Set<string>()
-  for (const providerModel of Object.values(modelMap)) {
-    if (seen.has(providerModel)) continue
-    seen.add(providerModel)
-    // Map the config model name directly — this is what resolveModel() returns
-    entries.push(`  - model_name: ${providerModel}`)
-    entries.push(`    litellm_params:`)
-    entries.push(`      model: ${provider}/${providerModel}`)
-    entries.push(`      api_key: os.environ/${apiKeyVar}`)
-  }
-
-  // Drop unsupported params for non-Anthropic providers (e.g. context_management)
-  if (provider !== "anthropic" && provider !== "claude") {
-    entries.push("")
-    entries.push("litellm_settings:")
-    entries.push("  drop_params: true")
-  }
-
-  return entries.join("\n") + "\n"
-}
-
-/**
- * Generate LiteLLM config from per-stage configs.
- * Only includes models that use non-claude providers.
+ * Generate LiteLLM config YAML from a list of {provider, model} entries.
+ * Only includes models that use non-claude/anthropic providers — those are routed direct.
+ * Returns undefined when no proxy models are needed.
  */
 export function generateLitellmConfigFromStages(
-  defaultConfig: { provider: string; model: string } | undefined,
-  stages: Record<string, { provider: string; model: string }> | undefined,
+  models: Iterable<{ provider: string; model: string }>,
 ): string | undefined {
   const proxyModels: { provider: string; model: string }[] = []
-
-  // Collect all non-claude models
-  if (defaultConfig && defaultConfig.provider !== "claude" && defaultConfig.provider !== "anthropic") {
-    proxyModels.push(defaultConfig)
-  }
-  if (stages) {
-    for (const sc of Object.values(stages)) {
-      if (sc.provider !== "claude" && sc.provider !== "anthropic") {
-        proxyModels.push(sc)
-      }
+  for (const m of models) {
+    if (m.provider !== "claude" && m.provider !== "anthropic") {
+      proxyModels.push(m)
     }
   }
 
@@ -134,14 +94,29 @@ export function generateLitellmConfigFromStages(
   }
 
   // Drop unsupported params for non-Anthropic providers (e.g. context_management)
-  const hasNonClaude = proxyModels.some(m => m.provider !== "anthropic" && m.provider !== "claude")
-  if (hasNonClaude) {
-    entries.push("")
-    entries.push("litellm_settings:")
-    entries.push("  drop_params: true")
-  }
+  entries.push("")
+  entries.push("litellm_settings:")
+  entries.push("  drop_params: true")
 
   return entries.join("\n") + "\n"
+}
+
+/**
+ * Collect all configured {provider, model} entries from a KodyConfig.
+ * Walks `agent.modelMap`, `agent.default`, and `agent.stages` and parses each value.
+ */
+export function collectConfiguredModels(config: import("../config.js").KodyConfig): { provider: string; model: string }[] {
+  const out: { provider: string; model: string }[] = []
+  for (const value of Object.values(config.agent.modelMap)) {
+    out.push(parseProviderModel(value))
+  }
+  if (config.agent.default) out.push(parseProviderModel(config.agent.default))
+  if (config.agent.stages) {
+    for (const value of Object.values(config.agent.stages)) {
+      out.push(parseProviderModel(value))
+    }
+  }
+  return out
 }
 
 export async function tryStartLitellm(
@@ -268,8 +243,7 @@ export async function tryStartLitellm(
 // ─── Agent environment setup (shared by entry.ts and chat.ts) ─────────────────
 
 import type { KodyConfig } from "../config.js"
-import { getAnthropicApiKeyOrDummy } from "../config.js"
-import { needsLitellmProxy } from "../config.js"
+import { anyStageNeedsProxy } from "../config.js"
 
 /**
  * Ensures the LiteLLM proxy is running for non-Anthropic providers.
@@ -279,22 +253,13 @@ export async function ensureLiteLlmProxyForChat(
   config: KodyConfig,
   projectDir: string,
 ): Promise<{ kill: (() => void) | null }> {
+  if (!anyStageNeedsProxy(config)) return { kill: null }
+
   const litellmUrl = getLitellmUrl()
-
-  if (!needsLitellmProxy(config)) {
-    return { kill: null }
-  }
-
   const proxyRunning = await checkLitellmHealth(litellmUrl)
-  if (proxyRunning) {
-    return { kill: null }
-  }
+  if (proxyRunning) return { kill: null }
 
-  // Generate config from modelMap
-  let generatedConfig: string | undefined
-  if (config.agent.provider && config.agent.provider !== "anthropic") {
-    generatedConfig = generateLitellmConfig(config.agent.provider, config.agent.modelMap ?? {})
-  }
-  const process = await tryStartLitellm(litellmUrl, projectDir, generatedConfig)
-  return { kill: process ? () => process.kill() : null }
+  const generatedConfig = generateLitellmConfigFromStages(collectConfiguredModels(config))
+  const proxy = await tryStartLitellm(litellmUrl, projectDir, generatedConfig)
+  return { kill: proxy ? () => proxy.kill() : null }
 }

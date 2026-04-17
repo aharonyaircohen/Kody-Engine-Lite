@@ -111,16 +111,16 @@ Three ways: (1) Watch issue labels change in real-time (`kody:planning` → `kod
 Any model that supports tool use. Anthropic models (haiku/sonnet/opus) are the default. MiniMax M2.7-highspeed is validated for all stages via LiteLLM. See [LiteLLM guide](LITELLM.md).
 
 **Q: How do I switch to a different model (e.g., MiniMax)?**
-Set `"provider": "minimax"` in `kody.config.json` — Kody auto-generates the LiteLLM config and starts the proxy. Use `modelMap` for per-tier model control. See [LiteLLM guide](LITELLM.md#setup).
+Set `agent.modelMap` entries to `provider/model` strings (e.g. `"cheap": "minimax/MiniMax-M2.7-highspeed"`) in `kody.config.json`. Kody auto-generates the LiteLLM config and starts the proxy whenever any entry uses a non-`claude`/`anthropic` provider. See [LiteLLM guide](LITELLM.md#setup).
 
 **Q: Can I use different models for different stages?**
-Yes. Set different models per tier using the `modelMap` field in `kody.config.json`.
+Yes. Set `agent.stages.<stage>` to a `provider/model` string per stage (it overrides `agent.default` and `agent.modelMap`). Mix providers freely — e.g. plan on `claude/claude-opus-4-7` and build on `minimax/MiniMax-M2.7-highspeed`.
 
 **Q: Can I use local models (Ollama)?**
-Yes, via LiteLLM proxy. Set `"provider": "ollama"` in `kody.config.json`. Performance depends on model capability — tool use support is required.
+Yes, via LiteLLM proxy. Use `ollama/<model>` in `agent.modelMap` / `agent.default` (e.g. `"ollama/llama3:70b"`). Performance depends on model capability — tool use support is required.
 
-**Q: Why can't I use custom model names like "minimax-test"?**
-Claude Code validates `--model` names client-side and only accepts Anthropic model names. Kody automatically maps Anthropic IDs to your provider via LiteLLM. See [LiteLLM guide](LITELLM.md#common-gotchas).
+**Q: What format does `--model` take?**
+A single `provider/model` string — e.g. `--model claude/claude-sonnet-4-6` or `--model minimax/MiniMax-M2.7-highspeed`. The provider drives proxy routing; the bare model name (after the slash) is what reaches Claude Code.
 
 ## Security
 

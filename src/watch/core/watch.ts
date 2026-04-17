@@ -213,7 +213,7 @@ export async function runWatch(config: WatchConfig): Promise<WatchResult> {
       "Running watch agents",
     )
 
-    // Provider comes from agent.provider in kody.config.json (via WatchConfig)
+    // Provider was parsed from the watch.model "provider/model" string in WatchConfig.
     const provider = config.provider
 
     for (const agent of scheduledAgents) {

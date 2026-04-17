@@ -2,7 +2,17 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import * as fs from "fs"
 import * as path from "path"
 import * as os from "os"
-import { getProjectConfig, resetProjectConfig, setConfigDir, getAnthropicApiKeyOrDummy, resolveStageConfig, applyModelOverrides } from "../../src/config.js"
+import {
+  getProjectConfig,
+  resetProjectConfig,
+  setConfigDir,
+  getAnthropicApiKeyOrDummy,
+  resolveStageConfig,
+  applyModelOverrides,
+  parseProviderModel,
+  anyStageNeedsProxy,
+  stageNeedsProxy,
+} from "../../src/config.js"
 
 describe("config", () => {
   let tmpDir: string
@@ -79,6 +89,60 @@ describe("config", () => {
     expect(config.agent.runners?.claude.type).toBe("claude-code")
     expect(config.agent.stageRunners?.plan).toBe("backup")
   })
+
+  it("loads provider/model strings in modelMap", () => {
+    fs.writeFileSync(
+      path.join(tmpDir, "kody.config.json"),
+      JSON.stringify({
+        agent: {
+          modelMap: {
+            cheap: "minimax/MiniMax-M2.7-highspeed",
+            mid: "claude/claude-sonnet-4-6",
+          },
+        },
+      }),
+    )
+    setConfigDir(tmpDir)
+    const config = getProjectConfig()
+    expect(config.agent.modelMap.cheap).toBe("minimax/MiniMax-M2.7-highspeed")
+    expect(config.agent.modelMap.mid).toBe("claude/claude-sonnet-4-6")
+  })
+})
+
+describe("parseProviderModel", () => {
+  it("parses provider/model strings", () => {
+    expect(parseProviderModel("minimax/MiniMax-M2.7-highspeed")).toEqual({
+      provider: "minimax",
+      model: "MiniMax-M2.7-highspeed",
+    })
+    expect(parseProviderModel("claude/claude-sonnet-4-6")).toEqual({
+      provider: "claude",
+      model: "claude-sonnet-4-6",
+    })
+  })
+
+  it("preserves slashes after the first one in the model name", () => {
+    expect(parseProviderModel("openai/o1/preview")).toEqual({
+      provider: "openai",
+      model: "o1/preview",
+    })
+  })
+
+  it("throws on missing slash", () => {
+    expect(() => parseProviderModel("MiniMax-M1")).toThrow(/expected 'provider\/model'/)
+  })
+
+  it("throws on empty string", () => {
+    expect(() => parseProviderModel("")).toThrow(/expected 'provider\/model'/)
+  })
+
+  it("throws on leading slash (empty provider)", () => {
+    expect(() => parseProviderModel("/foo")).toThrow(/expected 'provider\/model'/)
+  })
+
+  it("throws on trailing slash (empty model)", () => {
+    expect(() => parseProviderModel("foo/")).toThrow(/expected 'provider\/model'/)
+  })
 })
 
 describe("getAnthropicApiKeyOrDummy", () => {
@@ -111,104 +175,155 @@ describe("getAnthropicApiKeyOrDummy", () => {
 })
 
 describe("resolveStageConfig", () => {
-  it("throws when model tier is missing from empty modelMap", () => {
-    const config = {
+  function baseConfig(agent: Record<string, unknown> = { modelMap: {} }): ReturnType<typeof getProjectConfig> {
+    return {
       quality: { typecheck: "", lint: "", lintFix: "", formatFix: "", testUnit: "" },
       git: { defaultBranch: "main" },
       github: { owner: "", repo: "" },
-      agent: { modelMap: {} },
+      agent: agent as ReturnType<typeof getProjectConfig>["agent"],
     }
-    expect(() => resolveStageConfig(config, "build", "cheap")).toThrow(
+  }
+
+  it("throws when no model is configured for the requested tier", () => {
+    expect(() => resolveStageConfig(baseConfig(), "build", "cheap")).toThrow(
       /No model configured for stage 'build'/,
     )
   })
 
-  it("resolves model from modelMap when configured", () => {
-    const config = {
-      quality: { typecheck: "", lint: "", lintFix: "", formatFix: "", testUnit: "" },
-      git: { defaultBranch: "main" },
-      github: { owner: "", repo: "" },
-      agent: { modelMap: { cheap: "minimax/MiniMax-M2.7-highspeed" }, provider: "minimax" },
-    }
+  it("resolves from modelMap when only modelMap is set", () => {
+    const config = baseConfig({
+      modelMap: { cheap: "minimax/MiniMax-M2.7-highspeed" },
+    })
     const result = resolveStageConfig(config, "build", "cheap")
-    expect(result.model).toBe("minimax/MiniMax-M2.7-highspeed")
-    expect(result.provider).toBe("minimax")
+    expect(result).toEqual({ provider: "minimax", model: "MiniMax-M2.7-highspeed" })
+  })
+
+  it("resolves from agent.default when set, ignoring modelMap", () => {
+    const config = baseConfig({
+      modelMap: { cheap: "minimax/MiniMax-M1" },
+      default: "claude/claude-sonnet-4-6",
+    })
+    const result = resolveStageConfig(config, "build", "cheap")
+    expect(result).toEqual({ provider: "claude", model: "claude-sonnet-4-6" })
+  })
+
+  it("resolves per-stage override over agent.default", () => {
+    const config = baseConfig({
+      modelMap: { cheap: "minimax/MiniMax-M1" },
+      default: "claude/claude-sonnet-4-6",
+      stages: { plan: "openai/gpt-4o" },
+    })
+    expect(resolveStageConfig(config, "plan", "strong")).toEqual({
+      provider: "openai",
+      model: "gpt-4o",
+    })
+    expect(resolveStageConfig(config, "build", "cheap")).toEqual({
+      provider: "claude",
+      model: "claude-sonnet-4-6",
+    })
+  })
+
+  it("throws on malformed modelMap entry", () => {
+    const config = baseConfig({ modelMap: { cheap: "no-slash" } })
+    expect(() => resolveStageConfig(config, "build", "cheap")).toThrow(/expected 'provider\/model'/)
   })
 })
 
 describe("applyModelOverrides", () => {
-  function makeConfig(overrides?: Record<string, unknown>) {
+  function makeConfig(overrides?: Record<string, unknown>): ReturnType<typeof getProjectConfig> {
     return {
       quality: { typecheck: "", lint: "", lintFix: "", formatFix: "", testUnit: "" },
       git: { defaultBranch: "main" },
       github: { owner: "", repo: "" },
       agent: {
-        modelMap: { cheap: "model-cheap", mid: "model-mid", strong: "model-strong" },
-        provider: "minimax",
+        modelMap: {
+          cheap: "minimax/MiniMax-M2.7-highspeed",
+          mid: "minimax/MiniMax-M2.7-highspeed",
+          strong: "minimax/MiniMax-M2.7-highspeed",
+        },
         ...overrides,
       },
     } as ReturnType<typeof getProjectConfig>
   }
 
-  it("does nothing when neither provider nor model specified", () => {
+  it("does nothing when model is not specified", () => {
     const config = makeConfig()
-    applyModelOverrides(config, undefined, undefined)
+    applyModelOverrides(config, undefined)
     expect(config.agent.default).toBeUndefined()
-    expect(config.agent.modelMap.mid).toBe("model-mid")
+    expect(config.agent.modelMap.mid).toBe("minimax/MiniMax-M2.7-highspeed")
   })
 
-  it("overrides model for all tiers and sets default", () => {
+  it("rewrites default + every modelMap tier with the override", () => {
     const config = makeConfig()
-    applyModelOverrides(config, undefined, "gpt-4o")
-    expect(config.agent.default).toEqual({ provider: "minimax", model: "gpt-4o" })
-    expect(config.agent.modelMap.cheap).toBe("gpt-4o")
-    expect(config.agent.modelMap.mid).toBe("gpt-4o")
-    expect(config.agent.modelMap.strong).toBe("gpt-4o")
+    applyModelOverrides(config, "claude/claude-sonnet-4-6")
+    expect(config.agent.default).toBe("claude/claude-sonnet-4-6")
+    expect(config.agent.modelMap.cheap).toBe("claude/claude-sonnet-4-6")
+    expect(config.agent.modelMap.mid).toBe("claude/claude-sonnet-4-6")
+    expect(config.agent.modelMap.strong).toBe("claude/claude-sonnet-4-6")
   })
 
-  it("overrides provider and sets default", () => {
-    const config = makeConfig()
-    applyModelOverrides(config, "anthropic", undefined)
-    expect(config.agent.default?.provider).toBe("anthropic")
-    expect(config.agent.provider).toBe("anthropic")
-    // model falls back to mid tier
-    expect(config.agent.default?.model).toBe("model-mid")
-    // modelMap tiers unchanged since only provider was overridden
-    expect(config.agent.modelMap.cheap).toBe("model-cheap")
-  })
-
-  it("overrides both provider and model", () => {
-    const config = makeConfig()
-    applyModelOverrides(config, "anthropic", "claude-sonnet-4-6")
-    expect(config.agent.default).toEqual({ provider: "anthropic", model: "claude-sonnet-4-6" })
-    expect(config.agent.provider).toBe("anthropic")
-    expect(config.agent.modelMap.mid).toBe("claude-sonnet-4-6")
-  })
-
-  it("clears per-stage overrides so CLI flag applies uniformly", () => {
+  it("clears per-stage overrides so the override applies uniformly", () => {
     const config = makeConfig({
       stages: {
-        build: { provider: "openai", model: "gpt-4o" },
-        review: { provider: "google", model: "gemini-2.5-flash" },
+        build: "openai/gpt-4o",
+        review: "google/gemini-2.5-flash",
       },
     })
-    applyModelOverrides(config, "anthropic", "claude-sonnet-4-6")
+    applyModelOverrides(config, "claude/claude-sonnet-4-6")
     expect(config.agent.stages).toBeUndefined()
-    // resolveStageConfig should now return the override for any stage
     const buildConfig = resolveStageConfig(config, "build", "mid")
-    expect(buildConfig.provider).toBe("anthropic")
-    expect(buildConfig.model).toBe("claude-sonnet-4-6")
+    expect(buildConfig).toEqual({ provider: "claude", model: "claude-sonnet-4-6" })
     const reviewConfig = resolveStageConfig(config, "review", "strong")
-    expect(reviewConfig.provider).toBe("anthropic")
-    expect(reviewConfig.model).toBe("claude-sonnet-4-6")
+    expect(reviewConfig).toEqual({ provider: "claude", model: "claude-sonnet-4-6" })
   })
 
-  it("preserves existing default when only model is overridden", () => {
-    const config = makeConfig({
-      default: { provider: "google", model: "gemini-2.5-flash" },
-    })
-    applyModelOverrides(config, undefined, "gpt-4o")
-    expect(config.agent.default?.provider).toBe("google")
-    expect(config.agent.default?.model).toBe("gpt-4o")
+  it("rejects malformed override eagerly", () => {
+    const config = makeConfig()
+    expect(() => applyModelOverrides(config, "no-slash")).toThrow(/expected 'provider\/model'/)
+  })
+})
+
+describe("stageNeedsProxy / anyStageNeedsProxy", () => {
+  function cfg(agent: Record<string, unknown>): ReturnType<typeof getProjectConfig> {
+    return {
+      quality: { typecheck: "", lint: "", lintFix: "", formatFix: "", testUnit: "" },
+      git: { defaultBranch: "main" },
+      github: { owner: "", repo: "" },
+      agent: agent as ReturnType<typeof getProjectConfig>["agent"],
+    }
+  }
+
+  it("treats claude/anthropic providers as direct (no proxy)", () => {
+    expect(stageNeedsProxy({ provider: "claude", model: "x" })).toBe(false)
+    expect(stageNeedsProxy({ provider: "anthropic", model: "x" })).toBe(false)
+  })
+
+  it("treats every other provider as needing proxy", () => {
+    expect(stageNeedsProxy({ provider: "minimax", model: "x" })).toBe(true)
+    expect(stageNeedsProxy({ provider: "openai", model: "x" })).toBe(true)
+  })
+
+  it("anyStageNeedsProxy returns true when modelMap has a non-claude entry", () => {
+    expect(anyStageNeedsProxy(cfg({ modelMap: { cheap: "minimax/MiniMax-M1" } }))).toBe(true)
+  })
+
+  it("anyStageNeedsProxy returns false when every model is claude", () => {
+    expect(anyStageNeedsProxy(cfg({
+      modelMap: { cheap: "claude/claude-haiku-4-5", mid: "claude/claude-sonnet-4-6" },
+    }))).toBe(false)
+  })
+
+  it("anyStageNeedsProxy returns true when default is non-claude", () => {
+    expect(anyStageNeedsProxy(cfg({
+      modelMap: { cheap: "claude/claude-haiku-4-5" },
+      default: "openai/gpt-4o",
+    }))).toBe(true)
+  })
+
+  it("anyStageNeedsProxy returns true when any stage override is non-claude", () => {
+    expect(anyStageNeedsProxy(cfg({
+      modelMap: { cheap: "claude/claude-haiku-4-5" },
+      stages: { build: "google/gemini-2.5-flash" },
+    }))).toBe(true)
   })
 })

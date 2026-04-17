@@ -12,7 +12,7 @@ export interface CliInput {
   complexity?: "low" | "medium" | "high" | "hotfix"
   ciRunId?: string
   noCompose?: boolean
-  provider?: string
+  /** "provider/model" string (e.g. "claude/claude-sonnet-4-6", "minimax/MiniMax-M2.7-highspeed"). */
   model?: string
   autoMode?: boolean
 }
@@ -91,7 +91,6 @@ export function parseArgs(): CliInput {
     complexity: (getArg(args, "--complexity") ?? process.env.COMPLEXITY) as CliInput["complexity"],
     ciRunId: getArg(args, "--ci-run-id") ?? process.env.CI_RUN_ID,
     noCompose: hasFlag(args, "--no-compose"),
-    provider: getArg(args, "--provider") ?? process.env.PROVIDER ?? undefined,
     model: getArg(args, "--model") ?? process.env.MODEL ?? undefined,
     autoMode: hasFlag(args, "--auto-mode") || process.env.AUTO_MODE === "true",
   }

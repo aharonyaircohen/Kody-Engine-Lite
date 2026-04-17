@@ -31,7 +31,7 @@ An autonomous SDLC pipeline as an npm package. Users comment `@kody` on a GitHub
 | `src/agent-runner.ts` | Spawns `claude --print`, pipes prompt, collects output |
 | `src/context.ts` | Builds prompts — reads memory, injects task context with tiered loading |
 | `src/context-tiers.ts` | L0/L1/L2 tiered context system for token optimization |
-| `src/config.ts` | Config loader + LiteLLM helpers (`needsLitellmProxy`, `getLitellmUrl`) |
+| `src/config.ts` | Config loader + LiteLLM helpers (`anyStageNeedsProxy`, `parseProviderModel`, `getLitellmUrl`) |
 | `src/bin/cli.ts` | Package entry — init, bootstrap, version |
 | `templates/kody.yml` | GitHub Actions workflow installed in target repos |
 | `prompts/*.md` | Stage instructions for Claude Code |

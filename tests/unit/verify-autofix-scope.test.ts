@@ -88,7 +88,7 @@ describe("executeVerifyWithAutofix pre-check (Fix #2)", () => {
       ...(await vi.importActual<typeof import("../../src/config.js")>("../../src/config.js")),
       getProjectConfig: () => ({
         quality: { typecheck: "true", testUnit: "true", lintFix: "", formatFix: "" },
-        agent: { defaultRunner: "claude", modelMap: { cheap: "x", mid: "x", strong: "x" } },
+        agent: { defaultRunner: "claude", modelMap: { cheap: "claude/x", mid: "claude/x", strong: "claude/x" } },
       }),
     }))
 
@@ -136,7 +136,7 @@ describe("executeVerifyWithAutofix pre-check (Fix #2)", () => {
       ...(await vi.importActual<typeof import("../../src/config.js")>("../../src/config.js")),
       getProjectConfig: () => ({
         quality: { typecheck: "true", testUnit: "true", lintFix: "", formatFix: "" },
-        agent: { defaultRunner: "claude", modelMap: { cheap: "x", mid: "x", strong: "x" } },
+        agent: { defaultRunner: "claude", modelMap: { cheap: "claude/x", mid: "claude/x", strong: "claude/x" } },
       }),
     }))
 
@@ -183,7 +183,7 @@ describe("executeVerifyWithAutofix pre-check (Fix #2)", () => {
       ...(await vi.importActual<typeof import("../../src/config.js")>("../../src/config.js")),
       getProjectConfig: () => ({
         quality: { typecheck: "true", testUnit: "true", lintFix: "", formatFix: "" },
-        agent: { defaultRunner: "claude", modelMap: { cheap: "x", mid: "x", strong: "x" } },
+        agent: { defaultRunner: "claude", modelMap: { cheap: "claude/x", mid: "claude/x", strong: "claude/x" } },
       }),
     }))
 

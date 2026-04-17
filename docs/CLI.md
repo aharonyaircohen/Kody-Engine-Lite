@@ -246,7 +246,7 @@ Run `bootstrap` next to generate repo-aware step files.
 ### `bootstrap` — Generate project memory and step files
 
 ```
-kody-engine-lite bootstrap [--force] [--provider=<name>] [--model=<name>]
+kody-engine-lite bootstrap [--force] [--model=<provider/model>]
 ```
 
 Analyzes your codebase with an LLM and generates everything Kody needs to work repo-aware:
@@ -259,7 +259,7 @@ Analyzes your codebase with an LLM and generates everything Kody needs to work r
 
 Also creates 14 GitHub labels: `kody:planning`, `kody:building`, `kody:verifying`, `kody:review`, `kody:done`, `kody:failed`, `kody:waiting`, `kody:low`, `kody:medium`, `kody:high`, `kody:feature`, `kody:bugfix`, `kody:refactor`, `kody:docs`, `kody:chore`.
 
-`--provider` and `--model` override the defaults from `kody.config.json` for this run only. When `--provider` is non-Anthropic, the engine starts a LiteLLM proxy to route requests.
+`--model` accepts a single `provider/model` spec (e.g. `claude/claude-sonnet-4-6`, `minimax/MiniMax-M2.7-highspeed`) and overrides whatever the bootstrap stage would resolve from `kody.config.json` for this run only. When the provider isn't `claude`/`anthropic`, the engine starts a LiteLLM proxy to route requests.
 
 Use `--force` to regenerate from scratch (instead of extending existing files).
 

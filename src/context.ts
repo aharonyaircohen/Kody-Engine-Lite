@@ -1,7 +1,7 @@
 import * as fs from "fs"
 import * as path from "path"
 import { readProjectMemory, mergeBrainWithProject, readBrainMemoryTiered, getBrainBasePath } from "./memory.js"
-import { getProjectConfig } from "./config.js"
+import { getProjectConfig, parseProviderModel } from "./config.js"
 import { searchFactsByScope } from "./memory/graph/queries.js"
 import {
   readProjectMemoryTiered,
@@ -496,13 +496,14 @@ export function escalateModelTier(currentTier: string): string {
   return TIER_ESCALATION[currentTier] ?? "strong"
 }
 
-export function resolveModel(modelTier: string, stageName?: string): string {
+export function resolveModel(modelTier: string, _stageName?: string): string {
   const config = getProjectConfig()
 
-  // Config modelMap is the single source of truth for model names.
+  // Config modelMap is the single source of truth. Values are "provider/model" strings;
+  // return the bare model name (the provider drives proxy routing elsewhere).
   const mapped = config.agent.modelMap[modelTier]
   if (!mapped) {
-    throw new Error(`No model configured for tier '${modelTier}'. Set agent.modelMap.${modelTier} in kody.config.json`)
+    throw new Error(`No model configured for tier '${modelTier}'. Set agent.modelMap.${modelTier} in kody.config.json (format: 'provider/model')`)
   }
-  return mapped
+  return parseProviderModel(mapped).model
 }

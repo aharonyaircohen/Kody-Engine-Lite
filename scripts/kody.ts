@@ -32,32 +32,57 @@ function parseCwd(): { projectDir: string; forwardArgs: string[] } {
 
 // ── Read kody.config.json ───────────────────────────────────────────────────
 
-function loadConfig(projectDir: string): { provider: string | undefined; modelMap: Record<string, string> } {
-  const configPath = path.join(projectDir, "kody.config.json")
-  if (!fs.existsSync(configPath)) {
-    return { provider: undefined, modelMap: {} }
-  }
-  const raw = JSON.parse(fs.readFileSync(configPath, "utf-8"))
-  return {
-    provider: raw.agent?.provider,
-    modelMap: raw.agent?.modelMap ?? {},
-  }
+interface ParsedSpec { provider: string; model: string }
+
+function parseSpec(spec: string): ParsedSpec | null {
+  const slash = spec.indexOf("/")
+  if (slash <= 0 || slash === spec.length - 1) return null
+  return { provider: spec.slice(0, slash), model: spec.slice(slash + 1) }
 }
 
-function needsProxy(provider: string | undefined): boolean {
-  return !!provider && provider !== "claude" && provider !== "anthropic"
+function loadConfig(projectDir: string): { specs: ParsedSpec[]; primary: ParsedSpec | undefined } {
+  const configPath = path.join(projectDir, "kody.config.json")
+  if (!fs.existsSync(configPath)) return { specs: [], primary: undefined }
+
+  const raw = JSON.parse(fs.readFileSync(configPath, "utf-8"))
+  const specs: ParsedSpec[] = []
+
+  const pushSpec = (s: string | undefined) => {
+    if (!s) return
+    const p = parseSpec(s)
+    if (p) specs.push(p)
+  }
+
+  for (const v of Object.values(raw.agent?.modelMap ?? {})) pushSpec(v as string)
+  if (raw.agent?.default) pushSpec(raw.agent.default)
+  for (const v of Object.values(raw.agent?.stages ?? {})) pushSpec(v as string)
+
+  // Primary = agent.default > modelMap.mid > modelMap.cheap > first
+  let primarySpec: string | undefined
+  if (raw.agent?.default) primarySpec = raw.agent.default
+  else if (raw.agent?.modelMap?.mid) primarySpec = raw.agent.modelMap.mid
+  else if (raw.agent?.modelMap?.cheap) primarySpec = raw.agent.modelMap.cheap
+  else primarySpec = specs[0] ? `${specs[0].provider}/${specs[0].model}` : undefined
+
+  const primary = primarySpec ? parseSpec(primarySpec) ?? undefined : undefined
+  return { specs, primary }
+}
+
+function needsProxy(primary: ParsedSpec | undefined): boolean {
+  return !!primary && primary.provider !== "claude" && primary.provider !== "anthropic"
 }
 
 // ── Generate LiteLLM config YAML ────────────────────────────────────────────
 
-function generateLitellmYaml(provider: string, modelMap: Record<string, string>): string {
-  const apiKeyVar = `${provider.toUpperCase()}_API_KEY`
+function generateLitellmYaml(specs: ParsedSpec[]): string {
   const lines: string[] = ["model_list:"]
   const seen = new Set<string>()
 
-  for (const model of Object.values(modelMap)) {
-    if (seen.has(model)) continue
-    seen.add(model)
+  for (const { provider, model } of specs) {
+    const key = `${provider}/${model}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    const apiKeyVar = `${provider.toUpperCase()}_API_KEY`
     lines.push(`  - model_name: ${model}`)
     lines.push(`    litellm_params:`)
     lines.push(`      model: ${provider}/${model}`)
@@ -109,19 +134,18 @@ async function checkHealth(): Promise<boolean> {
 
 async function main() {
   const { projectDir, forwardArgs } = parseCwd()
-  const { provider, modelMap } = loadConfig(projectDir)
+  const { specs, primary } = loadConfig(projectDir)
 
   // No proxy needed — just open Claude Code directly
-  if (!needsProxy(provider)) {
+  if (!needsProxy(primary)) {
     const claude = spawn("claude", forwardArgs, { stdio: "inherit", cwd: projectDir })
     claude.on("exit", (code) => process.exit(code ?? 0))
     return
   }
 
-  const model = modelMap.mid ?? modelMap.cheap ?? Object.values(modelMap)[0]
   console.log(`Project:  ${projectDir}`)
-  console.log(`Provider: ${provider}`)
-  console.log(`Model:    ${model}`)
+  console.log(`Provider: ${primary!.provider}`)
+  console.log(`Model:    ${primary!.model}`)
 
   // Inject .env API keys
   Object.assign(process.env, loadDotenvKeys(projectDir))
@@ -132,7 +156,7 @@ async function main() {
   if (await checkHealth()) {
     console.log(`LiteLLM proxy already running at ${LITELLM_URL}`)
   } else {
-    const yaml = generateLitellmYaml(provider!, modelMap)
+    const yaml = generateLitellmYaml(specs)
     const configPath = path.join(os.tmpdir(), "kody-litellm-config.yaml")
     fs.writeFileSync(configPath, yaml)
 
@@ -185,7 +209,7 @@ async function main() {
   process.on("SIGTERM", () => { cleanup(); process.exit(143) })
 
   // Run Claude Code pointed at the proxy
-  const claudeArgs = ["--model", model, "--dangerously-skip-permissions", ...forwardArgs]
+  const claudeArgs = ["--model", primary!.model, "--dangerously-skip-permissions", ...forwardArgs]
   console.log(`\nRunning: claude ${claudeArgs.join(" ")}`)
   console.log(`ANTHROPIC_BASE_URL=${LITELLM_URL}\n`)
   const claude = spawn("claude", claudeArgs, {

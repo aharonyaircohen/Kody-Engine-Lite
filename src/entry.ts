@@ -11,11 +11,11 @@ import { runStandaloneReview, resolveReviewTarget, formatReviewComment, detectRe
 
 // Extracted modules
 import { parseArgs } from "./cli/args.js"
-import { checkLitellmHealth, checkModelHealth, tryStartLitellm, generateLitellmConfig, generateLitellmConfigFromStages } from "./cli/litellm.js"
+import { checkLitellmHealth, checkModelHealth, tryStartLitellm, generateLitellmConfigFromStages, collectConfiguredModels } from "./cli/litellm.js"
 import { generateTaskId, resolveTaskIdForCommand } from "./cli/task-resolution.js"
 import { resolveForIssue } from "./cli/task-state.js"
 import { isTaskifyRun, taskifyCommand, readTaskifyMarker } from "./cli/taskify-command.js"
-import { needsLitellmProxy, anyStageNeedsProxy, getLitellmUrl, providerApiKeyEnvVar, getAnthropicApiKeyOrDummy } from "./config.js"
+import { anyStageNeedsProxy, getLitellmUrl, providerApiKeyEnvVar, getAnthropicApiKeyOrDummy, parseProviderModel, resolveStageConfig } from "./config.js"
 import type { KodyConfig } from "./config.js"
 import { loadToolDeclarations, detectTools } from "./tools.js"
 import { findParentRunId } from "./run-history.js"
@@ -73,19 +73,12 @@ async function ensureLitellmProxy(
   config: KodyConfig,
   projectDir: string,
 ): Promise<{ kill: () => void } | null> {
-  // Check if any stage needs the proxy (new per-stage config or legacy provider)
   if (!anyStageNeedsProxy(config)) return null
 
   const litellmUrl = getLitellmUrl()
   const proxyRunning = await checkLitellmHealth(litellmUrl)
 
-  // Generate LiteLLM config: prefer per-stage configs, fall back to legacy modelMap
-  let generatedConfig: string | undefined
-  if (config.agent.stages || config.agent.default) {
-    generatedConfig = generateLitellmConfigFromStages(config.agent.default, config.agent.stages)
-  } else if (config.agent.provider && config.agent.provider !== "anthropic") {
-    generatedConfig = generateLitellmConfig(config.agent.provider, config.agent.modelMap)
-  }
+  const generatedConfig = generateLitellmConfigFromStages(collectConfiguredModels(config))
 
   let litellmProcess: ReturnType<typeof import("child_process").spawn> | null = null
   if (proxyRunning) {
@@ -125,19 +118,14 @@ async function isProxyStale(url: string, config: KodyConfig): Promise<boolean> {
     const body = await res.json() as { data?: Array<{ id: string }> }
     const available = new Set((body.data ?? []).map((m) => m.id))
 
-    // Collect all models the engine needs
+    // Collect all model names the engine might ask the proxy to serve.
     const needed = new Set<string>()
-    for (const model of Object.values(config.agent.modelMap)) {
-      needed.add(model)
-    }
-    if (config.agent.default?.model) needed.add(config.agent.default.model)
-    if (config.agent.stages) {
-      for (const sc of Object.values(config.agent.stages)) {
+    for (const sc of collectConfiguredModels(config)) {
+      if (sc.provider !== "claude" && sc.provider !== "anthropic") {
         needed.add(sc.model)
       }
     }
 
-    // If any needed model is missing from the proxy, it's stale
     for (const model of needed) {
       if (!available.has(model)) return true
     }
@@ -167,6 +155,16 @@ async function runModelHealthCheck(config: KodyConfig): Promise<void> {
   const usesProxy = anyStageNeedsProxy(config)
   const baseUrl = usesProxy ? getLitellmUrl() : "https://api.anthropic.com"
 
+  // Pick a model to ping: prefer agent.default, then modelMap.cheap, then any modelMap value.
+  const pick = config.agent.default
+    ?? config.agent.modelMap.cheap
+    ?? Object.values(config.agent.modelMap)[0]
+  if (!pick) {
+    logger.warn("Skipping model health check — no model configured")
+    return
+  }
+  const sc = parseProviderModel(pick)
+
   // When using LiteLLM proxy, the proxy handles auth — the provider's API key
   // lives in the proxy's environment, not the engine's. Use a dummy key for the
   // health check request since LiteLLM ignores the x-api-key header.
@@ -174,8 +172,7 @@ async function runModelHealthCheck(config: KodyConfig): Promise<void> {
   if (usesProxy) {
     apiKey = "health-check"
   } else {
-    const provider = config.agent.default?.provider ?? config.agent.provider ?? "anthropic"
-    const keyName = providerApiKeyEnvVar(provider)
+    const keyName = providerApiKeyEnvVar(sc.provider)
     apiKey = process.env[keyName] ?? ""
     if (!apiKey) {
       logger.warn(`Skipping model health check — ${keyName} not set`)
@@ -183,10 +180,9 @@ async function runModelHealthCheck(config: KodyConfig): Promise<void> {
     }
   }
 
-  const model = config.agent.modelMap.cheap
-  logger.info(`Model health check (${model} via ${usesProxy ? "LiteLLM" : "Anthropic"})...`)
+  logger.info(`Model health check (${sc.model} via ${usesProxy ? "LiteLLM" : "Anthropic"})...`)
 
-  const result = await checkModelHealth(baseUrl, apiKey, model)
+  const result = await checkModelHealth(baseUrl, apiKey, sc.model)
   if (result.ok) {
     logger.info("  ✓ Model responded")
   } else {
@@ -210,11 +206,11 @@ async function main() {
     logger.info(`Working directory: ${projectDir}`)
   }
 
-  // Apply CLI --provider / --model overrides before any command branch reads config
-  if (input.provider || input.model) {
+  // Apply CLI --model provider/model override before any command branch reads config
+  if (input.model) {
     const config = getProjectConfig()
-    applyModelOverrides(config, input.provider, input.model)
-    logger.info(`CLI override: provider=${config.agent.default?.provider} model=${config.agent.default?.model}`)
+    applyModelOverrides(config, input.model)
+    logger.info(`CLI override: model=${config.agent.default}`)
   }
 
   // State machine: check issue state before doing anything

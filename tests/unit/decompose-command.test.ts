@@ -55,7 +55,7 @@ vi.mock("../../src/config.js", () => ({
     quality: {},
     git: { defaultBranch: "dev" },
     github: { owner: "test", repo: "test" },
-    agent: { modelMap: { cheap: "haiku", mid: "sonnet", strong: "opus" } },
+    agent: { modelMap: { cheap: "claude/haiku", mid: "claude/sonnet", strong: "claude/opus" } },
     decompose: { enabled: true, maxParallelSubTasks: 3, minComplexityScore: 6 },
   }),
   resolveStageConfig: vi.fn().mockReturnValue({ provider: "claude", model: "haiku" }),

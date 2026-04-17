@@ -158,9 +158,9 @@ export interface WatchConfig {
   activityLog?: number
   /** LLM-powered watch agents loaded from .kody/watch/agents/ */
   agents: WatchAgentDefinition[]
-  /** Model for watch agents (e.g. "claude-sonnet-4-6"). Falls back to agent.modelMap.cheap */
+  /** Bare model name for watch agents (e.g. "claude-sonnet-4-6"), parsed from watch.model. */
   model: string
-  /** LLM provider (e.g. "claude", "minimax"). Read from watch.provider, falls back to agent.provider. Routes through LiteLLM proxy when non-claude. */
+  /** LLM provider (e.g. "claude", "minimax"), parsed from the watch.model "provider/model" string. Routes through LiteLLM proxy when non-claude. */
   provider?: string
   /** Absolute path to the project directory */
   projectDir: string

@@ -4,44 +4,51 @@ Kody uses Claude Code under the hood, but Claude Code can route API calls throug
 
 ## How It Works
 
-1. Kody sets `ANTHROPIC_BASE_URL` to the LiteLLM proxy URL
-2. Claude Code sends API calls to the proxy (using Anthropic model names)
-3. LiteLLM maps Anthropic model names to your chosen provider
+1. Kody sets `ANTHROPIC_BASE_URL` to the LiteLLM proxy URL when any configured model uses a non-Anthropic provider
+2. Claude Code sends API calls to the proxy (using the bare model name from your `provider/model` spec)
+3. LiteLLM maps each registered `model_name` to the actual `provider/model` upstream
 4. LiteLLM translates Anthropic's tool-use protocol to the provider's format
 5. No code changes needed — just configuration
 
-> **Critical:** Claude Code only accepts Anthropic model names (e.g., `haiku`, `sonnet`). When you use LiteLLM, your config must use these same Anthropic names as `model_name` entries. Here's the flow: Kody passes `--model haiku` to Claude Code → Claude Code sends an API call to `localhost:4000` (LiteLLM proxy) → LiteLLM translates the request to your actual provider (e.g., MiniMax) → response comes back in Anthropic format. Claude Code never knows the difference.
+> Kody passes the bare model name (the part after the slash) to Claude Code. The proxy registers each model under that bare name and routes upstream using `provider/model`. Claude Code never knows the difference.
 
 ## Setup
 
-### Simple: Use the `provider` field (recommended)
+### Spec format: `provider/model`
 
-Set the `provider` in `kody.config.json` and Kody handles everything — auto-generates the LiteLLM config, starts the proxy, and routes all stages:
+Every model entry in `kody.config.json` is a `provider/model` string. There is no separate `provider` field — it's encoded in the spec.
 
-```json
-{
-  "agent": {
-    "provider": "minimax"
-  }
-}
-```
-
-Kody auto-generates the LiteLLM routing config mapping all Anthropic model IDs to your provider.
-
-To use different models per tier, configure `modelMap`:
+`claude/...` and `anthropic/...` mean "talk to the Anthropic API directly" — no proxy, no LiteLLM. Anything else is treated as a LiteLLM-routed model and Kody auto-starts the proxy.
 
 ```json
 {
   "agent": {
-    "provider": "minimax",
     "modelMap": {
-      "cheap": "MiniMax-M2.7-highspeed",
-      "mid": "MiniMax-M2.7-highspeed",
-      "strong": "MiniMax-M2.7-highspeed"
+      "cheap":  "minimax/MiniMax-M2.7-highspeed",
+      "mid":    "minimax/MiniMax-M2.7-highspeed",
+      "strong": "minimax/MiniMax-M2.7-highspeed"
     }
   }
 }
 ```
+
+### Mix providers across stages
+
+Per-stage overrides take precedence over `modelMap`:
+
+```json
+{
+  "agent": {
+    "default": "minimax/MiniMax-M2.7-highspeed",
+    "stages": {
+      "plan":   "claude/claude-opus-4-7",
+      "review": "claude/claude-opus-4-7"
+    }
+  }
+}
+```
+
+Plan and review go straight to Anthropic; every other stage runs through MiniMax via LiteLLM.
 
 ### Set API Keys
 
@@ -78,14 +85,13 @@ When using a non-Anthropic provider, ensure LiteLLM is installed and API keys ar
 
 ## Auto-Start
 
-When `provider` is set and the proxy isn't already running, Kody automatically:
+When any configured model has a non-`claude`/`anthropic` provider and the proxy isn't already running, Kody automatically:
 
 1. Checks proxy health at the configured URL
-2. Generates LiteLLM config from `provider` + `modelMap` in `kody.config.json`
+2. Generates a LiteLLM `model_list` from every `provider/model` entry in `agent.modelMap`, `agent.default`, and `agent.stages`
 3. Detects `litellm` binary (tries `which litellm`, then `python3 -c "import litellm"`)
 4. Loads `*_API_KEY` variables from the project's `.env` file into the proxy process
 5. Starts the proxy and waits for health check (up to 60 seconds)
-6. Falls back to Anthropic models if proxy fails to start
 
 The auto-start loads **only** `*_API_KEY` patterns from `.env` to avoid poisoning the proxy with unrelated variables (e.g., `DATABASE_URL` would trigger Prisma setup in LiteLLM).
 
@@ -100,9 +106,9 @@ LiteLLM supports [100+ providers](https://docs.litellm.ai/docs/providers). Model
 
 ## Common Gotchas
 
-**Model names must be Anthropic IDs.** Claude Code validates `--model` client-side. You can't pass `minimax-test` or `gpt-4o` — Claude Code will reject it silently (exit code 1, no stderr). Kody automatically maps Anthropic model IDs to your provider via LiteLLM.
+**Format your specs as `provider/model`.** A bare value like `MiniMax-M1` (no slash) is rejected at config load with a clear error message.
 
-**Don't use custom model names in `modelMap`.** If you set `modelMap: { cheap: "minimax-test" }`, Kody passes `--model minimax-test` to Claude Code, which rejects it. Keep the defaults (`haiku`/`sonnet`/`opus`) and let LiteLLM handle the routing.
+**Bare model names go to Claude Code.** Kody passes the part *after* the slash (`MiniMax-M2.7-highspeed`) to Claude Code, and the proxy is responsible for routing that name upstream. The provider in the spec only drives which LiteLLM entry gets generated.
 
 **CI pip install needs a venv.** `sudo pip install` fails on Ubuntu runners due to system package conflicts (`typing_extensions`). User-level `pip install` puts the binary in `~/.local/bin` which isn't on PATH. The venv + symlink pattern is the most reliable:
 
@@ -126,8 +132,8 @@ LiteLLM supports [100+ providers](https://docs.litellm.ai/docs/providers). Model
 - Locally: keys must be in `.env` (not just exported in your shell)
 - In CI: add keys as env vars in the workflow step
 
-**"Exit code 1" on taskify with no stderr**
-- Claude Code likely rejected the model name. Use Anthropic model IDs in `modelMap` (not custom aliases like `minimax-test`)
+**"Invalid model spec '…' — expected 'provider/model'"**
+- A `modelMap`, `default`, or `stages` entry is missing the `/`. Convert it to `provider/model` form (e.g. `minimax/MiniMax-M2.7-highspeed`).
 
 **Proxy health check fails in compiled CLI but works from source**
 - Run `curl http://localhost:4000/health` to verify the proxy is actually running

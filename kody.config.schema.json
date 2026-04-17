@@ -88,30 +88,28 @@
       "properties": {
         "modelMap": {
           "type": "object",
-          "description": "Maps model tiers to actual model names. When provider is set, values should be the provider's model names.",
+          "description": "Maps model tiers to 'provider/model' strings. Use 'claude/...' or 'anthropic/...' for direct Anthropic API; anything else routes through LiteLLM proxy.",
           "properties": {
             "cheap": {
               "type": "string",
-              "description": "Fast/cheap model for taskify stage (e.g., 'haiku' or provider model name)",
-              "default": "haiku"
+              "pattern": "^[^/]+/.+$",
+              "description": "Fast/cheap 'provider/model' for taskify (e.g., 'claude/claude-haiku-4-5-20251001', 'minimax/MiniMax-M2.7-highspeed')",
+              "examples": ["claude/claude-haiku-4-5-20251001", "minimax/MiniMax-M2.7-highspeed"]
             },
             "mid": {
               "type": "string",
-              "description": "Mid-tier model for build, review-fix, autofix (e.g., 'sonnet' or provider model name)",
-              "default": "sonnet"
+              "pattern": "^[^/]+/.+$",
+              "description": "Mid-tier 'provider/model' for build, review-fix, autofix (e.g., 'claude/claude-sonnet-4-6')",
+              "examples": ["claude/claude-sonnet-4-6", "minimax/MiniMax-M2.7-highspeed"]
             },
             "strong": {
               "type": "string",
-              "description": "Strongest model for plan, review — deep reasoning (e.g., 'opus' or provider model name)",
-              "default": "opus"
+              "pattern": "^[^/]+/.+$",
+              "description": "Strongest 'provider/model' for plan, review — deep reasoning (e.g., 'claude/claude-opus-4-6')",
+              "examples": ["claude/claude-opus-4-6", "minimax/MiniMax-M2.7-highspeed"]
             }
           },
           "additionalProperties": false
-        },
-        "provider": {
-          "type": "string",
-          "description": "LLM provider name. When set (and not 'anthropic'), engine auto-starts LiteLLM proxy and routes model calls to this provider. modelMap values should be the provider's model names.",
-          "examples": ["anthropic", "minimax", "openai", "google"]
         },
         "defaultRunner": {
           "type": "string",
@@ -146,33 +144,22 @@
           "additionalProperties": false
         },
         "default": {
-          "type": "object",
-          "description": "Default provider + model for all stages. Overridden by per-stage entries in 'stages'.",
-          "properties": {
-            "provider": {
-              "type": "string",
-              "description": "Provider name: 'claude' for direct Anthropic API, anything else routes through LiteLLM proxy",
-              "examples": ["claude", "minimax", "openai", "google"]
-            },
-            "model": {
-              "type": "string",
-              "description": "Full model ID (e.g., 'claude-sonnet-4-6', 'gpt-4o')"
-            }
-          },
-          "required": ["provider", "model"],
-          "additionalProperties": false
+          "type": "string",
+          "pattern": "^[^/]+/.+$",
+          "description": "Default 'provider/model' string applied to every stage. Use 'claude/<model>' for direct Anthropic API; anything else routes through LiteLLM proxy. Overridden by entries in 'stages'.",
+          "examples": ["claude/claude-sonnet-4-6", "minimax/MiniMax-M2.7-highspeed", "openai/gpt-4o"]
         },
         "stages": {
           "type": "object",
-          "description": "Per-stage provider + model overrides. Takes precedence over 'default' and 'modelMap'.",
+          "description": "Per-stage 'provider/model' overrides. Takes precedence over 'default' and 'modelMap'.",
           "properties": {
-            "taskify": { "$ref": "#/properties/agent/properties/default" },
-            "plan": { "$ref": "#/properties/agent/properties/default" },
-            "build": { "$ref": "#/properties/agent/properties/default" },
-            "verify": { "$ref": "#/properties/agent/properties/default" },
-            "review": { "$ref": "#/properties/agent/properties/default" },
-            "review-fix": { "$ref": "#/properties/agent/properties/default" },
-            "ship": { "$ref": "#/properties/agent/properties/default" }
+            "taskify": { "type": "string", "pattern": "^[^/]+/.+$" },
+            "plan": { "type": "string", "pattern": "^[^/]+/.+$" },
+            "build": { "type": "string", "pattern": "^[^/]+/.+$" },
+            "verify": { "type": "string", "pattern": "^[^/]+/.+$" },
+            "review": { "type": "string", "pattern": "^[^/]+/.+$" },
+            "review-fix": { "type": "string", "pattern": "^[^/]+/.+$" },
+            "ship": { "type": "string", "pattern": "^[^/]+/.+$" }
           },
           "additionalProperties": false
         },
@@ -199,8 +186,9 @@
         },
         "model": {
           "type": "string",
-          "description": "Model for watch agents. When provider is set in agent config, this should be the provider's model name. Falls back to agent.modelMap.cheap if not set.",
-          "examples": ["claude-sonnet-4-6", "claude-haiku-4-5-20251001", "MiniMax-M1"]
+          "pattern": "^[^/]+/.+$",
+          "description": "'provider/model' string for watch agents. Falls back to agent.modelMap.cheap if not set.",
+          "examples": ["claude/claude-sonnet-4-6", "claude/claude-haiku-4-5-20251001", "minimax/MiniMax-M1"]
         }
       },
       "additionalProperties": false

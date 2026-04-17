@@ -11,7 +11,7 @@ import * as path from "path"
 import { fileURLToPath } from "url"
 import { execSync } from "child_process"
 
-import { getProjectConfig, resolveStageConfig, setConfigDir, needsLitellmProxy, anyStageNeedsProxy, getLitellmUrl, providerApiKeyEnvVar, getAnthropicApiKeyOrDummy } from "../config.js"
+import { getProjectConfig, resolveStageConfig, setConfigDir, anyStageNeedsProxy, getLitellmUrl, getAnthropicApiKeyOrDummy } from "../config.js"
 import { createClaudeCodeRunner } from "../agent-runner.js"
 import { buildTaskifyMcpConfigJson } from "../mcp-config.js"
 import {
@@ -23,7 +23,7 @@ import {
 } from "../github-api.js"
 import { logger } from "../logger.js"
 import { generateTaskId } from "./task-resolution.js"
-import { checkLitellmHealth, tryStartLitellm, generateLitellmConfig, generateLitellmConfigFromStages } from "./litellm.js"
+import { checkLitellmHealth, tryStartLitellm, generateLitellmConfigFromStages, collectConfiguredModels } from "./litellm.js"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -158,12 +158,7 @@ export async function runTaskifyCommand(): Promise<void> {
     const litellmUrl = getLitellmUrl()
     const proxyRunning = await checkLitellmHealth(litellmUrl)
     if (!proxyRunning) {
-      let generatedConfig: string | undefined
-      if (config.agent.stages || config.agent.default) {
-        generatedConfig = generateLitellmConfigFromStages(config.agent.default, config.agent.stages)
-      } else if (config.agent.provider && config.agent.provider !== "anthropic") {
-        generatedConfig = generateLitellmConfig(config.agent.provider, config.agent.modelMap)
-      }
+      const generatedConfig = generateLitellmConfigFromStages(collectConfiguredModels(config))
       litellmProcess = await tryStartLitellm(litellmUrl, projectDir, generatedConfig)
     }
     runnerEnv = {

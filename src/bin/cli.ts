@@ -58,7 +58,6 @@ if (command === "init") {
 } else if (command === "bootstrap") {
   bootstrapCommand({
     force: args.includes("--force"),
-    provider: getArg(args, "--provider"),
     model: getArg(args, "--model"),
   }, PKG_ROOT).catch((err) => {
     console.error(`Bootstrap failed: ${err instanceof Error ? err.message : err}`)

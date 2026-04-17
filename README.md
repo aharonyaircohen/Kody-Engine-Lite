@@ -114,8 +114,18 @@ If the task is HIGH-risk, Kody pauses after planning and asks for approval befor
 
 ```json
 // kody.config.json
-{ "agent": { "provider": "minimax" } }
+{
+  "agent": {
+    "modelMap": {
+      "cheap":  "minimax/MiniMax-M2.7-highspeed",
+      "mid":    "minimax/MiniMax-M2.7-highspeed",
+      "strong": "minimax/MiniMax-M2.7-highspeed"
+    }
+  }
+}
 ```
+
+Each entry uses the standard `provider/model` form. `claude/...` and `anthropic/...` route directly to the Anthropic API; anything else is routed through a LiteLLM proxy that Kody auto-starts.
 
 ```
 # .env
@@ -178,7 +188,7 @@ flowchart TD
 
 ```bash
 kody-engine init [--force]          # Setup repo: workflow + config + watch
-kody-engine bootstrap [--force] [--provider=claude --model=opus-4-6]  # Generate memory + step files + labels + activity log
+kody-engine bootstrap [--force] [--model=claude/claude-opus-4-6]  # Generate memory + step files + labels + activity log
 kody-engine run --issue-number 42 --local --cwd ./project
 kody-engine run --task "Add retry utility" --local
 kody-engine review --pr-number 42   # Standalone PR review
@@ -233,7 +243,7 @@ kody-engine serve vscode       # Above + VS Code with proxy routing
 
 **Options:**
 ```bash
-kody-engine serve claude --provider minimax --model MiniMax-M1   # Override model
+kody-engine serve claude --model minimax/MiniMax-M1              # Override model (provider/model)
 kody-engine serve --cwd /path/to/project                        # Target different project
 ```
 

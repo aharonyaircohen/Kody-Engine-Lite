@@ -202,7 +202,11 @@ describe("buildConfig", () => {
       defaultBranch: "main", owner: "o", repo: "r", pm: "pnpm",
     })
     const agent = (config as Record<string, Record<string, unknown>>).agent
-    expect(agent.modelMap).toEqual({ cheap: "claude-haiku-4-5-20251001", mid: "claude-sonnet-4-6", strong: "claude-opus-4-6" })
+    expect(agent.modelMap).toEqual({
+      cheap: "claude/claude-haiku-4-5-20251001",
+      mid: "claude/claude-sonnet-4-6",
+      strong: "claude/claude-opus-4-6",
+    })
   })
 
   it("handles missing package.json gracefully", () => {

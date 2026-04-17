@@ -267,7 +267,7 @@ describe("runRetrospective", () => {
     taskDir = path.join(projectDir, ".kody/tasks", "test-1")
     fs.mkdirSync(taskDir, { recursive: true })
     fs.writeFileSync(path.join(projectDir, "kody.config.json"), JSON.stringify({
-      agent: { modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" } },
+      agent: { modelMap: { cheap: "claude/test-model-cheap", mid: "claude/test-model-mid", strong: "claude/test-model-strong" } },
     }))
     setConfigDir(projectDir)
   })
@@ -498,16 +498,20 @@ describe("runRetrospective", () => {
   })
 
   it("sets ANTHROPIC_BASE_URL when per-stage provider requires proxy (anyStageNeedsProxy)", async () => {
-    // Write a config where agent.default.provider is non-anthropic (requires LiteLLM proxy).
-    // This tests the P0 fix: retrospective must use anyStageNeedsProxy, not the legacy
-    // needsLitellmProxy which only checked config.agent.provider (top-level field).
+    // Write a config where agent.default uses a non-anthropic provider (requires LiteLLM proxy).
+    // Verifies that retrospective uses anyStageNeedsProxy, which inspects every configured
+    // model via parseProviderModel rather than relying on a single top-level provider field.
     fs.writeFileSync(
       path.join(projectDir, "kody.config.json"),
       JSON.stringify({
         quality: { typecheck: "", lint: "", lintFix: "", formatFix: "", testUnit: "" },
         agent: {
-          default: { provider: "openai", model: "gpt-4o" },
-          modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" },
+          default: "openai/gpt-4o",
+          modelMap: {
+            cheap: "openai/gpt-4o-mini",
+            mid: "openai/gpt-4o",
+            strong: "openai/gpt-4o",
+          },
         },
       }),
     )
@@ -550,7 +554,7 @@ describe("token stats", () => {
     taskDir = path.join(projectDir, ".kody/tasks", "test-1")
     fs.mkdirSync(taskDir, { recursive: true })
     fs.writeFileSync(path.join(projectDir, "kody.config.json"), JSON.stringify({
-      agent: { modelMap: { cheap: "test-model-cheap", mid: "test-model-mid", strong: "test-model-strong" } },
+      agent: { modelMap: { cheap: "claude/test-model-cheap", mid: "claude/test-model-mid", strong: "claude/test-model-strong" } },
     }))
     setConfigDir(projectDir)
   })

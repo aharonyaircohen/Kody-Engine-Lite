@@ -7,9 +7,9 @@ import type { ChildProcess } from "child_process"
 import { detectArchitectureBasic } from "../architecture-detection.js"
 import { discoverQaContext, generateQaGuideFallback, serializeDiscoveryForLLM } from "../qa-guide.js"
 import { generateSubAgentsYml, loadSubAgents } from "../sub-agent-generator.js"
-import { getProjectConfig, resolveStageConfig, setConfigDir, stageNeedsProxy, getLitellmUrl, getAnthropicApiKeyOrDummy } from "../../config.js"
+import { getProjectConfig, resolveStageConfig, setConfigDir, stageNeedsProxy, getLitellmUrl, getAnthropicApiKeyOrDummy, parseProviderModel } from "../../config.js"
 import { buildExtendInstruction } from "../extend-helpers.js"
-import { checkLitellmHealth, tryStartLitellm, generateLitellmConfig } from "../../cli/litellm.js"
+import { checkLitellmHealth, tryStartLitellm, generateLitellmConfigFromStages, collectConfiguredModels } from "../../cli/litellm.js"
 import { gatherArchitectureContext, execClaudeAsync, MEMORY_FILES, ROUND2_TASKS } from "../bootstrap-context.js"
 import { readProjectMemory } from "../../memory.js"
 
@@ -386,16 +386,15 @@ function collectSkillPaths(cwd: string, skillName: string, paths: string[]): voi
   }
 }
 
-export async function bootstrapCommand(opts: { force: boolean; provider?: string; model?: string }, pkgRoot: string) {
+export async function bootstrapCommand(opts: { force: boolean; model?: string }, pkgRoot: string) {
   const cwd = process.cwd()
   setConfigDir(cwd)
   const issueNumber = parseInt(process.env.ISSUE_NUMBER ?? "", 10) || 0
   const config = getProjectConfig()
-  const bootstrapStageConfig = {
-    ...resolveStageConfig(config, "bootstrap", "cheap"),
-    ...(opts.provider ? { provider: opts.provider } : {}),
-    ...(opts.model ? { model: opts.model } : {}),
-  }
+  // Apply --model override (provider/model) before resolving stage config
+  const bootstrapStageConfig = opts.model
+    ? parseProviderModel(opts.model)
+    : resolveStageConfig(config, "bootstrap", "cheap")
   const bootstrapModel = bootstrapStageConfig.model
   let litellmProcess: ChildProcess | null = null
   const llmErrors: string[] = []
@@ -411,7 +410,9 @@ export async function bootstrapCommand(opts: { force: boolean; provider?: string
     const litellmUrl = getLitellmUrl()
     const isHealthy = await checkLitellmHealth(litellmUrl)
     if (!isHealthy) {
-      const generatedConfig = generateLitellmConfig(bootstrapStageConfig.provider, config.agent.modelMap)
+      // Include the bootstrap model + every other configured model so the proxy can serve them all.
+      const proxyModels = [bootstrapStageConfig, ...collectConfiguredModels(config)]
+      const generatedConfig = generateLitellmConfigFromStages(proxyModels)
       console.log(`  Starting LiteLLM proxy for ${bootstrapStageConfig.provider}...`)
       litellmProcess = await tryStartLitellm(litellmUrl, cwd, generatedConfig)
       if (litellmProcess) {

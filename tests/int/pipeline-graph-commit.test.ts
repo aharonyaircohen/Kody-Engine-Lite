@@ -98,7 +98,7 @@ describe("Integration: pipeline graph commit", () => {
       path.join(tmpDir, "kody.config.json"),
       JSON.stringify({
         quality: { typecheck: "", lint: "", lintFix: "", formatFix: "", testUnit: "" },
-        agent: { defaultRunner: "claude", modelMap: { cheap: "test", mid: "test", strong: "test" } },
+        agent: { defaultRunner: "claude", modelMap: { cheap: "claude/test", mid: "claude/test", strong: "claude/test" } },
       }),
     )
     setConfigDir(tmpDir)

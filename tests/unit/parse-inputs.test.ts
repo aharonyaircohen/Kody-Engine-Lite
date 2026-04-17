@@ -88,67 +88,46 @@ describe("parseCommentInputs", () => {
     expect(r.mode).toBe("rerun")
   })
 
-  // ─── Provider / Model flags ─────────────────────────────────────────────
-
-  it("parses --provider flag", () => {
-    process.env.COMMENT_BODY = "@kody fix --provider anthropic"
-    const r = parseCommentInputs()
-    expect(r.mode).toBe("fix")
-    expect(r.provider).toBe("anthropic")
-    expect(r.model).toBe("")
-  })
+  // ─── Model flag (provider/model) ──────────────────────────────────────────
 
   it("parses --model flag", () => {
-    process.env.COMMENT_BODY = "@kody fix --model claude-sonnet-4-6"
+    process.env.COMMENT_BODY = "@kody fix --model claude/claude-sonnet-4-6"
     const r = parseCommentInputs()
     expect(r.mode).toBe("fix")
-    expect(r.model).toBe("claude-sonnet-4-6")
-    expect(r.provider).toBe("")
+    expect(r.model).toBe("claude/claude-sonnet-4-6")
   })
 
-  it("parses --provider and --model together", () => {
-    process.env.COMMENT_BODY = "@kody fix --provider anthropic --model claude-sonnet-4-6"
-    const r = parseCommentInputs()
-    expect(r.mode).toBe("fix")
-    expect(r.provider).toBe("anthropic")
-    expect(r.model).toBe("claude-sonnet-4-6")
-  })
-
-  it("parses --provider and --model with other flags", () => {
-    process.env.COMMENT_BODY = "@kody rerun task-123 --from build --provider minimax --model MiniMax-M2.7-highspeed"
+  it("parses --model with other flags", () => {
+    process.env.COMMENT_BODY = "@kody rerun task-123 --from build --model minimax/MiniMax-M2.7-highspeed"
     const r = parseCommentInputs()
     expect(r.mode).toBe("rerun")
     expect(r.task_id).toBe("task-123")
     expect(r.from_stage).toBe("build")
-    expect(r.provider).toBe("minimax")
-    expect(r.model).toBe("MiniMax-M2.7-highspeed")
+    expect(r.model).toBe("minimax/MiniMax-M2.7-highspeed")
   })
 
-  it("parses --provider=value and --model=value (equals syntax)", () => {
-    process.env.COMMENT_BODY = "@kody fix --provider=claude --model=claude-opus-4-6"
+  it("parses --model=value (equals syntax)", () => {
+    process.env.COMMENT_BODY = "@kody fix --model=claude/claude-opus-4-6"
     const r = parseCommentInputs()
     expect(r.mode).toBe("fix")
-    expect(r.provider).toBe("claude")
-    expect(r.model).toBe("claude-opus-4-6")
+    expect(r.model).toBe("claude/claude-opus-4-6")
   })
 
   it("parses mixed equals and space syntax", () => {
-    process.env.COMMENT_BODY = "@kody rerun task-1 --from=build --provider claude --model=claude-sonnet-4-6"
+    process.env.COMMENT_BODY = "@kody rerun task-1 --from=build --model=claude/claude-sonnet-4-6"
     const r = parseCommentInputs()
     expect(r.mode).toBe("rerun")
     expect(r.task_id).toBe("task-1")
     expect(r.from_stage).toBe("build")
-    expect(r.provider).toBe("claude")
-    expect(r.model).toBe("claude-sonnet-4-6")
+    expect(r.model).toBe("claude/claude-sonnet-4-6")
   })
 
-  it("--provider and --model do not pollute task-id", () => {
-    process.env.COMMENT_BODY = "@kody full --provider openai --model gpt-4o"
+  it("--model does not pollute task-id", () => {
+    process.env.COMMENT_BODY = "@kody full --model openai/gpt-4o"
     const r = parseCommentInputs()
     expect(r.mode).toBe("full")
-    expect(r.provider).toBe("openai")
-    expect(r.model).toBe("gpt-4o")
-    // task_id should be auto-generated, not "openai" or "gpt-4o"
+    expect(r.model).toBe("openai/gpt-4o")
+    // task_id should be auto-generated, not "openai/gpt-4o"
     expect(r.task_id).toMatch(/^42-\d{6}-\d{6}$/)
   })
 
@@ -377,14 +356,12 @@ describe("parseCommentInputs", () => {
     expect(r.valid).toBe(true)
   })
 
-  it("dispatch trigger passes through provider and model", () => {
+  it("dispatch trigger passes through model", () => {
     process.env.TRIGGER_TYPE = "dispatch"
     process.env.INPUT_TASK_ID = "dispatch-task"
-    process.env.INPUT_PROVIDER = "openai"
-    process.env.INPUT_MODEL = "gpt-4o"
+    process.env.INPUT_MODEL = "openai/gpt-4o"
     const r = parseCommentInputs()
-    expect(r.provider).toBe("openai")
-    expect(r.model).toBe("gpt-4o")
+    expect(r.model).toBe("openai/gpt-4o")
   })
 
   it("dispatch trigger with no task_id is invalid", () => {

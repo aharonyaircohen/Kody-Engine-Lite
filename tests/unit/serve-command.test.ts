@@ -17,7 +17,6 @@ describe("serve arg parsing", () => {
   function parseServeArgs(args: string[]): {
     mode: ServeMode
     cwd?: string
-    provider?: string
     model?: string
   } {
     function getArg(a: string[], flag: string): string | undefined {
@@ -37,7 +36,6 @@ describe("serve arg parsing", () => {
     return {
       mode,
       cwd: getArg(args, "--cwd"),
-      provider: getArg(args, "--provider"),
       model: getArg(args, "--model"),
     }
   }
@@ -60,18 +58,16 @@ describe("serve arg parsing", () => {
     expect(opts.cwd).toBe("/tmp/project")
   })
 
-  it("parses --provider and --model", () => {
-    const opts = parseServeArgs(["--provider", "minimax", "--model", "MiniMax-M1"])
-    expect(opts.provider).toBe("minimax")
-    expect(opts.model).toBe("MiniMax-M1")
+  it("parses --model", () => {
+    const opts = parseServeArgs(["--model", "minimax/MiniMax-M1"])
+    expect(opts.model).toBe("minimax/MiniMax-M1")
   })
 
   it("parses all options together", () => {
-    const opts = parseServeArgs(["vscode", "--cwd", "/tmp", "--provider", "openai", "--model", "gpt-4o"])
+    const opts = parseServeArgs(["vscode", "--cwd", "/tmp", "--model", "openai/gpt-4o"])
     expect(opts.mode).toBe("vscode")
     expect(opts.cwd).toBe("/tmp")
-    expect(opts.provider).toBe("openai")
-    expect(opts.model).toBe("gpt-4o")
+    expect(opts.model).toBe("openai/gpt-4o")
   })
 
   it("unknown subcommand defaults to infra", () => {
@@ -175,24 +171,28 @@ describe("serve Claude Code launch args", () => {
 // ─── Model resolution ──────────────────────────────────────────────────────
 
 describe("serve model resolution", () => {
-  function resolveModel(config: { default?: { model: string }; modelMap: Record<string, string> }): string | undefined {
-    return config.default?.model ?? config.modelMap.mid ?? config.modelMap.cheap ?? Object.values(config.modelMap)[0]
+  /** Resolves the bare model name from a "provider/model" spec via the same priority serve.ts uses. */
+  function resolveModel(config: { default?: string; modelMap: Record<string, string> }): string | undefined {
+    const spec = config.default ?? config.modelMap.mid ?? config.modelMap.cheap ?? Object.values(config.modelMap)[0]
+    if (!spec) return undefined
+    const slash = spec.indexOf("/")
+    return slash > 0 ? spec.slice(slash + 1) : spec
   }
 
   it("uses default model", () => {
-    expect(resolveModel({ default: { model: "M1" }, modelMap: { cheap: "old" } })).toBe("M1")
+    expect(resolveModel({ default: "claude/M1", modelMap: { cheap: "claude/old" } })).toBe("M1")
   })
 
   it("falls back to mid", () => {
-    expect(resolveModel({ modelMap: { cheap: "c", mid: "m" } })).toBe("m")
+    expect(resolveModel({ modelMap: { cheap: "claude/c", mid: "claude/m" } })).toBe("m")
   })
 
   it("falls back to cheap", () => {
-    expect(resolveModel({ modelMap: { cheap: "c" } })).toBe("c")
+    expect(resolveModel({ modelMap: { cheap: "claude/c" } })).toBe("c")
   })
 
   it("falls back to first available", () => {
-    expect(resolveModel({ modelMap: { premium: "p" } })).toBe("p")
+    expect(resolveModel({ modelMap: { premium: "claude/p" } })).toBe("p")
   })
 
   it("returns undefined when empty", () => {
@@ -455,17 +455,17 @@ describe("serve proxy detection", () => {
   it("detects proxy for minimax", async () => {
     const { anyStageNeedsProxy } = await import("../../src/config.js")
     expect(anyStageNeedsProxy({
-      agent: { modelMap: {}, default: { provider: "minimax", model: "M1" } },
+      agent: { modelMap: {}, default: "minimax/M1" },
     } as any)).toBe(true)
   })
 
   it("no proxy for anthropic/claude", async () => {
     const { anyStageNeedsProxy } = await import("../../src/config.js")
     expect(anyStageNeedsProxy({
-      agent: { modelMap: {}, default: { provider: "claude", model: "s4" } },
+      agent: { modelMap: {}, default: "claude/s4" },
     } as any)).toBe(false)
     expect(anyStageNeedsProxy({
-      agent: { modelMap: {}, default: { provider: "anthropic", model: "s4" } },
+      agent: { modelMap: {}, default: "anthropic/s4" },
     } as any)).toBe(false)
   })
 
@@ -475,8 +475,8 @@ describe("serve proxy detection", () => {
       agent: {
         modelMap: {},
         stages: {
-          build: { provider: "openai", model: "gpt-4o" },
-          review: { provider: "claude", model: "claude-sonnet-4-6" },
+          build: "openai/gpt-4o",
+          review: "claude/claude-sonnet-4-6",
         },
       },
     } as any)).toBe(true)
@@ -488,8 +488,8 @@ describe("serve proxy detection", () => {
       agent: {
         modelMap: {},
         stages: {
-          build: { provider: "claude", model: "claude-sonnet-4-6" },
-          review: { provider: "anthropic", model: "claude-opus-4-6" },
+          build: "claude/claude-sonnet-4-6",
+          review: "anthropic/claude-opus-4-6",
         },
       },
     } as any)).toBe(false)

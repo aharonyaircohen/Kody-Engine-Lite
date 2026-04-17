@@ -18,7 +18,7 @@ describe("createRunners", () => {
     git: { defaultBranch: "main" },
     github: { owner: "", repo: "" },
     agent: {
-      modelMap: { cheap: "haiku", mid: "sonnet", strong: "opus" },
+      modelMap: { cheap: "claude/haiku", mid: "claude/sonnet", strong: "claude/opus" },
     },
   }
 

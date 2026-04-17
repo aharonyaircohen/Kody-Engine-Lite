@@ -17,7 +17,7 @@ import * as fs from "fs"
 import * as path from "path"
 import { spawn } from "child_process"
 import { getArg } from "../cli.js"
-import { getProjectConfig } from "../../config.js"
+import { getProjectConfig, parseProviderModel } from "../../config.js"
 import { getAnthropicApiKeyOrDummy } from "../../config.js"
 import { anyStageNeedsProxy } from "../../config.js"
 import { logger } from "../../logger.js"
@@ -541,10 +541,10 @@ export async function chatCommand(rawArgs: string[]): Promise<void> {
 
   const projectDir = cwd ? path.resolve(cwd) : process.cwd()
   const config = getProjectConfig()
+  const fallbackSpec = config.agent.default ?? Object.values(config.agent.modelMap)[0]
   const effectiveModel =
     model ??
-    config.agent.default?.model ??
-    Object.values(config.agent.modelMap)[0] ??
+    (fallbackSpec ? parseProviderModel(fallbackSpec).model : undefined) ??
     "claude-sonnet-4-6"
   const usesProxy = anyStageNeedsProxy(config)
 

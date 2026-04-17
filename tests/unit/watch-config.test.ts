@@ -31,7 +31,7 @@ describe("parseWatchConfig", () => {
     else delete process.env.WATCH_ACTIVITY_LOG
   })
 
-  it("reads watch.model from config", () => {
+  it("reads watch.model as a 'provider/model' string", () => {
     writeConfig(tmpDir, {
       github: { owner: "test", repo: "repo" },
       watch: { model: "minimax/MiniMax-M2.7-highspeed" },
@@ -40,48 +40,29 @@ describe("parseWatchConfig", () => {
     expect(result.watchModel).toBe("minimax/MiniMax-M2.7-highspeed")
   })
 
-  it("reads watch.provider from config and takes precedence over agent.provider", () => {
+  it("reads agent.modelMap with provider/model values", () => {
     writeConfig(tmpDir, {
       github: { owner: "test", repo: "repo" },
-      watch: { provider: "minimax", model: "minimax/M2" },
-      agent: { provider: "openai" },
+      agent: {
+        modelMap: { cheap: "minimax/cheap-model", mid: "minimax/mid-model" },
+      },
     })
     const result = parseWatchConfig(tmpDir)
-    expect(result.agentProvider).toBe("minimax")
-  })
-
-  it("returns undefined provider when watch.provider is not set", () => {
-    writeConfig(tmpDir, {
-      github: { owner: "test", repo: "repo" },
+    expect(result.agentModelMap).toEqual({
+      cheap: "minimax/cheap-model",
+      mid: "minimax/mid-model",
     })
-    const result = parseWatchConfig(tmpDir)
-    expect(result.agentProvider).toBeUndefined()
   })
 
   it("reads watch.model even when REPO env var is set", () => {
     process.env.REPO = "env-owner/env-repo"
     writeConfig(tmpDir, {
       github: { owner: "config-owner", repo: "config-repo" },
-      watch: { model: "minimax/MiniMax-M2.7-highspeed", provider: "minimax" },
-      agent: { provider: "openai" },
+      watch: { model: "minimax/MiniMax-M2.7-highspeed" },
     })
     const result = parseWatchConfig(tmpDir)
     expect(result.watchModel).toBe("minimax/MiniMax-M2.7-highspeed")
-    expect(result.agentProvider).toBe("minimax")
-    // REPO env takes precedence over config for repo
     expect(result.repo).toBe("env-owner/env-repo")
-  })
-
-  it("reads agent.modelMap from config", () => {
-    writeConfig(tmpDir, {
-      github: { owner: "test", repo: "repo" },
-      agent: {
-        modelMap: { cheap: "minimax/cheap", mid: "minimax/mid" },
-      },
-    })
-    const result = parseWatchConfig(tmpDir)
-    expect(result.agentProvider).toBeUndefined()
-    expect(result.agentModelMap).toEqual({ cheap: "minimax/cheap", mid: "minimax/mid" })
   })
 
   it("reads repo from config when REPO env is not set", () => {
@@ -149,7 +130,6 @@ describe("parseWatchConfig", () => {
   it("handles missing config file gracefully", () => {
     const result = parseWatchConfig(tmpDir)
     expect(result.watchModel).toBeUndefined()
-    expect(result.agentProvider).toBeUndefined()
   })
 
   it("handles invalid JSON gracefully", () => {

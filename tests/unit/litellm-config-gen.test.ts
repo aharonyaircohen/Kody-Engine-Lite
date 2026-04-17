@@ -1,130 +1,101 @@
 import { describe, it, expect } from "vitest"
-import { generateLitellmConfig, generateLitellmConfigFromStages } from "../../src/cli/litellm.js"
+import { generateLitellmConfigFromStages, collectConfiguredModels } from "../../src/cli/litellm.js"
 
-describe("generateLitellmConfig", () => {
-  it("generates valid YAML for minimax provider", () => {
-    const yaml = generateLitellmConfig("minimax", {
-      cheap: "MiniMax-M2.7-highspeed",
-      mid: "MiniMax-M2.7-highspeed",
-      strong: "MiniMax-M2.7-highspeed",
-    })
-
-    expect(yaml).toContain("model_list:")
-    expect(yaml).toContain("model: minimax/MiniMax-M2.7-highspeed")
-    expect(yaml).toContain("api_key: os.environ/MINIMAX_API_KEY")
-    // Config model name is the single source of truth
-    expect(yaml).toContain("model_name: MiniMax-M2.7-highspeed")
-    // Deduped: same model across all tiers → single entry
-    const matches = yaml.match(/model_name:/g)
-    expect(matches).toHaveLength(1)
+describe("generateLitellmConfigFromStages", () => {
+  it("returns undefined when every entry is claude/anthropic", () => {
+    const result = generateLitellmConfigFromStages([
+      { provider: "claude", model: "claude-sonnet-4-6" },
+      { provider: "anthropic", model: "claude-haiku-4-5" },
+    ])
+    expect(result).toBeUndefined()
   })
 
-  it("generates correct config for openai provider", () => {
-    const yaml = generateLitellmConfig("openai", {
-      cheap: "gpt-4o-mini",
-      mid: "gpt-4o",
-      strong: "o3",
-    })
+  it("emits a model_list with provider/model and api_key for non-claude providers", () => {
+    const yaml = generateLitellmConfigFromStages([
+      { provider: "minimax", model: "MiniMax-M2.7-highspeed" },
+    ])
+    expect(yaml).toBeDefined()
+    expect(yaml).toContain("model_list:")
+    expect(yaml).toContain("model_name: MiniMax-M2.7-highspeed")
+    expect(yaml).toContain("model: minimax/MiniMax-M2.7-highspeed")
+    expect(yaml).toContain("api_key: os.environ/MINIMAX_API_KEY")
+  })
 
-    expect(yaml).toContain("model_name: gpt-4o-mini")
+  it("deduplicates identical provider+model entries", () => {
+    const yaml = generateLitellmConfigFromStages([
+      { provider: "minimax", model: "MiniMax-M2.7-highspeed" },
+      { provider: "minimax", model: "MiniMax-M2.7-highspeed" },
+      { provider: "minimax", model: "MiniMax-M2.7-highspeed" },
+    ])
+    expect(yaml).toBeDefined()
+    expect(yaml!.match(/model_name:/g)).toHaveLength(1)
+  })
+
+  it("emits multiple entries for distinct models", () => {
+    const yaml = generateLitellmConfigFromStages([
+      { provider: "openai", model: "gpt-4o-mini" },
+      { provider: "openai", model: "gpt-4o" },
+      { provider: "openai", model: "o3" },
+    ])
+    expect(yaml).toBeDefined()
+    expect(yaml!.match(/model_name:/g)).toHaveLength(3)
     expect(yaml).toContain("model: openai/gpt-4o-mini")
-    expect(yaml).toContain("model_name: gpt-4o")
     expect(yaml).toContain("model: openai/gpt-4o")
-    expect(yaml).toContain("model_name: o3")
     expect(yaml).toContain("model: openai/o3")
     expect(yaml).toContain("api_key: os.environ/OPENAI_API_KEY")
   })
 
-  it("deduplicates when multiple tiers use the same model", () => {
-    const yaml = generateLitellmConfig("google", {
-      cheap: "gemini-2.0-flash",
-      mid: "gemini-2.5-pro",
-      strong: "gemini-2.5-pro",
-    })
-
-    // Two unique models, not three
-    expect(yaml).toContain("model_name: gemini-2.0-flash")
-    expect(yaml).toContain("model: google/gemini-2.0-flash")
-    expect(yaml).toContain("model_name: gemini-2.5-pro")
-    expect(yaml).toContain("model: google/gemini-2.5-pro")
-    const matches = yaml.match(/model_name:/g)
-    expect(matches).toHaveLength(2)
+  it("filters out claude/anthropic and only includes proxy-bound entries", () => {
+    const yaml = generateLitellmConfigFromStages([
+      { provider: "claude", model: "claude-sonnet-4-6" },
+      { provider: "minimax", model: "MiniMax-M1" },
+      { provider: "anthropic", model: "claude-haiku-4-5" },
+    ])
+    expect(yaml).toBeDefined()
+    expect(yaml!.match(/model_name:/g)).toHaveLength(1)
+    expect(yaml).toContain("model: minimax/MiniMax-M1")
+    expect(yaml).not.toContain("claude-sonnet-4-6")
+    expect(yaml).not.toContain("claude-haiku-4-5")
   })
 
-  it("adds drop_params for non-Anthropic providers", () => {
-    const yaml = generateLitellmConfig("gemini", {
-      cheap: "gemini-2.5-flash",
-      mid: "gemini-2.5-flash",
-      strong: "gemini-2.5-flash",
-    })
-
+  it("appends drop_params: true when proxy-bound entries are present", () => {
+    const yaml = generateLitellmConfigFromStages([
+      { provider: "google", model: "gemini-2.5-flash" },
+    ])
     expect(yaml).toContain("litellm_settings:")
     expect(yaml).toContain("drop_params: true")
-  })
-
-  it("adds drop_params for openai provider", () => {
-    const yaml = generateLitellmConfig("openai", {
-      cheap: "gpt-4o-mini",
-      mid: "gpt-4o",
-      strong: "o3",
-    })
-
-    expect(yaml).toContain("litellm_settings:")
-    expect(yaml).toContain("drop_params: true")
-  })
-
-  it("does not add drop_params for anthropic provider", () => {
-    const yaml = generateLitellmConfig("anthropic", {
-      cheap: "claude-haiku-4-5-20251001",
-      mid: "claude-sonnet-4-6-20260320",
-      strong: "claude-sonnet-4-6-20260320",
-    })
-
-    expect(yaml).not.toContain("drop_params")
-  })
-
-  it("does not add drop_params for claude provider", () => {
-    const yaml = generateLitellmConfig("claude", {
-      cheap: "claude-haiku-4-5-20251001",
-      mid: "claude-sonnet-4-6-20260320",
-      strong: "claude-sonnet-4-6-20260320",
-    })
-
-    expect(yaml).not.toContain("drop_params")
   })
 })
 
-describe("generateLitellmConfigFromStages", () => {
-  it("returns undefined when all providers are claude/anthropic", () => {
-    const result = generateLitellmConfigFromStages(
-      { provider: "claude", model: "claude-sonnet-4-6-20260320" },
-      undefined,
-    )
-    expect(result).toBeUndefined()
+describe("collectConfiguredModels", () => {
+  function cfg(agent: Record<string, unknown>): Parameters<typeof collectConfiguredModels>[0] {
+    return {
+      quality: { typecheck: "", lint: "", lintFix: "", formatFix: "", testUnit: "" },
+      git: { defaultBranch: "main" },
+      github: { owner: "", repo: "" },
+      agent: agent as Parameters<typeof collectConfiguredModels>[0]["agent"],
+    }
+  }
+
+  it("collects modelMap, default, and stages entries", () => {
+    const out = collectConfiguredModels(cfg({
+      modelMap: { cheap: "claude/claude-haiku-4-5", mid: "minimax/MiniMax-M1" },
+      default: "openai/gpt-4o",
+      stages: { plan: "google/gemini-2.5-flash" },
+    }))
+    expect(out).toEqual([
+      { provider: "claude", model: "claude-haiku-4-5" },
+      { provider: "minimax", model: "MiniMax-M1" },
+      { provider: "openai", model: "gpt-4o" },
+      { provider: "google", model: "gemini-2.5-flash" },
+    ])
   })
 
-  it("generates config with drop_params for non-Anthropic default provider", () => {
-    const yaml = generateLitellmConfigFromStages(
-      { provider: "gemini", model: "gemini-2.5-flash" },
-      undefined,
-    )
-
-    expect(yaml).toBeDefined()
-    expect(yaml).toContain("model_name: gemini-2.5-flash")
-    expect(yaml).toContain("litellm_settings:")
-    expect(yaml).toContain("drop_params: true")
+  it("returns empty for empty config", () => {
+    expect(collectConfiguredModels(cfg({ modelMap: {} }))).toEqual([])
   })
 
-  it("generates config with drop_params when stages have non-Anthropic providers", () => {
-    const yaml = generateLitellmConfigFromStages(
-      undefined,
-      {
-        build: { provider: "gemini", model: "gemini-2.5-flash" },
-        verify: { provider: "gemini", model: "gemini-2.5-flash" },
-      },
-    )
-
-    expect(yaml).toBeDefined()
-    expect(yaml).toContain("drop_params: true")
+  it("throws on malformed entry", () => {
+    expect(() => collectConfiguredModels(cfg({ modelMap: { cheap: "no-slash" } }))).toThrow(/expected 'provider\/model'/)
   })
 })

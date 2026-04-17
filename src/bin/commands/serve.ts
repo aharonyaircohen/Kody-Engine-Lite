@@ -7,9 +7,8 @@
  *   kody-engine serve vscode   — Above + launch VS Code with env vars
  *
  * Options:
- *   --cwd /path                — Target a different project
- *   --provider minimax         — Override LLM provider
- *   --model MiniMax-M1         — Override model
+ *   --cwd /path                            — Target a different project
+ *   --model minimax/MiniMax-M1             — Override "provider/model"
  */
 
 import * as fs from "fs"
@@ -24,13 +23,14 @@ import {
   anyStageNeedsProxy,
   getLitellmUrl,
   getAnthropicApiKeyOrDummy,
+  parseProviderModel,
 } from "../../config.js"
 import type { KodyConfig } from "../../config.js"
 import {
   checkLitellmHealth,
   tryStartLitellm,
-  generateLitellmConfig,
   generateLitellmConfigFromStages,
+  collectConfiguredModels,
   checkModelHealth,
 } from "../../cli/litellm.js"
 import { startDevServer } from "../../dev-server.js"
@@ -45,7 +45,7 @@ type ServeMode = "infra" | "claude" | "vscode"
 interface ServeOptions {
   mode: ServeMode
   cwd?: string
-  provider?: string
+  /** "provider/model" override string. */
   model?: string
 }
 
@@ -60,7 +60,6 @@ function parseServeArgs(args: string[]): ServeOptions {
   return {
     mode,
     cwd: getArg(args, "--cwd"),
-    provider: getArg(args, "--provider"),
     model: getArg(args, "--model"),
   }
 }
@@ -153,21 +152,15 @@ async function ensureLitellmForServe(
   const litellmUrl = getLitellmUrl()
   const proxyRunning = await checkLitellmHealth(litellmUrl)
 
-  let generatedConfig: string | undefined
-  if (config.agent.stages || config.agent.default) {
-    generatedConfig = generateLitellmConfigFromStages(config.agent.default, config.agent.stages)
-  } else if (config.agent.provider && config.agent.provider !== "anthropic") {
-    generatedConfig = generateLitellmConfig(config.agent.provider, config.agent.modelMap)
-  }
+  let generatedConfig = generateLitellmConfigFromStages(collectConfiguredModels(config))
 
   // Add Claude model aliases so CLI/VS Code extension works
-  const targetModel = config.agent.default?.model
+  const targetSpec = config.agent.default
     ?? Object.values(config.agent.modelMap)[0]
-  const provider = config.agent.default?.provider
-    ?? config.agent.provider ?? "minimax"
+  const target = targetSpec ? parseProviderModel(targetSpec) : undefined
 
-  if (targetModel && provider !== "claude" && provider !== "anthropic") {
-    generatedConfig = augmentConfigWithAliases(generatedConfig, provider, targetModel)
+  if (target && target.provider !== "claude" && target.provider !== "anthropic") {
+    generatedConfig = augmentConfigWithAliases(generatedConfig, target.provider, target.model)
   }
 
   if (proxyRunning) {
@@ -248,10 +241,11 @@ function buildProxyEnv(): Record<string, string | undefined> {
  */
 function launchClaudeCodeSync(config: KodyConfig, projectDir: string): number {
   const usesProxy = anyStageNeedsProxy(config)
-  const model = config.agent.default?.model
+  const spec = config.agent.default
     ?? config.agent.modelMap.mid
     ?? config.agent.modelMap.cheap
     ?? Object.values(config.agent.modelMap)[0]
+  const model = spec ? parseProviderModel(spec).model : undefined
 
   const args: string[] = ["--dangerously-skip-permissions"]
   if (model) args.push("--model", model)
@@ -300,9 +294,9 @@ export async function serveCommand(rawArgs: string[]): Promise<void> {
 
   // Load config + apply overrides
   const config = getProjectConfig()
-  if (opts.provider || opts.model) {
-    applyModelOverrides(config, opts.provider, opts.model)
-    logger.info(`CLI override: provider=${config.agent.default?.provider} model=${config.agent.default?.model}`)
+  if (opts.model) {
+    applyModelOverrides(config, opts.model)
+    logger.info(`CLI override: model=${config.agent.default}`)
   }
 
   // Track processes for cleanup
@@ -326,9 +320,10 @@ export async function serveCommand(rawArgs: string[]): Promise<void> {
     litellmProcess = await ensureLitellmForServe(config, projectDir)
 
     const litellmUrl = getLitellmUrl()
-    const healthModel = config.agent.default?.model
+    const healthSpec = config.agent.default
       ?? config.agent.modelMap.cheap
       ?? Object.values(config.agent.modelMap)[0]
+    const healthModel = healthSpec ? parseProviderModel(healthSpec).model : undefined
 
     if (healthModel) {
       logger.info(`Model health check (${healthModel})...`)
@@ -365,9 +360,10 @@ export async function serveCommand(rawArgs: string[]): Promise<void> {
   })()
 
   // ─── 4. Print status ────────────────────────────────────────────────────
-  const model = config.agent.default?.model
+  const printSpec = config.agent.default
     ?? config.agent.modelMap.mid
     ?? config.agent.modelMap.cheap
+  const model = printSpec ? parseProviderModel(printSpec).model : undefined
 
   console.log("")
   console.log("╔══════════════════════════════════════════════╗")

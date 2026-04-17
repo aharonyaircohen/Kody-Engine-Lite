@@ -17,7 +17,7 @@ vi.mock("../../src/config.js", () => ({
   getProjectConfig: vi.fn().mockReturnValue({
     agent: {
       defaultRunner: "claude",
-      modelMap: { cheap: "haiku", mid: "sonnet", strong: "opus" },
+      modelMap: { cheap: "claude/haiku", mid: "claude/sonnet", strong: "claude/opus" },
     },
   }),
   resolveStageConfig: vi.fn().mockReturnValue({

@@ -48,9 +48,28 @@ export interface McpConfig {
   devServer?: DevServerConfig
 }
 
+/**
+ * Internal shape used after parsing a "provider/model" string.
+ * Config files only carry the combined string; this is what downstream
+ * code sees after `parseProviderModel`.
+ */
 export interface StageConfig {
   provider: string  // "claude" = direct Anthropic, anything else = LiteLLM
   model: string     // e.g. "claude-sonnet-4-6", "MiniMax-M2.7-highspeed"
+}
+
+/**
+ * Parse a "provider/model" config string into its parts.
+ * Throws on missing or malformed input — config values must be `<provider>/<model>`.
+ */
+export function parseProviderModel(s: string): StageConfig {
+  const slash = s.indexOf("/")
+  if (slash <= 0 || slash === s.length - 1) {
+    throw new Error(
+      `Invalid model spec '${s}' — expected 'provider/model' (e.g. 'claude/claude-sonnet-4-6', 'minimax/MiniMax-M2.7-highspeed')`,
+    )
+  }
+  return { provider: s.slice(0, slash), model: s.slice(slash + 1) }
 }
 
 export interface KodyConfig {
@@ -71,13 +90,12 @@ export interface KodyConfig {
     postSummary?: boolean
   }
   agent: {
+    /** Tier → "provider/model" string (e.g. {"cheap": "minimax/MiniMax-M2.7-highspeed"}). */
     modelMap: Record<string, string>
-    /** LLM provider name (e.g. "minimax", "openai", "google"). When set, engine auto-starts LiteLLM proxy. */
-    provider?: string
-    /** Per-stage provider + model overrides. Takes precedence over modelMap. */
-    default?: StageConfig
-    /** Per-stage provider + model. Overrides default and modelMap. */
-    stages?: Record<string, StageConfig>
+    /** Default "provider/model" string applied to every stage unless overridden. */
+    default?: string
+    /** Per-stage "provider/model" overrides. Takes precedence over `default` and `modelMap`. */
+    stages?: Record<string, string>
     /** When true (default), escalate to a stronger model tier on timeout retries */
     escalateOnTimeout?: boolean
     // Multi-runner (advanced)
@@ -95,10 +113,8 @@ export interface KodyConfig {
   watch?: {
     enabled?: boolean
     activityLog?: number
-    /** Model for watch agents. Falls back to agent.modelMap.cheap */
+    /** "provider/model" string for watch agents. Falls back to agent.modelMap.cheap. */
     model?: string
-    /** Provider for watch agents (e.g. "claude", "minimax"). Falls back to agent.provider */
-    provider?: string
   }
   decompose?: {
     /** Enable decompose command. Default: true */
@@ -167,62 +183,40 @@ export function getAnthropicApiKeyOrDummy(): string {
 
 /**
  * Resolve provider + model for a specific stage.
- * Priority: agent.stages[stageName] > agent.default > legacy agent.provider + modelMap
+ * Priority: agent.stages[stageName] > agent.default > agent.modelMap[modelTier].
+ * Each value is a "provider/model" string parsed via parseProviderModel.
  */
 export function resolveStageConfig(config: KodyConfig, stageName: string, modelTier: string): StageConfig {
-  // Per-stage override
   const stageOverride = config.agent.stages?.[stageName]
-  if (stageOverride) return stageOverride
+  if (stageOverride) return parseProviderModel(stageOverride)
 
-  // Default override
-  if (config.agent.default) return config.agent.default
+  if (config.agent.default) return parseProviderModel(config.agent.default)
 
-  // Legacy fallback: derive from provider + modelMap (all names from config, nothing hardcoded)
-  const model = config.agent.modelMap[modelTier]
-  if (!model) {
-    throw new Error(`No model configured for stage '${stageName}' (tier: ${modelTier}). Set agent.stages.${stageName} or agent.default in kody.config.json`)
+  const tierValue = config.agent.modelMap[modelTier]
+  if (!tierValue) {
+    throw new Error(
+      `No model configured for stage '${stageName}' (tier: ${modelTier}). ` +
+      `Set agent.stages.${stageName}, agent.default, or agent.modelMap.${modelTier} in kody.config.json ` +
+      `(format: "provider/model", e.g. "claude/claude-sonnet-4-6")`,
+    )
   }
-  return {
-    provider: config.agent.provider ?? "claude",
-    model,
-  }
+  return parseProviderModel(tierValue)
 }
 
-/** Apply CLI --provider / --model overrides to all stages.
- *  Mutates the cached config so every downstream resolveStageConfig / resolveModel picks it up. */
-export function applyModelOverrides(config: KodyConfig, provider?: string, model?: string): void {
-  if (!provider && !model) return
+/** Apply the CLI `--model provider/model` override to all stages.
+ *  Mutates the cached config so every downstream resolveStageConfig picks it up. */
+export function applyModelOverrides(config: KodyConfig, model?: string): void {
+  if (!model) return
 
-  const fallbackProvider = config.agent.default?.provider ?? config.agent.provider ?? "claude"
-  const fallbackModel = config.agent.default?.model
-    ?? config.agent.modelMap.mid ?? config.agent.modelMap.cheap
-    ?? Object.values(config.agent.modelMap)[0] ?? ""
+  // Validate format eagerly so a bad CLI flag fails before the pipeline starts.
+  parseProviderModel(model)
 
-  const overrideProvider = provider ?? fallbackProvider
-  const overrideModel = model ?? fallbackModel
-
-  // Set default (covers resolveStageConfig path)
-  config.agent.default = { provider: overrideProvider, model: overrideModel }
-
-  // Clear per-stage overrides so CLI flag applies uniformly
+  config.agent.default = model
   config.agent.stages = undefined
 
-  // Override all modelMap tiers (covers resolveModel path used by escalation + verify)
-  if (model) {
-    for (const tier of Object.keys(config.agent.modelMap)) {
-      config.agent.modelMap[tier] = model
-    }
+  for (const tier of Object.keys(config.agent.modelMap)) {
+    config.agent.modelMap[tier] = model
   }
-
-  // Set legacy provider field for proxy detection
-  if (provider) {
-    config.agent.provider = overrideProvider
-  }
-}
-
-/** Check if a provider needs LiteLLM proxy */
-export function needsLitellmProxy(config: KodyConfig): boolean {
-  return !!(config.agent.provider && config.agent.provider !== "anthropic")
 }
 
 /** Check if a specific stage needs LiteLLM proxy */
@@ -230,18 +224,18 @@ export function stageNeedsProxy(stageConfig: StageConfig): boolean {
   return stageConfig.provider !== "claude" && stageConfig.provider !== "anthropic"
 }
 
-/** Check if any stage uses a non-claude provider (i.e. LiteLLM is needed) */
+/** Check if any configured model uses a non-claude provider (i.e. LiteLLM is needed) */
 export function anyStageNeedsProxy(config: KodyConfig): boolean {
-  // Check per-stage configs
   if (config.agent.stages) {
-    for (const sc of Object.values(config.agent.stages)) {
-      if (stageNeedsProxy(sc)) return true
+    for (const value of Object.values(config.agent.stages)) {
+      if (stageNeedsProxy(parseProviderModel(value))) return true
     }
   }
-  // Check default
-  if (config.agent.default && stageNeedsProxy(config.agent.default)) return true
-  // Legacy fallback
-  return needsLitellmProxy(config)
+  if (config.agent.default && stageNeedsProxy(parseProviderModel(config.agent.default))) return true
+  for (const value of Object.values(config.agent.modelMap)) {
+    if (stageNeedsProxy(parseProviderModel(value))) return true
+  }
+  return false
 }
 
 /** Get the LiteLLM proxy URL */

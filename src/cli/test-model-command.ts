@@ -1,5 +1,5 @@
 /**
- * `kody test-model --provider <provider> --model <model> --key <key>`
+ * `kody test-model --model <provider/model> --key <key>`
  *
  * Tests LLM provider/model compatibility with Claude Code / Kody pipeline.
  * Starts a LiteLLM proxy, runs 14 compatibility tests, prints a report.
@@ -11,7 +11,7 @@ import * as path from "path"
 import { execFileSync } from "child_process"
 
 import { logger } from "../logger.js"
-import { providerApiKeyEnvVar } from "../config.js"
+import { providerApiKeyEnvVar, parseProviderModel } from "../config.js"
 import { checkLitellmHealth } from "./litellm.js"
 import { ALL_TESTS } from "./test-model-tests.js"
 import { formatReport } from "./test-model-report.js"
@@ -48,11 +48,10 @@ function parseTestModelArgs(): TestModelOptions {
 
   if (hasFlag("--help") || hasFlag("-h")) {
     logger.info([
-      "Usage: kody test-model --provider <provider> --model <model> --key <api-key> [options]",
+      "Usage: kody test-model --model <provider/model> --key <api-key> [options]",
       "",
       "Options:",
-      "  --provider     LLM provider name (e.g. gemini, openai, claude)",
-      "  --model        Model identifier (e.g. gemini-2.5-flash, claude-sonnet-4-6)",
+      "  --model        provider/model spec (e.g. 'claude/claude-sonnet-4-6', 'minimax/MiniMax-M2.7-highspeed')",
       "  --key          API key (optional for claude/anthropic — uses CLI auth)",
       "  --key-env      Read API key from this environment variable",
       "  --skip-proxy   Use an already-running LiteLLM proxy (don't start one)",
@@ -70,14 +69,22 @@ function parseTestModelArgs(): TestModelOptions {
     process.exit(0)
   }
 
-  const provider = getArg("--provider")
-  const model = getArg("--model")
+  const modelSpec = getArg("--model")
   const key = getArg("--key")
   const keyEnv = getArg("--key-env")
 
-  if (!provider || !model) {
-    logger.error("Required: --provider <provider> --model <model> --key <key>")
+  if (!modelSpec) {
+    logger.error("Required: --model <provider/model> --key <key>")
     logger.error("Run with --help for usage.")
+    process.exit(1)
+  }
+
+  let provider: string
+  let model: string
+  try {
+    ({ provider, model } = parseProviderModel(modelSpec))
+  } catch (err) {
+    logger.error(err instanceof Error ? err.message : String(err))
     process.exit(1)
   }
 

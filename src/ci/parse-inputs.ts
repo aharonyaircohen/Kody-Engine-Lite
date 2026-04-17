@@ -20,7 +20,7 @@ export interface ParseResult {
   ci_run_id: string
   ticket_id: string
   prd_file: string
-  provider: string
+  /** "provider/model" string. */
   model: string
   bump: string
   finalize: boolean
@@ -78,7 +78,6 @@ export function parseCommentInputs(): ParseResult {
       ci_run_id: "",
       ticket_id: "",
       prd_file: "",
-      provider: process.env.INPUT_PROVIDER ?? "",
       model: process.env.INPUT_MODEL ?? "",
       bump: "",
       finalize: false,
@@ -96,7 +95,7 @@ export function parseCommentInputs(): ParseResult {
     return {
       task_id: "", mode: "full", from_stage: "", issue_number: process.env.ISSUE_NUMBER ?? "",
       pr_number: "", feedback: "", complexity: "", ci_run_id: "", ticket_id: "", prd_file: "",
-      provider: "", model: "",
+      model: "",
       bump: "", finalize: false, no_publish: false, no_notify: false, revert_target: "",
       dry_run: false, valid: false, trigger_type: "comment",
     }
@@ -112,7 +111,7 @@ export function parseCommentInputs(): ParseResult {
     return {
       task_id: "", mode: "full", from_stage: "", issue_number: issueNumber,
       pr_number: "", feedback: "", complexity: "", ci_run_id: "", ticket_id: "", prd_file: "",
-      provider: "", model: "",
+      model: "",
       bump: "", finalize: false, no_publish: false, no_notify: false, revert_target: "",
       dry_run: false, valid: false, trigger_type: "comment",
     }
@@ -129,7 +128,6 @@ export function parseCommentInputs(): ParseResult {
   let ciRunId = ""
   let ticketId = ""
   let prdFile = ""
-  let provider = ""
   let model = ""
   let bump = ""
   let finalize = false
@@ -163,11 +161,7 @@ export function parseCommentInputs(): ParseResult {
   const fileMatch = argsLine.match(/--file[=\s]+(\S+)/)
   if (fileMatch) prdFile = fileMatch[1]
 
-  // Extract --provider
-  const providerMatch = argsLine.match(/--provider[=\s]+(\S+)/)
-  if (providerMatch) provider = providerMatch[1]
-
-  // Extract --model
+  // Extract --model "provider/model"
   const modelMatch = argsLine.match(/--model[=\s]+(\S+)/)
   if (modelMatch) model = modelMatch[1]
 
@@ -193,7 +187,6 @@ export function parseCommentInputs(): ParseResult {
     .replace(/--ci-run-id[=\s]+\S+/g, "")
     .replace(/--ticket[=\s]+\S+/g, "")
     .replace(/--file[=\s]+\S+/g, "")
-    .replace(/--provider[=\s]+\S+/g, "")
     .replace(/--model[=\s]+\S+/g, "")
     .replace(/--bump[=\s]+\S+/g, "")
     .replace(/--finalize/g, "")
@@ -343,7 +336,6 @@ export function parseCommentInputs(): ParseResult {
     ci_run_id: ciRunId,
     ticket_id: ticketId,
     prd_file: prdFile,
-    provider,
     model,
     bump,
     finalize,
@@ -385,7 +377,6 @@ export function writeOutputs(result: ParseResult): void {
   output("ci_run_id", result.ci_run_id)
   output("ticket_id", result.ticket_id)
   output("prd_file", result.prd_file)
-  output("provider", result.provider)
   output("model", result.model)
   output("bump", result.bump)
   output("finalize", result.finalize ? "true" : "false")
