@@ -13,6 +13,13 @@ export { withGraphLock, withGraphLockSync } from "./lock.js"
 export { validateGraph } from "./validate.js"
 export type { ValidationIssue, ValidationReport } from "./validate.js"
 
+// Gitignore management for transient artifacts
+export {
+  ensureGraphGitignore,
+  untrackGraphArtifacts,
+  GRAPH_GITIGNORE_ENTRIES,
+} from "./gitignore.js"
+
 // Trace
 export {
   traceEnabled,

@@ -25,6 +25,7 @@ import {
 import { autoLearn } from "./learning/auto-learn.js"
 import { nudge } from "./memory/nudge.js"
 import { cleanupLegacyDiaryFiles } from "./stage-diary.js"
+import { ensureGraphGitignore, untrackGraphArtifacts } from "./memory/graph/gitignore.js"
 import { runRetrospective } from "./retrospective.js"
 import { formatPipelineSummary } from "./pipeline/summary.js"
 import { getProjectConfig } from "./config.js"
@@ -191,6 +192,20 @@ export async function runPipeline(ctx: PipelineContext): Promise<PipelineStatus>
 
 async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
   const pipelineStartTime = Date.now()
+
+  // Pre-flight: make sure graph transient files don't end up in commits.
+  // Adds entries to .gitignore (idempotent) and untracks anything that
+  // slipped in from older engine versions.
+  try {
+    ensureGraphGitignore(ctx.projectDir)
+    const untracked = untrackGraphArtifacts(ctx.projectDir)
+    if (untracked.length > 0) {
+      logger.info(`  Untracked stale graph artifacts: ${untracked.join(", ")}`)
+    }
+  } catch (err) {
+    logger.debug(`  graph gitignore pre-flight skipped: ${err instanceof Error ? err.message : String(err)}`)
+  }
+
   let state = loadState(ctx.taskId, ctx.taskDir)
 
   if (!state) {

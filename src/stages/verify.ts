@@ -13,7 +13,7 @@ import { getProjectConfig, FIX_COMMAND_TIMEOUT_MS, anyStageNeedsProxy, getLitell
 import { parseCommand } from "../verify-runner.js"
 import { getRunnerForStage } from "../pipeline/runner-selection.js"
 import { postComment } from "../github-api.js"
-import { diagnoseFailure, getModifiedFiles } from "../observer.js"
+import { diagnoseFailure, getModifiedFiles, errorReferencesAnyOf } from "../observer.js"
 import { logger } from "../logger.js"
 import { executeAgentStage } from "./agent.js"
 import { executeGateStage } from "./gate.js"
@@ -77,6 +77,30 @@ export async function executeVerifyWithAutofix(
       // fixable or retry — proceed with autofix
       logger.info(`  Diagnosis: ${diagnosis.classification} — ${diagnosis.reason}`)
 
+      // Pre-autofix sanity check: if NONE of the current errors reference
+      // a file in the changeset, autofix cannot legitimately help — any
+      // edits it makes will be to unmodified files, which is exactly how
+      // the 1→12-errors regression happens. Skip autofix and treat as
+      // pre-existing.
+      const errorsInChangeset = modifiedFiles.length > 0
+        ? errorOutput
+            .split("\n")
+            .filter((l) => /error|Error|ERROR|failed|Failed|FAIL/i.test(l))
+            .some((l) => errorReferencesAnyOf(l, modifiedFiles))
+        : true
+
+      if (!errorsInChangeset) {
+        logger.warn(
+          "  Autofix pre-check: no errors reference any file in the changeset — " +
+          "skipping autofix to avoid modifying unrelated files.",
+        )
+        return {
+          outcome: "completed",
+          retries: attempt,
+          error: "Skipped: all errors outside changeset",
+        }
+      }
+
       const config = getProjectConfig()
       const runFix = (cmd: string) => {
         if (!cmd) return
@@ -96,16 +120,23 @@ export async function executeVerifyWithAutofix(
       runFix(config.quality.formatFix)
 
       if (def.retryWithAgent) {
+        // Scope-guard: constrain the autofix agent to edit only files
+        // already in the changeset. Prevents the regression where autofix
+        // "fixes" unrelated files and introduces new errors.
+        const scopeGuard = modifiedFiles.length > 0
+          ? `\n\nSCOPE RESTRICTION: You MUST ONLY edit these files. Do not modify any other file:\n${modifiedFiles.map((f) => `  - ${f}`).join("\n")}\n`
+          : ""
+
         // Create new context with diagnosis guidance — don't mutate original
         const autofixCtx: PipelineContext = {
           ...ctx,
           input: {
             ...ctx.input,
-            feedback: `${diagnosis.resolution}\n\n${ctx.input.feedback ?? ""}`.trim(),
+            feedback: `${diagnosis.resolution}${scopeGuard}\n\n${ctx.input.feedback ?? ""}`.trim(),
           },
         }
 
-        logger.info(`  running ${def.retryWithAgent} agent with diagnosis guidance...`)
+        logger.info(`  running ${def.retryWithAgent} agent with diagnosis guidance (scope: ${modifiedFiles.length} file${modifiedFiles.length === 1 ? "" : "s"})...`)
         await executeAgentStage(autofixCtx, {
           ...def,
           name: def.retryWithAgent as StageName,

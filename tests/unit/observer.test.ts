@@ -101,7 +101,7 @@ describe("diagnoseFailure", () => {
   it("classifies abort errors", async () => {
     const runner = createMockDiagnosisRunner({
       classification: "abort",
-      reason: "Permission denied — cannot write to protected directory",
+      reason: "EACCES permission denied — cannot write to protected directory",
       resolution: "Check file permissions",
     })
 
@@ -162,13 +162,13 @@ describe("diagnoseFailure", () => {
       async run(): Promise<AgentResult> {
         return {
           outcome: "completed",
-          output: '```json\n{"classification":"infrastructure","reason":"DB down","resolution":"Start DB"}\n```',
+          output: '```json\n{"classification":"infrastructure","reason":"DB down — ECONNREFUSED on port 5432","resolution":"Start DB"}\n```',
         }
       },
       async healthCheck() { return true },
     }
 
-    const result = await diagnoseFailure("verify", "ECONNREFUSED", [], runner, "haiku")
+    const result = await diagnoseFailure("verify", "ECONNREFUSED 127.0.0.1:5432", [], runner, "haiku")
     expect(result.classification).toBe("infrastructure")
   })
 
@@ -210,6 +210,170 @@ describe("diagnoseFailure", () => {
 
     expect(capturedPrompt).toContain("src/a.ts")
     expect(capturedPrompt).toContain("src/b.ts")
+  })
+})
+
+describe("hasLiteralQuote (Fix #3)", () => {
+  it("accepts a TS error code quoted in reason", async () => {
+    const { hasLiteralQuote } = await import("../../src/observer.js")
+    const err = "src/pages/foo.tsx(12,5): error TS2344: constraint violation"
+    expect(hasLiteralQuote("TS2344 at src/pages/foo.tsx is pre-existing", err)).toBe(true)
+  })
+
+  it("accepts an ESLint rule slug quoted in reason", async () => {
+    const { hasLiteralQuote } = await import("../../src/observer.js")
+    const err = "56:7 error Do not assign @next/next/no-assign-module-variable"
+    expect(hasLiteralQuote("@next/next/no-assign-module-variable violation", err)).toBe(true)
+  })
+
+  it("accepts a file path quoted in reason", async () => {
+    const { hasLiteralQuote } = await import("../../src/observer.js")
+    const err = "tests/helpers/seedUser.ts(26,24): error"
+    expect(hasLiteralQuote("Error in tests/helpers/seedUser.ts is pre-existing", err)).toBe(true)
+  })
+
+  it("accepts an uppercase system error (ECONNREFUSED) quoted in reason", async () => {
+    const { hasLiteralQuote } = await import("../../src/observer.js")
+    const err = "Error: connect ECONNREFUSED 127.0.0.1:5432"
+    expect(hasLiteralQuote("PostgreSQL not running — ECONNREFUSED on port 5432", err)).toBe(true)
+  })
+
+  it("also checks resolution field for quoted tokens", async () => {
+    const { hasLiteralQuote } = await import("../../src/observer.js")
+    const err = "src/utils/calc.ts(5,3): error TS2322"
+    // reason is paraphrased but resolution quotes the path
+    expect(hasLiteralQuote("Type error in new file", err, "Fix line 5 in src/utils/calc.ts")).toBe(true)
+  })
+
+  it("rejects pure paraphrase with no verbatim token in reason OR resolution", async () => {
+    const { hasLiteralQuote } = await import("../../src/observer.js")
+    const err = "src/foo.ts(10,5): error TS2344: bad type"
+    expect(hasLiteralQuote("Some types need const instead of let", err, "change let to const")).toBe(false)
+  })
+
+  it("rejects empty inputs", async () => {
+    const { hasLiteralQuote } = await import("../../src/observer.js")
+    expect(hasLiteralQuote("", "foo")).toBe(false)
+    expect(hasLiteralQuote("foo", "")).toBe(false)
+  })
+})
+
+describe("diagnoseFailure heuristic promoted to primary (Fix #1 part A)", () => {
+  it("returns pre-existing without LLM when all error paths are outside changeset", async () => {
+    const { diagnoseFailure } = await import("../../src/observer.js")
+    let runnerCalled = false
+    const fakeRunner: AgentRunner = {
+      async run(): Promise<AgentResult> { runnerCalled = true; return { outcome: "completed", output: "{}" } },
+      async healthCheck() { return true },
+    }
+    const errorOutput = [
+      "src/pages/error/ErrorPage.tsx(10,5): error TS2344: pre-existing",
+      ".next/types/validator.ts(206,31): error TS2344: generated",
+      "tests/helpers/seedUser.ts(26,24): error TS2345: fixture bad",
+    ].join("\n")
+
+    const result = await diagnoseFailure("verify", errorOutput, ["package.json"], fakeRunner, "x")
+    expect(result.classification).toBe("pre-existing")
+    expect(runnerCalled).toBe(false)
+  })
+
+  it("falls through to LLM when errors span changeset + non-changeset", async () => {
+    const { diagnoseFailure } = await import("../../src/observer.js")
+    let runnerCalled = false
+    const fakeRunner: AgentRunner = {
+      async run(): Promise<AgentResult> {
+        runnerCalled = true
+        return {
+          outcome: "completed",
+          output: JSON.stringify({
+            classification: "fixable",
+            reason: "TS2344 at src/my-change.ts — user-introduced",
+            resolution: "tweak type",
+          }),
+        }
+      },
+      async healthCheck() { return true },
+    }
+    const errorOutput = [
+      "src/my-change.ts(5,5): error TS2344: my error",
+      ".next/types/validator.ts(206,31): error TS2344: pre-existing",
+    ].join("\n")
+    const result = await diagnoseFailure("verify", errorOutput, ["src/my-change.ts"], fakeRunner, "x")
+    expect(runnerCalled).toBe(true)
+    expect(result.classification).toBe("fixable")
+  })
+
+  it("rejects un-quoted LLM hallucination and defaults to retry (Fix #3 gate)", async () => {
+    const { diagnoseFailure } = await import("../../src/observer.js")
+    const fakeRunner: AgentRunner = {
+      async run(): Promise<AgentResult> {
+        return {
+          outcome: "completed",
+          output: JSON.stringify({
+            classification: "fixable",
+            reason: "some types need const instead of let",
+            resolution: "change let to const",
+          }),
+        }
+      },
+      async healthCheck() { return true },
+    }
+    // Errors reference src/my-change.ts (modified) so heuristic is inconclusive;
+    // LLM runs and returns paraphrase → rejected
+    const errorOutput = "src/my-change.ts(5,5): error TS2344: mismatch"
+    const result = await diagnoseFailure("verify", errorOutput, ["src/my-change.ts"], fakeRunner, "x")
+    expect(result.classification).toBe("retry")
+  })
+
+  it("#2274 regression: hallucinated const/let reason is rejected and heuristic classifies pre-existing", async () => {
+    const { diagnoseFailure } = await import("../../src/observer.js")
+    const fakeRunner: AgentRunner = {
+      async run(): Promise<AgentResult> {
+        return {
+          outcome: "completed",
+          output: JSON.stringify({
+            classification: "fixable",
+            reason: "Test assertions check for substrings that don't exist, and there's a lint error requiring const instead of let",
+            resolution: "change let to const",
+          }),
+        }
+      },
+      async healthCheck() { return true },
+    }
+    const errorOutput = [
+      ".next/types/validator.ts(206,31): error TS2344: pages/board/modal missing default export",
+      "src/utils/bad-types.ts(2,3): error TS2322",
+      "tests/helpers/seedUser.ts(26,24): error TS2345",
+    ].join("\n")
+    const result = await diagnoseFailure("verify", errorOutput, ["package.json"], fakeRunner, "x")
+    expect(result.classification).toBe("pre-existing")
+  })
+})
+
+describe("errorReferencesPath / errorReferencesAnyOf", () => {
+  it("errorReferencesPath matches exact substring", async () => {
+    const { errorReferencesPath } = await import("../../src/observer.js")
+    expect(errorReferencesPath("src/foo.ts(5,1): error", "src/foo.ts")).toBe(true)
+  })
+
+  it("errorReferencesPath matches by basename when error line is path-shaped", async () => {
+    const { errorReferencesPath } = await import("../../src/observer.js")
+    expect(errorReferencesPath("build failed in foo.ts(5,1): TS2344", "src/foo.ts")).toBe(true)
+  })
+
+  it("errorReferencesPath rejects when no file-ish token present", async () => {
+    const { errorReferencesPath } = await import("../../src/observer.js")
+    expect(errorReferencesPath("vague error text", "src/foo.ts")).toBe(false)
+  })
+
+  it("errorReferencesAnyOf true when any path matches", async () => {
+    const { errorReferencesAnyOf } = await import("../../src/observer.js")
+    expect(errorReferencesAnyOf("src/a.ts(1,1): err", ["src/b.ts", "src/a.ts"])).toBe(true)
+  })
+
+  it("errorReferencesAnyOf false when no paths match", async () => {
+    const { errorReferencesAnyOf } = await import("../../src/observer.js")
+    expect(errorReferencesAnyOf("src/c.ts(1,1): err", ["src/a.ts", "src/b.ts"])).toBe(false)
   })
 })
 

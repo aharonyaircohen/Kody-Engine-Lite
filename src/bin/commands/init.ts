@@ -4,6 +4,7 @@ import { execFileSync } from "child_process"
 
 import { checkCommand, checkFile, checkGhAuth, checkGhRepoAccess, checkGhSecret } from "../health-checks.js"
 import { detectBasicConfig, buildConfig } from "../config-detection.js"
+import { ensureGraphGitignore, untrackGraphArtifacts } from "../../memory/graph/gitignore.js"
 
 export function initCommand(opts: { force: boolean }, pkgRoot: string) {
   const cwd = process.cwd()
@@ -40,17 +41,28 @@ export function initCommand(opts: { force: boolean }, pkgRoot: string) {
     console.log("  ○ kody.config.json (exists)")
   }
 
-  // .gitignore cleanup
+  // .gitignore cleanup + graph transient entries
   const gitignorePath = path.join(cwd, ".gitignore")
+  let gitignoreModified = false
   if (fs.existsSync(gitignorePath)) {
     const content = fs.readFileSync(gitignorePath, "utf-8")
     if (content.includes(".tasks/")) {
       const updated = content.replace(/\n?\.tasks\/\n?/g, "\n")
       fs.writeFileSync(gitignorePath, updated)
       console.log("  ✓ .gitignore (removed legacy .tasks/ — tasks now committed in .kody/tasks/)")
-    } else {
-      console.log("  ○ .gitignore (ok)")
+      gitignoreModified = true
     }
+  }
+  if (ensureGraphGitignore(cwd)) {
+    console.log("  ✓ .gitignore (added graph transient entries: .graph-lock, *.bak, *.tmp.*)")
+    gitignoreModified = true
+  }
+  const untracked = untrackGraphArtifacts(cwd)
+  if (untracked.length > 0) {
+    console.log(`  ✓ git untracked graph transient files: ${untracked.join(", ")}`)
+  }
+  if (!gitignoreModified && untracked.length === 0 && fs.existsSync(gitignorePath)) {
+    console.log("  ○ .gitignore (ok)")
   }
 
   // ── Step 2: Health checks ──
