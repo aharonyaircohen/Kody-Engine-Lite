@@ -24,6 +24,7 @@ import {
 } from "./pipeline/hooks.js"
 import { autoLearn } from "./learning/auto-learn.js"
 import { nudge } from "./memory/nudge.js"
+import { cleanupLegacyDiaryFiles } from "./stage-diary.js"
 import { runRetrospective } from "./retrospective.js"
 import { formatPipelineSummary } from "./pipeline/summary.js"
 import { getProjectConfig } from "./config.js"
@@ -218,6 +219,10 @@ async function runPipelineInner(ctx: PipelineContext): Promise<PipelineStatus> {
   logger.info(`Pipeline started: ${ctx.taskId}`)
   logger.info(`Stages: ${STAGES.map((s) => s.name).join(" → ")}`)
   if (fromStage) logger.info(`Resuming from: ${fromStage}`)
+
+  // One-time: remove legacy regex-scraped diary files. The graph is now the
+  // single source of truth for stage-diary insights.
+  cleanupLegacyDiaryFiles(ctx.projectDir)
 
   if (ctx.input.issueNumber && !ctx.input.local) {
     const initialPhase = ctx.input.mode === "rerun" ? "building" : "planning"

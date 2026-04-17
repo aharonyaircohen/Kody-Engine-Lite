@@ -9,6 +9,11 @@ dist/
 !.kody/graph/episodes/
 .kody/graph/episodes/run_*.json
 .kody/graph/episodes/.seq
+# Transient: lock sentinel + proper-lockfile dir + rolling backups + tmp writes
+.kody/graph/.graph-lock
+.kody/graph/.graph-lock.lock/
+.kody/graph/*.bak
+.kody/graph/*.tmp.*
 
 # Logs
 logs

@@ -13,7 +13,7 @@ import {
 } from "./context-tiers.js"
 import { isMcpEnabledForStage } from "./mcp-config.js"
 import { readRunHistory, formatRunHistoryForPrompt } from "./run-history.js"
-import { readDiary, formatDiaryForPrompt } from "./stage-diary.js"
+import { readStageInsights, formatStageInsightsForPrompt } from "./stage-diary.js"
 import { generateL1 } from "./context-tiers.js"
 
 // Safety rails (chars) — not budgets. Only kick in to prevent runaway content
@@ -469,9 +469,9 @@ function buildFullPromptTiered(
 
   let assembled = memory ? `${memory}\n---\n\n${prompt}` : prompt
 
-  // Inject stage diary (cross-run patterns for this stage)
-  const diary = readDiary(projectDir, stageName)
-  const diaryBlock = formatDiaryForPrompt(diary)
+  // Inject stage diary (LLM-distilled insights from past runs, stored in the graph)
+  const insights = readStageInsights(projectDir, stageName)
+  const diaryBlock = formatStageInsightsForPrompt(stageName, insights)
   if (diaryBlock) {
     assembled += `\n\n${diaryBlock}\n`
   }

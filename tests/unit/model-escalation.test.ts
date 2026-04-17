@@ -73,6 +73,7 @@ describe("model escalation on timeout", () => {
     const calls: { model: string; stageName: string }[] = []
     const runner: AgentRunner = {
       async run(stageName: string, _prompt: string, model: string): Promise<AgentResult> {
+        if (stageName === "stage_diary_distill") return { outcome: "completed", output: "{\"insights\":[]}" }
         calls.push({ model, stageName })
         // First call times out, second succeeds
         if (calls.length === 1) {
@@ -113,7 +114,9 @@ describe("model escalation on timeout", () => {
   it("does not escalate when stage succeeds", async () => {
     const calls: { model: string }[] = []
     const runner: AgentRunner = {
-      async run(_stageName: string, _prompt: string, model: string): Promise<AgentResult> {
+      async run(stageName: string, _prompt: string, model: string): Promise<AgentResult> {
+        // Ignore the post-stage insight distiller — these tests only count main-stage calls.
+        if (stageName === "stage_diary_distill") return { outcome: "completed", output: "{\"insights\":[]}" }
         calls.push({ model })
         return { outcome: "completed", output: "Done" }
       },
@@ -148,7 +151,9 @@ describe("model escalation on timeout", () => {
   it("does not escalate on non-timeout failure (normal retry with same model)", async () => {
     const calls: { model: string }[] = []
     const runner: AgentRunner = {
-      async run(_stageName: string, _prompt: string, model: string): Promise<AgentResult> {
+      async run(stageName: string, _prompt: string, model: string): Promise<AgentResult> {
+        // Ignore the post-stage insight distiller — these tests only count main-stage calls.
+        if (stageName === "stage_diary_distill") return { outcome: "completed", output: "{\"insights\":[]}" }
         calls.push({ model })
         if (calls.length === 1) {
           return { outcome: "failed", error: "syntax error" }
@@ -188,7 +193,9 @@ describe("model escalation on timeout", () => {
   it("stays on strong tier when already at strongest", async () => {
     const calls: { model: string }[] = []
     const runner: AgentRunner = {
-      async run(_stageName: string, _prompt: string, model: string): Promise<AgentResult> {
+      async run(stageName: string, _prompt: string, model: string): Promise<AgentResult> {
+        // Ignore the post-stage insight distiller — these tests only count main-stage calls.
+        if (stageName === "stage_diary_distill") return { outcome: "completed", output: "{\"insights\":[]}" }
         calls.push({ model })
         if (calls.length === 1) {
           return { outcome: "timed_out", error: "exit 143" }
@@ -239,7 +246,9 @@ describe("model escalation on timeout", () => {
 
     const calls: { model: string }[] = []
     const runner: AgentRunner = {
-      async run(_stageName: string, _prompt: string, model: string): Promise<AgentResult> {
+      async run(stageName: string, _prompt: string, model: string): Promise<AgentResult> {
+        // Ignore the post-stage insight distiller — these tests only count main-stage calls.
+        if (stageName === "stage_diary_distill") return { outcome: "completed", output: "{\"insights\":[]}" }
         calls.push({ model })
         if (calls.length === 1) {
           return { outcome: "timed_out", error: "exit 143" }
@@ -279,7 +288,9 @@ describe("model escalation on timeout", () => {
   it("fails after exhausting all retries on timeout", async () => {
     const calls: { model: string }[] = []
     const runner: AgentRunner = {
-      async run(_stageName: string, _prompt: string, model: string): Promise<AgentResult> {
+      async run(stageName: string, _prompt: string, model: string): Promise<AgentResult> {
+        // Ignore the post-stage insight distiller — these tests only count main-stage calls.
+        if (stageName === "stage_diary_distill") return { outcome: "completed", output: "{\"insights\":[]}" }
         calls.push({ model })
         return { outcome: "timed_out", error: "exit 143" }
       },

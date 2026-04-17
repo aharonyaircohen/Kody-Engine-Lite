@@ -9,7 +9,7 @@ import type {
 } from "../types.js"
 import { buildFullPrompt, resolveModel, escalateModelTier, taskHasUI } from "../context.js"
 import { estimateTokens } from "../context-tiers.js"
-import { extractStagePatterns, appendDiary, type DiaryEntry } from "../stage-diary.js"
+import { distillStageInsights, appendStageInsights } from "../stage-diary.js"
 import { inferRoomsFromScope } from "../context-tiers.js"
 import { validateTaskJson, validatePlanMd, validateReviewMd, stripFences } from "../validators.js"
 import { getProjectConfig, resolveStageConfig, stageNeedsProxy, getLitellmUrl } from "../config.js"
@@ -306,22 +306,20 @@ export async function executeAgentStage(
   // Append stage summary to accumulated context
   appendStageContext(ctx.taskDir, def.name, result.output)
 
-  // Write stage diary entry (cross-run learning)
+  // Stage diary: distill reusable insights via LLM and persist to the graph.
+  // Best-effort — never fails the stage.
   try {
-    const patterns = extractStagePatterns(def.name, ctx.taskDir)
-    if (patterns.length > 0) {
+    const insights = await distillStageInsights(def.name, ctx)
+    if (insights.length > 0) {
       const room = inferRoomFromTask(ctx.taskDir)
-      const diaryEntry: DiaryEntry = {
-        taskId: ctx.taskId,
-        timestamp: new Date().toISOString(),
-        stage: def.name,
-        patterns,
-        room: room ?? undefined,
-      }
-      appendDiary(ctx.projectDir, diaryEntry)
+      appendStageInsights(ctx, def.name, insights, room ?? undefined)
     }
-  } catch {
-    // Diary is best-effort — don't fail the stage
+  } catch (err) {
+    logger.debug(
+      `  stage-diary: post-stage hook error — ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    )
   }
 
   return { outcome: "completed", outputFile: def.outputFile, retries, promptTokens }

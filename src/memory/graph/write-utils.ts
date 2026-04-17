@@ -3,15 +3,18 @@
  *
  * - factExists   — check if a currently-valid fact with identical hall+room+content exists
  * - inferRoom    — extract a room slug from a list of file paths
- * - writeFactOnce — write only if not already present (dedup)
+ * - writeFactOnce — write only if not already present (dedup), TOCTOU-safe under lock
  */
 
-import { getCurrentFacts } from "./queries.js"
-import { writeFact } from "./queries.js"
-import type { HallType, GraphNode } from "./types.js"
+import { readNodes, writeNodes } from "./store.js"
+import { withGraphLockSync } from "./lock.js"
+import { nodeIdWithTimestamp, type HallType, type GraphNode } from "./types.js"
 
 /**
  * Returns true if a currently-valid fact with identical hall + room + content exists.
+ *
+ * NB: Not lock-guarded — intended for read-only checks outside a transaction.
+ * The equivalent check inside writeFactOnce runs under the graph lock.
  */
 export function factExists(
   projectDir: string,
@@ -19,11 +22,15 @@ export function factExists(
   room: string,
   content: string,
 ): boolean {
-  const candidates = getCurrentFacts(projectDir, hall, room)
+  const nodes = readNodes(projectDir)
   const normalized = content.toLowerCase().trim()
-  return candidates.some(
-    (n) => n.content.toLowerCase().trim() === normalized,
-  )
+  for (const n of Object.values(nodes)) {
+    if (n.validTo !== null) continue
+    if (n.hall !== hall) continue
+    if (n.room !== room) continue
+    if (n.content.toLowerCase().trim() === normalized) return true
+  }
+  return false
 }
 
 /**
@@ -74,6 +81,10 @@ export function inferRoom(scope: string[]): string {
 /**
  * Write a fact only if an identical one does not already exist.
  * Returns the written node, or null if skipped (duplicate).
+ *
+ * The existence check AND the write happen inside one graph-lock critical
+ * section — this eliminates the TOCTOU race that a naïve factExists + writeFact
+ * pair would have.
  */
 export function writeFactOnce(
   projectDir: string,
@@ -81,9 +92,34 @@ export function writeFactOnce(
   room: string,
   content: string,
   episodeId: string,
+  tags?: string[],
 ): GraphNode | null {
-  if (factExists(projectDir, hall, room, content)) {
-    return null
-  }
-  return writeFact(projectDir, hall, room, content, episodeId)
+  return withGraphLockSync(projectDir, () => {
+    const nodes = readNodes(projectDir)
+    const normalized = content.toLowerCase().trim()
+
+    for (const n of Object.values(nodes)) {
+      if (n.validTo !== null) continue
+      if (n.hall !== hall) continue
+      if (n.room !== room) continue
+      if (n.content.toLowerCase().trim() === normalized) return null
+    }
+
+    const id = nodeIdWithTimestamp(hall, room)
+    const now = new Date().toISOString()
+    const node: GraphNode = {
+      id,
+      type: hall,
+      hall,
+      room,
+      content,
+      episodeId,
+      validFrom: now,
+      validTo: null,
+      ...(tags && tags.length > 0 ? { tags } : {}),
+    }
+    nodes[id] = node
+    writeNodes(projectDir, nodes)
+    return node
+  })
 }

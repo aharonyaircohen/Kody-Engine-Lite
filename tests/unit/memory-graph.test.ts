@@ -88,15 +88,31 @@ describe("graph store", () => {
     expect(result).toEqual({})
   })
 
-  it("readNodes handles corrupt JSON gracefully", async () => {
+  it("readNodes throws on corrupt JSON when no .bak exists", async () => {
     const { readNodes } = await import("../../src/memory/graph/store.js")
     const graphDir = path.join(projectDir, ".kody", "graph")
     fs.mkdirSync(graphDir, { recursive: true })
     fs.writeFileSync(path.join(graphDir, "nodes.json"), "{ corrupt json", "utf-8")
 
-    // Should not throw, should return empty
+    // Fail-loud: no silent data loss, operator must intervene
+    expect(() => readNodes(projectDir)).toThrow(/Corrupt graph file/)
+  })
+
+  it("readNodes auto-recovers from .bak when primary is corrupt", async () => {
+    const { readNodes } = await import("../../src/memory/graph/store.js")
+    const graphDir = path.join(projectDir, ".kody", "graph")
+    fs.mkdirSync(graphDir, { recursive: true })
+
+    // Valid backup, corrupt primary — readNodes should restore from .bak
+    const validPayload = { version: 1, nodes: { a: { id: "a", type: "facts", hall: "facts", room: "r", content: "saved", episodeId: "ep_1", validFrom: "2026-04-01T00:00:00Z", validTo: null } } }
+    fs.writeFileSync(path.join(graphDir, "nodes.json.bak"), JSON.stringify(validPayload), "utf-8")
+    fs.writeFileSync(path.join(graphDir, "nodes.json"), "{ corrupt", "utf-8")
+
     const result = readNodes(projectDir)
-    expect(result).toEqual({})
+    expect(result.a?.content).toBe("saved")
+    // Primary should be healed from .bak
+    const reparsed = JSON.parse(fs.readFileSync(path.join(graphDir, "nodes.json"), "utf-8"))
+    expect(reparsed.version).toBe(1)
   })
 
   it("writeEdges then readEdges returns the same data", async () => {
@@ -126,14 +142,27 @@ describe("graph store", () => {
     expect(result).toEqual([])
   })
 
-  it("readEdges handles corrupt JSON gracefully", async () => {
+  it("readEdges throws on corrupt JSON when no .bak exists", async () => {
     const { readEdges } = await import("../../src/memory/graph/store.js")
     const graphDir = path.join(projectDir, ".kody", "graph")
     fs.mkdirSync(graphDir, { recursive: true })
     fs.writeFileSync(path.join(graphDir, "edges.json"), "[ corrupt", "utf-8")
 
+    expect(() => readEdges(projectDir)).toThrow(/Corrupt graph file/)
+  })
+
+  it("readEdges auto-recovers from .bak when primary is corrupt", async () => {
+    const { readEdges } = await import("../../src/memory/graph/store.js")
+    const graphDir = path.join(projectDir, ".kody", "graph")
+    fs.mkdirSync(graphDir, { recursive: true })
+
+    const validPayload = { version: 1, edges: [{ id: "e1", from: "a", rel: "related_to", to: "b", episodeId: "ep_1", validFrom: "2026-04-01T00:00:00Z", validTo: null }] }
+    fs.writeFileSync(path.join(graphDir, "edges.json.bak"), JSON.stringify(validPayload), "utf-8")
+    fs.writeFileSync(path.join(graphDir, "edges.json"), "[ corrupt", "utf-8")
+
     const result = readEdges(projectDir)
-    expect(result).toEqual([])
+    expect(result).toHaveLength(1)
+    expect(result[0].id).toBe("e1")
   })
 
   it("nodes.json path is .kody/graph/nodes.json", async () => {

@@ -20,6 +20,9 @@ import {
   getFactProvenance,
   getGraphDir,
   graphNodesToMarkdown,
+  validateGraph,
+  formatTraceSummary,
+  traceEnabled,
 } from "../../memory/graph/index.js"
 import { migrateProjectMemory } from "../../memory/migration.js"
 import { searchSessions } from "../../memory/search.js"
@@ -53,6 +56,11 @@ export async function runGraphCommand(args: string[]): Promise<void> {
     const projectDir = args[1] || process.cwd()
     const query = args.slice(2).join(" ")
     runSearch(projectDir, query)
+  } else if (sub === "validate") {
+    const projectDir = args[1] || process.cwd()
+    runValidate(projectDir)
+  } else if (sub === "trace") {
+    runTrace()
   } else if (!sub) {
     printHelp()
   } else {
@@ -72,6 +80,8 @@ Usage:
   kody graph query <projectDir> <q> Search facts
   kody graph show <projectDir> <id> Show fact + provenance + history
   kody graph search <projectDir> <q> Full-text search across sessions
+  kody graph validate <projectDir>  Check graph invariants (dangling refs, cycles, bad timestamps)
+  kody graph trace                  Print KODY_MEMORY_TRACE summary (requires KODY_MEMORY_TRACE=1 earlier)
   kody graph clear <projectDir> --confirm  Reset graph
 
 Examples:
@@ -80,6 +90,7 @@ Examples:
   kody graph query . JWT
   kody graph show . facts_auth_123456
   kody graph search . authentication
+  kody graph validate .
   kody graph clear . --confirm
 `)
 }
@@ -234,4 +245,48 @@ function runClear(projectDir: string): void {
     fs.rmSync(graphDir, { recursive: true, force: true })
   }
   console.log("\n✓ Graph cleared.")
+}
+
+function runValidate(projectDir: string): void {
+  const report = validateGraph(projectDir)
+  console.log(`\nGraph validation for ${projectDir}`)
+  console.log(`  Nodes:     ${report.nodeCount}`)
+  console.log(`  Edges:     ${report.edgeCount}`)
+  console.log(`  Episodes:  ${report.episodeCount}`)
+  console.log(`  Status:    ${report.ok ? "ok" : "ERRORS"}`)
+
+  if (report.issues.length === 0) {
+    console.log("  No issues.")
+    return
+  }
+
+  const errors = report.issues.filter(i => i.severity === "error")
+  const warnings = report.issues.filter(i => i.severity === "warning")
+
+  if (errors.length > 0) {
+    console.log(`\n  ${errors.length} error(s):`)
+    for (const i of errors) {
+      console.log(`    [${i.code}] ${i.subject}: ${i.message}`)
+    }
+  }
+  if (warnings.length > 0) {
+    console.log(`\n  ${warnings.length} warning(s):`)
+    for (const i of warnings) {
+      console.log(`    [${i.code}] ${i.subject}: ${i.message}`)
+    }
+  }
+
+  if (!report.ok) process.exit(1)
+}
+
+function runTrace(): void {
+  if (!traceEnabled()) {
+    console.log(
+      "KODY_MEMORY_TRACE is not enabled. Set KODY_MEMORY_TRACE=1 in the " +
+      "environment of the process you want to profile — this command only " +
+      "prints the summary collected during the current process's lifetime.",
+    )
+    return
+  }
+  console.log(formatTraceSummary())
 }

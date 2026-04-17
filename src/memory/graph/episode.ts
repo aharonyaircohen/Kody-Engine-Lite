@@ -7,11 +7,18 @@
  * Sequence numbers are tracked in:
  *   .kody/graph/episodes/.seq
  *   Format: { "review": 42, "ci_failure": 7, ... }
+ *
+ * Concurrency: getNextEpisodeSeq holds the graph write lock so that two
+ * concurrent callers cannot assign the same sequence number. Individual
+ * episode files have unique names and are written atomically, so they do
+ * not contend.
  */
 
 import * as fs from "fs"
 import * as path from "path"
-import { ensureGraphDir, getGraphDir } from "./store.js"
+import { ensureGraphDir, getGraphDir, atomicWrite } from "./store.js"
+import { withGraphLockSync } from "./lock.js"
+import { traced } from "./trace.js"
 
 // Re-export ensureGraphDir so tests can import from episode.ts
 export { ensureGraphDir }
@@ -39,25 +46,27 @@ function readSeqMap(projectDir: string): SeqMap {
     const raw = fs.readFileSync(filePath, "utf-8")
     return JSON.parse(raw) as SeqMap
   } catch {
+    // Seq map corruption is recoverable — treat as empty. Worst case we
+    // generate a duplicate id and log on write. A .bak round-trip is
+    // overkill for a counter file.
     return {}
   }
 }
 
 function writeSeqMap(projectDir: string, seq: SeqMap): void {
-  const filePath = getSeqPath(projectDir)
-  const tmp = `${filePath}.tmp`
-  fs.writeFileSync(tmp, JSON.stringify(seq, null, 2), "utf-8")
-  fs.renameSync(tmp, filePath)
+  atomicWrite(getSeqPath(projectDir), seq)
 }
 
 /** Get the next sequence number for a source, incrementing atomically */
 export function getNextEpisodeSeq(projectDir: string, source: EpisodeSource): number {
   ensureGraphDir(projectDir)
-  const seq = readSeqMap(projectDir)
-  const next = (seq[source] ?? 0) + 1
-  seq[source] = next
-  writeSeqMap(projectDir, seq)
-  return next
+  return withGraphLockSync(projectDir, () => {
+    const seq = readSeqMap(projectDir)
+    const next = (seq[source] ?? 0) + 1
+    seq[source] = next
+    writeSeqMap(projectDir, seq)
+    return next
+  })
 }
 
 // ─── Episode Files ─────────────────────────────────────────────────────────────
@@ -72,22 +81,23 @@ export function createEpisode(
   projectDir: string,
   data: Omit<Episode, "id">,
 ): Episode {
-  ensureGraphDir(projectDir)
+  return traced("createEpisode", () => {
+    ensureGraphDir(projectDir)
 
-  const seq = getNextEpisodeSeq(projectDir, data.source)
-  const id = episodeId(data.source, seq)
+    const seq = getNextEpisodeSeq(projectDir, data.source)
+    const id = episodeId(data.source, seq)
 
-  const episode: Episode = { id, ...data }
+    const episode: Episode = { id, ...data }
 
-  const filePath = getEpisodePath(projectDir, id)
-  const tmp = `${filePath}.tmp`
-  fs.writeFileSync(tmp, JSON.stringify(episode, null, 2), "utf-8")
-  fs.renameSync(tmp, filePath)
+    // Episode filenames are unique by construction (unique seq), so
+    // atomicWrite alone is enough — no graph lock needed.
+    atomicWrite(getEpisodePath(projectDir, id), episode)
 
-  // Index in the session search layer
-  indexEpisode(projectDir, episode)
+    // Index in the session search layer
+    indexEpisode(projectDir, episode)
 
-  return episode
+    return episode
+  })
 }
 
 export function getEpisode(projectDir: string, episodeIdVal: string): Episode | null {
@@ -100,6 +110,26 @@ export function getEpisode(projectDir: string, episodeIdVal: string): Episode | 
   } catch {
     return null
   }
+}
+
+/**
+ * Atomically read-modify-write an existing episode. Used by nudge to
+ * backfill extractedNodeIds after its node writes.
+ *
+ * Held under the graph lock so that concurrent updaters serialize.
+ */
+export function updateEpisode(
+  projectDir: string,
+  episodeIdVal: string,
+  patch: Partial<Omit<Episode, "id">>,
+): Episode | null {
+  return withGraphLockSync(projectDir, () => {
+    const existing = getEpisode(projectDir, episodeIdVal)
+    if (!existing) return null
+    const updated: Episode = { ...existing, ...patch, id: existing.id }
+    atomicWrite(getEpisodePath(projectDir, episodeIdVal), updated)
+    return updated
+  })
 }
 
 export function getEpisodesBySource(

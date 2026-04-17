@@ -3,11 +3,28 @@
  */
 
 // Store
-export { ensureGraphDir, getGraphDir, getNodesPath, getEdgesPath } from "./store.js"
+export { ensureGraphDir, getGraphDir, getNodesPath, getEdgesPath, atomicWrite } from "./store.js"
 export { readNodes, writeNodes, readEdges, writeEdges } from "./store.js"
 
+// Lock
+export { withGraphLock, withGraphLockSync } from "./lock.js"
+
+// Validation
+export { validateGraph } from "./validate.js"
+export type { ValidationIssue, ValidationReport } from "./validate.js"
+
+// Trace
+export {
+  traceEnabled,
+  getTraceEvents,
+  getTraceSummary,
+  resetTrace,
+  formatTraceSummary,
+} from "./trace.js"
+export type { TraceEvent, TraceSummary } from "./trace.js"
+
 // Episode
-export { createEpisode, getEpisode, getEpisodesBySource, getEpisodesByRun, getNextEpisodeSeq } from "./episode.js"
+export { createEpisode, getEpisode, updateEpisode, getEpisodesBySource, getEpisodesByRun, getNextEpisodeSeq } from "./episode.js"
 
 // Queries
 export {
@@ -49,6 +66,7 @@ export {
   NodeTypeValues,
   RelationshipTypeValues,
   EpisodeSourceValues,
+  CURRENT_SCHEMA_VERSION,
   nodeId,
   nodeIdWithTimestamp,
   edgeId,

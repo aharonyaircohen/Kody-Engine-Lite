@@ -17,7 +17,7 @@ import { getRunnerForStage } from "../pipeline/runner-selection.js"
 import { getProjectConfig, anyStageNeedsProxy, getLitellmUrl } from "../config.js"
 import type { PipelineContext } from "../types.js"
 import { writeFact } from "./graph/queries.js"
-import { createEpisode } from "./graph/episode.js"
+import { createEpisode, updateEpisode } from "./graph/episode.js"
 import type { HallType } from "./graph/types.js"
 
 const NUDGE_ENV_FLAG = "KODY_MEMORY_NUDGE"
@@ -172,11 +172,10 @@ export async function nudge(ctx: PipelineContext): Promise<void> {
       logger.info(`  Nudge: saved pattern [${pattern.hall}] ${pattern.room}: ${node.id}`)
     }
 
-    // Backfill extractedNodeIds on the episode now that we have node IDs
-    const episodePath = path.join(ctx.projectDir, ".kody", "graph", "episodes", `${episode.id}.json`)
-    const episodeData = JSON.parse(fs.readFileSync(episodePath, "utf-8"))
-    episodeData.extractedNodeIds = nodeIds
-    fs.writeFileSync(episodePath, JSON.stringify(episodeData, null, 2) + "\n")
+    // Backfill extractedNodeIds on the episode now that we have node IDs.
+    // updateEpisode runs under the graph lock and uses atomicWrite, closing
+    // the non-atomic read/mutate/write race that existed here previously.
+    updateEpisode(ctx.projectDir, episode.id, { extractedNodeIds: nodeIds })
 
     logger.info(`  Nudge: saved ${patterns.length} pattern(s) from ${ctx.taskId}`)
   } catch (err) {

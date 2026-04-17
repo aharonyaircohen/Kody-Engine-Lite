@@ -6,6 +6,7 @@ import { readNodes, writeNodes, readEdges, writeEdges } from "./store.js"
 // Re-export readEdges so tests can import from queries.ts
 export { readEdges } from "./store.js"
 import { getEpisode } from "./episode.js"
+import { withGraphLockSync } from "./lock.js"
 import {
   nodeIdWithTimestamp,
   edgeId,
@@ -215,27 +216,151 @@ export function writeFact(
   room: string,
   content: string,
   episodeId: string,
+  tags?: string[],
 ): GraphNode {
-  const nodes = readNodes(projectDir)
+  return withGraphLockSync(projectDir, () => {
+    const nodes = readNodes(projectDir)
 
-  const id = nodeIdWithTimestamp(hall, room)
-  const now = new Date().toISOString()
+    const id = nodeIdWithTimestamp(hall, room)
+    const now = new Date().toISOString()
 
-  const node: GraphNode = {
-    id,
-    type: hall,
-    hall,
-    room,
-    content,
-    episodeId,
-    validFrom: now,
-    validTo: null,
+    const node: GraphNode = {
+      id,
+      type: hall,
+      hall,
+      room,
+      content,
+      episodeId,
+      validFrom: now,
+      validTo: null,
+      ...(tags && tags.length > 0 ? { tags } : {}),
+    }
+
+    nodes[id] = node
+    writeNodes(projectDir, nodes)
+
+    return node
+  })
+}
+
+// Common English stopwords + throwaway tokens that would inflate Jaccard overlap.
+const DEDUP_STOPWORDS = new Set([
+  "a", "an", "the", "is", "are", "was", "were", "be", "been", "being",
+  "have", "has", "had", "do", "does", "did", "will", "would", "should",
+  "could", "may", "might", "must", "can", "to", "of", "in", "on", "at",
+  "by", "for", "with", "about", "as", "into", "through", "during",
+  "before", "after", "above", "below", "from", "up", "down", "out",
+  "off", "over", "under", "again", "then", "once", "and", "or", "but",
+  "not", "no", "so", "if", "because", "when", "where", "why", "how",
+  "all", "any", "both", "each", "few", "more", "most", "other", "some",
+  "such", "only", "own", "same", "than", "too", "very", "this", "that",
+  "these", "those", "it", "its", "itself", "they", "them", "their",
+  "which", "who", "whom", "whose", "what",
+])
+
+/**
+ * Tokenize text for Jaccard comparison. Lowercase, keep only alphanumerics,
+ * drop stopwords and tokens shorter than 3 chars. Returns a set.
+ */
+/** Naïve plural/gerund stemmer — covers "users"/"user", "breaks"/"break", "hooks"/"hook". */
+function stem(tok: string): string {
+  if (tok.length > 4 && tok.endsWith("ies")) return tok.slice(0, -3) + "y"
+  if (tok.length > 4 && tok.endsWith("es")) return tok.slice(0, -2)
+  if (tok.length > 3 && tok.endsWith("s") && !tok.endsWith("ss")) return tok.slice(0, -1)
+  return tok
+}
+
+function tokenizeForDedup(text: string): Set<string> {
+  const out = new Set<string>()
+  for (const raw of text.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/)) {
+    if (raw.length < 3) continue
+    if (DEDUP_STOPWORDS.has(raw)) continue
+    out.add(stem(raw))
   }
+  return out
+}
 
-  nodes[id] = node
-  writeNodes(projectDir, nodes)
+/**
+ * Sørensen-Dice coefficient over two token sets. More forgiving of size
+ * differences than Jaccard — a terse paraphrase of a verbose insight still
+ * scores high. Returns 1.0 if both sets are empty; 0 if only one is empty.
+ */
+function sorensenDice(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 && b.size === 0) return 1
+  if (a.size === 0 || b.size === 0) return 0
+  let intersection = 0
+  for (const t of a) if (b.has(t)) intersection++
+  return (2 * intersection) / (a.size + b.size)
+}
 
-  return node
+/** Exact-equality fallback for too-short content where Sørensen-Dice is meaningless. */
+function normalizeForExactMatch(text: string): string {
+  return text.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim()
+}
+
+// If either side has fewer than this many significant tokens, skip fuzzy
+// comparison and fall back to exact match — otherwise short strings that
+// collapse to a single shared token (e.g. "lesson 1" vs "lesson 2" → {lesson})
+// would dedup against each other.
+const MIN_TOKENS_FOR_FUZZY = 3
+
+/**
+ * Find a recent node in the same hall whose content is near-identical to
+ * `content`. Uses Sørensen-Dice over significant tokens for substantial
+ * content; falls back to exact-match for short content. Used as a novelty
+ * gate for LLM-produced insights where the same idea gets paraphrased
+ * differently each run.
+ *
+ * Room is NOT required to match — LLMs pick different room labels (e.g.
+ * `auth` vs `auth/access-control`) for the same lesson, so filtering by room
+ * would let those through.
+ */
+export function findSimilarRecentNode(
+  projectDir: string,
+  hall: HallType,
+  content: string,
+  maxAgeDays = 30,
+  similarityThreshold = 0.6,
+): GraphNode | null {
+  const nodes = readNodes(projectDir)
+  const targetTokens = tokenizeForDedup(content)
+  const targetExact = normalizeForExactMatch(content)
+  if (!targetExact) return null
+
+  const cutoff = new Date(Date.now() - maxAgeDays * 24 * 60 * 60 * 1000).toISOString()
+
+  for (const node of Object.values(nodes)) {
+    if (node.hall !== hall) continue
+    if (node.validFrom < cutoff) continue
+
+    const nodeTokens = tokenizeForDedup(node.content)
+    const useFuzzy =
+      targetTokens.size >= MIN_TOKENS_FOR_FUZZY &&
+      nodeTokens.size >= MIN_TOKENS_FOR_FUZZY
+
+    if (useFuzzy) {
+      if (sorensenDice(targetTokens, nodeTokens) >= similarityThreshold) return node
+    } else if (normalizeForExactMatch(node.content) === targetExact) {
+      return node
+    }
+  }
+  return null
+}
+
+/**
+ * Read the most recent nodes whose tags include `tag`.
+ * Used to retrieve stage-scoped insights for prompt injection.
+ */
+export function readNodesByTag(
+  projectDir: string,
+  tag: string,
+  limit = 5,
+): GraphNode[] {
+  const nodes = readNodes(projectDir)
+  return Object.values(nodes)
+    .filter((n) => n.validTo === null && Array.isArray(n.tags) && n.tags.includes(tag))
+    .sort((a, b) => b.validFrom.localeCompare(a.validFrom))
+    .slice(0, limit)
 }
 
 /** Update a fact: invalidates the old one, creates a new one with superseded_by edge */
@@ -245,61 +370,64 @@ export function updateFact(
   newContent: string,
   episodeId: string,
 ): GraphNode {
-  const now = new Date().toISOString()
+  return withGraphLockSync(projectDir, () => {
+    const now = new Date().toISOString()
 
-  // Read current state
-  let nodes = readNodes(projectDir)
-  const existing = nodes[existingNodeId]
-  if (!existing) {
-    throw new Error(`updateFact: node ${existingNodeId} not found`)
-  }
+    // Read current state
+    const nodes = readNodes(projectDir)
+    const existing = nodes[existingNodeId]
+    if (!existing) {
+      throw new Error(`updateFact: node ${existingNodeId} not found`)
+    }
 
-  // Invalidate existing
-  existing.validTo = now
+    // Invalidate existing (immutable update — don't mutate the live object)
+    const invalidated: GraphNode = { ...existing, validTo: now }
 
-  // Create new node with same hall+room
-  const newId = nodeIdWithTimestamp(existing.hall, existing.room)
-  const newNode: GraphNode = {
-    id: newId,
-    type: existing.type,
-    hall: existing.hall,
-    room: existing.room,
-    content: newContent,
-    episodeId,
-    validFrom: now,
-    validTo: null,
-  }
+    // Create new node with same hall+room
+    const newId = nodeIdWithTimestamp(existing.hall, existing.room)
+    const newNode: GraphNode = {
+      id: newId,
+      type: existing.type,
+      hall: existing.hall,
+      room: existing.room,
+      content: newContent,
+      episodeId,
+      validFrom: now,
+      validTo: null,
+    }
 
-  // Update nodes in memory
-  nodes[existingNodeId] = existing
-  nodes[newId] = newNode
-  writeNodes(projectDir, nodes)
+    // Update nodes in memory
+    nodes[existingNodeId] = invalidated
+    nodes[newId] = newNode
+    writeNodes(projectDir, nodes)
 
-  // Write superseded_by edge
-  const edges = readEdges(projectDir)
-  const edge: GraphEdge = {
-    id: edgeId(existingNodeId, "superseded_by", newId),
-    from: existingNodeId,
-    rel: "superseded_by",
-    to: newId,
-    episodeId,
-    validFrom: now,
-    validTo: null,
-  }
-  edges.push(edge)
-  writeEdges(projectDir, edges)
+    // Write superseded_by edge
+    const edges = readEdges(projectDir)
+    const edge: GraphEdge = {
+      id: edgeId(existingNodeId, "superseded_by", newId),
+      from: existingNodeId,
+      rel: "superseded_by",
+      to: newId,
+      episodeId,
+      validFrom: now,
+      validTo: null,
+    }
+    edges.push(edge)
+    writeEdges(projectDir, edges)
 
-  return newNode
+    return newNode
+  })
 }
 
 /** Soft-delete a fact by setting validTo */
 export function invalidateFact(projectDir: string, nodeId: string): void {
-  const nodes = readNodes(projectDir)
-  const node = nodes[nodeId]
-  if (!node) return
-  node.validTo = new Date().toISOString()
-  nodes[nodeId] = node
-  writeNodes(projectDir, nodes)
+  withGraphLockSync(projectDir, () => {
+    const nodes = readNodes(projectDir)
+    const node = nodes[nodeId]
+    if (!node) return
+    nodes[nodeId] = { ...node, validTo: new Date().toISOString() }
+    writeNodes(projectDir, nodes)
+  })
 }
 
 /** Write an edge between two nodes */
@@ -310,29 +438,33 @@ export function writeEdge(
   to: string,
   episodeId: string,
 ): GraphEdge {
-  const edges = readEdges(projectDir)
+  return withGraphLockSync(projectDir, () => {
+    const edges = readEdges(projectDir)
 
-  const edge: GraphEdge = {
-    id: edgeId(from, rel, to),
-    from,
-    rel,
-    to,
-    episodeId,
-    validFrom: new Date().toISOString(),
-    validTo: null,
-  }
+    const edge: GraphEdge = {
+      id: edgeId(from, rel, to),
+      from,
+      rel,
+      to,
+      episodeId,
+      validFrom: new Date().toISOString(),
+      validTo: null,
+    }
 
-  edges.push(edge)
-  writeEdges(projectDir, edges)
+    edges.push(edge)
+    writeEdges(projectDir, edges)
 
-  return edge
+    return edge
+  })
 }
 
 /** Soft-delete an edge */
 export function invalidateEdge(projectDir: string, edgeId: string): void {
-  const edges = readEdges(projectDir)
-  const edge = edges.find(e => e.id === edgeId)
-  if (!edge) return
-  edge.validTo = new Date().toISOString()
-  writeEdges(projectDir, edges)
+  withGraphLockSync(projectDir, () => {
+    const edges = readEdges(projectDir)
+    const idx = edges.findIndex(e => e.id === edgeId)
+    if (idx === -1) return
+    edges[idx] = { ...edges[idx], validTo: new Date().toISOString() }
+    writeEdges(projectDir, edges)
+  })
 }

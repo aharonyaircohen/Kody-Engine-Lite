@@ -1,3 +1,8 @@
+// Storage schema version. Bump when the on-disk shape of nodes.json /
+// edges.json changes. Readers accept legacy (unversioned) payloads and
+// rewrite them in the current format on first write.
+export const CURRENT_SCHEMA_VERSION = 1 as const
+
 // Hall types — categories for memory entries
 export const HallTypeValues = [
   "facts",
@@ -39,6 +44,7 @@ export const EpisodeSourceValues = [
   "decompose",
   "migration",
   "nudge",
+  "stage_diary",
 ] as const
 
 export type EpisodeSource = (typeof EpisodeSourceValues)[number]
