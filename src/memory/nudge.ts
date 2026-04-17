@@ -16,8 +16,9 @@ import { resolveModel } from "../context.js"
 import { getRunnerForStage } from "../pipeline/runner-selection.js"
 import { getProjectConfig, anyStageNeedsProxy, getLitellmUrl } from "../config.js"
 import type { PipelineContext } from "../types.js"
-import { writeFact } from "./graph/queries.js"
+import { writeFactOrSupersede } from "./graph/queries.js"
 import { createEpisode, updateEpisode } from "./graph/episode.js"
+import { defaultConfidenceFor } from "./graph/confidence.js"
 import type { HallType } from "./graph/types.js"
 
 const NUDGE_ENV_FLAG = "KODY_MEMORY_NUDGE"
@@ -161,15 +162,25 @@ export async function nudge(ctx: PipelineContext): Promise<void> {
     // Write nodes and collect their IDs
     const nodeIds: string[] = []
     for (const pattern of patterns) {
-      const node = writeFact(
+      const outcome = writeFactOrSupersede(
         ctx.projectDir,
         pattern.hall,
         pattern.room,
         pattern.content,
         episode.id,
+        undefined,
+        defaultConfidenceFor("nudge"),
       )
-      nodeIds.push(node.id)
-      logger.info(`  Nudge: saved pattern [${pattern.hall}] ${pattern.room}: ${node.id}`)
+      if (outcome.kind === "skipped") {
+        logger.debug(`  Nudge: skipped duplicate pattern [${pattern.hall}] ${pattern.room}`)
+        continue
+      }
+      nodeIds.push(outcome.next.id)
+      const label =
+        outcome.kind === "superseded" ? "updated" :
+        outcome.kind === "related" ? "saved+linked" :
+        "saved"
+      logger.info(`  Nudge: ${label} pattern [${pattern.hall}] ${pattern.room}: ${outcome.next.id}`)
     }
 
     // Backfill extractedNodeIds on the episode now that we have node IDs.

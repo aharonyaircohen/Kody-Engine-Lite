@@ -208,6 +208,31 @@ describe("Integration: full pipeline dry-run", () => {
     expect(status.stages.build.failureCategory).toBe("max_turns")
   })
 
+  it("happy path produces no crash files across any stage (session-resume regression guard)", async () => {
+    const taskDir = path.join(tmpDir, ".kody/tasks", "int-no-crash")
+    fs.mkdirSync(taskDir, { recursive: true })
+    fs.writeFileSync(path.join(taskDir, "task.md"), "Integration test: no crashes on happy path")
+
+    const runner = createMockRunner()
+    const ctx: PipelineContext = {
+      taskId: "int-no-crash",
+      taskDir,
+      projectDir: tmpDir,
+      runners: { claude: runner },
+      input: { mode: "full", local: true },
+    }
+
+    const state = await runPipeline(ctx)
+    expect(state.state).toBe("completed")
+
+    // None of the stages should have produced a crash dump on a clean run.
+    // This guards against regressions of the session-resume init-crash bug
+    // where every retried stage left an `.N.crash.jsonl` artifact behind.
+    const artifacts = fs.readdirSync(taskDir)
+    const crashFiles = artifacts.filter((f) => f.endsWith(".crash.jsonl"))
+    expect(crashFiles).toEqual([])
+  })
+
   it("propagates timed_out outcome as timeout state with failureCategory", async () => {
     const taskDir = path.join(tmpDir, ".kody/tasks", "int-timeout")
     fs.mkdirSync(taskDir, { recursive: true })

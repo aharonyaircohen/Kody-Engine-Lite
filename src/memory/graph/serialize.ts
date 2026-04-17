@@ -17,6 +17,10 @@ import { type GraphNode, HallTypeValues, type HallType } from "./types.js"
 interface SerializeOptions {
   includeHall?: boolean
   maxLength?: number
+  /** Include node ids inline so the LLM can cite them in its output. */
+  includeIds?: boolean
+  /** Include confidence inline (e.g. c=0.9) when the node has it. */
+  includeConfidence?: boolean
 }
 
 /**
@@ -57,7 +61,14 @@ export function graphNodesToMarkdown(
         const content = options?.maxLength
           ? truncate(node.content, options.maxLength)
           : node.content
-        lines.push(`- ${content} (added ${date})`)
+        const meta: string[] = [`added ${date}`]
+        if (options?.includeConfidence && typeof node.confidence === "number") {
+          meta.push(`c=${node.confidence.toFixed(2).replace(/\.?0+$/, "")}`)
+        }
+        if (options?.includeIds) {
+          meta.push(`id=${node.id}`)
+        }
+        lines.push(`- ${content} (${meta.join(", ")})`)
       }
       lines.push("")
     }
@@ -78,4 +89,35 @@ function formatDate(isoString: string): string {
 function truncate(text: string, maxChars: number): string {
   if (text.length <= maxChars) return text
   return text.slice(0, maxChars) + "..."
+}
+
+// ─── Recent changes (Phase W-5) ──────────────────────────────────────────────
+
+import type { RecentChange } from "./queries.js"
+
+/**
+ * Render a list of RecentChange rows as a markdown block suitable for
+ * prepending to a plan-stage prompt. Returns empty string when the list
+ * is empty.
+ */
+export function recentChangesToMarkdown(changes: RecentChange[], maxRows = 20): string {
+  if (changes.length === 0) return ""
+
+  const rows = changes.slice(0, maxRows)
+  const lines: string[] = [`## Recent memory changes`, ``]
+  for (const c of rows) {
+    const date = formatDate(c.changedAt)
+    if (c.kind === "retracted") {
+      lines.push(
+        `- **${c.previous.hall}/${c.previous.room}** (retracted ${date}): "${truncate(c.previous.content, 120)}"`,
+      )
+    } else if (c.current) {
+      lines.push(
+        `- **${c.previous.hall}/${c.previous.room}** (updated ${date}):`,
+      )
+      lines.push(`  was: "${truncate(c.previous.content, 120)}"`)
+      lines.push(`  now: "${truncate(c.current.content, 120)}"`)
+    }
+  }
+  return lines.join("\n")
 }

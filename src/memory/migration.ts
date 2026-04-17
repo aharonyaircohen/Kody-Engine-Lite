@@ -9,6 +9,7 @@ import * as path from "path"
 import { ensureGraphDir } from "./graph/store.js"
 import { createEpisode } from "./graph/episode.js"
 import { writeFact } from "./graph/queries.js"
+import { defaultConfidenceFor } from "./graph/confidence.js"
 import { HallTypeValues } from "./graph/types.js"
 
 interface MigrationResult {
@@ -81,7 +82,7 @@ export async function migrateProjectMemory(
         // Match lines starting with "- " or "* " (bullet points)
         const bulletMatch = trimmed.match(/^[-*]\s+(.+)$/)
         if (bulletMatch) {
-          writeFact(projectDir, resolvedHall as typeof HallTypeValues[number], resolvedRoom, bulletMatch[1], episode.id)
+          writeFact(projectDir, resolvedHall as typeof HallTypeValues[number], resolvedRoom, bulletMatch[1], episode.id, undefined, defaultConfidenceFor("migration"))
           entryCount++
         }
       }
@@ -89,7 +90,7 @@ export async function migrateProjectMemory(
       if (entryCount === 0) {
         // Non-bullet content — migrate as single entry using first line
         const firstLine = lines[0]?.trim() || content
-        writeFact(projectDir, resolvedHall as typeof HallTypeValues[number], resolvedRoom, firstLine, episode.id)
+        writeFact(projectDir, resolvedHall as typeof HallTypeValues[number], resolvedRoom, firstLine, episode.id, undefined, defaultConfidenceFor("migration"))
         entryCount++
       }
 

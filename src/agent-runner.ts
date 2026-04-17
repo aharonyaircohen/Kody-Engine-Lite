@@ -269,14 +269,23 @@ export function createSdkRunner(): AgentRunner {
       let structuredOutput: unknown = null
 
       try {
+        // Session resume is intentionally disabled at the SDK boundary. The
+        // upstream @anthropic-ai/claude-agent-sdk query path consistently
+        // crashes ("Claude Code process exited with code 1" with zero messages)
+        // whenever a sessionId that has been used earlier in the same Node
+        // process is passed back in — seen across all retried stages in both
+        // local and CI runs. We ignore the caller's sessionId/resumeSession
+        // so every query() starts fresh; re-enable when the SDK bug is fixed.
+        // (The caller-side SESSION_GROUP plumbing in stages/agent.ts is left
+        //  in place as a no-op; cleanup tracked as a separate follow-up.)
         const result = query({
           prompt,
           options: {
             model,
             cwd: taskDir,
             effort: "high",
-            sessionId: options?.sessionId,
-            resume: options?.resumeSession ? options.sessionId : undefined,
+            sessionId: undefined,
+            resume: undefined,
             allowedTools: options?.allowedTools ?? (options?.mcpConfigJson ? undefined : baseTools.split(",")),
             mcpServers: options?.mcpConfigJson ? JSON.parse(options.mcpConfigJson).mcpServers : undefined,
             permissionMode: options?.allowedTools ? "plan" : "bypassPermissions",

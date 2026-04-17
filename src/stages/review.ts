@@ -11,7 +11,8 @@ import { logger } from "../logger.js"
 import { executeAgentStage } from "./agent.js"
 import { detectReviewVerdict, formatReviewComment } from "../review-standalone.js"
 import { createEpisode } from "../memory/graph/index.js"
-import { inferRoom, writeFactOnce } from "../memory/graph/index.js"
+import { inferRoom, writeFactOrSupersede } from "../memory/graph/index.js"
+import { defaultConfidenceFor } from "../memory/graph/confidence.js"
 import { postPRComment } from "../github-api.js"
 
 const MAX_REVIEW_FIX_ITERATIONS = 2
@@ -105,8 +106,16 @@ function writeReviewConventions(
 
   const writtenIds: string[] = []
   for (const fact of facts) {
-    const node = writeFactOnce(projectDir, "conventions", room, fact, episode.id)
-    if (node) writtenIds.push(node.id)
+    const outcome = writeFactOrSupersede(
+      projectDir,
+      "conventions",
+      room,
+      fact,
+      episode.id,
+      undefined,
+      defaultConfidenceFor("review"),
+    )
+    if (outcome.kind !== "skipped") writtenIds.push(outcome.next.id)
   }
 
   if (writtenIds.length > 0) {

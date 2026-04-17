@@ -21,9 +21,11 @@ import { logger } from "./logger.js"
 import { createEpisode } from "./memory/graph/episode.js"
 import {
   writeFact,
+  writeFactOrSupersede,
   findSimilarRecentNode,
   readNodesByTag,
 } from "./memory/graph/queries.js"
+import { defaultConfidenceFor } from "./memory/graph/confidence.js"
 import type { HallType } from "./memory/graph/types.js"
 import type { PipelineContext } from "./types.js"
 
@@ -265,12 +267,33 @@ export function appendStageInsights(
       episodeId = episode.id
     }
 
-    writeFact(ctx.projectDir, hall, targetRoom, ins.text, episodeId, [
-      `stage:${stageName}`,
-      `task:${ctx.taskId}`,
-      `kind:${ins.kind}`,
-    ])
-    logger.info(`  stage-diary: saved [${ins.kind}] ${targetRoom}: ${ins.text.slice(0, 80)}`)
+    const outcome = writeFactOrSupersede(
+      ctx.projectDir,
+      hall,
+      targetRoom,
+      ins.text,
+      episodeId,
+      [
+        `stage:${stageName}`,
+        `task:${ctx.taskId}`,
+        `kind:${ins.kind}`,
+      ],
+      defaultConfidenceFor("stage_diary"),
+    )
+    switch (outcome.kind) {
+      case "skipped":
+        logger.debug(`  stage-diary: dedup [${ins.kind}] ${targetRoom}: already know "${ins.text.slice(0, 60)}"`)
+        break
+      case "superseded":
+        logger.info(`  stage-diary: updated [${ins.kind}] ${targetRoom}: ${ins.text.slice(0, 80)}`)
+        break
+      case "related":
+        logger.info(`  stage-diary: saved+linked [${ins.kind}] ${targetRoom}: ${ins.text.slice(0, 80)} (related to ${outcome.neighbor.id.slice(0, 40)})`)
+        break
+      case "new":
+        logger.info(`  stage-diary: saved [${ins.kind}] ${targetRoom}: ${ins.text.slice(0, 80)}`)
+        break
+    }
   }
 }
 

@@ -11,6 +11,7 @@ import { buildFullPrompt, resolveModel, escalateModelTier, taskHasUI } from "../
 import { estimateTokens } from "../context-tiers.js"
 import { distillStageInsights, appendStageInsights } from "../stage-diary.js"
 import { inferRoomsFromScope } from "../context-tiers.js"
+import { extractCitations } from "../memory/graph/citation.js"
 import { validateTaskJson, validatePlanMd, validateReviewMd, stripFences } from "../validators.js"
 import { getProjectConfig, resolveStageConfig, stageNeedsProxy, getLitellmUrl } from "../config.js"
 import { buildMcpConfigJson, isMcpEnabledForStage } from "../mcp-config.js"
@@ -312,6 +313,13 @@ export async function executeAgentStage(
   // Append stage summary to accumulated context
   appendStageContext(ctx.taskDir, def.name, result.output)
 
+  // Citation parse: extract [fact_*] tokens from the stage output and log
+  // them. Lets us measure which memory facts actually steer LLM behavior.
+  const citedFactIds = extractCitations(result.output)
+  if (citedFactIds.length > 0) {
+    logger.info(`  [${def.name}] cited ${citedFactIds.length} memory fact(s): ${citedFactIds.slice(0, 3).join(", ")}${citedFactIds.length > 3 ? ", …" : ""}`)
+  }
+
   // Stage diary: distill reusable insights via LLM and persist to the graph.
   // Best-effort — never fails the stage.
   try {
@@ -328,7 +336,7 @@ export async function executeAgentStage(
     )
   }
 
-  return { outcome: "completed", outputFile: def.outputFile, retries, promptTokens }
+  return { outcome: "completed", outputFile: def.outputFile, retries, promptTokens, citedFactIds }
 }
 
 function inferRoomFromTask(taskDir: string): string | null {

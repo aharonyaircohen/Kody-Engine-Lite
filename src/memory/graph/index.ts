@@ -20,6 +20,16 @@ export {
   GRAPH_GITIGNORE_ENTRIES,
 } from "./gitignore.js"
 
+// Confidence defaults
+export {
+  defaultConfidenceFor,
+  normalizeConfidence,
+  SOURCE_CONFIDENCE,
+} from "./confidence.js"
+
+// Citation parsing for stage output
+export { CITATION_INSTRUCTION, extractCitations } from "./citation.js"
+
 // Trace
 export {
   traceEnabled,
@@ -47,9 +57,21 @@ export {
   writeFact,
   updateFact,
   invalidateFact,
+  restoreFact,
   writeEdge,
   invalidateEdge,
+  writeFactOrSupersede,
+  findBestSimilarRecentNode,
+  getRecentlyChangedFacts,
 } from "./queries.js"
+export type { WriteFactOutcome, RecentChange } from "./queries.js"
+
+// Recent-changes markdown helper
+export { recentChangesToMarkdown } from "./serialize.js"
+
+// Prune archive
+export { pruneInvalidatedOlderThan } from "./prune.js"
+export type { PruneReport } from "./prune.js"
 
 // Write helpers
 export { factExists, inferRoom, writeFactOnce } from "./write-utils.js"

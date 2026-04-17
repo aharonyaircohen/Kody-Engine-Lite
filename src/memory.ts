@@ -6,10 +6,11 @@ import { compressMemoryContent } from "./compress.js"
 import * as graph from "./memory/graph/index.js"
 
 export function readProjectMemory(projectDir: string): string {
-  // Try graph store first
+  // Try graph store first. Include ids + confidence so downstream stages
+  // can cite the facts they actually use.
   const graphNodes = graph.getCurrentFacts(projectDir)
   if (graphNodes.length > 0) {
-    return graph.graphNodesToMarkdown(graphNodes)
+    return graph.graphNodesToMarkdown(graphNodes, { includeIds: true, includeConfidence: true })
   }
 
   // Fallback: legacy .md files

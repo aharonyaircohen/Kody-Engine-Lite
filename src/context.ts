@@ -2,7 +2,9 @@ import * as fs from "fs"
 import * as path from "path"
 import { readProjectMemory, mergeBrainWithProject, readBrainMemoryTiered, getBrainBasePath } from "./memory.js"
 import { getProjectConfig, parseProviderModel } from "./config.js"
-import { searchFactsByScope } from "./memory/graph/queries.js"
+import { searchFactsByScope, getRecentlyChangedFacts } from "./memory/graph/queries.js"
+import { recentChangesToMarkdown } from "./memory/graph/serialize.js"
+import { CITATION_INSTRUCTION } from "./memory/graph/citation.js"
 import {
   readProjectMemoryTiered,
   injectTaskContextTiered,
@@ -426,6 +428,24 @@ export function buildFullPrompt(
     if (memoryBlock) {
       assembled = assembled + "\n\n" + memoryBlock
     }
+
+    // W-5: surface facts updated/retracted in the last 14 days so the LLM
+    // sees reversed conventions rather than treating them as eternal truth.
+    try {
+      const changes = getRecentlyChangedFacts(projectDir, 14)
+      const changesBlock = recentChangesToMarkdown(changes)
+      if (changesBlock) {
+        assembled = assembled + "\n\n" + changesBlock
+      }
+    } catch {
+      // Best-effort — never break a stage if recent-changes rendering fails.
+    }
+  }
+
+  // Citation hint: if any memory was injected and the output is expected to
+  // cite (non-gate stages), remind the LLM to quote fact ids inline.
+  if (assembled.includes("fact_") && stageName !== "verify") {
+    assembled = assembled + `\n\n${CITATION_INSTRUCTION}\n`
   }
 
   // Append browser tool guidance when browser verification is available (MCP or CLI-based)

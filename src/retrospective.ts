@@ -14,6 +14,8 @@ import { readProjectMemory } from "./memory.js"
 import { estimateTokens } from "./context-tiers.js"
 import { logger } from "./logger.js"
 import { createEpisode } from "./memory/graph/episode.js"
+import { getCurrentFacts, writeFact, writeEdge } from "./memory/graph/queries.js"
+import { defaultConfidenceFor } from "./memory/graph/confidence.js"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -62,10 +64,13 @@ Output ONLY valid JSON. No markdown fences. No explanation.
     "component": "pipeline component name (e.g., verify, build, autofix, taskify prompt, review prompt, model selection, timeout config)",
     "issue": "concise description of the flaw",
     "evidence": "specific data from this run that supports this conclusion"
-  }
+  },
+  "contributingFactIds": ["fact_..."]
 }
 
 If no pipeline flaw is detected, set "pipelineFlaw" to null.
+
+"contributingFactIds" is an OPTIONAL list of fact IDs from the Current Project Memory section below that were known to the pipeline and plausibly contributed to this run's outcome (success or failure). Only include ids that literally appear in that section — no inventing. If none contributed or if no memory is present, return [].
 
 `
 
@@ -251,9 +256,17 @@ export async function runRetrospective(
     const previous = readPreviousRetrospectives(ctx.projectDir)
     const previousText = formatPreviousEntries(previous)
 
+    // Surface current project memory with ids so the LLM can cite which
+    // facts contributed. readProjectMemory now includes ids by default.
+    const currentMemory = readProjectMemory(ctx.projectDir)
+    const memoryBlock = currentMemory
+      ? `## Current Project Memory\n${currentMemory}\n`
+      : ``
+
     const prompt = RETROSPECTIVE_PROMPT
       + `## Run Context\n${runContext}\n\n`
-      + `## Previous Retrospectives (last ${previous.length} runs)\n${previousText}\n`
+      + `## Previous Retrospectives (last ${previous.length} runs)\n${previousText}\n\n`
+      + memoryBlock
 
     const runner = getRunnerForStage(ctx, "taskify")
     const model = resolveModel("cheap")
@@ -271,6 +284,7 @@ export async function runRetrospective(
     let patternMatch: string | null = null
     let suggestion = "No suggestion"
     let pipelineFlaw: RetrospectiveEntry["pipelineFlaw"] = null
+    let contributingFactIds: string[] = []
 
     if (result.outcome === "completed" && result.output) {
       const cleaned = result.output
@@ -289,6 +303,11 @@ export async function runRetrospective(
             issue: parsed.pipelineFlaw.issue ?? "Unknown",
             evidence: parsed.pipelineFlaw.evidence ?? "",
           }
+        }
+        if (Array.isArray(parsed.contributingFactIds)) {
+          contributingFactIds = parsed.contributingFactIds.filter(
+            (x: unknown): x is string => typeof x === "string" && x.startsWith("fact_"),
+          )
         }
       } catch {
         logger.warn("  Retrospective: failed to parse LLM output")
@@ -367,6 +386,40 @@ export async function runRetrospective(
         linkedFiles: [],
       })
       logger.info(`  Episode created: ${episode.id}`)
+
+      // W-4: if the retrospective found a pipeline flaw AND identified
+      // contributing facts, save a root-cause fact and link it via caused_by
+      // edges to those contributors. Failed-run path only — successes don't
+      // warrant a root-cause node.
+      if (state.state !== "completed" && pipelineFlaw) {
+        try {
+          const patternFact = writeFact(
+            ctx.projectDir,
+            "thoughts",
+            pipelineFlaw.component,
+            `${pipelineFlaw.issue} — ${pipelineFlaw.evidence.slice(0, 200)}`,
+            episode.id,
+            ["source:ci_failure", `task:${ctx.taskId}`],
+            defaultConfidenceFor("ci_failure"),
+          )
+          logger.info(`  Root-cause fact: ${patternFact.id}`)
+
+          // Validate the ids exist in current memory before writing edges.
+          const current = new Set(getCurrentFacts(ctx.projectDir).map((n) => n.id))
+          let edgesWritten = 0
+          for (const contributorId of contributingFactIds) {
+            if (!current.has(contributorId)) continue
+            if (contributorId === patternFact.id) continue
+            writeEdge(ctx.projectDir, patternFact.id, "caused_by", contributorId, episode.id)
+            edgesWritten++
+          }
+          if (edgesWritten > 0) {
+            logger.info(`  caused_by edges: ${edgesWritten}`)
+          }
+        } catch (err) {
+          logger.warn(`  Root-cause edge write failed: ${err instanceof Error ? err.message : String(err)}`)
+        }
+      }
     } catch (err) {
       logger.warn(`  Episode creation failed: ${err instanceof Error ? err.message : String(err)}`)
     }

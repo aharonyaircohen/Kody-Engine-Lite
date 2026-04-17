@@ -23,6 +23,10 @@ import {
   validateGraph,
   formatTraceSummary,
   traceEnabled,
+  invalidateFact,
+  restoreFact,
+  createEpisode,
+  pruneInvalidatedOlderThan,
 } from "../../memory/graph/index.js"
 import { migrateProjectMemory } from "../../memory/migration.js"
 import { searchSessions } from "../../memory/search.js"
@@ -61,6 +65,27 @@ export async function runGraphCommand(args: string[]): Promise<void> {
     runValidate(projectDir)
   } else if (sub === "trace") {
     runTrace()
+  } else if (sub === "forget") {
+    const projectDir = args[1] || process.cwd()
+    const nodeId = args[2]
+    const reasonIdx = args.findIndex((a) => a === "--reason")
+    const reason = reasonIdx >= 0 ? (args[reasonIdx + 1] ?? "") : ""
+    runForget(projectDir, nodeId, reason)
+  } else if (sub === "restore") {
+    const projectDir = args[1] || process.cwd()
+    const nodeId = args[2]
+    runRestore(projectDir, nodeId)
+  } else if (sub === "prune") {
+    const projectDir = args[1] || process.cwd()
+    const olderIdx = args.findIndex((a) => a === "--invalidated-older-than")
+    const rawDays = olderIdx >= 0 ? args[olderIdx + 1] : undefined
+    const days = rawDays ? parseInt(rawDays, 10) : 90
+    if (Number.isNaN(days) || days < 0) {
+      console.error(`Invalid --invalidated-older-than value: ${rawDays}`)
+      process.exit(1)
+    }
+    const dryRun = args.includes("--dry-run")
+    runPrune(projectDir, days, dryRun)
   } else if (!sub) {
     printHelp()
   } else {
@@ -82,6 +107,9 @@ Usage:
   kody graph search <projectDir> <q> Full-text search across sessions
   kody graph validate <projectDir>  Check graph invariants (dangling refs, cycles, bad timestamps)
   kody graph trace                  Print KODY_MEMORY_TRACE summary (requires KODY_MEMORY_TRACE=1 earlier)
+  kody graph forget <projectDir> <id> [--reason "…"]  Soft-delete a fact (retraction episode created)
+  kody graph restore <projectDir> <id>  Un-delete a previously forgotten fact
+  kody graph prune <projectDir> [--invalidated-older-than=<days>] [--dry-run]  Archive invalidated facts older than N days (default 90)
   kody graph clear <projectDir> --confirm  Reset graph
 
 Examples:
@@ -277,6 +305,88 @@ function runValidate(projectDir: string): void {
   }
 
   if (!report.ok) process.exit(1)
+}
+
+function runForget(projectDir: string, nodeId: string | undefined, reason: string): void {
+  if (!nodeId) {
+    console.error("Usage: kody graph forget <projectDir> <node-id> [--reason \"…\"]")
+    process.exit(1)
+  }
+  const before = getFactById(projectDir, nodeId)
+  if (!before) {
+    console.error(`\nFact not found: ${nodeId}`)
+    process.exit(1)
+  }
+  if (before.validTo !== null) {
+    console.log(`\n○ Fact ${nodeId} was already forgotten at ${before.validTo}`)
+    return
+  }
+
+  // Create a retraction episode first so the invalidation is traceable.
+  const episode = createEpisode(projectDir, {
+    runId: `forget-${Date.now()}`,
+    source: "retraction",
+    taskId: nodeId,
+    createdAt: new Date().toISOString(),
+    rawContent: `User retracted fact ${nodeId}${reason ? ` — reason: ${reason}` : ""}`,
+    extractedNodeIds: [nodeId],
+    linkedFiles: [],
+    metadata: { reason: reason || "(no reason given)" },
+  })
+
+  const after = invalidateFact(projectDir, nodeId)
+  if (!after) {
+    console.error(`\n✗ invalidateFact returned null for ${nodeId}`)
+    process.exit(1)
+  }
+
+  console.log(`\n✓ Forgot ${nodeId}`)
+  console.log(`  Content:   ${after.content.slice(0, 80)}${after.content.length > 80 ? "..." : ""}`)
+  console.log(`  validTo:   ${after.validTo}`)
+  console.log(`  Episode:   ${episode.id}`)
+  if (reason) console.log(`  Reason:    ${reason}`)
+  console.log(`\n  To undo:   kody graph restore ${projectDir} ${nodeId}`)
+}
+
+function runRestore(projectDir: string, nodeId: string | undefined): void {
+  if (!nodeId) {
+    console.error("Usage: kody graph restore <projectDir> <node-id>")
+    process.exit(1)
+  }
+  const before = getFactById(projectDir, nodeId)
+  if (!before) {
+    console.error(`\nFact not found: ${nodeId}`)
+    process.exit(1)
+  }
+  if (before.validTo === null) {
+    console.log(`\n○ Fact ${nodeId} is already active (validTo was null)`)
+    return
+  }
+
+  const after = restoreFact(projectDir, nodeId)
+  if (!after) {
+    console.error(`\n✗ restoreFact returned null`)
+    process.exit(1)
+  }
+
+  console.log(`\n✓ Restored ${nodeId}`)
+  console.log(`  Content:  ${after.content.slice(0, 80)}${after.content.length > 80 ? "..." : ""}`)
+  console.log(`  validTo:  ${after.validTo ?? "null (active)"}`)
+}
+
+function runPrune(projectDir: string, days: number, dryRun: boolean): void {
+  const report = pruneInvalidatedOlderThan(projectDir, days, { dryRun })
+  console.log(`\n${dryRun ? "[dry-run] " : ""}Prune — invalidated facts older than ${days}d`)
+  console.log(`  Cutoff:              ${report.cutoff}`)
+  console.log(`  Nodes archived:      ${report.nodesArchived}`)
+  console.log(`  Edges archived:      ${report.edgesArchived}`)
+  console.log(`  Nodes remaining:     ${report.nodesRemaining}`)
+  console.log(`  Edges remaining:     ${report.edgesRemaining}`)
+  if (!dryRun && (report.nodesArchived > 0 || report.edgesArchived > 0)) {
+    console.log(`  Archive file:        ${report.archivedFile}`)
+  } else if (dryRun) {
+    console.log(`  (would write to:    ${report.archivedFile})`)
+  }
 }
 
 function runTrace(): void {

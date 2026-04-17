@@ -45,6 +45,7 @@ export const EpisodeSourceValues = [
   "migration",
   "nudge",
   "stage_diary",
+  "retraction",
 ] as const
 
 export type EpisodeSource = (typeof EpisodeSourceValues)[number]
@@ -61,6 +62,8 @@ export interface GraphNode {
   validFrom: string
   validTo: string | null
   tags?: string[]
+  /** Soft confidence signal in [0,1]; omitted for legacy nodes. */
+  confidence?: number
 }
 
 export interface GraphEdge {

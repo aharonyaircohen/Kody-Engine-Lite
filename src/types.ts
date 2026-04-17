@@ -72,6 +72,8 @@ export interface StageResult {
   promptTokens?: number
   /** Granular category when outcome != "completed" (for diagnostics/summary). */
   failureCategory?: FailureCategory
+  /** Fact ids this stage cited from Project Memory (empty array if none). */
+  citedFactIds?: string[]
 }
 
 export interface AgentResult {

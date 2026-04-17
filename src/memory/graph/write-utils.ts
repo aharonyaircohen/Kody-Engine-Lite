@@ -93,6 +93,7 @@ export function writeFactOnce(
   content: string,
   episodeId: string,
   tags?: string[],
+  confidence?: number,
 ): GraphNode | null {
   return withGraphLockSync(projectDir, () => {
     const nodes = readNodes(projectDir)
@@ -117,6 +118,7 @@ export function writeFactOnce(
       validFrom: now,
       validTo: null,
       ...(tags && tags.length > 0 ? { tags } : {}),
+      ...(typeof confidence === "number" ? { confidence } : {}),
     }
     nodes[id] = node
     writeNodes(projectDir, nodes)

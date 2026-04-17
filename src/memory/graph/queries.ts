@@ -133,6 +133,7 @@ export function searchFactsByScope(
   projectDir: string,
   scope: string[],
   limit = 5,
+  opts: { expandRelated?: boolean } = {},
 ): GraphNode[] {
   if (scope.length === 0) return []
   const rooms = inferRoomsFromScope(scope)
@@ -140,7 +141,7 @@ export function searchFactsByScope(
   const firstFile = scope[0]?.split("/").pop()?.replace(/\.[^.]+$/, "") ?? ""
   const q = rooms.join(" ").toLowerCase()
 
-  return allFacts
+  const direct = allFacts
     .filter(
       (n) =>
         (n.room && q.includes(n.room)) ||
@@ -148,6 +149,30 @@ export function searchFactsByScope(
     )
     .sort((a, b) => b.validFrom.localeCompare(a.validFrom))
     .slice(0, limit)
+
+  // W-3: expand with related_to neighbors (one hop out). Keeps scope search
+  // tight but surfaces facts explicitly linked to the room-matches.
+  if (opts.expandRelated !== false && direct.length > 0) {
+    const seen = new Set(direct.map((n) => n.id))
+    const nodesById = new Map(allFacts.map((n) => [n.id, n]))
+    const expanded: GraphNode[] = [...direct]
+
+    for (const node of direct) {
+      const neighborEdges = getOutgoingEdges(projectDir, node.id, "related_to")
+      for (const e of neighborEdges) {
+        if (seen.has(e.to)) continue
+        const neighbor = nodesById.get(e.to)
+        if (!neighbor || neighbor.validTo !== null) continue
+        seen.add(neighbor.id)
+        expanded.push(neighbor)
+        if (expanded.length >= limit * 2) break
+      }
+      if (expanded.length >= limit * 2) break
+    }
+    return expanded
+  }
+
+  return direct
 }
 
 // ─── Edge Queries ─────────────────────────────────────────────────────────────
@@ -209,6 +234,36 @@ export function getFactProvenance(projectDir: string, nodeId: string): import(".
 
 // ─── Write Operations ─────────────────────────────────────────────────────────
 
+/** Internal unlocked: write-fact primitive. Caller must hold graph lock. */
+function _writeFactUnlocked(
+  projectDir: string,
+  hall: HallType,
+  room: string,
+  content: string,
+  episodeId: string,
+  tags?: string[],
+  confidence?: number,
+): GraphNode {
+  const nodes = readNodes(projectDir)
+  const id = nodeIdWithTimestamp(hall, room)
+  const now = new Date().toISOString()
+  const node: GraphNode = {
+    id,
+    type: hall,
+    hall,
+    room,
+    content,
+    episodeId,
+    validFrom: now,
+    validTo: null,
+    ...(tags && tags.length > 0 ? { tags } : {}),
+    ...(typeof confidence === "number" ? { confidence } : {}),
+  }
+  nodes[id] = node
+  writeNodes(projectDir, nodes)
+  return node
+}
+
 /** Write a new fact (no invalidation of existing facts) */
 export function writeFact(
   projectDir: string,
@@ -217,30 +272,11 @@ export function writeFact(
   content: string,
   episodeId: string,
   tags?: string[],
+  confidence?: number,
 ): GraphNode {
-  return withGraphLockSync(projectDir, () => {
-    const nodes = readNodes(projectDir)
-
-    const id = nodeIdWithTimestamp(hall, room)
-    const now = new Date().toISOString()
-
-    const node: GraphNode = {
-      id,
-      type: hall,
-      hall,
-      room,
-      content,
-      episodeId,
-      validFrom: now,
-      validTo: null,
-      ...(tags && tags.length > 0 ? { tags } : {}),
-    }
-
-    nodes[id] = node
-    writeNodes(projectDir, nodes)
-
-    return node
-  })
+  return withGraphLockSync(projectDir, () =>
+    _writeFactUnlocked(projectDir, hall, room, content, episodeId, tags, confidence),
+  )
 }
 
 // Common English stopwords + throwaway tokens that would inflate Jaccard overlap.
@@ -322,6 +358,22 @@ export function findSimilarRecentNode(
   maxAgeDays = 30,
   similarityThreshold = 0.6,
 ): GraphNode | null {
+  const best = findBestSimilarRecentNode(projectDir, hall, content, maxAgeDays)
+  if (!best) return null
+  return best.similarity >= similarityThreshold ? best.node : null
+}
+
+/**
+ * Like findSimilarRecentNode but returns the BEST match with its similarity
+ * score. Used by writeFactOrSupersede to branch on tiered thresholds
+ * (supersede vs relate vs novel).
+ */
+export function findBestSimilarRecentNode(
+  projectDir: string,
+  hall: HallType,
+  content: string,
+  maxAgeDays = 30,
+): { node: GraphNode; similarity: number } | null {
   const nodes = readNodes(projectDir)
   const targetTokens = tokenizeForDedup(content)
   const targetExact = normalizeForExactMatch(content)
@@ -329,22 +381,34 @@ export function findSimilarRecentNode(
 
   const cutoff = new Date(Date.now() - maxAgeDays * 24 * 60 * 60 * 1000).toISOString()
 
+  let bestNode: GraphNode | null = null
+  let bestSim = -1
+
   for (const node of Object.values(nodes)) {
     if (node.hall !== hall) continue
     if (node.validFrom < cutoff) continue
+    if (node.validTo !== null) continue
 
     const nodeTokens = tokenizeForDedup(node.content)
     const useFuzzy =
       targetTokens.size >= MIN_TOKENS_FOR_FUZZY &&
       nodeTokens.size >= MIN_TOKENS_FOR_FUZZY
 
+    let sim = 0
     if (useFuzzy) {
-      if (sorensenDice(targetTokens, nodeTokens) >= similarityThreshold) return node
+      sim = sorensenDice(targetTokens, nodeTokens)
     } else if (normalizeForExactMatch(node.content) === targetExact) {
-      return node
+      sim = 1
+    }
+
+    if (sim > bestSim) {
+      bestSim = sim
+      bestNode = node
     }
   }
-  return null
+
+  if (!bestNode || bestSim <= 0) return null
+  return { node: bestNode, similarity: bestSim }
 }
 
 /**
@@ -363,71 +427,119 @@ export function readNodesByTag(
     .slice(0, limit)
 }
 
-/** Update a fact: invalidates the old one, creates a new one with superseded_by edge */
+/** Internal unlocked updateFact primitive. Caller must hold the graph lock. */
+function _updateFactUnlocked(
+  projectDir: string,
+  existingNodeId: string,
+  newContent: string,
+  episodeId: string,
+  tags?: string[],
+  confidence?: number,
+): GraphNode {
+  const now = new Date().toISOString()
+  const nodes = readNodes(projectDir)
+  const existing = nodes[existingNodeId]
+  if (!existing) {
+    throw new Error(`updateFact: node ${existingNodeId} not found`)
+  }
+  const invalidated: GraphNode = { ...existing, validTo: now }
+  const carriedTags = tags ?? existing.tags
+  const carriedConfidence = confidence ?? existing.confidence
+  const newId = nodeIdWithTimestamp(existing.hall, existing.room)
+  const newNode: GraphNode = {
+    id: newId,
+    type: existing.type,
+    hall: existing.hall,
+    room: existing.room,
+    content: newContent,
+    episodeId,
+    validFrom: now,
+    validTo: null,
+    ...(carriedTags && carriedTags.length > 0 ? { tags: carriedTags } : {}),
+    ...(typeof carriedConfidence === "number" ? { confidence: carriedConfidence } : {}),
+  }
+  nodes[existingNodeId] = invalidated
+  nodes[newId] = newNode
+  writeNodes(projectDir, nodes)
+
+  const edges = readEdges(projectDir)
+  const edge: GraphEdge = {
+    id: edgeId(existingNodeId, "superseded_by", newId),
+    from: existingNodeId,
+    rel: "superseded_by",
+    to: newId,
+    episodeId,
+    validFrom: now,
+    validTo: null,
+  }
+  edges.push(edge)
+  writeEdges(projectDir, edges)
+
+  return newNode
+}
+
+/** Update a fact: invalidates the old one, creates a new one with superseded_by edge.
+ *  When tags/confidence aren't passed, the old node's are carried forward. */
 export function updateFact(
   projectDir: string,
   existingNodeId: string,
   newContent: string,
   episodeId: string,
+  tags?: string[],
+  confidence?: number,
 ): GraphNode {
+  return withGraphLockSync(projectDir, () =>
+    _updateFactUnlocked(projectDir, existingNodeId, newContent, episodeId, tags, confidence),
+  )
+}
+
+/** Soft-delete a fact by setting validTo.  Returns the updated node or null if not found. */
+export function invalidateFact(projectDir: string, nodeId: string): GraphNode | null {
   return withGraphLockSync(projectDir, () => {
-    const now = new Date().toISOString()
-
-    // Read current state
     const nodes = readNodes(projectDir)
-    const existing = nodes[existingNodeId]
-    if (!existing) {
-      throw new Error(`updateFact: node ${existingNodeId} not found`)
-    }
-
-    // Invalidate existing (immutable update — don't mutate the live object)
-    const invalidated: GraphNode = { ...existing, validTo: now }
-
-    // Create new node with same hall+room
-    const newId = nodeIdWithTimestamp(existing.hall, existing.room)
-    const newNode: GraphNode = {
-      id: newId,
-      type: existing.type,
-      hall: existing.hall,
-      room: existing.room,
-      content: newContent,
-      episodeId,
-      validFrom: now,
-      validTo: null,
-    }
-
-    // Update nodes in memory
-    nodes[existingNodeId] = invalidated
-    nodes[newId] = newNode
+    const node = nodes[nodeId]
+    if (!node) return null
+    const updated = { ...node, validTo: new Date().toISOString() }
+    nodes[nodeId] = updated
     writeNodes(projectDir, nodes)
-
-    // Write superseded_by edge
-    const edges = readEdges(projectDir)
-    const edge: GraphEdge = {
-      id: edgeId(existingNodeId, "superseded_by", newId),
-      from: existingNodeId,
-      rel: "superseded_by",
-      to: newId,
-      episodeId,
-      validFrom: now,
-      validTo: null,
-    }
-    edges.push(edge)
-    writeEdges(projectDir, edges)
-
-    return newNode
+    return updated
   })
 }
 
-/** Soft-delete a fact by setting validTo */
-export function invalidateFact(projectDir: string, nodeId: string): void {
-  withGraphLockSync(projectDir, () => {
+/** Re-activate a previously invalidated fact by clearing validTo.  Returns the updated node or null if not found. */
+export function restoreFact(projectDir: string, nodeId: string): GraphNode | null {
+  return withGraphLockSync(projectDir, () => {
     const nodes = readNodes(projectDir)
     const node = nodes[nodeId]
-    if (!node) return
-    nodes[nodeId] = { ...node, validTo: new Date().toISOString() }
+    if (!node) return null
+    const updated = { ...node, validTo: null }
+    nodes[nodeId] = updated
     writeNodes(projectDir, nodes)
+    return updated
   })
+}
+
+/** Internal unlocked writeEdge primitive. Caller must hold the graph lock. */
+function _writeEdgeUnlocked(
+  projectDir: string,
+  from: string,
+  rel: RelationshipType,
+  to: string,
+  episodeId: string,
+): GraphEdge {
+  const edges = readEdges(projectDir)
+  const edge: GraphEdge = {
+    id: edgeId(from, rel, to),
+    from,
+    rel,
+    to,
+    episodeId,
+    validFrom: new Date().toISOString(),
+    validTo: null,
+  }
+  edges.push(edge)
+  writeEdges(projectDir, edges)
+  return edge
 }
 
 /** Write an edge between two nodes */
@@ -438,24 +550,9 @@ export function writeEdge(
   to: string,
   episodeId: string,
 ): GraphEdge {
-  return withGraphLockSync(projectDir, () => {
-    const edges = readEdges(projectDir)
-
-    const edge: GraphEdge = {
-      id: edgeId(from, rel, to),
-      from,
-      rel,
-      to,
-      episodeId,
-      validFrom: new Date().toISOString(),
-      validTo: null,
-    }
-
-    edges.push(edge)
-    writeEdges(projectDir, edges)
-
-    return edge
-  })
+  return withGraphLockSync(projectDir, () =>
+    _writeEdgeUnlocked(projectDir, from, rel, to, episodeId),
+  )
 }
 
 /** Soft-delete an edge */
@@ -466,5 +563,134 @@ export function invalidateEdge(projectDir: string, edgeId: string): void {
     if (idx === -1) return
     edges[idx] = { ...edges[idx], validTo: new Date().toISOString() }
     writeEdges(projectDir, edges)
+  })
+}
+
+// ─── Recently-changed facts (Phase W-5) ──────────────────────────────────────
+
+export interface RecentChange {
+  /** The now-current node (null if the change is a plain retraction). */
+  current: GraphNode | null
+  /** The prior node that was either superseded or invalidated. */
+  previous: GraphNode
+  /** What kind of change: supersede (old → new) or retract (just invalidate). */
+  kind: "superseded" | "retracted"
+  /** Timestamp of the change (validTo of the old node). */
+  changedAt: string
+}
+
+/**
+ * Find facts that were invalidated within the last `sinceDays` and pair each
+ * with its superseding version if one exists (via superseded_by edge).
+ * Used by the plan stage to show the LLM "what's changed recently" so
+ * reversed conventions are visible rather than eternal.
+ */
+export function getRecentlyChangedFacts(
+  projectDir: string,
+  sinceDays = 14,
+): RecentChange[] {
+  const nodes = readNodes(projectDir)
+  const edges = readEdges(projectDir)
+  const cutoff = new Date(Date.now() - sinceDays * 24 * 60 * 60 * 1000).toISOString()
+
+  // Map from superseded-old → superseding-new (via superseded_by edges).
+  const supersedeMap = new Map<string, string>()
+  for (const e of edges) {
+    if (e.rel !== "superseded_by") continue
+    if (e.validTo !== null) continue
+    supersedeMap.set(e.from, e.to)
+  }
+
+  const results: RecentChange[] = []
+  for (const node of Object.values(nodes)) {
+    if (node.validTo === null) continue
+    if (node.validTo < cutoff) continue
+
+    const nextId = supersedeMap.get(node.id)
+    const next = nextId ? nodes[nextId] ?? null : null
+    results.push({
+      current: next,
+      previous: node,
+      kind: next ? "superseded" : "retracted",
+      changedAt: node.validTo,
+    })
+  }
+
+  return results.sort((a, b) => b.changedAt.localeCompare(a.changedAt))
+}
+
+// ─── Write-or-supersede (Phase W-1) ──────────────────────────────────────────
+
+export type WriteFactOutcome =
+  | { kind: "skipped"; existing: GraphNode }
+  | { kind: "superseded"; old: GraphNode; next: GraphNode }
+  | { kind: "related"; next: GraphNode; neighbor: GraphNode; edge: GraphEdge }
+  | { kind: "new"; next: GraphNode }
+
+/**
+ * Tiered insight persistence:
+ *   - Exact content match → skipped.
+ *   - High similarity (≥ highThreshold) → updateFact on the similar node,
+ *     creating a superseded_by edge. The new node replaces the old.
+ *   - Medium similarity (≥ relateThreshold < high) → writeFact a new node
+ *     AND a related_to edge to the nearest neighbor.
+ *   - No similar match → plain writeFact.
+ *
+ * Drop-in replacement for writeFactOnce at insight-producing call sites
+ * (stage-diary, nudge, review conventions).
+ */
+export function writeFactOrSupersede(
+  projectDir: string,
+  hall: HallType,
+  room: string,
+  content: string,
+  episodeId: string,
+  tags?: string[],
+  confidence?: number,
+  opts: {
+    highThreshold?: number
+    relateThreshold?: number
+    maxAgeDays?: number
+  } = {},
+): WriteFactOutcome {
+  const highThreshold = opts.highThreshold ?? 0.85
+  const relateThreshold = opts.relateThreshold ?? 0.6
+  const maxAgeDays = opts.maxAgeDays ?? 30
+
+  return withGraphLockSync(projectDir, () => {
+    // 1. Exact-match dedup (same hall + same room + identical content).
+    const nodes = readNodes(projectDir)
+    const normalized = content.toLowerCase().trim()
+    for (const n of Object.values(nodes)) {
+      if (n.validTo !== null) continue
+      if (n.hall !== hall) continue
+      if (n.room !== room) continue
+      if (n.content.toLowerCase().trim() === normalized) {
+        return { kind: "skipped", existing: n }
+      }
+    }
+
+    // 2. Find best similar recent node in the same hall.
+    const best = findBestSimilarRecentNode(projectDir, hall, content, maxAgeDays)
+
+    // 3. High similarity → supersede (unlocked: we already hold the lock).
+    if (best && best.similarity >= highThreshold) {
+      const next = _updateFactUnlocked(projectDir, best.node.id, content, episodeId, tags, confidence)
+      // Re-read the invalidated old node so the outcome reflects post-update state.
+      const after = readNodes(projectDir)
+      const oldAfter = after[best.node.id] ?? { ...best.node, validTo: next.validFrom }
+      return { kind: "superseded", old: oldAfter, next }
+    }
+
+    // 4. Medium similarity → write new + related_to edge to the neighbor.
+    if (best && best.similarity >= relateThreshold) {
+      const next = _writeFactUnlocked(projectDir, hall, room, content, episodeId, tags, confidence)
+      const edge = _writeEdgeUnlocked(projectDir, next.id, "related_to", best.node.id, episodeId)
+      return { kind: "related", next, neighbor: best.node, edge }
+    }
+
+    // 5. No close match → plain write.
+    const next = _writeFactUnlocked(projectDir, hall, room, content, episodeId, tags, confidence)
+    return { kind: "new", next }
   })
 }
