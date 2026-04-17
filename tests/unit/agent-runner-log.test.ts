@@ -8,6 +8,7 @@ import {
   serializeSdkMessage,
   openAgentLog,
   writeCrashDump,
+  nextAttemptNumber,
   type SerializedSdkMessage,
 } from "../../src/agent-runner-log.js"
 
@@ -171,6 +172,42 @@ describe("serializeSdkMessage", () => {
   })
 })
 
+describe("nextAttemptNumber", () => {
+  let tmpDir: string
+  beforeEach(() => { tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kody-attempt-")) })
+  afterEach(() => { fs.rmSync(tmpDir, { recursive: true, force: true }) })
+
+  it("returns 1 when no prior log exists", () => {
+    expect(nextAttemptNumber(tmpDir, "plan")).toBe(1)
+  })
+
+  it("returns 1 when taskDir does not exist", () => {
+    expect(nextAttemptNumber(path.join(tmpDir, "does-not-exist"), "plan")).toBe(1)
+  })
+
+  it("increments past the highest existing log file", () => {
+    fs.writeFileSync(path.join(tmpDir, "agent-plan.1.jsonl"), "")
+    fs.writeFileSync(path.join(tmpDir, "agent-plan.2.jsonl"), "")
+    expect(nextAttemptNumber(tmpDir, "plan")).toBe(3)
+  })
+
+  it("considers both .N.jsonl and .N.crash.jsonl when picking next", () => {
+    fs.writeFileSync(path.join(tmpDir, "agent-plan.1.crash.jsonl"), "")
+    expect(nextAttemptNumber(tmpDir, "plan")).toBe(2)
+  })
+
+  it("is scoped per stage (doesn't cross-count other stages)", () => {
+    fs.writeFileSync(path.join(tmpDir, "agent-build.5.jsonl"), "")
+    expect(nextAttemptNumber(tmpDir, "plan")).toBe(1)
+  })
+
+  it("handles stage names containing regex-special characters safely", () => {
+    // "review-fix" is real. Construct a more adversarial one just in case.
+    fs.writeFileSync(path.join(tmpDir, "agent-review-fix.1.jsonl"), "")
+    expect(nextAttemptNumber(tmpDir, "review-fix")).toBe(2)
+  })
+})
+
 describe("openAgentLog", () => {
   let tmpDir: string
 
@@ -190,7 +227,7 @@ describe("openAgentLog", () => {
     // Wait for stream flush
     await new Promise((r) => setTimeout(r, 20))
 
-    const content = fs.readFileSync(path.join(tmpDir, "agent-taskify.jsonl"), "utf-8")
+    const content = fs.readFileSync(log.path, "utf-8")
     const lines = content.trim().split("\n")
     expect(lines).toHaveLength(2)
     const first = JSON.parse(lines[0])
@@ -204,12 +241,36 @@ describe("openAgentLog", () => {
     log.write({ ts: "t1", type: "assistant" })
     log.close()
     expect(log.path).toBe("")
+    expect(log.attempt).toBe(0)
   })
 
-  it("uses stage name in the file name", () => {
+  it("uses stage name and attempt number in the file name", () => {
     const log = openAgentLog(tmpDir, "review-fix")
     log.close()
-    expect(log.path).toBe(path.join(tmpDir, "agent-review-fix.jsonl"))
+    expect(log.path).toBe(path.join(tmpDir, "agent-review-fix.1.jsonl"))
+    expect(log.attempt).toBe(1)
+  })
+
+  it("does NOT truncate a previous attempt when called a second time for the same stage", async () => {
+    const first = openAgentLog(tmpDir, "plan")
+    first.write({ ts: "t1", type: "assistant", textPreview: "attempt-1-content" })
+    first.close()
+    await new Promise((r) => setTimeout(r, 20))
+
+    const second = openAgentLog(tmpDir, "plan")
+    second.write({ ts: "t2", type: "assistant", textPreview: "attempt-2-content" })
+    second.close()
+    await new Promise((r) => setTimeout(r, 20))
+
+    expect(first.path).not.toBe(second.path)
+    expect(first.attempt).toBe(1)
+    expect(second.attempt).toBe(2)
+
+    // Both files exist and preserve their own content
+    const firstContent = fs.readFileSync(first.path, "utf-8")
+    expect(firstContent).toContain("attempt-1-content")
+    const secondContent = fs.readFileSync(second.path, "utf-8")
+    expect(secondContent).toContain("attempt-2-content")
   })
 })
 
@@ -224,13 +285,13 @@ describe("writeCrashDump", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true })
   })
 
-  it("writes header + messages as JSONL", () => {
+  it("writes header + messages as JSONL with attempt-suffixed filename", () => {
     const messages: SerializedSdkMessage[] = [
       { ts: "t1", type: "assistant", tool: "Bash", toolInput: "ls" },
       { ts: "t2", type: "user", textPreview: "ok" },
     ]
-    const crashPath = writeCrashDump(tmpDir, "build", messages, "timed out", "timed_out", 120_000)
-    expect(crashPath).toBe(path.join(tmpDir, "agent-build.crash.jsonl"))
+    const crashPath = writeCrashDump(tmpDir, "build", 1, messages, "timed out", "timed_out", 120_000)
+    expect(crashPath).toBe(path.join(tmpDir, "agent-build.1.crash.jsonl"))
 
     const content = fs.readFileSync(crashPath!, "utf-8")
     const lines = content.trim().split("\n")
@@ -241,14 +302,24 @@ describe("writeCrashDump", () => {
     expect(header.subtype).toBe("timed_out")
     expect(header.raw).toContain("timed out")
     expect(header.raw).toContain("120000")
+    expect(header.raw).toContain("attempt=1")
     expect(header.raw).toContain("recentMessages=2")
 
     const msg1 = JSON.parse(lines[1])
     expect(msg1.tool).toBe("Bash")
   })
 
+  it("puts the attempt number in the filename so multiple failures don't overwrite", () => {
+    const p1 = writeCrashDump(tmpDir, "plan", 1, [], "x", "failed", 100)
+    const p2 = writeCrashDump(tmpDir, "plan", 2, [], "y", "failed", 200)
+    expect(p1).toBe(path.join(tmpDir, "agent-plan.1.crash.jsonl"))
+    expect(p2).toBe(path.join(tmpDir, "agent-plan.2.crash.jsonl"))
+    expect(fs.existsSync(p1!)).toBe(true)
+    expect(fs.existsSync(p2!)).toBe(true)
+  })
+
   it("returns undefined on empty taskDir", () => {
-    const crashPath = writeCrashDump("", "build", [], "n/a", "failed", 0)
+    const crashPath = writeCrashDump("", "build", 1, [], "n/a", "failed", 0)
     expect(crashPath).toBeUndefined()
   })
 })

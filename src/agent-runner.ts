@@ -325,6 +325,7 @@ export function createSdkRunner(): AgentRunner {
         const crashPath = writeCrashDump(
           taskDir,
           safeStageName,
+          agentLog.attempt,
           recentMessages.snapshot(),
           err,
           category,
@@ -379,8 +380,13 @@ export function createRunners(config: KodyConfig): Record<string, AgentRunner> {
     return runners
   }
 
-  // Single-runner default
-  const defaultName = config.agent.defaultRunner ?? "claude"
-  const defaultFactory = RUNNER_FACTORIES[defaultName] ?? createClaudeCodeRunner
+  // Single-runner default — SDK runner is now the default. The legacy name
+  // "claude" (used by existing configs and our own fallback chain) silently
+  // routes to the SDK factory so users who never set defaultRunner get the
+  // observability features without reconfiguring. Users who still need the
+  // deprecated subprocess runner can opt in via defaultRunner: "claude-code"
+  // or agent.runners: { foo: { type: "claude-code" } }.
+  const defaultName = config.agent.defaultRunner ?? "sdk"
+  const defaultFactory = RUNNER_FACTORIES[defaultName] ?? createSdkRunner
   return { [defaultName]: defaultFactory() }
 }

@@ -197,24 +197,56 @@ export function serializeSdkMessage(msg: unknown): SerializedSdkMessage {
 
 export interface AgentLog {
   path: string
+  /** 1-based attempt number this log is writing for. */
+  attempt: number
   write: (msg: SerializedSdkMessage) => void
   close: () => void
 }
 
+/** Escape a string for safe use inside a RegExp. */
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
 /**
- * Open a per-stage JSONL agent log under `{taskDir}/agent-{stage}.jsonl`.
+ * Pick the next 1-based attempt number for this stage by scanning the taskDir
+ * for existing `agent-{stage}.N.jsonl` and `agent-{stage}.N.crash.jsonl` files.
+ * Exported for tests.
+ */
+export function nextAttemptNumber(taskDir: string, stageName: string): number {
+  try {
+    const entries = fs.readdirSync(taskDir)
+    const pattern = new RegExp(`^agent-${escapeRegex(stageName)}\\.(\\d+)\\.(jsonl|crash\\.jsonl)$`)
+    const nums = entries
+      .map((f) => f.match(pattern))
+      .filter((m): m is RegExpMatchArray => m !== null)
+      .map((m) => parseInt(m[1], 10))
+      .filter((n) => Number.isFinite(n))
+    if (nums.length === 0) return 1
+    return Math.max(...nums) + 1
+  } catch {
+    return 1
+  }
+}
+
+/**
+ * Open a per-stage, per-attempt JSONL agent log under
+ * `{taskDir}/agent-{stage}.{attempt}.jsonl`. The attempt number is auto-picked
+ * by scanning existing files so retries don't overwrite earlier attempts.
  * Returns a no-op writer if the filesystem rejects the open (non-fatal).
  */
 export function openAgentLog(taskDir: string, stageName: string): AgentLog {
   // Some call sites (retrospective, nudge) pass an empty taskDir and don't
   // need a per-stage log. Return a no-op writer instead of failing noisily.
   if (!taskDir) {
-    return { path: "", write() {}, close() {} }
+    return { path: "", attempt: 0, write() {}, close() {} }
   }
-  const logPath = path.join(taskDir, `agent-${stageName}.jsonl`)
+  // mkdir first so the scan has a directory to read
+  try { fs.mkdirSync(taskDir, { recursive: true }) } catch { /* non-fatal */ }
+  const attempt = nextAttemptNumber(taskDir, stageName)
+  const logPath = path.join(taskDir, `agent-${stageName}.${attempt}.jsonl`)
   let stream: fs.WriteStream | undefined
   try {
-    fs.mkdirSync(taskDir, { recursive: true })
     stream = fs.createWriteStream(logPath, { flags: "w" })
     // Swallow late open/write errors (e.g. dir deleted under us in tests)
     // instead of bubbling up as an unhandled rejection.
@@ -226,6 +258,7 @@ export function openAgentLog(taskDir: string, stageName: string): AgentLog {
   }
   return {
     path: logPath,
+    attempt,
     write(msg) {
       if (!stream) return
       try { stream.write(JSON.stringify(msg) + "\n") } catch { /* ignore */ }
@@ -245,20 +278,22 @@ export function openAgentLog(taskDir: string, stageName: string): AgentLog {
 export function writeCrashDump(
   taskDir: string,
   stageName: string,
+  attempt: number,
   messages: SerializedSdkMessage[],
   reason: string,
   category: FailureCategory,
   elapsedMs: number,
 ): string | undefined {
   if (!taskDir) return undefined
-  const crashPath = path.join(taskDir, `agent-${stageName}.crash.jsonl`)
+  const suffix = attempt > 0 ? `${attempt}.crash.jsonl` : "crash.jsonl"
+  const crashPath = path.join(taskDir, `agent-${stageName}.${suffix}`)
   try {
     fs.mkdirSync(taskDir, { recursive: true })
     const header: SerializedSdkMessage = {
       ts: new Date().toISOString(),
       type: "crash",
       subtype: category,
-      raw: `${reason} (elapsed=${elapsedMs}ms, recentMessages=${messages.length})`,
+      raw: `${reason} (elapsed=${elapsedMs}ms, attempt=${attempt}, recentMessages=${messages.length})`,
     }
     const lines = [header, ...messages].map((m) => JSON.stringify(m)).join("\n") + "\n"
     fs.writeFileSync(crashPath, lines)

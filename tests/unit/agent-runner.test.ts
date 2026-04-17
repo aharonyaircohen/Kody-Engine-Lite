@@ -22,8 +22,27 @@ describe("createRunners", () => {
     },
   }
 
-  it("creates default claude runner when no runners config", () => {
+  it("creates default sdk runner when no runners config", () => {
     const runners = createRunners(baseConfig)
+    expect(runners).toHaveProperty("sdk")
+    expect(typeof runners.sdk.run).toBe("function")
+  })
+
+  it("honours explicit defaultRunner: \"claude-code\" for opt-in subprocess", () => {
+    const runners = createRunners({
+      ...baseConfig,
+      agent: { ...baseConfig.agent, defaultRunner: "claude-code" },
+    })
+    expect(runners).toHaveProperty("claude-code")
+    expect(typeof runners["claude-code"].run).toBe("function")
+  })
+
+  it("routes legacy defaultRunner: \"claude\" to the SDK runner (migration alias)", () => {
+    const runners = createRunners({
+      ...baseConfig,
+      agent: { ...baseConfig.agent, defaultRunner: "claude" },
+    })
+    // Key preserves the legacy name; factory silently upgraded to SDK.
     expect(runners).toHaveProperty("claude")
     expect(typeof runners.claude.run).toBe("function")
   })
