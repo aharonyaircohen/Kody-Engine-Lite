@@ -170,16 +170,90 @@ describe("fix command: skips taskify and plan", () => {
     expect(buildPrompt).toContain("error handling")
     expect(buildPrompt).toContain("401 not 500")
   })
+
+  it("build receives both auditor finding X and human feedback Y", async () => {
+    const taskDir = path.join(tmpDir, ".kody/tasks", "fix-combined")
+    fs.mkdirSync(taskDir, { recursive: true })
+    fs.writeFileSync(path.join(taskDir, "task.md"), "Fix auth")
+    fs.writeFileSync(path.join(taskDir, "task.json"), JSON.stringify({
+      task_type: "bugfix", title: "Fix", description: "Fix auth",
+      scope: [], risk_level: "low",
+    }))
+    fs.writeFileSync(path.join(taskDir, "plan.md"), "## Step 1: Fix\n**File:** a.ts")
+    fs.writeFileSync(path.join(taskDir, "status.json"), JSON.stringify({
+      taskId: "fix-combined",
+      state: "failed",
+      stages: {
+        taskify: { state: "completed", retries: 0 },
+        plan: { state: "completed", retries: 0 },
+        build: { state: "failed", retries: 0, error: "previous build failed" },
+        verify: { state: "pending", retries: 0 },
+        review: { state: "pending", retries: 0 },
+        "review-fix": { state: "pending", retries: 0 },
+        ship: { state: "pending", retries: 0 },
+      },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }))
+
+    // Simulate what entry.ts assembles for @kody fix on a PR:
+    // auditor_findings (from getLatestKodyReviewComment) concatenated with
+    // FEEDBACK (human comment body and/or comments since last Kody action).
+    const combinedFeedback = [
+      "## Review findings from PR #42",
+      "",
+      "Kody Review: finding X — the `validateToken` helper does not reject expired tokens.",
+      "",
+      "## Additional feedback",
+      "",
+      "please also rename `foo` to `bar` in the same pass — that's human feedback Y",
+    ].join("\n")
+
+    const capturedPrompts: Record<string, string> = {}
+    const capturingRunner: AgentRunner = {
+      async run(stage: string, prompt: string): Promise<AgentResult> {
+        capturedPrompts[stage] = prompt
+        return { outcome: "completed", output: "done" }
+      },
+      async healthCheck() { return true },
+    }
+
+    const ctx: PipelineContext = {
+      taskId: "fix-combined",
+      taskDir,
+      projectDir: tmpDir,
+      runners: { claude: capturingRunner },
+      input: {
+        mode: "rerun",
+        fromStage: "build",
+        feedback: combinedFeedback,
+      },
+    }
+
+    await runPipeline(ctx)
+
+    // taskify and plan must stay skipped — fix goes straight to build.
+    expect(capturedPrompts["taskify"]).toBeUndefined()
+    expect(capturedPrompts["plan"]).toBeUndefined()
+
+    const buildPrompt = capturedPrompts["build"] ?? ""
+    // Build sees both auditor finding X AND human feedback Y.
+    expect(buildPrompt).toContain("finding X")
+    expect(buildPrompt).toContain("validateToken")
+    expect(buildPrompt).toContain("human feedback Y")
+    expect(buildPrompt).toContain("rename `foo` to `bar`")
+    expect(buildPrompt).toContain("Human Feedback")
+  })
 })
 
 describe("fix command: entry.ts defaults", () => {
   function resolveFromStage(
     command: string,
-    feedback: string | undefined,
+    _feedback: string | undefined,
     explicit: string | undefined,
   ): string | undefined {
     if ((command === "fix" || command === "fix-ci") && !explicit) {
-      return feedback?.trim() ? "plan" : "build"
+      return "build"
     }
     return explicit
   }
@@ -190,13 +264,15 @@ describe("fix command: entry.ts defaults", () => {
     expect(resolveFromStage("fix", "   ", undefined)).toBe("build")
   })
 
-  it("fix with non-empty feedback defaults fromStage to plan (re-plan before build)", () => {
-    expect(resolveFromStage("fix", "Add proper error handling", undefined)).toBe("plan")
-    expect(resolveFromStage("fix", "Use middleware pattern", undefined)).toBe("plan")
+  it("fix with non-empty feedback also defaults fromStage to build (skips taskify and plan)", () => {
+    expect(resolveFromStage("fix", "Add proper error handling", undefined)).toBe("build")
+    expect(resolveFromStage("fix", "Use middleware pattern", undefined)).toBe("build")
+    expect(resolveFromStage("fix-ci", "CI logs here", undefined)).toBe("build")
   })
 
-  it("fix with explicit --from overrides default even when feedback is present", () => {
+  it("fix with explicit --from overrides default (escape hatch for replan)", () => {
     expect(resolveFromStage("fix", "Add feature X", "verify")).toBe("verify")
+    expect(resolveFromStage("fix", "Rework approach", "plan")).toBe("plan")
     expect(resolveFromStage("fix", undefined, "build")).toBe("build")
   })
 

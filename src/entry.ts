@@ -194,6 +194,13 @@ async function runModelHealthCheck(config: KodyConfig): Promise<void> {
 async function main() {
   const input = parseArgs()
 
+  // A/B benchmarking: propagate memory-disabled state so context.ts skips memory injection.
+  // Set early — before any stage reads memory — and surface it in logs so runs are auditable.
+  if (input.noMemory) {
+    process.env.KODY_NO_MEMORY = "true"
+    logger.info("Memory disabled for this run (--no-memory)")
+  }
+
   // Resolve working directory first (needed for task lookup)
   const projectDir = input.cwd ? path.resolve(input.cwd) : process.cwd()
   if (input.cwd) {
@@ -703,11 +710,14 @@ async function main() {
     }
   }
 
-  // Fix command defaults (must run AFTER feedback auto-injection above):
-  // with non-empty feedback, re-plan first so the updated scope reaches build.
-  // With no feedback, keep the review-only fast path.
+  // Fix command default: always start from build, skipping taskify and plan.
+  // The auditor findings + human feedback are concatenated into input.feedback
+  // above (lines 686-711) and reach the build via the "## Human Feedback"
+  // section injected by injectTaskContext — so scope_for_build =
+  // auditor_findings + FEEDBACK without re-planning. Explicit --from overrides
+  // this default for the rare case where feedback demands architectural replan.
   if ((input.command === "fix" || input.command === "fix-ci") && !input.fromStage) {
-    input.fromStage = input.feedback?.trim() ? "plan" : "build"
+    input.fromStage = "build"
   }
 
   const config = getProjectConfig()
