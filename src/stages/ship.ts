@@ -39,10 +39,22 @@ export function shouldFailFixModeShip(
 }
 
 /**
- * Detect whether any source file (outside `.kody/`) changed between `ref` and
- * current HEAD. Exported for tests and for callers that need to scope the
- * comparison to a specific ref (e.g. the pre-fix HEAD captured at the start
- * of a fix run, rather than the default branch).
+ * Paths the engine maintains for its own bookkeeping — these don't count as
+ * "source changes" for the fix-mode ship guard. Edit with care: any path added
+ * here becomes invisible to the guard, so the pipeline could silently ship a
+ * no-op fix whose only changes are under these prefixes.
+ */
+const KODY_ARTIFACT_PREFIXES = [".kody/", ".kody-engine/"] as const
+
+export function isKodyArtifactPath(filePath: string): boolean {
+  return KODY_ARTIFACT_PREFIXES.some((prefix) => filePath.startsWith(prefix))
+}
+
+/**
+ * Detect whether any source file (outside Kody's own bookkeeping dirs) changed
+ * between `ref` and current HEAD. Exported for tests and for callers that need
+ * to scope the comparison to a specific ref (e.g. the pre-fix HEAD captured at
+ * the start of a fix run, rather than the default branch).
  */
 export function detectSourceChangesSinceRef(projectDir: string, ref: string): boolean {
   try {
@@ -55,7 +67,7 @@ export function detectSourceChangesSinceRef(projectDir: string, ref: string): bo
       .split("\n")
       .map((f) => f.trim())
       .filter(Boolean)
-      .some((f) => !f.startsWith(".kody/"))
+      .some((f) => !isKodyArtifactPath(f))
   } catch {
     // If git diff fails (e.g. detached HEAD, missing ref), don't block ship —
     // the guard is a safety net, not a hard invariant.

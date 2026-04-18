@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Add new entries above. Do not edit below this line. -->
 
+## [0.4.5] - 2026-04-18
+
+### Fixed
+
+- **Build agent ran in plan mode, never executed in fix-mode**: `src/agent-runner.ts:291` set `permissionMode: "plan"` whenever `allowedTools` was provided. The SDK defines plan mode as "no execution of tools," so the build agent would write `plan.md`, call `ExitPlanMode`, and end the session before touching source files. Full-mode runs happened to work because the preceding `plan` stage wrote `plan.md` first, so the build agent didn't have to invent one. Fix-mode (which skips plan) always tripped the bug. Changed to `permissionMode: "acceptEdits"` — `allowedTools` still restricts the toolset, but edits actually execute.
+- **Ship guard missed `.kody-engine/` artifacts**: the fix-mode ship guard in 0.4.4 only treated `.kody/` paths as non-source. The engine also writes `.kody-engine/.kody-engine/event-log.json`, which slipped into commits and made no-op fix runs appear to have source changes, silencing the guard. Extracted the prefix list into a new `isKodyArtifactPath` helper that covers both `.kody/` and `.kody-engine/`.
+
+### Added
+
+- Unit tests: 6 new cases in `tests/unit/ship-guard.test.ts` — `.kody-engine/` exclusion, mixed-commit detection, and anchored prefix-match rules via the new `isKodyArtifactPath` export.
+
 ## [0.4.4] - 2026-04-18
 
 ### Fixed

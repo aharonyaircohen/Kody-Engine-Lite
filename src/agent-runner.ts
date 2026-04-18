@@ -288,7 +288,14 @@ export function createSdkRunner(): AgentRunner {
             resume: undefined,
             allowedTools: options?.allowedTools ?? (options?.mcpConfigJson ? undefined : baseTools.split(",")),
             mcpServers: options?.mcpConfigJson ? JSON.parse(options.mcpConfigJson).mcpServers : undefined,
-            permissionMode: options?.allowedTools ? "plan" : "bypassPermissions",
+            // `permissionMode: 'plan'` (the previous value when allowedTools was
+            // set) is defined by the SDK as "Planning mode, no execution of
+            // tools" — which broke fix-mode: with no prior plan.md, the build
+            // agent wrote a plan, called ExitPlanMode, and the session ended
+            // before any source edits. Full-mode happened to work because the
+            // plan stage wrote plan.md first. `allowedTools` already restricts
+            // the tool surface; use `acceptEdits` so edits actually execute.
+            permissionMode: "acceptEdits",
             maxTurns: options?.maxTurns,
             maxBudgetUsd: options?.maxBudgetUsd,
             agents: options?.agents as Record<string, AgentDefinition> | undefined,

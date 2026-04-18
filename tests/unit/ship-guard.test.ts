@@ -7,6 +7,7 @@ import { execFileSync } from "child_process"
 import {
   shouldFailFixModeShip,
   detectSourceChangesSinceRef,
+  isKodyArtifactPath,
 } from "../../src/stages/ship.js"
 
 describe("ship guard: shouldFailFixModeShip", () => {
@@ -88,7 +89,58 @@ describe("detectSourceChangesSinceRef", () => {
     expect(detectSourceChangesSinceRef(repoDir, ref)).toBe(false)
   })
 
+  it("ignores .kody-engine/ artifacts — engine bookkeeping doesn't count as source", () => {
+    const ref = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: repoDir, encoding: "utf-8", stdio: "pipe",
+    }).trim()
+    fs.mkdirSync(path.join(repoDir, ".kody-engine", ".kody-engine"), { recursive: true })
+    fs.writeFileSync(path.join(repoDir, ".kody-engine", ".kody-engine", "event-log.json"), "{}")
+    execFileSync("git", ["add", "."], { cwd: repoDir, stdio: "pipe" })
+    execFileSync("git", ["commit", "-q", "--no-gpg-sign", "-m", "engine event log"], {
+      cwd: repoDir, stdio: "pipe",
+    })
+    expect(detectSourceChangesSinceRef(repoDir, ref)).toBe(false)
+  })
+
+  it("mixed commit (engine artifact + source) is STILL a source change", () => {
+    const ref = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: repoDir, encoding: "utf-8", stdio: "pipe",
+    }).trim()
+    fs.mkdirSync(path.join(repoDir, ".kody-engine"), { recursive: true })
+    fs.writeFileSync(path.join(repoDir, ".kody-engine", "log.json"), "{}")
+    fs.writeFileSync(path.join(repoDir, "src.ts"), "export const a = 2\n")
+    execFileSync("git", ["add", "."], { cwd: repoDir, stdio: "pipe" })
+    execFileSync("git", ["commit", "-q", "--no-gpg-sign", "-m", "real fix + log bookkeeping"], {
+      cwd: repoDir, stdio: "pipe",
+    })
+    expect(detectSourceChangesSinceRef(repoDir, ref)).toBe(true)
+  })
+
   it("safety-net: unknown ref → returns true (don't block ship)", () => {
     expect(detectSourceChangesSinceRef(repoDir, "0000000000000000000000000000000000000000")).toBe(true)
+  })
+})
+
+describe("isKodyArtifactPath", () => {
+  it("recognizes .kody/ paths", () => {
+    expect(isKodyArtifactPath(".kody/tasks/t1/plan.md")).toBe(true)
+    expect(isKodyArtifactPath(".kody/memory/diary.jsonl")).toBe(true)
+  })
+
+  it("recognizes .kody-engine/ paths", () => {
+    expect(isKodyArtifactPath(".kody-engine/.kody-engine/event-log.json")).toBe(true)
+    expect(isKodyArtifactPath(".kody-engine/foo")).toBe(true)
+  })
+
+  it("does NOT match real source paths", () => {
+    expect(isKodyArtifactPath("src/app/api/dashboard/route.ts")).toBe(false)
+    expect(isKodyArtifactPath("tests/int/feature.test.ts")).toBe(false)
+    expect(isKodyArtifactPath("package.json")).toBe(false)
+  })
+
+  it("does NOT match substring-ish matches (prefix only)", () => {
+    // Anchored: only real prefixes count
+    expect(isKodyArtifactPath("docs/.kody/guide.md")).toBe(false)
+    expect(isKodyArtifactPath("tests/.kody-engine-helpers.ts")).toBe(false)
   })
 })
