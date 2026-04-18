@@ -147,11 +147,17 @@ jobs:
 
   # ─── Orchestrate ─────────────────────────────────────────────────────────────
   orchestrate:
-    # Only wait for parse on issue_comment; workflow_dispatch and pull_request_review bypass it
+    # always() lets this job evaluate its if-condition even when the `parse`
+    # dependency was skipped (which it is for workflow_dispatch and
+    # pull_request_review, since parse's own if-condition is gated on
+    # issue_comment). Without always(), GitHub Actions inherits the skipped
+    # status from the needs dependency regardless of what this job's if says.
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'pull_request_review' ||
-      (github.event_name == 'issue_comment' && needs.parse.outputs.valid == 'true')
+      always() && (
+        github.event_name == 'workflow_dispatch' ||
+        github.event_name == 'pull_request_review' ||
+        (github.event_name == 'issue_comment' && needs.parse.outputs.valid == 'true')
+      )
     needs:
       - parse
     runs-on: ubuntu-latest
