@@ -33,6 +33,52 @@ function git(args: string[], cwd?: string): string {
   }).trim()
 }
 
+function tryGit(args: string[], cwd?: string): boolean {
+  try { git(args, cwd); return true } catch { return false }
+}
+
+import * as fs from "fs"
+import * as path from "path"
+
+/**
+ * Real-world models sometimes run `git stash`, `git checkout`, `git merge`, etc.
+ * during their verification (despite prompt rules). When that leaves the repo
+ * in an unfinished state, our subsequent `git commit` fails. Clean up the
+ * common cases before staging.
+ */
+export function abortUnfinishedGitOps(cwd?: string): string[] {
+  const aborted: string[] = []
+  const gitDir = path.join(cwd ?? process.cwd(), ".git")
+  if (!fs.existsSync(gitDir)) return aborted
+
+  if (fs.existsSync(path.join(gitDir, "MERGE_HEAD"))) {
+    if (tryGit(["merge", "--abort"], cwd)) aborted.push("merge")
+  }
+  if (fs.existsSync(path.join(gitDir, "CHERRY_PICK_HEAD"))) {
+    if (tryGit(["cherry-pick", "--abort"], cwd)) aborted.push("cherry-pick")
+  }
+  if (fs.existsSync(path.join(gitDir, "REVERT_HEAD"))) {
+    if (tryGit(["revert", "--abort"], cwd)) aborted.push("revert")
+  }
+  if (
+    fs.existsSync(path.join(gitDir, "rebase-merge")) ||
+    fs.existsSync(path.join(gitDir, "rebase-apply"))
+  ) {
+    if (tryGit(["rebase", "--abort"], cwd)) aborted.push("rebase")
+  }
+
+  // Detect unmerged paths even without a sentinel file (rare).
+  try {
+    const unmerged = git(["diff", "--name-only", "--diff-filter=U"], cwd)
+    if (unmerged) {
+      tryGit(["reset", "--mixed", "HEAD"], cwd)
+      aborted.push("unmerged-paths-reset")
+    }
+  } catch { /* best effort */ }
+
+  return aborted
+}
+
 export function isForbiddenPath(p: string): boolean {
   if (FORBIDDEN_PATH_EXACT.has(p)) return true
   for (const pre of FORBIDDEN_PATH_PREFIXES) if (p.startsWith(pre)) return true
@@ -61,6 +107,11 @@ export function commitAndPush(
   agentMessage: string,
   cwd?: string,
 ): CommitResult {
+  const aborted = abortUnfinishedGitOps(cwd)
+  if (aborted.length > 0) {
+    process.stderr.write(`[kody-lean] cleaned up unfinished git ops: ${aborted.join(", ")}\n`)
+  }
+
   const allChanged = listChangedFiles(cwd)
   const allowedFiles = allChanged.filter((f) => !isForbiddenPath(f))
 

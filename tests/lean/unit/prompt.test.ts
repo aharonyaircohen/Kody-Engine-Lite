@@ -77,7 +77,7 @@ describe("prompt: buildPrompt", () => {
       issue: { number: 1, title: "x", body: "", comments: [] },
       featureBranch: "1-x",
     })
-    expect(p).toMatch(/Do NOT run any `git` or `gh`/)
+    expect(p).toMatch(/Do NOT run \*\*any\*\* `git` or `gh` commands/)
   })
 })
 

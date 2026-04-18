@@ -47,10 +47,11 @@ ${qualityLines.join("\n")}
    Or on failure: FAILED: <reason>
 
 # Rules
-- Do NOT run any \`git\` or \`gh\` commands — the wrapper handles all git ops, commits, pushes, PRs, and comments.
+- Do NOT run **any** \`git\` or \`gh\` commands. Not for committing. Not for pushing. Not for inspecting state. Not for "verifying whether failures are pre-existing." Not stash, checkout, diff, status, log, branch — none. The wrapper handles all git/gh operations. If a quality gate fails, that's the failure — do not investigate it via git.
 - Stay on the current branch (\`${featureBranch}\`). It is already checked out for you.
 - Do NOT modify files under: \`.kody/\`, \`.kody-engine/\`, \`.kody-lean/\`, \`node_modules/\`, \`dist/\`, \`build/\`, \`.env\`, or any \`*.log\`.
 - Do NOT post issue comments — the wrapper handles that.
+- Pre-existing quality-gate failures: assume they are NOT your responsibility unless your edits touched related code. If quality gates are red but your edits are unrelated, output \`DONE\` with a COMMIT_MSG describing only what you actually changed.
 - Keep the plan and reasoning concise. Long monologues waste turns.`
 }
 
