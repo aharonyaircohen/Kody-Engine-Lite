@@ -83,12 +83,19 @@ describe("integration: git flow", () => {
     expect(getCurrentBranch(repo.workdir)).toBe(second.branch)
   })
 
-  it("refuses to run on a branch with uncommitted changes", () => {
+  it("refuses to run on a branch with uncommitted changes to tracked files", () => {
     ensureFeatureBranch(8, "Y", "main", repo.workdir)
-    fs.writeFileSync(path.join(repo.workdir, "wip.txt"), "in progress")
+    fs.writeFileSync(path.join(repo.workdir, "README.md"), "# initial\nWIP edit\n")
     expect(hasUncommittedChanges(repo.workdir)).toBe(true)
     expect(() => ensureFeatureBranch(8, "Y", "main", repo.workdir))
       .toThrow(UncommittedChangesError)
+  })
+
+  it("ignores untracked files (not protectable WIP)", () => {
+    ensureFeatureBranch(81, "Z", "main", repo.workdir)
+    fs.writeFileSync(path.join(repo.workdir, "scratch.tmp"), "junk")
+    expect(hasUncommittedChanges(repo.workdir)).toBe(false)
+    expect(() => ensureFeatureBranch(81, "Z", "main", repo.workdir)).not.toThrow()
   })
 
   it("commits allowed files and pushes to remote", () => {

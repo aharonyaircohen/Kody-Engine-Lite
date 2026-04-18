@@ -38,7 +38,7 @@ export function getCurrentBranch(cwd?: string): string {
 }
 
 export function hasUncommittedChanges(cwd?: string): boolean {
-  return git(["status", "--porcelain"], cwd).length > 0
+  return git(["status", "--porcelain", "--untracked-files=no"], cwd).length > 0
 }
 
 export function ensureFeatureBranch(
