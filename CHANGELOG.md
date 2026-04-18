@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Add new entries above. Do not edit below this line. -->
 
+## [0.4.4] - 2026-04-18
+
+### Fixed
+
+- **fix-mode no-op when human adds feedback**: `@kody fix` with a non-empty feedback body silently produced zero source changes. Three interacting bugs:
+  - `prompts/build.md` instructed the build agent to "follow the plan EXACTLY"; with fix-mode skipping `plan`, the agent treated the existing task.md/plan.md as complete and ignored the `## Human Feedback` section. Added rule #8 making Human Feedback authoritative scope when present.
+  - `detectSourceChangesVsBase` in `src/stages/ship.ts` diffed PR HEAD against the default branch, so pre-existing PR changes always masked a no-op fix run. Now captures `preFixHead` at fix-run start in `src/entry.ts` and diffs `preFixHead...HEAD` via new `detectSourceChangesSinceRef`; falls back to base when unavailable.
+  - `findLastKodyActionTimestamp` in `src/github-api.ts` used the latest Kody comment as the "last action" cutoff — but Kody posts "Kody pipeline started" seconds before `getPRFeedbackSinceLastKodyAction` runs, so the human comment that triggered the run got filtered out. Added a 60s exclusion window so same-run Kody comments don't shadow the triggering feedback.
+
+### Added
+
+- Unit tests: `tests/unit/pr-feedback-timestamp.test.ts` (8 cases covering `isKodyComment` + `findLastKodyActionTimestamp` exclusion window), extended `tests/unit/ship-guard.test.ts` with `detectSourceChangesSinceRef` cases (no-op fix, real source change, pure `.kody/` artifact commit, unknown-ref safety net).
+- Public exports: `detectSourceChangesSinceRef`, `isKodyComment`, `findLastKodyActionTimestamp`, `RECENT_KODY_COMMENT_EXCLUSION_MS`.
+
 ## [0.1.52] - 2026-04-09
 
 ### Fixed

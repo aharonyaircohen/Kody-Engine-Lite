@@ -720,6 +720,23 @@ async function main() {
     input.fromStage = "build"
   }
 
+  // Capture pre-fix HEAD so the ship guard can diff only commits produced by
+  // this run (not the entire PR vs default branch). Done before any pipeline
+  // stage touches the tree.
+  if (input.command === "fix" || input.command === "fix-ci") {
+    try {
+      const { execFileSync } = await import("child_process")
+      const head = execFileSync("git", ["rev-parse", "HEAD"], {
+        cwd: projectDir,
+        encoding: "utf-8",
+        stdio: "pipe",
+      }).trim()
+      if (head) input.preFixHead = head
+    } catch {
+      // Non-fatal: the ship guard will fall back to base-branch diff.
+    }
+  }
+
   const config = getProjectConfig()
 
   // Apply per-stage timeout overrides from config

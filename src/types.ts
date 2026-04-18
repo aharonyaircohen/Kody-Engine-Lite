@@ -139,6 +139,11 @@ export interface PipelineContext {
     prNumber?: number
     prBaseBranch?: string
     feedback?: string
+    /** Git SHA captured at the start of a fix/fix-ci run. Used by the ship
+     *  guard to diff only commits produced by the current run, not the entire
+     *  PR vs the default branch. When absent, the guard falls back to the
+     *  base-branch diff. */
+    preFixHead?: string
     local?: boolean
     complexity?: "low" | "medium" | "high" | "hotfix"
     skipTests?: boolean

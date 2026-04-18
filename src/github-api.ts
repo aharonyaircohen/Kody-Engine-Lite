@@ -530,13 +530,31 @@ const KODY_MARKERS = [
   "already completed",
 ]
 
-function isKodyComment(comment: PRComment): boolean {
+export function isKodyComment(comment: PRComment): boolean {
   if (comment.user_type === "Bot") return true
   return KODY_MARKERS.some((marker) => comment.body.includes(marker))
 }
 
-function findLastKodyActionTimestamp(comments: PRComment[]): string | null {
-  const kodyComments = comments.filter(isKodyComment)
+/**
+ * Window (ms) for excluding very recent Kody comments when determining the
+ * "last Kody action" timestamp. The current run's own "Kody pipeline started"
+ * comment is posted seconds before this function executes; if it's used as the
+ * cutoff, the human comment that triggered the run gets filtered out. This
+ * window ignores Kody comments posted within N ms of `now`.
+ */
+export const RECENT_KODY_COMMENT_EXCLUSION_MS = 60_000
+
+export function findLastKodyActionTimestamp(
+  comments: PRComment[],
+  now: number = Date.now(),
+): string | null {
+  const cutoff = now - RECENT_KODY_COMMENT_EXCLUSION_MS
+  const kodyComments = comments.filter((c) => {
+    if (!isKodyComment(c)) return false
+    const t = Date.parse(c.created_at)
+    // Keep only Kody comments from BEFORE the current run started
+    return Number.isFinite(t) && t < cutoff
+  })
   if (kodyComments.length === 0) return null
   // Comments are returned chronologically, take the last one
   return kodyComments[kodyComments.length - 1].created_at

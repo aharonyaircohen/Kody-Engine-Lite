@@ -15,6 +15,7 @@ CRITICAL RULES:
 5. Do NOT commit or push — the orchestrator handles git.
 6. If the plan says to write tests first, write tests first.
 7. Document any deviations from the plan (if absolutely necessary).
+8. If a `## Human Feedback` section is present and non-empty, treat it as authoritative scope. Implement what it asks for even if the Task Description / Plan appears complete — the feedback supersedes stale plans. In fix-mode there is no fresh plan, so Human Feedback is often the ONLY source of truth for what to build. Do not conclude "nothing to do" while Human Feedback contains open requirements.
 
 Implementation discipline:
 - Use Edit for surgical changes to existing files (prefer over Write for modifications)

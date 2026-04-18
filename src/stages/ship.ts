@@ -38,11 +38,17 @@ export function shouldFailFixModeShip(
   return !hasSourceChanges
 }
 
-function detectSourceChangesVsBase(projectDir: string, base: string): boolean {
+/**
+ * Detect whether any source file (outside `.kody/`) changed between `ref` and
+ * current HEAD. Exported for tests and for callers that need to scope the
+ * comparison to a specific ref (e.g. the pre-fix HEAD captured at the start
+ * of a fix run, rather than the default branch).
+ */
+export function detectSourceChangesSinceRef(projectDir: string, ref: string): boolean {
   try {
     const diff = execFileSync(
       "git",
-      ["diff", "--name-only", `${base}...HEAD`],
+      ["diff", "--name-only", `${ref}...HEAD`],
       { cwd: projectDir, encoding: "utf-8", stdio: "pipe" },
     )
     return diff
@@ -51,10 +57,14 @@ function detectSourceChangesVsBase(projectDir: string, base: string): boolean {
       .filter(Boolean)
       .some((f) => !f.startsWith(".kody/"))
   } catch {
-    // If git diff fails (e.g. detached HEAD, missing base), don't block ship —
+    // If git diff fails (e.g. detached HEAD, missing ref), don't block ship —
     // the guard is a safety net, not a hard invariant.
     return true
   }
+}
+
+function detectSourceChangesVsBase(projectDir: string, base: string): boolean {
+  return detectSourceChangesSinceRef(projectDir, base)
 }
 
 export function buildPrBody(ctx: PipelineContext): string {
@@ -167,12 +177,17 @@ export function executeShipStage(
     const base = getDefaultBranch(ctx.projectDir)
 
     // Fix-mode guard: if the human supplied feedback but no source file (outside
-    // .kody/) changed between base and HEAD, the pipeline silently dropped new
-    // scope. Fail loudly so it can't slip through as an empty artifact commit.
+    // .kody/) changed during THIS run, the pipeline silently dropped new scope.
+    // Fail loudly so it can't slip through as an empty artifact commit.
+    //
+    // Compare against `preFixHead` (captured at fix-run start) when available —
+    // diffing against the default branch wrongly counts the PR's pre-existing
+    // changes and makes the guard a no-op on any non-empty PR.
+    const compareRef = ctx.input.preFixHead ?? base
     if (shouldFailFixModeShip(
       ctx.input.command,
       ctx.input.feedback,
-      detectSourceChangesVsBase(ctx.projectDir, base),
+      detectSourceChangesSinceRef(ctx.projectDir, compareRef),
     )) {
       const msg =
         "fix-mode with non-empty feedback produced no source-file changes — failing ship to surface the dropped scope"

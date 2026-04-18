@@ -8,6 +8,10 @@ export interface CliInput {
   issueNumber?: number
   prNumber?: number
   feedback?: string
+  /** Git SHA captured at the start of a fix/fix-ci run by entry.ts. The ship
+   *  guard diffs against this instead of the default branch so no-op fix runs
+   *  are caught even on PRs that already have lots of changes vs base. */
+  preFixHead?: string
   local?: boolean
   complexity?: "low" | "medium" | "high" | "hotfix"
   ciRunId?: string
