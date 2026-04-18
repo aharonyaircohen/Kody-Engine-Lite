@@ -96,9 +96,17 @@ export function isForbiddenPath(p: string): boolean {
 }
 
 export function listChangedFiles(cwd?: string): string[] {
-  const status = git(["status", "--porcelain"], cwd)
-  if (!status) return []
-  return status.split("\n").map((line) => line.slice(3).trim()).filter(Boolean)
+  // Use NUL-delimited output to avoid quoting/whitespace issues with paths.
+  // Each entry begins with a 2-char status code + 1 space, then the path.
+  const raw = execFileSync("git", ["status", "--porcelain=v1", "-z"], {
+    encoding: "utf-8",
+    cwd,
+    env: { ...process.env, HUSKY: "0", SKIP_HOOKS: "1" },
+    stdio: ["pipe", "pipe", "pipe"],
+  })
+  if (!raw) return []
+  const entries = raw.split("\0").filter((e) => e.length > 0)
+  return entries.map((e) => e.slice(3)).filter(Boolean)
 }
 
 export function normalizeCommitMessage(raw: string): string {
