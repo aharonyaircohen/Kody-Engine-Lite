@@ -124,7 +124,7 @@ export async function revertCommand(input: RevertInput): Promise<void> {
   if (!targetPR) {
     const msg = input.target
       ? `Could not resolve revert target: ${input.target}`
-      : `No merged PR found for issue #${input.issueNumber ?? "?"}. Use @kody revert #<PR> to specify explicitly.`
+      : `No merged PR found for issue #${input.issueNumber ?? "?"}. Use \`kody revert #<PR>\` (prefix with @) to specify explicitly.`
     logger.error(msg)
     if (input.issueNumber && !input.dryRun) {
       try { postComment(input.issueNumber, `❌ Revert failed: ${msg}`) } catch { /* best effort */ }

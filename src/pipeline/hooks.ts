@@ -139,7 +139,7 @@ export function checkRiskGate(
       ctx.input.issueNumber,
       `🛑 **Risk gate: HIGH complexity — awaiting approval**\n\n`
       + `<details><summary>📋 Plan summary</summary>\n\n${plan}\n</details>\n\n`
-      + `To approve: \`@kody approve\``,
+      + `To approve, reply with \`kody approve\` (prefix with @).`,
     )
     setLifecycleLabel(ctx.input.issueNumber, "paused")
   } catch { /* fire-and-forget */ }

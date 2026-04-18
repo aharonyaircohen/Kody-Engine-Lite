@@ -36,7 +36,7 @@ export function checkForQuestions(ctx: PipelineContext, stageName: string): bool
       if (taskJson.questions && Array.isArray(taskJson.questions)) {
         const realQuestions = taskJson.questions.filter((q: string) => !isTrivialQuestion(q))
         if (realQuestions.length > 0) {
-          const body = `🤔 **Kody has questions before proceeding:**\n\n${realQuestions.map((q: string, i: number) => `${i + 1}. ${q}`).join("\n")}\n\nReply with \`@kody approve\` and your answers in the comment body.`
+          const body = `🤔 **Kody has questions before proceeding:**\n\n${realQuestions.map((q: string, i: number) => `${i + 1}. ${q}`).join("\n")}\n\nReply with \`kody approve\` (prefix with @) and your answers in the comment body.`
           postComment(ctx.input.issueNumber, body)
           setLifecycleLabel(ctx.input.issueNumber, "paused")
           return true
@@ -57,7 +57,7 @@ export function checkForQuestions(ctx: PipelineContext, stageName: string): bool
         const allQuestions = questionsText.split("\n").filter((l) => l.startsWith("- ")).map((l) => l.slice(2))
         const realQuestions = allQuestions.filter((q) => !isTrivialQuestion(q))
         if (realQuestions.length > 0) {
-          const body = `🏗️ **Kody has architecture questions:**\n\n${realQuestions.map((q, i) => `${i + 1}. ${q}`).join("\n")}\n\nReply with \`@kody approve\` and your answers in the comment body.`
+          const body = `🏗️ **Kody has architecture questions:**\n\n${realQuestions.map((q, i) => `${i + 1}. ${q}`).join("\n")}\n\nReply with \`kody approve\` (prefix with @) and your answers in the comment body.`
           postComment(ctx.input.issueNumber, body)
           setLifecycleLabel(ctx.input.issueNumber, "paused")
           return true

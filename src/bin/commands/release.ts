@@ -490,7 +490,7 @@ export async function releaseCommand(input: ReleaseInput): Promise<void> {
         `📦 **Release PR created:** ${pr.url}\n\n` +
         `**Version:** ${currentVersion} → ${newVersion} (${bump})\n` +
         `**Commits:** ${commits.length} since ${lastTag ?? "beginning"}\n\n` +
-        `After merging to main, run \`@kody release --finalize\` to tag and publish.`,
+        `After merging to main, run \`kody release --finalize\` (prefix with @) to tag and publish.`,
       )
     }
   } else {

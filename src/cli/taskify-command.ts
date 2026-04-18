@@ -371,7 +371,7 @@ function handleQuestions(
 ): void {
   const questions = parsed.questions ?? []
   const numbered = questions.map((q, i) => `${i + 1}. ${q}`).join("\n")
-  const comment = `Kody has questions before decomposing **${ticketId}**:\n\n${numbered}\n\nReply with \`@kody approve\` and your answers to proceed.`
+  const comment = `Kody has questions before decomposing **${ticketId}**:\n\n${numbered}\n\nReply with \`kody approve\` (prefix with @) and your answers to proceed.`
 
   logger.info(`[taskify] posting ${questions.length} question(s)`)
   if (issueNumber && !local) {
@@ -449,10 +449,10 @@ async function handleTasks(
   if (issueNumber && !local) {
     const links = filed.map((i) => `- [#${i.number}](${i.url}) — ${i.title}`).join("\n")
     const triggerNote = tooMany
-      ? `\n\n> **${tasks.length} tasks filed** — auto-trigger is disabled for large epics. Comment \`@kody\` on each issue to start the pipeline.`
+      ? `\n\n> **${tasks.length} tasks filed** — auto-trigger is disabled for large epics. Comment \`kody\` (prefix with @) on each issue to start the pipeline.`
       : autoTrigger
-        ? `\n\n> Auto-triggered \`@kody\` on each issue.`
-        : `\n\n> Comment \`@kody\` on each issue to start the pipeline.`
+        ? `\n\n> Auto-triggered the Kody pipeline on each issue.`
+        : `\n\n> Comment \`kody\` (prefix with @) on each issue to start the pipeline.`
     postComment(issueNumber,
       `Kody decomposed **${ticketId}** into ${filed.length} task(s):\n\n${links}${triggerNote}`,
     )

@@ -1180,7 +1180,7 @@ Command and URL.
     }
     if (issueNumber) {
       const errorList = llmErrors.map((e) => `- ${e}`).join("\n")
-      ghComment(issueNumber, `⚠️ **Bootstrap completed with LLM errors** — some files used fallback templates instead of project-specific customization.\n\n**Errors:**\n${errorList}\n\nRe-run \`@kody bootstrap\` to retry.`, cwd)
+      ghComment(issueNumber, `⚠️ **Bootstrap completed with LLM errors** — some files used fallback templates instead of project-specific customization.\n\n**Errors:**\n${errorList}\n\nRe-run with \`kody bootstrap\` (prefix with @) to retry.`, cwd)
     }
   } else {
     console.log("  ✓ Project bootstrap complete!")
