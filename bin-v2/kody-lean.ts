@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import { main } from "../src-v2/entry.js"
 
 main().then((code) => {
