@@ -5,7 +5,8 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "kody-engine": "dist/bin/cli.js"
+    "kody-engine": "dist/bin/cli.js",
+    "kody-lean": "dist/bin-v2/kody-lean.js"
   },
   "files": [
     "dist",
@@ -15,10 +16,13 @@
   ],
   "scripts": {
     "kody": "tsx src/entry.ts",
+    "kody-lean": "tsx bin-v2/kody-lean.ts",
     "claude": "tsx scripts/kody.ts",
     "build": "tsup",
     "test": "vitest run --coverage",
     "test:ci": "vitest run --coverage --reporter=junit --outputFile=coverage/junit.xml",
+    "test:lean": "vitest run --coverage src-v2",
+    "test:lean:e2e": "vitest run e2e",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "pnpm build"
   },

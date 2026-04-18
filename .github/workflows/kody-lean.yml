@@ -1,0 +1,77 @@
+name: kody-lean
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "GitHub issue number"
+        required: true
+        type: string
+  issue_comment:
+    types: [created]
+
+jobs:
+  run:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issue_comment' &&
+        github.event.issue.pull_request == null &&
+        contains(github.event.comment.body, '@kody2'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup Python (for LiteLLM)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install LiteLLM
+        run: pip install 'litellm[proxy]'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Configure git identity
+        run: |
+          git config user.name  "kody-lean-bot"
+          git config user.email "kody-lean-bot@users.noreply.github.com"
+
+      - name: Run kody-lean
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          GH_PAT:   ${{ secrets.GH_PAT }}
+          MINIMAX_API_KEY:   ${{ secrets.MINIMAX_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY:    ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          ISSUE="${{ github.event.inputs.issue_number || github.event.issue.number }}"
+          pnpm kody-lean run --issue "$ISSUE"
+
+      - name: Upload run artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kody-lean-run-${{ github.run_id }}
+          path: .kody-lean/
+          if-no-files-found: ignore
+          retention-days: 14

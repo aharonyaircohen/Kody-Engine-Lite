@@ -1,0 +1,42 @@
+name: kody-lean tests
+
+on:
+  pull_request:
+    paths:
+      - "src-v2/**"
+      - "bin-v2/**"
+      - "tests/lean/**"
+      - "e2e/**"
+      - ".github/workflows/kody-lean-tests.yml"
+      - "package.json"
+      - "tsconfig.json"
+  push:
+    branches: [main]
+    paths:
+      - "src-v2/**"
+      - "bin-v2/**"
+      - "tests/lean/**"
+      - "e2e/**"
+
+jobs:
+  unit-and-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Configure git identity (for integration tests)
+        run: |
+          git config --global user.name  "kody-test"
+          git config --global user.email "test@kody"
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Run unit + integration tests
+        run: npx vitest run tests/lean --no-coverage
+      - name: Run E2E smoke
+        run: npx vitest run e2e --no-coverage

@@ -46,3 +46,6 @@ demo/videos/
 # Test coverage
 coverage/
 .kody-engine/
+
+# kody-lean (single-session pipeline) runtime artifacts
+.kody-lean/
