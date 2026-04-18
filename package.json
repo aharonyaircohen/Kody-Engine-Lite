@@ -20,8 +20,7 @@
     "test": "vitest run --coverage",
     "test:ci": "vitest run --coverage --reporter=junit --outputFile=coverage/junit.xml",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "pnpm build",
-    "release": "npm publish --access public && bash scripts/wait-for-npm.sh"
+    "prepublishOnly": "pnpm build"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "0.2.92",
