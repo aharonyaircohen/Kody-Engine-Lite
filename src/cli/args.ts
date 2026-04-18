@@ -15,6 +15,8 @@ export interface CliInput {
   /** "provider/model" string (e.g. "claude/claude-sonnet-4-6", "minimax/MiniMax-M2.7-highspeed"). */
   model?: string
   autoMode?: boolean
+  /** Disable all memory injection (facts, conventions, tiered memory, stage diary). Used for A/B benchmarking. */
+  noMemory?: boolean
 }
 
 function getArg(args: string[], flag: string): string | undefined {
@@ -53,7 +55,7 @@ export function parseArgs(): CliInput {
   if (hasFlag(args, "--help") || hasFlag(args, "-h") || args.length === 0) {
     console.log(`Usage:
   kody --ask "<question>" [--issue-number <n>] [--cwd <path>]
-  kody run       --task-id <id> [--task "<desc>"] [--cwd <path>] [--issue-number <n>] [--complexity low|medium|high] [--feedback "<text>"] [--local] [--dry-run] [--auto-mode]
+  kody run       --task-id <id> [--task "<desc>"] [--cwd <path>] [--issue-number <n>] [--complexity low|medium|high] [--feedback "<text>"] [--local] [--dry-run] [--auto-mode] [--no-memory]
   kody rerun     --task-id <id> --from <stage> [--cwd <path>] [--issue-number <n>]
   kody fix       --task-id <id> [--cwd <path>] [--issue-number <n>] [--feedback "<text>"]
   kody fix-ci    [--pr-number <n>] [--ci-run-id <id>] [--cwd <path>] [--issue-number <n>] [--feedback "<text>"]
@@ -93,5 +95,6 @@ export function parseArgs(): CliInput {
     noCompose: hasFlag(args, "--no-compose"),
     model: getArg(args, "--model") ?? process.env.MODEL ?? undefined,
     autoMode: hasFlag(args, "--auto-mode") || process.env.AUTO_MODE === "true",
+    noMemory: hasFlag(args, "--no-memory") || process.env.KODY_NO_MEMORY === "true",
   }
 }

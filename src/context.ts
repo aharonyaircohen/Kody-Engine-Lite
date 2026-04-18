@@ -24,6 +24,13 @@ import { generateL1 } from "./context-tiers.js"
 const MAX_TASK_CONTEXT_CHARS = 200_000 // ~50K tokens — virtually unlimited for spec/plan
 const MAX_ACCUMULATED_CONTEXT = 400_000 // ~100K tokens — accumulated context from all stages
 
+// A/B benchmarking gate: when set (via --no-memory flag or env var), all memory
+// injection is suppressed. The rest of the prompt (task context, feedback, browser
+// guidance, etc.) remains identical, so comparisons isolate the memory contribution.
+function isMemoryDisabled(): boolean {
+  return process.env.KODY_NO_MEMORY === "true"
+}
+
 export function readPromptFile(stageName: string, projectDir?: string): string {
   // Try project-level step file first (.kody/steps/{stageName}.md)
   if (projectDir) {
@@ -416,14 +423,14 @@ export function buildFullPrompt(
   if (config.contextTiers?.enabled) {
     assembled = buildFullPromptTiered(stageName, taskId, taskDir, projectDir, feedback, issueNumber)
   } else {
-    const memory = mergeBrainWithProject(projectDir)
+    const memory = isMemoryDisabled() ? "" : mergeBrainWithProject(projectDir)
     const promptTemplate = readPromptFile(stageName, projectDir)
     const prompt = injectTaskContext(promptTemplate, taskId, taskDir, feedback, { projectDir, issueNumber })
     assembled = memory ? `${memory}\n---\n\n${prompt}` : prompt
   }
 
   // Inject graph memory for the plan stage
-  if (stageName === "plan") {
+  if (stageName === "plan" && !isMemoryDisabled()) {
     const memoryBlock = buildMemoryContext(projectDir, taskDir)
     if (memoryBlock) {
       assembled = assembled + "\n\n" + memoryBlock
@@ -479,8 +486,9 @@ function buildFullPromptTiered(
 
   // Infer rooms from task scope for memory filtering
   const roomFilter = inferRoomsFromTaskJson(taskDir)
-  const brainMemory = readBrainMemoryTiered(policy.memory, policy.memoryHalls, roomFilter)
-  const projectMemory = readProjectMemoryTiered(projectDir, policy.memory, policy.memoryHalls, roomFilter)
+  const memoryOff = isMemoryDisabled()
+  const brainMemory = memoryOff ? "" : readBrainMemoryTiered(policy.memory, policy.memoryHalls, roomFilter)
+  const projectMemory = memoryOff ? "" : readProjectMemoryTiered(projectDir, policy.memory, policy.memoryHalls, roomFilter)
   const memory = brainMemory && projectMemory
     ? `${brainMemory}\n\n---\n\n${projectMemory}`
     : (brainMemory || projectMemory)
@@ -490,10 +498,12 @@ function buildFullPromptTiered(
   let assembled = memory ? `${memory}\n---\n\n${prompt}` : prompt
 
   // Inject stage diary (LLM-distilled insights from past runs, stored in the graph)
-  const insights = readStageInsights(projectDir, stageName)
-  const diaryBlock = formatStageInsightsForPrompt(stageName, insights)
-  if (diaryBlock) {
-    assembled += `\n\n${diaryBlock}\n`
+  if (!memoryOff) {
+    const insights = readStageInsights(projectDir, stageName)
+    const diaryBlock = formatStageInsightsForPrompt(stageName, insights)
+    if (diaryBlock) {
+      assembled += `\n\n${diaryBlock}\n`
+    }
   }
 
   // Token budget enforcement: truncate if over budget

@@ -135,9 +135,36 @@ export function searchFactsByScope(
   limit = 5,
   opts: { expandRelated?: boolean } = {},
 ): GraphNode[] {
+  return searchFactsByScopeInternal(projectDir, scope, limit, opts, null)
+}
+
+/**
+ * Temporal variant of searchFactsByScope: restricts results to facts that
+ * were live at `isoTime`. Same scope-matching behavior otherwise.
+ * `related_to` edge expansion is also time-filtered.
+ */
+export function searchFactsByScopeAsOf(
+  projectDir: string,
+  scope: string[],
+  isoTime: string,
+  limit = 5,
+  opts: { expandRelated?: boolean } = {},
+): GraphNode[] {
+  return searchFactsByScopeInternal(projectDir, scope, limit, opts, isoTime)
+}
+
+function searchFactsByScopeInternal(
+  projectDir: string,
+  scope: string[],
+  limit: number,
+  opts: { expandRelated?: boolean },
+  isoTime: string | null,
+): GraphNode[] {
   if (scope.length === 0) return []
   const rooms = inferRoomsFromScope(scope)
-  const allFacts = getCurrentFacts(projectDir)
+  const allFacts = isoTime === null
+    ? getCurrentFacts(projectDir)
+    : getFactsAtTime(projectDir, isoTime)
   const firstFile = scope[0]?.split("/").pop()?.replace(/\.[^.]+$/, "") ?? ""
   const q = rooms.join(" ").toLowerCase()
 
@@ -157,12 +184,16 @@ export function searchFactsByScope(
     const nodesById = new Map(allFacts.map((n) => [n.id, n]))
     const expanded: GraphNode[] = [...direct]
 
+    const neighborSource = isoTime === null
+      ? (nodeId: string) => getOutgoingEdges(projectDir, nodeId, "related_to")
+      : (nodeId: string) => getOutgoingEdgesAtTime(projectDir, nodeId, isoTime, "related_to")
+
     for (const node of direct) {
-      const neighborEdges = getOutgoingEdges(projectDir, node.id, "related_to")
+      const neighborEdges = neighborSource(node.id)
       for (const e of neighborEdges) {
         if (seen.has(e.to)) continue
         const neighbor = nodesById.get(e.to)
-        if (!neighbor || neighbor.validTo !== null) continue
+        if (!neighbor) continue
         seen.add(neighbor.id)
         expanded.push(neighbor)
         if (expanded.length >= limit * 2) break
@@ -173,6 +204,26 @@ export function searchFactsByScope(
   }
 
   return direct
+}
+
+/**
+ * Get edges outgoing from `nodeId` that were live at `isoTime`.
+ * Temporal counterpart to `getOutgoingEdges`.
+ */
+export function getOutgoingEdgesAtTime(
+  projectDir: string,
+  nodeId: string,
+  isoTime: string,
+  rel?: RelationshipType,
+): GraphEdge[] {
+  const edges = readEdges(projectDir)
+  return edges.filter(e => {
+    if (e.from !== nodeId) return false
+    if (e.validFrom > isoTime) return false
+    if (e.validTo !== null && e.validTo <= isoTime) return false
+    if (rel && e.rel !== rel) return false
+    return true
+  })
 }
 
 // ─── Edge Queries ─────────────────────────────────────────────────────────────

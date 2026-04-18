@@ -16,7 +16,7 @@ import {
   getCurrentFacts,
   getFactById,
   getFactHistory,
-  searchFacts,
+  getFactsAtTime,
   getFactProvenance,
   getGraphDir,
   graphNodesToMarkdown,
@@ -31,19 +31,55 @@ import {
 import { migrateProjectMemory } from "../../memory/migration.js"
 import { searchSessions } from "../../memory/search.js"
 
+/** Extract --as-of=<iso> flag. Returns null if absent; throws on invalid date. */
+function parseAsOf(args: string[]): string | null {
+  const flagIdx = args.findIndex((a) => a === "--as-of" || a.startsWith("--as-of="))
+  if (flagIdx === -1) return null
+  const raw = args[flagIdx].includes("=")
+    ? args[flagIdx].split("=", 2)[1]
+    : args[flagIdx + 1]
+  if (!raw) {
+    console.error("--as-of requires a timestamp (ISO 8601 or YYYY-MM-DD)")
+    process.exit(1)
+  }
+  const parsed = new Date(raw)
+  if (Number.isNaN(parsed.getTime())) {
+    console.error(`Invalid --as-of timestamp: ${raw}`)
+    process.exit(1)
+  }
+  return parsed.toISOString()
+}
+
+/** Remove --as-of and its value from args so positional parsing stays intact. */
+function stripAsOf(args: string[]): string[] {
+  const out: string[] = []
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i]
+    if (a === "--as-of") {
+      i++ // skip value
+      continue
+    }
+    if (a.startsWith("--as-of=")) continue
+    out.push(a)
+  }
+  return out
+}
+
 export async function runGraphCommand(args: string[]): Promise<void> {
+  const asOf = parseAsOf(args)
+  args = stripAsOf(args)
   const sub = args[0]
 
   if (sub === "status") {
     const projectDir = args[1] || process.cwd()
-    printStatus(projectDir)
+    printStatus(projectDir, asOf)
   } else if (sub === "migrate") {
     const projectDir = args[1] || process.cwd()
     await runMigrate(projectDir)
   } else if (sub === "query") {
     const projectDir = args[1] || process.cwd()
     const query = args[2]
-    await runQuery(projectDir, query)
+    await runQuery(projectDir, query, asOf)
   } else if (sub === "show") {
     const projectDir = args[1] || process.cwd()
     const nodeId = args[2]
@@ -100,30 +136,30 @@ function printHelp(): void {
 kody graph — Graph memory management
 
 Usage:
-  kody graph status <projectDir>   Show graph stats
-  kody graph migrate <projectDir>   Migrate legacy .md files to graph
-  kody graph query <projectDir> <q> Search facts
-  kody graph show <projectDir> <id> Show fact + provenance + history
-  kody graph search <projectDir> <q> Full-text search across sessions
-  kody graph validate <projectDir>  Check graph invariants (dangling refs, cycles, bad timestamps)
-  kody graph trace                  Print KODY_MEMORY_TRACE summary (requires KODY_MEMORY_TRACE=1 earlier)
-  kody graph forget <projectDir> <id> [--reason "…"]  Soft-delete a fact (retraction episode created)
-  kody graph restore <projectDir> <id>  Un-delete a previously forgotten fact
-  kody graph prune <projectDir> [--invalidated-older-than=<days>] [--dry-run]  Archive invalidated facts older than N days (default 90)
-  kody graph clear <projectDir> --confirm  Reset graph
+  kody graph status <projectDir> [--as-of=<iso>]       Show graph stats
+  kody graph migrate <projectDir>                       Migrate legacy .md files to graph
+  kody graph query <projectDir> [q] [--as-of=<iso>]    List/search facts (optionally at a past time)
+  kody graph show <projectDir> <id>                     Show fact + provenance + history
+  kody graph search <projectDir> <q>                    Full-text search across sessions
+  kody graph validate <projectDir>                      Check graph invariants (dangling refs, cycles, bad timestamps)
+  kody graph trace                                      Print KODY_MEMORY_TRACE summary
+  kody graph forget <projectDir> <id> [--reason "…"]   Soft-delete a fact (retraction episode created)
+  kody graph restore <projectDir> <id>                  Un-delete a previously forgotten fact
+  kody graph prune <projectDir> [--invalidated-older-than=<days>] [--dry-run]
+                                                        Archive invalidated facts older than N days (default 90)
+  kody graph clear <projectDir> --confirm               Reset graph
 
 Examples:
   kody graph status .
-  kody graph migrate .
+  kody graph status . --as-of=2026-03-01
   kody graph query . JWT
+  kody graph query . --as-of=2026-03-01
   kody graph show . facts_auth_123456
-  kody graph search . authentication
-  kody graph validate .
   kody graph clear . --confirm
 `)
 }
 
-function printStatus(projectDir: string): void {
+function printStatus(projectDir: string, asOf: string | null = null): void {
   const graphDir = getGraphDir(projectDir)
   const nodesPath = path.join(graphDir, "nodes.json")
   const edgesPath = path.join(graphDir, "edges.json")
@@ -151,18 +187,18 @@ function printStatus(projectDir: string): void {
     episodeCount = fs.readdirSync(episodesDir).filter(f => f.endsWith(".json")).length
   }
 
-  console.log(`\nGraph Memory Status`)
+  console.log(`\nGraph Memory Status${asOf ? ` (as of ${asOf})` : ""}`)
   console.log(`  Graph dir:   ${graphDir}`)
   console.log(`  Nodes:      ${nodeCount}`)
   console.log(`  Edges:      ${edgeCount}`)
   console.log(`  Episodes:   ${episodeCount}`)
 
-  const nodes = getCurrentFacts(projectDir)
+  const nodes = asOf ? getFactsAtTime(projectDir, asOf) : getCurrentFacts(projectDir)
   const byHall: Record<string, number> = {}
   for (const n of nodes) {
     byHall[n.hall] = (byHall[n.hall] || 0) + 1
   }
-  console.log(`\n  Current facts by hall:`)
+  console.log(`\n  ${asOf ? "Facts by hall at timestamp" : "Current facts by hall"}:`)
   for (const [hall, count] of Object.entries(byHall).sort()) {
     console.log(`    ${hall}: ${count}`)
   }
@@ -184,27 +220,46 @@ async function runMigrate(projectDir: string): Promise<void> {
   printStatus(projectDir)
 }
 
-async function runQuery(projectDir: string, query?: string): Promise<void> {
+async function runQuery(
+  projectDir: string,
+  query: string | undefined,
+  asOf: string | null = null,
+): Promise<void> {
   if (!query) {
-    // Show all current facts
-    const nodes = getCurrentFacts(projectDir)
+    const nodes = asOf ? getFactsAtTime(projectDir, asOf) : getCurrentFacts(projectDir)
     if (nodes.length === 0) {
-      console.log("\nNo facts in graph. Run `kody graph migrate` first.")
+      console.log(
+        asOf
+          ? `\nNo facts were live at ${asOf}.`
+          : "\nNo facts in graph. Run `kody graph migrate` first.",
+      )
       return
     }
-    console.log(`\n${nodes.length} current facts:`)
+    console.log(`\n${nodes.length} ${asOf ? `facts live at ${asOf}` : "current facts"}:`)
     const md = graphNodesToMarkdown(nodes)
     console.log(md)
     return
   }
 
-  const results = searchFacts(projectDir, query)
+  // Substring search; when asOf is set, restrict to facts live at that time.
+  const candidates = asOf ? getFactsAtTime(projectDir, asOf) : getCurrentFacts(projectDir)
+  const q = query.toLowerCase()
+  const results = candidates
+    .filter((n) => n.content.toLowerCase().includes(q))
+    .sort((a, b) => b.validFrom.localeCompare(a.validFrom))
+
   if (results.length === 0) {
-    console.log(`\nNo facts matching "${query}"`)
+    console.log(
+      asOf
+        ? `\nNo facts matching "${query}" were live at ${asOf}`
+        : `\nNo facts matching "${query}"`,
+    )
     return
   }
 
-  console.log(`\n${results.length} facts matching "${query}":`)
+  console.log(
+    `\n${results.length} facts matching "${query}"${asOf ? ` (as of ${asOf})` : ""}:`,
+  )
   const md = graphNodesToMarkdown(results)
   console.log(md)
 }

@@ -1,5 +1,6 @@
 import { readProjectMemory } from "../memory.js"
 import { readPromptFile } from "../context.js"
+import { CITATION_INSTRUCTION } from "../memory/graph/citation.js"
 import { getProjectConfig, resolveStageConfig, stageNeedsProxy, getLitellmUrl } from "../config.js"
 import { getIssue, postComment } from "../github-api.js"
 import { logger } from "../logger.js"
@@ -69,7 +70,8 @@ Do NOT modify any files. Only read, search, and analyze.
     .replace("{{ISSUE_CONTEXT}}", issueContext)
 
   if (memory) {
-    prompt = `${memory}\n---\n\n${prompt}`
+    const citationHint = memory.includes("fact_") ? `\n\n${CITATION_INSTRUCTION}\n` : ""
+    prompt = `${memory}${citationHint}\n---\n\n${prompt}`
   }
 
   return prompt
