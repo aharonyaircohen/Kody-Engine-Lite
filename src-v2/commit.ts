@@ -24,13 +24,22 @@ export interface CommitResult {
 }
 
 function git(args: string[], cwd?: string): string {
-  return execFileSync("git", args, {
-    encoding: "utf-8",
-    timeout: 120_000,
-    cwd,
-    env: { ...process.env, HUSKY: "0", SKIP_HOOKS: "1" },
-    stdio: ["pipe", "pipe", "pipe"],
-  }).trim()
+  try {
+    return execFileSync("git", args, {
+      encoding: "utf-8",
+      timeout: 120_000,
+      cwd,
+      env: { ...process.env, HUSKY: "0", SKIP_HOOKS: "1" },
+      stdio: ["pipe", "pipe", "pipe"],
+    }).trim()
+  } catch (err: unknown) {
+    const e = err as { stderr?: Buffer | string; stdout?: Buffer | string; status?: number; message?: string }
+    const stderr = e.stderr?.toString().trim() ?? ""
+    const stdout = e.stdout?.toString().trim() ?? ""
+    const status = e.status ?? "?"
+    const detail = stderr || stdout || e.message || "(no output)"
+    throw new Error(`git ${args.join(" ")} (exit ${status}):\n${detail}`)
+  }
 }
 
 function tryGit(args: string[], cwd?: string): boolean {
