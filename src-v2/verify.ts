@@ -75,13 +75,19 @@ export async function verifyAll(config: KodyLeanConfig, cwd?: string): Promise<V
   return { ok: failed.length === 0, failed, details }
 }
 
+const ANSI_RE = /\x1B\[[0-?]*[ -/]*[@-~]/g
+
+function stripAnsi(s: string): string {
+  return s.replace(ANSI_RE, "")
+}
+
 export function summarizeFailure(result: VerifyResult): string {
   const lines = [`verify failed: ${result.failed.join(", ")}`]
   for (const name of result.failed) {
     const d = result.details[name]
     if (!d) continue
     lines.push(`\n--- ${name} (exit ${d.exitCode}, ${(d.durationMs / 1000).toFixed(1)}s) ---`)
-    lines.push(d.tail)
+    lines.push(stripAnsi(d.tail))
   }
   return lines.join("\n")
 }
