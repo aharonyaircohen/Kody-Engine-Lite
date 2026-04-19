@@ -104,12 +104,12 @@ describe("prompt: loadProjectConventions", () => {
     expect(result[0]!.truncated).toBe(false)
   })
 
-  it("loads multiple convention files in declared order", () => {
+  it("loads CLAUDE.md before AGENTS.md (Claude Code is canonical)", () => {
     const dir = tmpDir()
     fs.writeFileSync(path.join(dir, "AGENTS.md"), "AGENTS")
     fs.writeFileSync(path.join(dir, "CLAUDE.md"), "CLAUDE")
     const result = loadProjectConventions(dir)
-    expect(result.map((c) => c.path)).toEqual(["AGENTS.md", "CLAUDE.md"])
+    expect(result.map((c) => c.path)).toEqual(["CLAUDE.md", "AGENTS.md"])
   })
 
   it("ignores non-convention files like .kody/steps/build.md", () => {

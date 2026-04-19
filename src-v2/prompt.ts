@@ -8,17 +8,19 @@ const COMMENT_LIMIT = 5
 const CONVENTIONS_PER_FILE_MAX_BYTES = 30_000
 
 /**
- * Files (in the target repo root) that may contain project conventions the
- * agent MUST follow. Loaded in order; all that exist are concatenated.
+ * Project-root convention files the agent MUST follow.
  *
- *   AGENTS.md  — industry standard (Aider/Cursor/Codex/Anthropic)
- *   CLAUDE.md  — Claude Code convention (project root)
+ *   CLAUDE.md  — Claude Code's canonical project-conventions file. Primary.
+ *   AGENTS.md  — Cross-tool fallback used by Aider/Cursor/Codex/etc.
+ *                Loaded so kody2 also works on repos that follow the
+ *                broader industry convention rather than Claude's own.
  *
- * The Claude Code SDK auto-loads ~/CLAUDE.md and ~/.claude/rules but does
- * NOT reliably auto-load AGENTS.md or project-root CLAUDE.md, so we read
- * them ourselves and inject them as a "Project conventions" section.
+ * Both are loaded if present, in the order above (CLAUDE.md first so it's
+ * the prompt's primary authority). The Claude Code SDK auto-loads
+ * ~/.claude/CLAUDE.md and ~/.claude/rules but does NOT reliably auto-load
+ * project-root CLAUDE.md or AGENTS.md, so we read them ourselves.
  */
-const CONVENTION_FILES = ["AGENTS.md", "CLAUDE.md"]
+const CONVENTION_FILES = ["CLAUDE.md", "AGENTS.md"]
 
 export interface LoadedConvention {
   path: string
