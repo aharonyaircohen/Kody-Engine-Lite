@@ -132,17 +132,51 @@ export function getPrReviews(prNumber: number, cwd?: string): PrReview[] {
   }
 }
 
+export interface PrComment {
+  body: string
+  author: string
+  createdAt: string
+}
+
 /**
- * Return the most recent review-comment / review body that a human left on the PR.
- * Falls back to the PR body if no reviews exist.
+ * Fetch non-bot issue-style comments on a PR (what `gh pr comment` creates).
+ * These are distinct from formal PR reviews fetched by getPrReviews.
+ */
+export function getPrComments(prNumber: number, cwd?: string): PrComment[] {
+  try {
+    const output = gh(["pr", "view", String(prNumber), "--json", "comments"], { cwd })
+    const parsed = JSON.parse(output)
+    if (!Array.isArray(parsed?.comments)) return []
+    return parsed.comments
+      .map((c: { body?: string; author?: { login?: string }; createdAt?: string }) => ({
+        body: c.body ?? "",
+        author: c.author?.login ?? "unknown",
+        createdAt: c.createdAt ?? "",
+      }))
+      .filter((c: PrComment) => c.body.trim().length > 0)
+  } catch { return [] }
+}
+
+const KODY_COMMENT_PREFIXES = ["⚙️ kody2", "✅ kody2", "⚠️ kody2", "ℹ️ kody2", "→ kody2"]
+
+/**
+ * Return the most recent HUMAN-authored PR feedback (review or comment).
+ *   - Pulls both formal reviews and plain PR comments.
+ *   - Filters out bot/wrapper posts (our own "⚙️/✅/⚠️ kody2…" statuses).
+ *   - Picks whichever is newest by timestamp.
+ *   - Falls back to the PR body if nothing remains.
  */
 export function getPrLatestReviewBody(prNumber: number, cwd?: string): string {
   const reviews = getPrReviews(prNumber, cwd)
-  const withBody = reviews.filter((r) => r.body.trim().length > 0)
-  if (withBody.length > 0) {
-    withBody.sort((a, b) => (b.submittedAt || "").localeCompare(a.submittedAt || ""))
-    return withBody[0]!.body
-  }
+    .filter((r) => r.body.trim().length > 0)
+    .map((r) => ({ body: r.body, at: r.submittedAt }))
+  const comments = getPrComments(prNumber, cwd)
+    .filter((c) => !KODY_COMMENT_PREFIXES.some((p) => c.body.startsWith(p)))
+    .map((c) => ({ body: c.body, at: c.createdAt }))
+
+  const all = [...reviews, ...comments].sort((a, b) => (b.at || "").localeCompare(a.at || ""))
+  if (all.length > 0) return all[0]!.body
+
   const pr = getPr(prNumber, cwd)
   return pr.body
 }
