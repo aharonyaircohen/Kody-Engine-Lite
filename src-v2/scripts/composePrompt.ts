@@ -19,9 +19,24 @@ import type { LoadedConvention } from "../prompt.js"
 const MUSTACHE = /\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g
 
 export const composePrompt: PreflightScript = async (ctx, profile) => {
-  const templatePath = path.join(profile.dir, "prompt.md")
-  if (!fs.existsSync(templatePath)) {
-    throw new Error(`profile at ${profile.dir} is missing prompt.md`)
+  // Resolution order:
+  //   1. ctx.data.promptTemplate (flow script override)
+  //   2. profile.dir/prompts/<mode>.md  (per-mode file)
+  //   3. profile.dir/prompt.md          (legacy single template)
+  const explicit = ctx.data.promptTemplate as string | undefined
+  const mode = ctx.args.mode as string | undefined
+  const candidates = [
+    explicit ? path.join(profile.dir, explicit) : null,
+    mode ? path.join(profile.dir, "prompts", `${mode}.md`) : null,
+    path.join(profile.dir, "prompt.md"),
+  ].filter(Boolean) as string[]
+
+  let templatePath = ""
+  for (const c of candidates) {
+    if (fs.existsSync(c)) { templatePath = c; break }
+  }
+  if (!templatePath) {
+    throw new Error(`profile at ${profile.dir}: no prompt template found (tried ${candidates.join(", ")})`)
   }
   const template = fs.readFileSync(templatePath, "utf-8")
 
