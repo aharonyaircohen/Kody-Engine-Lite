@@ -4,9 +4,11 @@ import { runReview } from "./commands/review.js"
 import { runFix } from "./commands/fix.js"
 import { runFixCi } from "./commands/fix-ci.js"
 import { runResolve } from "./commands/resolve.js"
+import { runRelease, type BumpType } from "./commands/release.js"
 
 interface ParsedArgs {
-  command: "run" | "ci" | "review" | "fix" | "fix-ci" | "resolve" | "help" | "version"
+  command: "run" | "ci" | "review" | "fix" | "fix-ci" | "resolve" | "release" | "help" | "version"
+  bump?: BumpType
   issueNumber?: number
   prNumber?: number
   feedback?: string
@@ -28,6 +30,7 @@ Usage:
   kody2 fix    --pr    <N> [--feedback "..."] [--cwd <path>] [--verbose|--quiet]
   kody2 fix-ci --pr    <N> [--run-id <ID>]    [--cwd <path>] [--verbose|--quiet]
   kody2 resolve --pr   <N>                    [--cwd <path>] [--verbose|--quiet]
+  kody2 release [--bump patch|minor|major]    [--cwd <path>] [--dry-run]
   kody2 help
   kody2 version
 
@@ -46,6 +49,8 @@ Commands:
   resolve Merge origin/<base> into an open PR branch. On conflict, the
           agent resolves the markers; on clean merge, exits with no PR
           update.
+  release Bump version, tag, push, run configured publishCommand,
+          create GitHub release. No agent invocation.
 
 Exit codes:
   0  success (PR opened, verify passed)
@@ -137,6 +142,23 @@ export function parseArgs(argv: string[]): ParsedArgs {
       else result.errors.push(`unknown arg: ${arg}`)
     }
     if (!result.prNumber) result.errors.push("--pr <N> is required")
+    return result
+  }
+  if (cmd === "release") {
+    result.command = "release"
+    result.bump = "patch"
+    for (let i = 1; i < argv.length; i++) {
+      const arg = argv[i]
+      if (arg === "--bump") {
+        const v = argv[++i]
+        if (v === "patch" || v === "minor" || v === "major") result.bump = v
+        else result.errors.push(`--bump must be patch|minor|major (got: ${v})`)
+      } else if (arg === "--cwd") {
+        result.cwd = argv[++i]
+      } else if (arg === "--dry-run") result.dryRun = true
+      else if (arg === "--verbose") result.verbose = true
+      else result.errors.push(`unknown arg: ${arg}`)
+    }
     return result
   }
   if (cmd !== "run") {
@@ -256,6 +278,22 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       process.stderr.write(`[kody2] resolve crashed: ${msg}\n`)
+      if (err instanceof Error && err.stack) process.stderr.write(err.stack + "\n")
+      return 99
+    }
+  }
+  if (args.command === "release") {
+    try {
+      const result = await runRelease({
+        bump: args.bump ?? "patch",
+        cwd: args.cwd,
+        verbose: args.verbose,
+        dryRun: args.dryRun,
+      })
+      return result.exitCode
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      process.stderr.write(`[kody2] release crashed: ${msg}\n`)
       if (err instanceof Error && err.stack) process.stderr.write(err.stack + "\n")
       return 99
     }
