@@ -41,6 +41,46 @@ export function hasUncommittedChanges(cwd?: string): boolean {
   return git(["status", "--porcelain", "--untracked-files=no"], cwd).length > 0
 }
 
+/**
+ * Check out an existing PR locally via `gh pr checkout`. Returns the
+ * local branch name (gh picks a name matching the PR head ref).
+ */
+export function checkoutPrBranch(prNumber: number, cwd?: string): string {
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    HUSKY: "0",
+    SKIP_HOOKS: "1",
+    GH_TOKEN: process.env.GH_PAT?.trim() || process.env.GH_TOKEN || "",
+  }
+  execFileSync("gh", ["pr", "checkout", String(prNumber)], {
+    cwd,
+    env,
+    stdio: ["ignore", "pipe", "pipe"],
+    timeout: 60_000,
+  })
+  return getCurrentBranch(cwd)
+}
+
+/**
+ * Merge `origin/<baseBranch>` into the current branch. Returns "clean" on
+ * success, "conflict" if unmerged paths remain (conflict markers left in
+ * working tree), "error" on any other git failure.
+ */
+export function mergeBase(baseBranch: string, cwd?: string): "clean" | "conflict" | "error" {
+  try { git(["fetch", "origin", baseBranch], cwd) } catch { return "error" }
+  try {
+    git(["merge", `origin/${baseBranch}`, "--no-edit", "--no-ff"], cwd)
+    return "clean"
+  } catch {
+    try {
+      const unmerged = git(["diff", "--name-only", "--diff-filter=U"], cwd)
+      if (unmerged.length > 0) return "conflict"
+    } catch { /* ignore */ }
+    try { git(["merge", "--abort"], cwd) } catch { /* best effort */ }
+    return "error"
+  }
+}
+
 export function ensureFeatureBranch(
   issueNumber: number,
   title: string,

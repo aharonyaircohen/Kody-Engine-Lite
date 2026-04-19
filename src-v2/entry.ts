@@ -1,9 +1,11 @@
 import { run } from "./index.js"
 import { runCi } from "./kody2-cli.js"
+import { runReview } from "./commands/review.js"
 
 interface ParsedArgs {
-  command: "run" | "ci" | "help" | "version"
+  command: "run" | "ci" | "review" | "help" | "version"
   issueNumber?: number
+  prNumber?: number
   cwd?: string
   verbose?: boolean
   quiet?: boolean
@@ -15,16 +17,18 @@ interface ParsedArgs {
 const HELP_TEXT = `kody2 — single-session autonomous engineer
 
 Usage:
-  kody2 run --issue <N> [--cwd <path>] [--verbose|--quiet] [--dry-run]
-  kody2 ci  --issue <N> [preflight flags — see: kody2 ci --help]
+  kody2 run    --issue <N> [--cwd <path>] [--verbose|--quiet] [--dry-run]
+  kody2 ci     --issue <N> [preflight flags — see: kody2 ci --help]
+  kody2 review --pr    <N> [--cwd <path>] [--verbose|--quiet]
   kody2 help
   kody2 version
 
 Commands:
-  run     Run the pipeline directly (assumes deps + LiteLLM already present).
+  run     Implement a GitHub issue end-to-end → draft or normal PR.
   ci      Full preflight (unpack secrets, install deps, install LiteLLM, git
-          identity) then invoke run. Intended as the single command a minimal
-          GitHub Actions workflow calls.
+          identity) then invoke run. Used by the kody2.yml workflow.
+  review  Read-only review of an existing PR. Posts a structured review
+          comment; makes no commits.
 
 Exit codes:
   0  success (PR opened, verify passed)
@@ -45,6 +49,23 @@ export function parseArgs(argv: string[]): ParsedArgs {
   if (cmd === "version" || cmd === "--version" || cmd === "-v") return { ...result, command: "version" }
   if (cmd === "ci") {
     return { ...result, command: "ci", ciArgv: argv.slice(1) }
+  }
+  if (cmd === "review") {
+    result.command = "review"
+    for (let i = 1; i < argv.length; i++) {
+      const arg = argv[i]
+      if (arg === "--pr") {
+        const n = parseInt(argv[++i] ?? "", 10)
+        if (Number.isNaN(n) || n <= 0) result.errors.push("--pr requires a positive integer")
+        else result.prNumber = n
+      } else if (arg === "--cwd") {
+        result.cwd = argv[++i]
+      } else if (arg === "--verbose") result.verbose = true
+      else if (arg === "--quiet") result.quiet = true
+      else result.errors.push(`unknown arg: ${arg}`)
+    }
+    if (!result.prNumber) result.errors.push("--pr <N> is required")
+    return result
   }
   if (cmd !== "run") {
     result.errors.push(`unknown command: ${cmd}`)
@@ -97,6 +118,22 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       process.stderr.write(`[kody2] fatal: ${msg}\n`)
+      if (err instanceof Error && err.stack) process.stderr.write(err.stack + "\n")
+      return 99
+    }
+  }
+  if (args.command === "review") {
+    try {
+      const result = await runReview({
+        prNumber: args.prNumber!,
+        cwd: args.cwd,
+        verbose: args.verbose,
+        quiet: args.quiet,
+      })
+      return result.exitCode
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      process.stderr.write(`[kody2] review crashed: ${msg}\n`)
       if (err instanceof Error && err.stack) process.stderr.write(err.stack + "\n")
       return 99
     }

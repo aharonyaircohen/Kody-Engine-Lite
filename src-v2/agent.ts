@@ -19,9 +19,13 @@ export interface AgentOptions {
   verbose?: boolean
   quiet?: boolean
   ndjsonDir?: string
+  /** Override the default allowed tool list (e.g. read-only for review). */
+  allowedToolsOverride?: string[]
+  /** Override the default permissionMode (e.g. "default" for read-only flows). */
+  permissionModeOverride?: "default" | "acceptEdits" | "plan" | "bypassPermissions"
 }
 
-const ALLOWED_TOOLS = ["Bash", "Edit", "Read", "Write", "Glob", "Grep"]
+const DEFAULT_ALLOWED_TOOLS = ["Bash", "Edit", "Read", "Write", "Glob", "Grep"]
 
 export async function runAgent(opts: AgentOptions): Promise<AgentResult> {
   const ndjsonDir = opts.ndjsonDir ?? path.join(opts.cwd, ".kody2")
@@ -50,8 +54,8 @@ export async function runAgent(opts: AgentOptions): Promise<AgentResult> {
       options: {
         model: opts.model.model,
         cwd: opts.cwd,
-        allowedTools: ALLOWED_TOOLS,
-        permissionMode: "acceptEdits",
+        allowedTools: opts.allowedToolsOverride ?? DEFAULT_ALLOWED_TOOLS,
+        permissionMode: opts.permissionModeOverride ?? "acceptEdits",
         env,
       },
     })
