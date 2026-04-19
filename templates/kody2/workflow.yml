@@ -1,4 +1,19 @@
-name: kody-lean
+# Drop this file at .github/workflows/kody2.yml in your repo.
+#
+# Triggers: @kody2 comment on an issue, or manual workflow_dispatch.
+# Everything else (install deps, set up LiteLLM, run the agent, open the PR)
+# is handled inside the @kody-ade/engine package. This template should
+# rarely need editing — future kody2 capabilities ship via npm publish.
+#
+# Required repo secrets: at least one model provider key (e.g. MINIMAX_API_KEY,
+# ANTHROPIC_API_KEY). kody2 reads any *_API_KEY secret automatically via
+# toJSON(secrets) — no need to list them here.
+#
+# Optional: KODY_TOKEN secret — a PAT or GitHub App token. Needed only if
+# you want kody2's pushes to trigger downstream workflows. Without it,
+# github.token works fine for the PR/commit itself but won't fire other CI.
+
+name: kody2
 
 on:
   workflow_dispatch:
