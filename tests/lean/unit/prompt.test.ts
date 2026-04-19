@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest"
-import { buildPrompt, parseAgentResult } from "../../../src-v2/prompt.js"
+import * as fs from "fs"
+import * as os from "os"
+import * as path from "path"
+import { buildPrompt, parseAgentResult, loadProjectConventions } from "../../../src-v2/prompt.js"
 import type { KodyLeanConfig } from "../../../src-v2/config.js"
 
 const baseConfig: KodyLeanConfig = {
@@ -78,6 +81,79 @@ describe("prompt: buildPrompt", () => {
       featureBranch: "1-x",
     })
     expect(p).toMatch(/Do NOT run \*\*any\*\* `git` or `gh` commands/)
+  })
+})
+
+describe("prompt: loadProjectConventions", () => {
+  function tmpDir(): string {
+    return fs.mkdtempSync(path.join(os.tmpdir(), "kody-lean-conv-"))
+  }
+
+  it("returns empty array when no convention files exist", () => {
+    const dir = tmpDir()
+    expect(loadProjectConventions(dir)).toEqual([])
+  })
+
+  it("loads AGENTS.md when present", () => {
+    const dir = tmpDir()
+    fs.writeFileSync(path.join(dir, "AGENTS.md"), "# Rules\nUse pnpm")
+    const result = loadProjectConventions(dir)
+    expect(result).toHaveLength(1)
+    expect(result[0]!.path).toBe("AGENTS.md")
+    expect(result[0]!.content).toContain("Use pnpm")
+    expect(result[0]!.truncated).toBe(false)
+  })
+
+  it("loads multiple convention files in declared order", () => {
+    const dir = tmpDir()
+    fs.mkdirSync(path.join(dir, ".kody/steps"), { recursive: true })
+    fs.writeFileSync(path.join(dir, "AGENTS.md"), "AGENTS")
+    fs.writeFileSync(path.join(dir, "CLAUDE.md"), "CLAUDE")
+    fs.writeFileSync(path.join(dir, ".kody/steps/build.md"), "BUILD")
+    const result = loadProjectConventions(dir)
+    expect(result.map((c) => c.path)).toEqual(["AGENTS.md", "CLAUDE.md", ".kody/steps/build.md"])
+  })
+
+  it("truncates very large files at the cap", () => {
+    const dir = tmpDir()
+    fs.writeFileSync(path.join(dir, "AGENTS.md"), "x".repeat(50_000))
+    const result = loadProjectConventions(dir)
+    expect(result[0]!.truncated).toBe(true)
+    expect(result[0]!.content).toMatch(/truncated/)
+    expect(result[0]!.content.length).toBeLessThan(50_000)
+  })
+})
+
+describe("prompt: buildPrompt with conventions", () => {
+  it("includes a Project conventions section when conventions are supplied", () => {
+    const p = buildPrompt({
+      config: baseConfig,
+      issue: { number: 1, title: "x", body: "", comments: [] },
+      featureBranch: "1-x",
+      conventions: [{ path: "AGENTS.md", content: "All tests in /tests/", truncated: false }],
+    })
+    expect(p).toMatch(/# Project conventions \(AUTHORITATIVE/)
+    expect(p).toMatch(/## AGENTS\.md/)
+    expect(p).toMatch(/All tests in \/tests\//)
+  })
+
+  it("omits the conventions section when none supplied", () => {
+    const p = buildPrompt({
+      config: baseConfig,
+      issue: { number: 1, title: "x", body: "", comments: [] },
+      featureBranch: "1-x",
+    })
+    expect(p).not.toMatch(/# Project conventions/)
+  })
+
+  it("places conventions before the issue body for prominence", () => {
+    const p = buildPrompt({
+      config: baseConfig,
+      issue: { number: 1, title: "Add X", body: "BODY", comments: [] },
+      featureBranch: "1-x",
+      conventions: [{ path: "AGENTS.md", content: "RULES", truncated: false }],
+    })
+    expect(p.indexOf("Project conventions")).toBeLessThan(p.indexOf("Issue #1"))
   })
 })
 

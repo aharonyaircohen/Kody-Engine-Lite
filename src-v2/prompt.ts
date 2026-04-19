@@ -1,13 +1,52 @@
+import * as fs from "fs"
+import * as path from "path"
 import type { KodyLeanConfig } from "./config.js"
 import type { IssueData, IssueComment } from "./issue.js"
 
 const COMMENT_MAX_BYTES = 4000
 const COMMENT_LIMIT = 5
+const CONVENTIONS_PER_FILE_MAX_BYTES = 30_000
+
+/**
+ * Files (in the target repo root) that may contain project conventions the
+ * agent MUST follow. Loaded in order; all that exist are concatenated.
+ *
+ *   AGENTS.md              — industry standard (Aider/Cursor/Codex/Anthropic)
+ *   CLAUDE.md              — Claude Code legacy convention (project root)
+ *   .kody/steps/build.md   — back-compat with the old 7-stage pipeline's
+ *                            per-stage prompt customization
+ *
+ * The Claude Code SDK auto-loads ~/CLAUDE.md and ~/.claude/rules but does
+ * NOT reliably auto-load AGENTS.md or project-root CLAUDE.md, so we read
+ * them ourselves and inject them as a "Project conventions" section.
+ */
+const CONVENTION_FILES = ["AGENTS.md", "CLAUDE.md", ".kody/steps/build.md"]
+
+export interface LoadedConvention {
+  path: string
+  content: string
+  truncated: boolean
+}
+
+export function loadProjectConventions(projectDir: string): LoadedConvention[] {
+  const out: LoadedConvention[] = []
+  for (const rel of CONVENTION_FILES) {
+    const abs = path.join(projectDir, rel)
+    if (!fs.existsSync(abs)) continue
+    let content: string
+    try { content = fs.readFileSync(abs, "utf-8") } catch { continue }
+    const truncated = content.length > CONVENTIONS_PER_FILE_MAX_BYTES
+    if (truncated) content = content.slice(0, CONVENTIONS_PER_FILE_MAX_BYTES) + "\n\n… (truncated)"
+    out.push({ path: rel, content, truncated })
+  }
+  return out
+}
 
 export interface BuildPromptOptions {
   config: KodyLeanConfig
   issue: IssueData
   featureBranch: string
+  conventions?: LoadedConvention[]
 }
 
 export function buildPrompt(opts: BuildPromptOptions): string {
@@ -19,6 +58,7 @@ export function buildPrompt(opts: BuildPromptOptions): string {
   if (qualityLines.length === 0) qualityLines.push("- (no quality commands configured)")
 
   const commentsBlock = formatComments(issue.comments)
+  const conventionsBlock = formatConventions(opts.conventions ?? [])
 
   return `You are Kody, an autonomous engineer. Take a GitHub issue from spec to a tested set of edits in ONE session. The wrapper handles git/gh — you do not.
 
@@ -26,7 +66,7 @@ export function buildPrompt(opts: BuildPromptOptions): string {
 - ${config.github.owner}/${config.github.repo}, default branch: ${config.git.defaultBranch}
 - current branch (already checked out): ${featureBranch}
 
-# Issue #${issue.number}: ${issue.title}
+${conventionsBlock}# Issue #${issue.number}: ${issue.title}
 ${issue.body || "(no body)"}
 
 ${commentsBlock}
@@ -55,6 +95,25 @@ ${qualityLines.join("\n")}
 - Do NOT post issue comments — the wrapper handles that.
 - Pre-existing quality-gate failures: assume they are NOT your responsibility unless your edits touched related code. If quality gates are red but your edits are unrelated, output \`DONE\` with a COMMIT_MSG describing only what you actually changed.
 - Keep the plan and reasoning concise. Long monologues waste turns.`
+}
+
+function formatConventions(conventions: LoadedConvention[]): string {
+  if (conventions.length === 0) return ""
+  const lines = [
+    "# Project conventions (AUTHORITATIVE — follow these over patterns you infer from code)",
+    "",
+    "These files describe how this project organizes code, names tests, formats commits, and applies security rules. They take precedence over generic Claude Code rules and over patterns you guess from existing files. If a convention says 'tests live in /tests/', do that even if you find some tests co-located in /src/.",
+    "",
+  ]
+  for (const c of conventions) {
+    lines.push(`## ${c.path}${c.truncated ? " (truncated)" : ""}`)
+    lines.push("")
+    lines.push("```")
+    lines.push(c.content)
+    lines.push("```")
+    lines.push("")
+  }
+  return lines.join("\n") + "\n"
 }
 
 function formatComments(comments: IssueComment[]): string {

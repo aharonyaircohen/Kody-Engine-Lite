@@ -6,7 +6,7 @@ import { commitAndPush, hasCommitsAhead, listChangedFiles, isForbiddenPath } fro
 import { ensurePr } from "./pr.js"
 import { verifyAll, summarizeFailure } from "./verify.js"
 import { getIssue, postIssueComment, truncate } from "./issue.js"
-import { buildPrompt, parseAgentResult } from "./prompt.js"
+import { buildPrompt, parseAgentResult, loadProjectConventions } from "./prompt.js"
 import { runAgent } from "./agent.js"
 
 export interface RunOptions {
@@ -96,7 +96,11 @@ export async function run(opts: RunOptions): Promise<RunResult> {
     })
   }
 
-  const prompt = buildPrompt({ config, issue, featureBranch: branchInfo.branch })
+  const conventions = loadProjectConventions(cwd)
+  if (conventions.length > 0) {
+    process.stderr.write(`[kody-lean] loaded conventions: ${conventions.map((c) => c.path).join(", ")}\n`)
+  }
+  const prompt = buildPrompt({ config, issue, featureBranch: branchInfo.branch, conventions })
 
   const ndjsonDir = path.join(cwd, ".kody-lean")
   let agentResult
