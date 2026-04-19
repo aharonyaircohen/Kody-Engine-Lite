@@ -29,10 +29,14 @@ export function buildPrTitle(issueNumber: number, issueTitle: string, draft: boo
 
 export function buildPrBody(opts: EnsurePrOptions): string {
   const lines: string[] = []
+
   if (opts.draft && opts.failureReason) {
-    lines.push(`> ⚠️ FAILED: ${truncate(opts.failureReason, 2000)}`)
+    const headline = firstLine(opts.failureReason)
+    lines.push(`> ⚠️ Draft: ${headline}`)
+    lines.push(`> The failures below may be **pre-existing in the repo** — verify before treating as PR-blocking.`)
     lines.push("")
   }
+
   lines.push("## Summary")
   lines.push("")
   lines.push(`Implementation of issue #${opts.issueNumber} — ${opts.issueTitle}`)
@@ -48,9 +52,29 @@ export function buildPrBody(opts: EnsurePrOptions): string {
 
   lines.push(`Closes #${opts.issueNumber}`)
   lines.push("")
+
+  if (opts.draft && opts.failureReason) {
+    lines.push("<details>")
+    lines.push("<summary>Verify output (click to expand)</summary>")
+    lines.push("")
+    lines.push("```")
+    lines.push(truncate(opts.failureReason, 6000))
+    lines.push("```")
+    lines.push("")
+    lines.push("</details>")
+    lines.push("")
+  }
+
   lines.push("---")
   lines.push("_Opened by kody-lean (single-session autonomous run)._ ")
   return lines.join("\n")
+}
+
+function firstLine(s: string): string {
+  const trimmed = s.trim()
+  const nl = trimmed.indexOf("\n")
+  const head = nl === -1 ? trimmed : trimmed.slice(0, nl)
+  return head.length > 200 ? head.slice(0, 197) + "…" : head
 }
 
 export function findExistingPr(branch: string, cwd?: string): { number: number; url: string } | null {

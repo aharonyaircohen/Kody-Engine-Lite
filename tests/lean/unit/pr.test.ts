@@ -42,16 +42,29 @@ describe("pr: buildPrBody", () => {
     expect(body).toMatch(/`src\/bar\.ts`/)
   })
 
-  it("prefixes draft body with FAILED warning", () => {
-    const body = buildPrBody({ ...baseOpts, draft: true, failureReason: "tests failed" })
-    expect(body.startsWith("> ⚠️ FAILED: tests failed")).toBe(true)
+  it("prefixes draft body with single-line headline + pre-existing-warning", () => {
+    const body = buildPrBody({ ...baseOpts, draft: true, failureReason: "verify failed: typecheck" })
+    expect(body.startsWith("> ⚠️ Draft: verify failed: typecheck\n")).toBe(true)
+    expect(body).toMatch(/pre-existing/)
   })
 
-  it("truncates failure reason to 2KB", () => {
-    const huge = "x".repeat(5000)
+  it("hides multi-line failure reason in a collapsible details block", () => {
+    const huge = "verify failed: typecheck\n" + "ERROR ".repeat(2000)
     const body = buildPrBody({ ...baseOpts, draft: true, failureReason: huge })
-    const failedLine = body.split("\n")[0]!
-    expect(failedLine.length).toBeLessThan(2200)
+    const headline = body.split("\n")[0]!
+    expect(headline.length).toBeLessThan(220)
+    expect(body).toMatch(/<details>/)
+    expect(body).toMatch(/Verify output \(click to expand\)/)
+    expect(body).toMatch(/<\/details>/)
+  })
+
+  it("places Summary and Closes #N before any details block", () => {
+    const body = buildPrBody({ ...baseOpts, draft: true, failureReason: "verify failed: lint" })
+    const summaryIdx = body.indexOf("## Summary")
+    const closesIdx = body.indexOf("Closes #")
+    const detailsIdx = body.indexOf("<details>")
+    expect(summaryIdx).toBeLessThan(detailsIdx)
+    expect(closesIdx).toBeLessThan(detailsIdx)
   })
 
   it("omits Changes section when no files changed", () => {
