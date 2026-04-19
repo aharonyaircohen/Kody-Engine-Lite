@@ -11,16 +11,14 @@ const CONVENTIONS_PER_FILE_MAX_BYTES = 30_000
  * Files (in the target repo root) that may contain project conventions the
  * agent MUST follow. Loaded in order; all that exist are concatenated.
  *
- *   AGENTS.md              — industry standard (Aider/Cursor/Codex/Anthropic)
- *   CLAUDE.md              — Claude Code legacy convention (project root)
- *   .kody/steps/build.md   — back-compat with the old 7-stage pipeline's
- *                            per-stage prompt customization
+ *   AGENTS.md  — industry standard (Aider/Cursor/Codex/Anthropic)
+ *   CLAUDE.md  — Claude Code convention (project root)
  *
  * The Claude Code SDK auto-loads ~/CLAUDE.md and ~/.claude/rules but does
  * NOT reliably auto-load AGENTS.md or project-root CLAUDE.md, so we read
  * them ourselves and inject them as a "Project conventions" section.
  */
-const CONVENTION_FILES = ["AGENTS.md", "CLAUDE.md", ".kody/steps/build.md"]
+const CONVENTION_FILES = ["AGENTS.md", "CLAUDE.md"]
 
 export interface LoadedConvention {
   path: string

@@ -106,12 +106,17 @@ describe("prompt: loadProjectConventions", () => {
 
   it("loads multiple convention files in declared order", () => {
     const dir = tmpDir()
-    fs.mkdirSync(path.join(dir, ".kody/steps"), { recursive: true })
     fs.writeFileSync(path.join(dir, "AGENTS.md"), "AGENTS")
     fs.writeFileSync(path.join(dir, "CLAUDE.md"), "CLAUDE")
-    fs.writeFileSync(path.join(dir, ".kody/steps/build.md"), "BUILD")
     const result = loadProjectConventions(dir)
-    expect(result.map((c) => c.path)).toEqual(["AGENTS.md", "CLAUDE.md", ".kody/steps/build.md"])
+    expect(result.map((c) => c.path)).toEqual(["AGENTS.md", "CLAUDE.md"])
+  })
+
+  it("ignores non-convention files like .kody/steps/build.md", () => {
+    const dir = tmpDir()
+    fs.mkdirSync(path.join(dir, ".kody/steps"), { recursive: true })
+    fs.writeFileSync(path.join(dir, ".kody/steps/build.md"), "STAGE TEMPLATE")
+    expect(loadProjectConventions(dir)).toEqual([])
   })
 
   it("truncates very large files at the cap", () => {
