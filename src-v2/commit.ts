@@ -132,7 +132,12 @@ export function commitAndPush(
   const allChanged = listChangedFiles(cwd)
   const allowedFiles = allChanged.filter((f) => !isForbiddenPath(f))
 
-  if (allowedFiles.length === 0) {
+  // Detect in-progress merge (resolve mode): even if no files changed
+  // vs HEAD (agent accepted one side verbatim), we still need to finalize
+  // the merge commit with two parents.
+  const mergeHeadExists = fs.existsSync(path.join(cwd ?? process.cwd(), ".git", "MERGE_HEAD"))
+
+  if (allowedFiles.length === 0 && !mergeHeadExists) {
     return { committed: false, pushed: false, sha: "", message: "" }
   }
 
