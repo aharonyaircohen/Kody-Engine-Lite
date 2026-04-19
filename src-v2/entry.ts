@@ -1,14 +1,11 @@
 import { run } from "./index.js"
 import { runCi } from "./kody2-cli.js"
-import { runReview } from "./commands/review.js"
 import { runFix } from "./commands/fix.js"
 import { runFixCi } from "./commands/fix-ci.js"
 import { runResolve } from "./commands/resolve.js"
-import { runRelease, type BumpType } from "./commands/release.js"
 
 interface ParsedArgs {
-  command: "run" | "ci" | "review" | "fix" | "fix-ci" | "resolve" | "release" | "help" | "version"
-  bump?: BumpType
+  command: "run" | "ci" | "fix" | "fix-ci" | "resolve" | "help" | "version"
   issueNumber?: number
   prNumber?: number
   feedback?: string
@@ -24,13 +21,11 @@ interface ParsedArgs {
 const HELP_TEXT = `kody2 — single-session autonomous engineer
 
 Usage:
-  kody2 run    --issue <N> [--cwd <path>] [--verbose|--quiet] [--dry-run]
-  kody2 ci     --issue <N> [preflight flags — see: kody2 ci --help]
-  kody2 review --pr    <N> [--cwd <path>] [--verbose|--quiet]
-  kody2 fix    --pr    <N> [--feedback "..."] [--cwd <path>] [--verbose|--quiet]
-  kody2 fix-ci --pr    <N> [--run-id <ID>]    [--cwd <path>] [--verbose|--quiet]
-  kody2 resolve --pr   <N>                    [--cwd <path>] [--verbose|--quiet]
-  kody2 release [--bump patch|minor|major]    [--cwd <path>] [--dry-run]
+  kody2 run     --issue <N> [--cwd <path>] [--verbose|--quiet] [--dry-run]
+  kody2 ci      --issue <N> [preflight flags — see: kody2 ci --help]
+  kody2 fix     --pr    <N> [--feedback "..."] [--cwd <path>] [--verbose|--quiet]
+  kody2 fix-ci  --pr    <N> [--run-id <ID>]    [--cwd <path>] [--verbose|--quiet]
+  kody2 resolve --pr    <N>                    [--cwd <path>] [--verbose|--quiet]
   kody2 help
   kody2 version
 
@@ -38,8 +33,6 @@ Commands:
   run     Implement a GitHub issue end-to-end → draft or normal PR.
   ci      Full preflight (unpack secrets, install deps, install LiteLLM, git
           identity) then invoke run. Used by the kody2.yml workflow.
-  review  Read-only review of an existing PR. Posts a structured review
-          comment; makes no commits.
   fix     Apply feedback to an existing PR. Reads the latest PR review
           comment (or --feedback inline) as authoritative, then edits +
           commits + pushes + updates the PR.
@@ -49,8 +42,6 @@ Commands:
   resolve Merge origin/<base> into an open PR branch. On conflict, the
           agent resolves the markers; on clean merge, exits with no PR
           update.
-  release Bump version, tag, push, run configured publishCommand,
-          create GitHub release. No agent invocation.
 
 Exit codes:
   0  success (PR opened, verify passed)
@@ -71,23 +62,6 @@ export function parseArgs(argv: string[]): ParsedArgs {
   if (cmd === "version" || cmd === "--version" || cmd === "-v") return { ...result, command: "version" }
   if (cmd === "ci") {
     return { ...result, command: "ci", ciArgv: argv.slice(1) }
-  }
-  if (cmd === "review") {
-    result.command = "review"
-    for (let i = 1; i < argv.length; i++) {
-      const arg = argv[i]
-      if (arg === "--pr") {
-        const n = parseInt(argv[++i] ?? "", 10)
-        if (Number.isNaN(n) || n <= 0) result.errors.push("--pr requires a positive integer")
-        else result.prNumber = n
-      } else if (arg === "--cwd") {
-        result.cwd = argv[++i]
-      } else if (arg === "--verbose") result.verbose = true
-      else if (arg === "--quiet") result.quiet = true
-      else result.errors.push(`unknown arg: ${arg}`)
-    }
-    if (!result.prNumber) result.errors.push("--pr <N> is required")
-    return result
   }
   if (cmd === "fix") {
     result.command = "fix"
@@ -142,23 +116,6 @@ export function parseArgs(argv: string[]): ParsedArgs {
       else result.errors.push(`unknown arg: ${arg}`)
     }
     if (!result.prNumber) result.errors.push("--pr <N> is required")
-    return result
-  }
-  if (cmd === "release") {
-    result.command = "release"
-    result.bump = "patch"
-    for (let i = 1; i < argv.length; i++) {
-      const arg = argv[i]
-      if (arg === "--bump") {
-        const v = argv[++i]
-        if (v === "patch" || v === "minor" || v === "major") result.bump = v
-        else result.errors.push(`--bump must be patch|minor|major (got: ${v})`)
-      } else if (arg === "--cwd") {
-        result.cwd = argv[++i]
-      } else if (arg === "--dry-run") result.dryRun = true
-      else if (arg === "--verbose") result.verbose = true
-      else result.errors.push(`unknown arg: ${arg}`)
-    }
     return result
   }
   if (cmd !== "run") {
@@ -216,22 +173,6 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
       return 99
     }
   }
-  if (args.command === "review") {
-    try {
-      const result = await runReview({
-        prNumber: args.prNumber!,
-        cwd: args.cwd,
-        verbose: args.verbose,
-        quiet: args.quiet,
-      })
-      return result.exitCode
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      process.stderr.write(`[kody2] review crashed: ${msg}\n`)
-      if (err instanceof Error && err.stack) process.stderr.write(err.stack + "\n")
-      return 99
-    }
-  }
   if (args.command === "fix") {
     try {
       const result = await runFix({
@@ -278,22 +219,6 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       process.stderr.write(`[kody2] resolve crashed: ${msg}\n`)
-      if (err instanceof Error && err.stack) process.stderr.write(err.stack + "\n")
-      return 99
-    }
-  }
-  if (args.command === "release") {
-    try {
-      const result = await runRelease({
-        bump: args.bump ?? "patch",
-        cwd: args.cwd,
-        verbose: args.verbose,
-        dryRun: args.dryRun,
-      })
-      return result.exitCode
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      process.stderr.write(`[kody2] release crashed: ${msg}\n`)
       if (err instanceof Error && err.stack) process.stderr.write(err.stack + "\n")
       return 99
     }
