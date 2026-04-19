@@ -6,7 +6,7 @@
  */
 
 import { execFileSync } from "child_process"
-import { commitAndPush as doCommitAndPush, hasCommitsAhead, listChangedFiles, isForbiddenPath } from "../commit.js"
+import { commitAndPush as doCommitAndPush, hasCommitsAhead, listChangedFiles, isForbiddenPath, abortUnfinishedGitOps } from "../commit.js"
 import type { PostflightScript } from "../executables/types.js"
 
 export const commitAndPush: PostflightScript = async (ctx) => {
@@ -17,10 +17,19 @@ export const commitAndPush: PostflightScript = async (ctx) => {
   }
 
   // Resolve flow: make sure conflict-resolved files get staged.
+  // Do NOT abort MERGE_HEAD in resolve mode — the resolveFlow intentionally
+  // created it, and commitAndPush needs to produce the merge commit from it.
   if (ctx.args.mode === "resolve") {
     try {
       execFileSync("git", ["add", "-A"], { cwd: ctx.cwd, env: { ...process.env, HUSKY: "0" }, stdio: "pipe" })
     } catch { /* best effort */ }
+  } else {
+    // All other modes: clean up any agent-created unfinished git state
+    // (e.g., stash/merge/rebase leftovers) before committing.
+    const aborted = abortUnfinishedGitOps(ctx.cwd)
+    if (aborted.length > 0) {
+      process.stderr.write(`[kody2] cleaned up unfinished git ops: ${aborted.join(", ")}\n`)
+    }
   }
 
   const fallbackMsg = defaultCommitMessage(ctx.args.mode as string | undefined, ctx.data)

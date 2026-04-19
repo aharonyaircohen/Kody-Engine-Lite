@@ -125,11 +125,10 @@ export function commitAndPush(
   agentMessage: string,
   cwd?: string,
 ): CommitResult {
-  const aborted = abortUnfinishedGitOps(cwd)
-  if (aborted.length > 0) {
-    process.stderr.write(`[kody2] cleaned up unfinished git ops: ${aborted.join(", ")}\n`)
-  }
-
+  // Note: abortUnfinishedGitOps() is intentionally NOT called here anymore.
+  // The postflight script (src-v2/scripts/commitAndPush.ts) decides when to
+  // abort (non-resolve modes) vs preserve (resolve mode keeps MERGE_HEAD so
+  // the merge commit can be created from it).
   const allChanged = listChangedFiles(cwd)
   const allowedFiles = allChanged.filter((f) => !isForbiddenPath(f))
 
