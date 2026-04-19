@@ -6,11 +6,8 @@
 
 import { getIssue, postIssueComment } from "../issue.js"
 import { ensureFeatureBranch, UncommittedChangesError } from "../branch.js"
+import { getRunUrl } from "../gha.js"
 import type { PreflightScript } from "../executables/types.js"
-
-const RUN_URL = process.env.GITHUB_SERVER_URL && process.env.GITHUB_REPOSITORY && process.env.GITHUB_RUN_ID
-  ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
-  : ""
 
 export const runFlow: PreflightScript = async (ctx) => {
   const issueNumber = ctx.args.issue as number
@@ -34,8 +31,9 @@ export const runFlow: PreflightScript = async (ctx) => {
     throw err
   }
 
-  const startMsg = RUN_URL
-    ? `⚙️ kody2 started — branch \`${ctx.data.branch}\`, run ${RUN_URL}`
+  const runUrl = getRunUrl()
+  const startMsg = runUrl
+    ? `⚙️ kody2 started — branch \`${ctx.data.branch}\`, run ${runUrl}`
     : `⚙️ kody2 started — branch \`${ctx.data.branch}\``
   tryPost(issueNumber, startMsg, ctx.cwd)
 }

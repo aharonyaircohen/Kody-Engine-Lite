@@ -104,9 +104,12 @@ export function ensurePr(opts: EnsurePrOptions): PrResult {
 
   const existing = findExistingPr(opts.branch, opts.cwd)
   if (existing) {
+    // Update body only — never rewrite the title on an existing PR. Past
+    // regenerations stacked "[WIP] #N:" prefixes on each fix/fix-ci/resolve run
+    // until the title was unreadable.
     try {
       gh(
-        ["pr", "edit", String(existing.number), "--title", title, "--body-file", "-"],
+        ["pr", "edit", String(existing.number), "--body-file", "-"],
         { input: body, cwd: opts.cwd },
       )
     } catch (err) {

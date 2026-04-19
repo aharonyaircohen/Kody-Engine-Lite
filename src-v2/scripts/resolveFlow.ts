@@ -8,6 +8,7 @@
 import { execFileSync } from "child_process"
 import { getPr, postPrReviewComment } from "../issue.js"
 import { checkoutPrBranch, getCurrentBranch, mergeBase } from "../branch.js"
+import { getRunUrl } from "../gha.js"
 import type { PreflightScript } from "../executables/types.js"
 
 const CONFLICT_DIFF_MAX_BYTES = 40_000
@@ -57,7 +58,9 @@ export const resolveFlow: PreflightScript = async (ctx) => {
 
   ctx.data.conflictedFiles = conflictedFiles
   ctx.data.conflictMarkersPreview = getConflictMarkersPreview(conflictedFiles, ctx.cwd)
-  tryPostPr(prNumber, `⚙️ kody2 resolve started on \`${ctx.data.branch}\` — ${conflictedFiles.length} conflicted file(s)`, ctx.cwd)
+  const runUrl = getRunUrl()
+  const runSuffix = runUrl ? `, run ${runUrl}` : ""
+  tryPostPr(prNumber, `⚙️ kody2 resolve started on \`${ctx.data.branch}\`${runSuffix} — ${conflictedFiles.length} conflicted file(s)`, ctx.cwd)
 }
 
 function getConflictedFiles(cwd?: string): string[] {

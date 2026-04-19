@@ -2,6 +2,7 @@ import * as fs from "fs"
 import * as path from "path"
 import { execFileSync } from "child_process"
 import { runExecutable } from "./executor.js"
+import { reactToTriggerComment } from "./gha.js"
 import { loadConfig, parseProviderModel, needsLitellmProxy } from "./config.js"
 import { postIssueComment, truncate } from "./issue.js"
 
@@ -217,6 +218,9 @@ export async function runCi(argv: string[]): Promise<number> {
     const n = unpackAllSecrets()
     if (n > 0) process.stdout.write(`→ kody2: unpacked ${n} secret(s) from ALL_SECRETS\n`)
     resolveAuthToken()
+    // Acknowledge the triggering @kody2 comment with 👀 so the user sees
+    // kody2 picked up the request before deps/model spin up.
+    reactToTriggerComment(cwd)
 
     const pm = args.packageManager ?? detectPackageManager(cwd)
     process.stdout.write(`→ kody2: package manager = ${pm}\n`)

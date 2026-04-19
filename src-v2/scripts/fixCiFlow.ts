@@ -6,6 +6,7 @@
 import { getPr, getPrDiff, postPrReviewComment } from "../issue.js"
 import { checkoutPrBranch, getCurrentBranch } from "../branch.js"
 import { getLatestFailedRunForPr, getFailedRunLogTail } from "../workflow.js"
+import { getRunUrl } from "../gha.js"
 import type { PreflightScript } from "../executables/types.js"
 
 const LOG_MAX_BYTES = 30_000
@@ -56,7 +57,9 @@ export const fixCiFlow: PreflightScript = async (ctx) => {
   ctx.data.failedLogTail = logTail
   ctx.data.prDiff = getPrDiff(prNumber, ctx.cwd)
 
-  tryPostPr(prNumber, `⚙️ kody2 fix-ci started on \`${ctx.data.branch}\` — analyzing workflow run ${runId}`, ctx.cwd)
+  const runUrl = getRunUrl()
+  const runSuffix = runUrl ? `, kody2 run ${runUrl}` : ""
+  tryPostPr(prNumber, `⚙️ kody2 fix-ci started on \`${ctx.data.branch}\`${runSuffix} — analyzing workflow run ${runId}`, ctx.cwd)
 }
 
 function tryPostPr(prNumber: number, body: string, cwd?: string): void {

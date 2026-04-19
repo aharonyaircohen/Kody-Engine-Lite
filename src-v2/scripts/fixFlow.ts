@@ -6,6 +6,7 @@
 
 import { getPr, getPrDiff, getPrLatestReviewBody, postPrReviewComment, truncate } from "../issue.js"
 import { checkoutPrBranch, getCurrentBranch } from "../branch.js"
+import { getRunUrl } from "../gha.js"
 import type { PreflightScript } from "../executables/types.js"
 
 export const fixFlow: PreflightScript = async (ctx) => {
@@ -35,8 +36,10 @@ export const fixFlow: PreflightScript = async (ctx) => {
   ctx.data.feedback = feedback
   ctx.data.prDiff = getPrDiff(prNumber, ctx.cwd)
 
+  const runUrl = getRunUrl()
+  const runSuffix = runUrl ? `, run ${runUrl}` : ""
   tryPostPr(prNumber,
-    `⚙️ kody2 fix started on \`${ctx.data.branch}\` — applying feedback (${truncate(feedback.replace(/\n/g, " "), 200)})`,
+    `⚙️ kody2 fix started on \`${ctx.data.branch}\`${runSuffix} — applying feedback (${truncate(feedback.replace(/\n/g, " "), 200)})`,
     ctx.cwd)
 }
 
