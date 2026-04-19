@@ -1,6 +1,6 @@
 {
   "name": "@kody-ade/engine",
-  "version": "0.7.7",
+  "version": "0.7.8",
   "description": "Kody ADE — the free, autonomous development engine. Issue to tested, reviewed PR.",
   "license": "MIT",
   "type": "module",
@@ -18,7 +18,7 @@
     "kody": "tsx src/entry.ts",
     "kody2": "tsx bin-v2/kody2.ts",
     "claude": "tsx scripts/kody.ts",
-    "build": "tsup",
+    "build": "tsup && node -e \"require('fs').cpSync('src-v2/executables', 'dist/executables', { recursive: true })\"",
     "test": "vitest run --coverage",
     "test:ci": "vitest run --coverage --reporter=junit --outputFile=coverage/junit.xml",
     "test:kody2": "vitest run --coverage src-v2",

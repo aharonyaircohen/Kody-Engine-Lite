@@ -1,0 +1,83 @@
+{
+  "name": "build",
+  "describe": "Implement a GitHub issue or apply PR feedback end-to-end.",
+
+  "inputs": [
+    {
+      "name": "mode",
+      "flag": "--mode",
+      "type": "enum",
+      "values": ["run", "fix", "fix-ci", "resolve"],
+      "required": true,
+      "describe": "Which Build mode to run."
+    },
+    {
+      "name": "issue",
+      "flag": "--issue",
+      "type": "int",
+      "requiredWhen": { "mode": "run" },
+      "describe": "GitHub issue number to implement."
+    },
+    {
+      "name": "pr",
+      "flag": "--pr",
+      "type": "int",
+      "requiredWhen": { "mode": ["fix", "fix-ci", "resolve"] },
+      "describe": "GitHub PR number to operate on."
+    },
+    {
+      "name": "feedback",
+      "flag": "--feedback",
+      "type": "string",
+      "required": false,
+      "describe": "Inline override for fix mode. If absent, the executor reads the latest PR review comment."
+    },
+    {
+      "name": "runId",
+      "flag": "--run-id",
+      "type": "string",
+      "required": false,
+      "describe": "Specific failed workflow run ID for fix-ci. Defaults to latest failed run on the PR branch."
+    }
+  ],
+
+  "claudeCode": {
+    "model": "inherit",
+    "permissionMode": "acceptEdits",
+    "maxTurns": null,
+    "systemPromptAppend": null,
+    "tools": ["Read", "Write", "Edit", "Bash", "Grep", "Glob"],
+    "hooks": {
+      "PreToolUse": [],
+      "PostToolUse": [],
+      "Stop": []
+    },
+    "skills": [],
+    "commands": [],
+    "subagents": [],
+    "plugins": [],
+    "mcpServers": []
+  },
+
+  "cliTools": [],
+
+  "scripts": {
+    "preflight": [
+      { "script": "runFlow",     "runWhen": { "args.mode": "run" } },
+      { "script": "fixFlow",     "runWhen": { "args.mode": "fix" } },
+      { "script": "fixCiFlow",   "runWhen": { "args.mode": "fix-ci" } },
+      { "script": "resolveFlow", "runWhen": { "args.mode": "resolve" } },
+      { "script": "loadConventions" },
+      { "script": "loadCoverageRules" },
+      { "script": "composePrompt" }
+    ],
+    "postflight": [
+      { "script": "parseAgentResult" },
+      { "script": "verify" },
+      { "script": "checkCoverageWithRetry" },
+      { "script": "commitAndPush" },
+      { "script": "ensurePr" },
+      { "script": "postIssueComment" }
+    ]
+  }
+}

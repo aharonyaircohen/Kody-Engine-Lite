@@ -1,7 +1,7 @@
 import * as fs from "fs"
 import * as path from "path"
 import { execFileSync } from "child_process"
-import { run } from "./index.js"
+import { runExecutable } from "./executor.js"
 import { loadConfig, parseProviderModel, needsLitellmProxy } from "./config.js"
 import { postIssueComment, truncate } from "./issue.js"
 
@@ -252,9 +252,11 @@ export async function runCi(argv: string[]): Promise<number> {
   process.stdout.write("→ kody2: preflight done, handing off to kody2 run\n\n")
 
   try {
-    const result = await run({
-      issueNumber,
+    const config = loadConfig(cwd)
+    const result = await runExecutable("build", {
+      cliArgs: { mode: "run", issue: issueNumber },
       cwd,
+      config,
       verbose: args.verbose,
       quiet: args.quiet,
     })

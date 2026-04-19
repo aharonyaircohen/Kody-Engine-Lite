@@ -1,11 +1,9 @@
-import { run } from "./index.js"
+import { loadConfig } from "./config.js"
+import { runExecutable } from "./executor.js"
 import { runCi } from "./kody2-cli.js"
-import { runFix } from "./commands/fix.js"
-import { runFixCi } from "./commands/fix-ci.js"
-import { runResolve } from "./commands/resolve.js"
 
 interface ParsedArgs {
-  command: "run" | "ci" | "fix" | "fix-ci" | "resolve" | "help" | "version"
+  command: "run" | "fix" | "fix-ci" | "resolve" | "ci" | "help" | "version"
   issueNumber?: number
   prNumber?: number
   feedback?: string
@@ -29,28 +27,18 @@ Usage:
   kody2 help
   kody2 version
 
-Commands:
-  run     Implement a GitHub issue end-to-end → draft or normal PR.
-  ci      Full preflight (unpack secrets, install deps, install LiteLLM, git
-          identity) then invoke run. Used by the kody2.yml workflow.
-  fix     Apply feedback to an existing PR. Reads the latest PR review
-          comment (or --feedback inline) as authoritative, then edits +
-          commits + pushes + updates the PR.
-  fix-ci  Fix a failing CI workflow on an open PR. Fetches the latest
-          failed run's log-tail (or use --run-id), then the agent
-          diagnoses + fixes + pushes.
-  resolve Merge origin/<base> into an open PR branch. On conflict, the
-          agent resolves the markers; on clean merge, exits with no PR
-          update.
+All commands dispatch to the Build executable with a specific mode. The
+executable is defined by \`src-v2/executables/build/profile.json\`.
 
 Exit codes:
-  0  success (PR opened, verify passed)
-  1  agent reported FAILED (draft PR opened)
-  2  verify failed (draft PR opened)
-  3  no commits to ship
-  4  PR creation failed
-  5  uncommitted changes on target branch
-  99 wrapper crashed
+  0   success (PR opened, verify passed)
+  1   agent reported FAILED (draft PR opened)
+  2   verify failed (draft PR opened)
+  3   no commits to ship
+  4   PR creation failed
+  5   uncommitted changes on target branch
+  64  invalid CLI args
+  99  wrapper crashed
 `
 
 export function parseArgs(argv: string[]): ParsedArgs {
@@ -63,88 +51,44 @@ export function parseArgs(argv: string[]): ParsedArgs {
   if (cmd === "ci") {
     return { ...result, command: "ci", ciArgv: argv.slice(1) }
   }
-  if (cmd === "fix") {
-    result.command = "fix"
-    for (let i = 1; i < argv.length; i++) {
-      const arg = argv[i]
-      if (arg === "--pr") {
-        const n = parseInt(argv[++i] ?? "", 10)
-        if (Number.isNaN(n) || n <= 0) result.errors.push("--pr requires a positive integer")
-        else result.prNumber = n
-      } else if (arg === "--feedback") {
-        result.feedback = argv[++i]
-      } else if (arg === "--cwd") {
-        result.cwd = argv[++i]
-      } else if (arg === "--verbose") result.verbose = true
-      else if (arg === "--quiet") result.quiet = true
-      else result.errors.push(`unknown arg: ${arg}`)
-    }
-    if (!result.prNumber) result.errors.push("--pr <N> is required")
-    return result
-  }
-  if (cmd === "fix-ci") {
-    result.command = "fix-ci"
-    for (let i = 1; i < argv.length; i++) {
-      const arg = argv[i]
-      if (arg === "--pr") {
-        const n = parseInt(argv[++i] ?? "", 10)
-        if (Number.isNaN(n) || n <= 0) result.errors.push("--pr requires a positive integer")
-        else result.prNumber = n
-      } else if (arg === "--run-id") {
-        result.runId = argv[++i]
-      } else if (arg === "--cwd") {
-        result.cwd = argv[++i]
-      } else if (arg === "--verbose") result.verbose = true
-      else if (arg === "--quiet") result.quiet = true
-      else result.errors.push(`unknown arg: ${arg}`)
-    }
-    if (!result.prNumber) result.errors.push("--pr <N> is required")
-    return result
-  }
-  if (cmd === "resolve") {
-    result.command = "resolve"
-    for (let i = 1; i < argv.length; i++) {
-      const arg = argv[i]
-      if (arg === "--pr") {
-        const n = parseInt(argv[++i] ?? "", 10)
-        if (Number.isNaN(n) || n <= 0) result.errors.push("--pr requires a positive integer")
-        else result.prNumber = n
-      } else if (arg === "--cwd") {
-        result.cwd = argv[++i]
-      } else if (arg === "--verbose") result.verbose = true
-      else if (arg === "--quiet") result.quiet = true
-      else result.errors.push(`unknown arg: ${arg}`)
-    }
-    if (!result.prNumber) result.errors.push("--pr <N> is required")
-    return result
-  }
-  if (cmd !== "run") {
-    result.errors.push(`unknown command: ${cmd}`)
+
+  if (cmd === "run" || cmd === "fix" || cmd === "fix-ci" || cmd === "resolve") {
+    result.command = cmd
+    parseCommandArgs(cmd, argv.slice(1), result)
     return result
   }
 
-  result.command = "run"
-  for (let i = 1; i < argv.length; i++) {
-    const arg = argv[i]
+  result.errors.push(`unknown command: ${cmd}`)
+  return result
+}
+
+function parseCommandArgs(cmd: ParsedArgs["command"], rest: string[], result: ParsedArgs): void {
+  for (let i = 0; i < rest.length; i++) {
+    const arg = rest[i]
     if (arg === "--issue") {
-      const n = parseInt(argv[++i] ?? "", 10)
+      const n = parseInt(rest[++i] ?? "", 10)
       if (Number.isNaN(n) || n <= 0) result.errors.push("--issue requires a positive integer")
       else result.issueNumber = n
+    } else if (arg === "--pr") {
+      const n = parseInt(rest[++i] ?? "", 10)
+      if (Number.isNaN(n) || n <= 0) result.errors.push("--pr requires a positive integer")
+      else result.prNumber = n
+    } else if (arg === "--feedback") {
+      result.feedback = rest[++i]
+    } else if (arg === "--run-id") {
+      result.runId = rest[++i]
     } else if (arg === "--cwd") {
-      result.cwd = argv[++i]
-    } else if (arg === "--verbose") {
-      result.verbose = true
-    } else if (arg === "--quiet") {
-      result.quiet = true
-    } else if (arg === "--dry-run") {
-      result.dryRun = true
-    } else {
-      result.errors.push(`unknown arg: ${arg}`)
-    }
+      result.cwd = rest[++i]
+    } else if (arg === "--verbose") result.verbose = true
+    else if (arg === "--quiet") result.quiet = true
+    else if (arg === "--dry-run") result.dryRun = true
+    else result.errors.push(`unknown arg: ${arg}`)
   }
 
-  if (!result.issueNumber) result.errors.push("--issue <N> is required")
-  return result
+  if (cmd === "run" && !result.issueNumber) result.errors.push("--issue <N> is required for run")
+  if (cmd === "fix" && !result.prNumber) result.errors.push("--pr <N> is required for fix")
+  if (cmd === "fix-ci" && !result.prNumber) result.errors.push("--pr <N> is required for fix-ci")
+  if (cmd === "resolve" && !result.prNumber) result.errors.push("--pr <N> is required for resolve")
 }
 
 export async function main(argv: string[] = process.argv.slice(2)): Promise<number> {
@@ -160,7 +104,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
     return 0
   }
   if (args.command === "version") {
-    process.stdout.write("kody2 0.6.0\n")
+    process.stdout.write("kody2 0.7.8\n")
     return 0
   }
   if (args.command === "ci") {
@@ -173,64 +117,31 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
       return 99
     }
   }
-  if (args.command === "fix") {
-    try {
-      const result = await runFix({
-        prNumber: args.prNumber!,
-        feedback: args.feedback,
-        cwd: args.cwd,
-        verbose: args.verbose,
-        quiet: args.quiet,
-      })
-      return result.exitCode
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      process.stderr.write(`[kody2] fix crashed: ${msg}\n`)
-      if (err instanceof Error && err.stack) process.stderr.write(err.stack + "\n")
-      return 99
-    }
-  }
-  if (args.command === "fix-ci") {
-    try {
-      const result = await runFixCi({
-        prNumber: args.prNumber!,
-        runId: args.runId,
-        cwd: args.cwd,
-        verbose: args.verbose,
-        quiet: args.quiet,
-      })
-      return result.exitCode
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      process.stderr.write(`[kody2] fix-ci crashed: ${msg}\n`)
-      if (err instanceof Error && err.stack) process.stderr.write(err.stack + "\n")
-      return 99
-    }
-  }
-  if (args.command === "resolve") {
-    try {
-      const result = await runResolve({
-        prNumber: args.prNumber!,
-        cwd: args.cwd,
-        verbose: args.verbose,
-        quiet: args.quiet,
-      })
-      return result.exitCode
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      process.stderr.write(`[kody2] resolve crashed: ${msg}\n`)
-      if (err instanceof Error && err.stack) process.stderr.write(err.stack + "\n")
-      return 99
-    }
+
+  // All four pipeline commands (run/fix/fix-ci/resolve) dispatch to the Build executable.
+  const cwd = args.cwd ?? process.cwd()
+  let config
+  try { config = loadConfig(cwd) }
+  catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    process.stderr.write(`[kody2] config error: ${msg}\n`)
+    process.stdout.write(`PR_URL=FAILED: config error: ${msg}\n`)
+    return 99
   }
 
+  const cliArgs: Record<string, unknown> = { mode: args.command }
+  if (args.issueNumber !== undefined) cliArgs.issue = args.issueNumber
+  if (args.prNumber !== undefined) cliArgs.pr = args.prNumber
+  if (args.feedback !== undefined) cliArgs.feedback = args.feedback
+  if (args.runId !== undefined) cliArgs.runId = args.runId
+
   try {
-    const result = await run({
-      issueNumber: args.issueNumber!,
-      cwd: args.cwd,
+    const result = await runExecutable("build", {
+      cliArgs,
+      cwd,
+      config,
       verbose: args.verbose,
       quiet: args.quiet,
-      dryRun: args.dryRun,
     })
     return result.exitCode
   } catch (err) {
