@@ -122,7 +122,22 @@ function shellOut(cmd: string, args: string[], cwd: string, stream = true): numb
   }
 }
 
+function isOnPath(bin: string): boolean {
+  try {
+    execFileSync("which", [bin], { stdio: "pipe" })
+    return true
+  } catch { return false }
+}
+
+export function ensurePackageManagerInstalled(pm: PackageManager, cwd: string): number {
+  if (pm === "npm" || isOnPath(pm)) return 0
+  process.stdout.write(`→ kody2: ${pm} not on PATH — installing via npm install -g ${pm}\n`)
+  return shellOut("npm", ["install", "-g", pm], cwd)
+}
+
 export function installDeps(pm: PackageManager, cwd: string): number {
+  const ensureCode = ensurePackageManagerInstalled(pm, cwd)
+  if (ensureCode !== 0) return ensureCode
   const args: Record<PackageManager, string[]> = {
     pnpm: ["install", "--frozen-lockfile"],
     yarn: ["install", "--frozen-lockfile"],
