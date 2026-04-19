@@ -3,9 +3,10 @@ import { runCi } from "./kody2-cli.js"
 import { runReview } from "./commands/review.js"
 import { runFix } from "./commands/fix.js"
 import { runFixCi } from "./commands/fix-ci.js"
+import { runResolve } from "./commands/resolve.js"
 
 interface ParsedArgs {
-  command: "run" | "ci" | "review" | "fix" | "fix-ci" | "help" | "version"
+  command: "run" | "ci" | "review" | "fix" | "fix-ci" | "resolve" | "help" | "version"
   issueNumber?: number
   prNumber?: number
   feedback?: string
@@ -26,6 +27,7 @@ Usage:
   kody2 review --pr    <N> [--cwd <path>] [--verbose|--quiet]
   kody2 fix    --pr    <N> [--feedback "..."] [--cwd <path>] [--verbose|--quiet]
   kody2 fix-ci --pr    <N> [--run-id <ID>]    [--cwd <path>] [--verbose|--quiet]
+  kody2 resolve --pr   <N>                    [--cwd <path>] [--verbose|--quiet]
   kody2 help
   kody2 version
 
@@ -41,6 +43,9 @@ Commands:
   fix-ci  Fix a failing CI workflow on an open PR. Fetches the latest
           failed run's log-tail (or use --run-id), then the agent
           diagnoses + fixes + pushes.
+  resolve Merge origin/<base> into an open PR branch. On conflict, the
+          agent resolves the markers; on clean merge, exits with no PR
+          update.
 
 Exit codes:
   0  success (PR opened, verify passed)
@@ -108,6 +113,23 @@ export function parseArgs(argv: string[]): ParsedArgs {
         else result.prNumber = n
       } else if (arg === "--run-id") {
         result.runId = argv[++i]
+      } else if (arg === "--cwd") {
+        result.cwd = argv[++i]
+      } else if (arg === "--verbose") result.verbose = true
+      else if (arg === "--quiet") result.quiet = true
+      else result.errors.push(`unknown arg: ${arg}`)
+    }
+    if (!result.prNumber) result.errors.push("--pr <N> is required")
+    return result
+  }
+  if (cmd === "resolve") {
+    result.command = "resolve"
+    for (let i = 1; i < argv.length; i++) {
+      const arg = argv[i]
+      if (arg === "--pr") {
+        const n = parseInt(argv[++i] ?? "", 10)
+        if (Number.isNaN(n) || n <= 0) result.errors.push("--pr requires a positive integer")
+        else result.prNumber = n
       } else if (arg === "--cwd") {
         result.cwd = argv[++i]
       } else if (arg === "--verbose") result.verbose = true
@@ -218,6 +240,22 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       process.stderr.write(`[kody2] fix-ci crashed: ${msg}\n`)
+      if (err instanceof Error && err.stack) process.stderr.write(err.stack + "\n")
+      return 99
+    }
+  }
+  if (args.command === "resolve") {
+    try {
+      const result = await runResolve({
+        prNumber: args.prNumber!,
+        cwd: args.cwd,
+        verbose: args.verbose,
+        quiet: args.quiet,
+      })
+      return result.exitCode
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      process.stderr.write(`[kody2] resolve crashed: ${msg}\n`)
       if (err instanceof Error && err.stack) process.stderr.write(err.stack + "\n")
       return 99
     }
