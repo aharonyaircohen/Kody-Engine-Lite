@@ -59,6 +59,7 @@ export function buildPrompt(opts: BuildPromptOptions): string {
 
   const commentsBlock = formatComments(issue.comments)
   const conventionsBlock = formatConventions(opts.conventions ?? [])
+  const coverageBlock = formatTestRequirements(config.testRequirements ?? [])
 
   return `You are Kody, an autonomous engineer. Take a GitHub issue from spec to a tested set of edits in ONE session. The wrapper handles git/gh — you do not.
 
@@ -66,7 +67,7 @@ export function buildPrompt(opts: BuildPromptOptions): string {
 - ${config.github.owner}/${config.github.repo}, default branch: ${config.git.defaultBranch}
 - current branch (already checked out): ${featureBranch}
 
-${conventionsBlock}# Issue #${issue.number}: ${issue.title}
+${conventionsBlock}${coverageBlock}# Issue #${issue.number}: ${issue.title}
 ${issue.body || "(no body)"}
 
 ${commentsBlock}
@@ -95,6 +96,21 @@ ${qualityLines.join("\n")}
 - Do NOT post issue comments — the wrapper handles that.
 - Pre-existing quality-gate failures: assume they are NOT your responsibility unless your edits touched related code. If quality gates are red but your edits are unrelated, output \`DONE\` with a COMMIT_MSG describing only what you actually changed.
 - Keep the plan and reasoning concise. Long monologues waste turns.`
+}
+
+function formatTestRequirements(reqs: { pattern: string; requireSibling: string }[]): string {
+  if (reqs.length === 0) return ""
+  const lines = [
+    "# Test coverage requirements (ENFORCED)",
+    "",
+    "Every newly added file matching one of these patterns MUST be accompanied by a sibling test file in the same commit. The wrapper checks this after you finish; if any sibling test is missing, the run will fail and the issue will be re-invoked with the gap as feedback.",
+    "",
+  ]
+  for (const r of reqs) {
+    lines.push(`- new \`${r.pattern}\` → must include sibling \`${r.requireSibling}\``)
+  }
+  lines.push("")
+  return lines.join("\n")
 }
 
 function formatConventions(conventions: LoadedConvention[]): string {

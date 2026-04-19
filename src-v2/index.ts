@@ -8,6 +8,7 @@ import { verifyAll, summarizeFailure } from "./verify.js"
 import { getIssue, postIssueComment, truncate } from "./issue.js"
 import { buildPrompt, parseAgentResult, loadProjectConventions } from "./prompt.js"
 import { runAgent } from "./agent.js"
+import { checkCoverage, getAddedFiles, formatMissesForFeedback, type MissingTest } from "./coverage.js"
 
 export interface RunOptions {
   issueNumber: number
@@ -103,23 +104,38 @@ export async function run(opts: RunOptions): Promise<RunResult> {
   const prompt = buildPrompt({ config, issue, featureBranch: branchInfo.branch, conventions })
 
   const ndjsonDir = path.join(cwd, ".kody2")
+
+  const invokeAgent = async (p: string) =>
+    runAgent({ prompt: p, model, cwd, litellmUrl: litellm?.url ?? null, verbose: opts.verbose, quiet: opts.quiet, ndjsonDir })
+
   let agentResult
+  let parsed
+  let coverageMisses: MissingTest[] = []
   try {
-    agentResult = await runAgent({
-      prompt,
-      model,
-      cwd,
-      litellmUrl: litellm?.url ?? null,
-      verbose: opts.verbose,
-      quiet: opts.quiet,
-      ndjsonDir,
-    })
+    agentResult = await invokeAgent(prompt)
+    parsed = parseAgentResult(agentResult.finalText)
+
+    // If the agent claimed DONE, run coverage check. If misses, retry once.
+    const reqs = config.testRequirements ?? []
+    if (parsed.done && reqs.length > 0) {
+      coverageMisses = checkCoverage(getAddedFiles(config.git.defaultBranch, cwd), reqs)
+      if (coverageMisses.length > 0) {
+        process.stderr.write(`[kody2] coverage check found ${coverageMisses.length} missing test(s); retrying agent once\n`)
+        const followup = `${prompt}\n\n# Coverage failure (retry)\n${formatMissesForFeedback(coverageMisses)}`
+        const retry = await invokeAgent(followup)
+        const retryParsed = parseAgentResult(retry.finalText)
+        if (retry.outcome === "completed" && retryParsed.done) {
+          agentResult = retry
+          parsed = retryParsed
+        }
+        coverageMisses = checkCoverage(getAddedFiles(config.git.defaultBranch, cwd), reqs)
+      }
+    }
   } finally {
     try { litellm?.kill() } catch { /* best effort */ }
   }
 
-  const parsed = parseAgentResult(agentResult.finalText)
-  const agentOk = agentResult.outcome === "completed" && parsed.done
+  const agentOk = agentResult.outcome === "completed" && parsed.done && coverageMisses.length === 0
 
   let verifyOk = false
   let verifyReason = ""
@@ -153,11 +169,13 @@ export async function run(opts: RunOptions): Promise<RunResult> {
     return finish({ exitCode: 3, reason })
   }
 
-  const failureReason = !agentOk
-    ? (parsed.failureReason || agentResult.error || "agent did not emit DONE")
-    : !verifyOk
-      ? verifyReason
-      : ""
+  const failureReason = coverageMisses.length > 0
+    ? `missing tests:\n${formatMissesForFeedback(coverageMisses)}`
+    : !agentOk
+      ? (parsed.failureReason || agentResult.error || "agent did not emit DONE")
+      : !verifyOk
+        ? verifyReason
+        : ""
 
   const isFailure = failureReason !== ""
   const changedFiles = listChangedFiles(cwd).filter((f) => !isForbiddenPath(f))

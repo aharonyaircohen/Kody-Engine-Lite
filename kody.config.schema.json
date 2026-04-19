@@ -82,6 +82,25 @@
       },
       "additionalProperties": false
     },
+    "testRequirements": {
+      "type": "array",
+      "description": "kody2 enforces that newly added files matching `pattern` ship with a sibling test file matching `requireSibling`. Misses fail the run; the agent gets one retry with the gap as feedback. Empty array or absent = no enforcement.",
+      "items": {
+        "type": "object",
+        "required": ["pattern", "requireSibling"],
+        "additionalProperties": false,
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "description": "Glob-style pattern (* within segment, ** across segments). Example: 'src/app/api/**/route.ts'"
+          },
+          "requireSibling": {
+            "type": "string",
+            "description": "Sibling test path template. Tokens: {name} (filename without ext), {ext} (e.g. .ts). Example: '{name}.test{ext}'"
+          }
+        }
+      }
+    },
     "agent": {
       "type": "object",
       "description": "Agent execution configuration",

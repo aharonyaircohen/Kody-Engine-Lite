@@ -1,6 +1,11 @@
 import * as fs from "fs"
 import * as path from "path"
 
+export interface TestRequirement {
+  pattern: string
+  requireSibling: string
+}
+
 export interface Kody2Config {
   quality: {
     typecheck: string
@@ -17,6 +22,7 @@ export interface Kody2Config {
   agent: {
     model: string
   }
+  testRequirements?: TestRequirement[]
 }
 
 export interface ProviderModel {
@@ -88,7 +94,23 @@ export function loadConfig(projectDir: string = process.cwd()): Kody2Config {
     agent: {
       model: String(agent.model),
     },
+    testRequirements: parseTestRequirements(raw.testRequirements),
   }
+}
+
+function parseTestRequirements(raw: unknown): TestRequirement[] | undefined {
+  if (!Array.isArray(raw)) return undefined
+  const out: TestRequirement[] = []
+  for (const item of raw) {
+    if (item && typeof item === "object" && typeof (item as { pattern?: unknown }).pattern === "string"
+        && typeof (item as { requireSibling?: unknown }).requireSibling === "string") {
+      out.push({
+        pattern: (item as { pattern: string }).pattern,
+        requireSibling: (item as { requireSibling: string }).requireSibling,
+      })
+    }
+  }
+  return out.length > 0 ? out : undefined
 }
 
 export function getAnthropicApiKeyOrDummy(): string {
