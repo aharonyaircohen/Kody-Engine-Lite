@@ -1,11 +1,13 @@
 import { run } from "./index.js"
 import { runCi } from "./kody2-cli.js"
 import { runReview } from "./commands/review.js"
+import { runFix } from "./commands/fix.js"
 
 interface ParsedArgs {
-  command: "run" | "ci" | "review" | "help" | "version"
+  command: "run" | "ci" | "review" | "fix" | "help" | "version"
   issueNumber?: number
   prNumber?: number
+  feedback?: string
   cwd?: string
   verbose?: boolean
   quiet?: boolean
@@ -20,6 +22,7 @@ Usage:
   kody2 run    --issue <N> [--cwd <path>] [--verbose|--quiet] [--dry-run]
   kody2 ci     --issue <N> [preflight flags — see: kody2 ci --help]
   kody2 review --pr    <N> [--cwd <path>] [--verbose|--quiet]
+  kody2 fix    --pr    <N> [--feedback "..."] [--cwd <path>] [--verbose|--quiet]
   kody2 help
   kody2 version
 
@@ -29,6 +32,9 @@ Commands:
           identity) then invoke run. Used by the kody2.yml workflow.
   review  Read-only review of an existing PR. Posts a structured review
           comment; makes no commits.
+  fix     Apply feedback to an existing PR. Reads the latest PR review
+          comment (or --feedback inline) as authoritative, then edits +
+          commits + pushes + updates the PR.
 
 Exit codes:
   0  success (PR opened, verify passed)
@@ -58,6 +64,25 @@ export function parseArgs(argv: string[]): ParsedArgs {
         const n = parseInt(argv[++i] ?? "", 10)
         if (Number.isNaN(n) || n <= 0) result.errors.push("--pr requires a positive integer")
         else result.prNumber = n
+      } else if (arg === "--cwd") {
+        result.cwd = argv[++i]
+      } else if (arg === "--verbose") result.verbose = true
+      else if (arg === "--quiet") result.quiet = true
+      else result.errors.push(`unknown arg: ${arg}`)
+    }
+    if (!result.prNumber) result.errors.push("--pr <N> is required")
+    return result
+  }
+  if (cmd === "fix") {
+    result.command = "fix"
+    for (let i = 1; i < argv.length; i++) {
+      const arg = argv[i]
+      if (arg === "--pr") {
+        const n = parseInt(argv[++i] ?? "", 10)
+        if (Number.isNaN(n) || n <= 0) result.errors.push("--pr requires a positive integer")
+        else result.prNumber = n
+      } else if (arg === "--feedback") {
+        result.feedback = argv[++i]
       } else if (arg === "--cwd") {
         result.cwd = argv[++i]
       } else if (arg === "--verbose") result.verbose = true
@@ -134,6 +159,23 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       process.stderr.write(`[kody2] review crashed: ${msg}\n`)
+      if (err instanceof Error && err.stack) process.stderr.write(err.stack + "\n")
+      return 99
+    }
+  }
+  if (args.command === "fix") {
+    try {
+      const result = await runFix({
+        prNumber: args.prNumber!,
+        feedback: args.feedback,
+        cwd: args.cwd,
+        verbose: args.verbose,
+        quiet: args.quiet,
+      })
+      return result.exitCode
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      process.stderr.write(`[kody2] fix crashed: ${msg}\n`)
       if (err instanceof Error && err.stack) process.stderr.write(err.stack + "\n")
       return 99
     }
