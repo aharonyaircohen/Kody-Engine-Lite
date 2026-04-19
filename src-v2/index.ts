@@ -168,6 +168,7 @@ export async function run(opts: RunOptions): Promise<RunResult> {
       draft: isFailure,
       failureReason: failureReason || undefined,
       changedFiles,
+      agentSummary: parsed.prSummary,
       cwd,
     })
   } catch (err) {

@@ -35,6 +35,19 @@ describe("pr: buildPrBody", () => {
     expect(body).toMatch(/Closes #5/)
   })
 
+  it("uses agentSummary when supplied (instead of generic restatement)", () => {
+    const body = buildPrBody({ ...baseOpts, agentSummary: "- Added /api/x\n- Wired into Y collection" })
+    expect(body).toMatch(/Added \/api\/x/)
+    expect(body).toMatch(/Wired into Y collection/)
+    expect(body).not.toMatch(/Implementation of issue/)
+  })
+
+  it("falls back to generic restatement + warning when agentSummary missing", () => {
+    const body = buildPrBody(baseOpts)
+    expect(body).toMatch(/Implementation of issue #5/)
+    expect(body).toMatch(/agent did not supply PR_SUMMARY/)
+  })
+
   it("includes Changes list with backticked file names", () => {
     const body = buildPrBody(baseOpts)
     expect(body).toMatch(/## Changes/)

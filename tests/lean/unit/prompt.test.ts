@@ -82,10 +82,13 @@ describe("prompt: buildPrompt", () => {
 })
 
 describe("prompt: parseAgentResult", () => {
-  it("parses DONE + COMMIT_MSG", () => {
-    const result = parseAgentResult("DONE\nCOMMIT_MSG: feat: add X")
+  it("parses DONE + COMMIT_MSG + PR_SUMMARY", () => {
+    const result = parseAgentResult(
+      "DONE\nCOMMIT_MSG: feat: add X\nPR_SUMMARY:\n- Added X\n- Updated Y",
+    )
     expect(result.done).toBe(true)
     expect(result.commitMessage).toBe("feat: add X")
+    expect(result.prSummary).toBe("- Added X\n- Updated Y")
   })
 
   it("parses FAILED with reason", () => {
@@ -112,9 +115,21 @@ describe("prompt: parseAgentResult", () => {
     expect(result.commitMessage).toBe("")
   })
 
+  it("DONE without PR_SUMMARY returns empty summary", () => {
+    const result = parseAgentResult("DONE\nCOMMIT_MSG: feat: x")
+    expect(result.done).toBe(true)
+    expect(result.prSummary).toBe("")
+  })
+
   it("ignores surrounding text around DONE marker", () => {
-    const result = parseAgentResult("All set!\n\nDONE\nCOMMIT_MSG: chore: tidy")
+    const result = parseAgentResult("All set!\n\nDONE\nCOMMIT_MSG: chore: tidy\nPR_SUMMARY:\nMinor cleanup.")
     expect(result.done).toBe(true)
     expect(result.commitMessage).toBe("chore: tidy")
+    expect(result.prSummary).toBe("Minor cleanup.")
+  })
+
+  it("strips trailing code-fence markers from PR_SUMMARY", () => {
+    const result = parseAgentResult("DONE\nCOMMIT_MSG: feat: x\nPR_SUMMARY:\n- Added foo\n```")
+    expect(result.prSummary).toBe("- Added foo")
   })
 })

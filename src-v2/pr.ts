@@ -15,6 +15,8 @@ export interface EnsurePrOptions {
   draft: boolean
   failureReason?: string
   changedFiles: string[]
+  /** Agent-supplied PR_SUMMARY (multi-line, what the change does and why). */
+  agentSummary?: string
   cwd?: string
 }
 
@@ -39,7 +41,13 @@ export function buildPrBody(opts: EnsurePrOptions): string {
 
   lines.push("## Summary")
   lines.push("")
-  lines.push(`Implementation of issue #${opts.issueNumber} — ${opts.issueTitle}`)
+  if (opts.agentSummary && opts.agentSummary.trim()) {
+    lines.push(opts.agentSummary.trim())
+  } else {
+    lines.push(`Implementation of issue #${opts.issueNumber} — ${opts.issueTitle}`)
+    lines.push("")
+    lines.push("_(agent did not supply PR_SUMMARY)_")
+  }
   lines.push("")
 
   if (opts.changedFiles.length > 0) {

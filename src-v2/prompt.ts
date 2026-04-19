@@ -39,12 +39,14 @@ ${qualityLines.join("\n")}
 2. **Plan** — before any Edit/Write, output a short plan (5–10 lines): what files you'll change, the approach, what could go wrong. No fluff.
 3. **Build** — Edit/Write to implement the change. Stay within the plan; if you discover the plan was wrong, briefly say so and adjust.
 4. **Verify** — run each quality command with Bash. On failure, fix the root cause and re-run. When reporting that a command passed, you MUST have just run it and seen exit code 0 in this session — do not paraphrase prior output.
-5. Your FINAL message must be exactly two lines (or one line on failure):
+5. Your FINAL message must use this exact format (or a single \`FAILED: <reason>\` line on failure):
 
+   \`\`\`
    DONE
    COMMIT_MSG: <conventional-commit message, e.g. "feat: add X" or "fix: handle Y">
-
-   Or on failure: FAILED: <reason>
+   PR_SUMMARY:
+   <2-6 short bullet points or sentences describing what you actually changed, why, and how the new code works at a high level. Reviewers will read THIS — not the issue body — to understand the change. Be concrete: name the files/functions/endpoints you added or modified. No marketing fluff. No restating the issue.>
+   \`\`\`
 
 # Rules
 - Do NOT run **any** \`git\` or \`gh\` commands. Not for committing. Not for pushing. Not for inspecting state. Not for "verifying whether failures are pre-existing." Not stash, checkout, diff, status, log, branch — none. The wrapper handles all git/gh operations. If a quality gate fails, that's the failure — do not investigate it via git.
@@ -71,25 +73,33 @@ function formatComments(comments: IssueComment[]): string {
 export interface ParsedAgentResult {
   done: boolean
   commitMessage: string
+  prSummary: string
   failureReason: string
 }
 
 export function parseAgentResult(finalText: string): ParsedAgentResult {
   const text = (finalText || "").trim()
-  if (!text) return { done: false, commitMessage: "", failureReason: "agent produced no final message" }
+  if (!text) return { done: false, commitMessage: "", prSummary: "", failureReason: "agent produced no final message" }
 
   const failedMatch = text.match(/(?:^|\n)\s*FAILED\s*:\s*(.+?)\s*$/s)
   if (failedMatch) {
-    return { done: false, commitMessage: "", failureReason: failedMatch[1]!.trim() }
+    return { done: false, commitMessage: "", prSummary: "", failureReason: failedMatch[1]!.trim() }
   }
 
-  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
-  const doneLine = lines.find((l) => /^DONE\b/i.test(l))
-  if (!doneLine) {
-    return { done: false, commitMessage: "", failureReason: "no DONE or FAILED marker in agent output" }
+  if (!/(^|\n)\s*DONE\b/i.test(text)) {
+    return { done: false, commitMessage: "", prSummary: "", failureReason: "no DONE or FAILED marker in agent output" }
   }
 
-  const commitLine = lines.find((l) => /^COMMIT_MSG\s*:/i.test(l))
-  const commitMessage = commitLine ? commitLine.replace(/^COMMIT_MSG\s*:\s*/i, "").trim() : ""
-  return { done: true, commitMessage, failureReason: "" }
+  const commitMatch = text.match(/^[ \t]*COMMIT_MSG\s*:\s*(.+)$/im)
+  const commitMessage = commitMatch ? commitMatch[1]!.trim() : ""
+
+  // PR_SUMMARY: spans from the marker line to end-of-input (or to a closing ``` fence).
+  const summaryStart = text.search(/(^|\n)[ \t]*PR_SUMMARY\s*:[ \t]*\n/i)
+  let prSummary = ""
+  if (summaryStart !== -1) {
+    const afterMarker = text.slice(summaryStart).replace(/^[\s\S]*?PR_SUMMARY\s*:[ \t]*\n/i, "")
+    prSummary = afterMarker.replace(/\n\s*```\s*$/g, "").replace(/```\s*$/g, "").trim()
+  }
+
+  return { done: true, commitMessage, prSummary, failureReason: "" }
 }
