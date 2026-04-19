@@ -62,7 +62,7 @@ export async function startLitellmIfNeeded(
     }
   }
 
-  const configPath = path.join(os.tmpdir(), `kody-lean-litellm-${Date.now()}.yaml`)
+  const configPath = path.join(os.tmpdir(), `kody2-litellm-${Date.now()}.yaml`)
   fs.writeFileSync(configPath, generateLitellmConfigYaml(model))
 
   const portMatch = url.match(/:(\d+)/)
@@ -72,7 +72,7 @@ export async function startLitellmIfNeeded(
     : ["-m", "litellm", "--config", configPath, "--port", port]
 
   const dotenvVars = readDotenvApiKeys(projectDir)
-  const logPath = path.join(os.tmpdir(), `kody-lean-litellm-${Date.now()}.log`)
+  const logPath = path.join(os.tmpdir(), `kody2-litellm-${Date.now()}.log`)
   const outFd = fs.openSync(logPath, "w")
 
   const child = spawn(cmd, args, {

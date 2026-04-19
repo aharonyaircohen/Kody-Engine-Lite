@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest"
 import { verifyAll, summarizeFailure } from "../../../src-v2/verify.js"
-import type { KodyLeanConfig } from "../../../src-v2/config.js"
+import type { Kody2Config } from "../../../src-v2/config.js"
 
-const baseConfig: KodyLeanConfig = {
+const baseConfig: Kody2Config = {
   quality: { typecheck: "", testUnit: "", lint: "" },
   git: { defaultBranch: "main" },
   github: { owner: "o", repo: "r" },
@@ -17,21 +17,21 @@ describe("verify: verifyAll", () => {
   })
 
   it("captures exit code 0 as success", async () => {
-    const cfg: KodyLeanConfig = { ...baseConfig, quality: { ...baseConfig.quality, typecheck: "true" } }
+    const cfg: Kody2Config = { ...baseConfig, quality: { ...baseConfig.quality, typecheck: "true" } }
     const result = await verifyAll(cfg)
     expect(result.ok).toBe(true)
     expect(result.details.typecheck?.exitCode).toBe(0)
   })
 
   it("captures non-zero exit as failure", async () => {
-    const cfg: KodyLeanConfig = { ...baseConfig, quality: { ...baseConfig.quality, typecheck: "false" } }
+    const cfg: Kody2Config = { ...baseConfig, quality: { ...baseConfig.quality, typecheck: "false" } }
     const result = await verifyAll(cfg)
     expect(result.ok).toBe(false)
     expect(result.failed).toContain("typecheck")
   })
 
   it("runs all configured commands", async () => {
-    const cfg: KodyLeanConfig = {
+    const cfg: Kody2Config = {
       ...baseConfig,
       quality: { typecheck: "true", testUnit: "true", lint: "false" },
     }

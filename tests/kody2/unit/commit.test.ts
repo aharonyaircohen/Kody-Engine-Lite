@@ -5,6 +5,7 @@ describe("commit: isForbiddenPath", () => {
   it("blocks .kody/ artifacts", () => {
     expect(isForbiddenPath(".kody/tasks/1/x.json")).toBe(true)
     expect(isForbiddenPath(".kody-engine/event-log.json")).toBe(true)
+    expect(isForbiddenPath(".kody2/last-run.jsonl")).toBe(true)
     expect(isForbiddenPath(".kody-lean/last-run.jsonl")).toBe(true)
   })
 
@@ -48,8 +49,8 @@ describe("commit: normalizeCommitMessage", () => {
   })
 
   it("handles empty input", () => {
-    expect(normalizeCommitMessage("")).toBe("chore: kody-lean update")
-    expect(normalizeCommitMessage("   ")).toBe("chore: kody-lean update")
+    expect(normalizeCommitMessage("")).toBe("chore: kody2 update")
+    expect(normalizeCommitMessage("   ")).toBe("chore: kody2 update")
   })
 
   it("recognizes prefix case-insensitively", () => {

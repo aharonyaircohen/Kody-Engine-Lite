@@ -40,7 +40,7 @@ function git(cwd: string, args: string[]): string {
 }
 
 function makeTempRepo(): TempRepo {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "kody-lean-int-"))
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "kody2-int-"))
   const remote = path.join(root, "remote.git")
   const workdir = path.join(root, "work")
   fs.mkdirSync(workdir, { recursive: true })
@@ -129,8 +129,8 @@ describe("integration: git flow", () => {
 
   it("returns committed=false when only forbidden files changed", () => {
     const branch = ensureFeatureBranch(11, "Only excluded", "main", repo.workdir).branch
-    fs.mkdirSync(path.join(repo.workdir, ".kody-lean"), { recursive: true })
-    fs.writeFileSync(path.join(repo.workdir, ".kody-lean/run.jsonl"), "x")
+    fs.mkdirSync(path.join(repo.workdir, ".kody2"), { recursive: true })
+    fs.writeFileSync(path.join(repo.workdir, ".kody2/run.jsonl"), "x")
     const result = commitAndPush(branch, "feat: bogus", repo.workdir)
     expect(result.committed).toBe(false)
     expect(hasCommitsAhead(branch, "main", repo.workdir)).toBe(false)

@@ -3,7 +3,7 @@ import * as fs from "fs"
 import * as os from "os"
 import * as path from "path"
 import {
-  parseKody2Args,
+  parseCiArgs,
   unpackAllSecrets,
   resolveAuthToken,
   detectPackageManager,
@@ -13,25 +13,25 @@ function tmpDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "kody2-cli-test-"))
 }
 
-describe("kody2-cli: parseKody2Args", () => {
+describe("kody2-cli: parseCiArgs", () => {
   it("parses --issue", () => {
-    const a = parseKody2Args(["--issue", "42"])
+    const a = parseCiArgs(["--issue", "42"])
     expect(a.issueNumber).toBe(42)
     expect(a.errors).toEqual([])
   })
 
   it("requires --issue", () => {
-    const a = parseKody2Args([])
+    const a = parseCiArgs([])
     expect(a.errors.some((e) => e.includes("--issue"))).toBe(true)
   })
 
   it("rejects non-positive --issue", () => {
-    expect(parseKody2Args(["--issue", "0"]).errors.length).toBeGreaterThan(0)
-    expect(parseKody2Args(["--issue", "abc"]).errors.length).toBeGreaterThan(0)
+    expect(parseCiArgs(["--issue", "0"]).errors.length).toBeGreaterThan(0)
+    expect(parseCiArgs(["--issue", "abc"]).errors.length).toBeGreaterThan(0)
   })
 
   it("parses --cwd + --skip-install + --skip-litellm + --verbose", () => {
-    const a = parseKody2Args(["--issue", "1", "--cwd", "/tmp", "--skip-install", "--skip-litellm", "--verbose"])
+    const a = parseCiArgs(["--issue", "1", "--cwd", "/tmp", "--skip-install", "--skip-litellm", "--verbose"])
     expect(a.cwd).toBe("/tmp")
     expect(a.skipInstall).toBe(true)
     expect(a.skipLitellm).toBe(true)
@@ -39,17 +39,17 @@ describe("kody2-cli: parseKody2Args", () => {
   })
 
   it("parses --package-manager override", () => {
-    const a = parseKody2Args(["--issue", "1", "--package-manager", "yarn"])
+    const a = parseCiArgs(["--issue", "1", "--package-manager", "yarn"])
     expect(a.packageManager).toBe("yarn")
   })
 
   it("rejects invalid --package-manager", () => {
-    const a = parseKody2Args(["--issue", "1", "--package-manager", "cargo"])
+    const a = parseCiArgs(["--issue", "1", "--package-manager", "cargo"])
     expect(a.errors.some((e) => e.includes("--package-manager"))).toBe(true)
   })
 
   it("rejects unknown --flags", () => {
-    const a = parseKody2Args(["--issue", "1", "--bogus"])
+    const a = parseCiArgs(["--issue", "1", "--bogus"])
     expect(a.errors.some((e) => e.includes("--bogus"))).toBe(true)
   })
 })

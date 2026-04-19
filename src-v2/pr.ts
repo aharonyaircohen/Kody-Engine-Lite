@@ -74,7 +74,7 @@ export function buildPrBody(opts: EnsurePrOptions): string {
   }
 
   lines.push("---")
-  lines.push("_Opened by kody-lean (single-session autonomous run)._ ")
+  lines.push("_Opened by kody2 (single-session autonomous run)._ ")
   return lines.join("\n")
 }
 
@@ -110,7 +110,7 @@ export function ensurePr(opts: EnsurePrOptions): PrResult {
         { input: body, cwd: opts.cwd },
       )
     } catch (err) {
-      process.stderr.write(`[kody-lean] failed to update PR #${existing.number}: ${err instanceof Error ? err.message : String(err)}\n`)
+      process.stderr.write(`[kody2] failed to update PR #${existing.number}: ${err instanceof Error ? err.message : String(err)}\n`)
     }
     return { url: existing.url, number: existing.number, draft: opts.draft, action: "updated" }
   }

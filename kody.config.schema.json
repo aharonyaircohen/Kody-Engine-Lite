@@ -89,7 +89,7 @@
         "model": {
           "type": "string",
           "pattern": "^[^/]+/.+$",
-          "description": "Single 'provider/model' string used by kody-lean (single-session pipeline). Use 'claude/...' or 'anthropic/...' for direct Anthropic API; anything else routes through LiteLLM proxy.",
+          "description": "Single 'provider/model' string used by kody2 (single-session pipeline). Use 'claude/...' or 'anthropic/...' for direct Anthropic API; anything else routes through LiteLLM proxy.",
           "examples": ["claude/claude-sonnet-4-6", "minimax/MiniMax-M2.7-highspeed"]
         },
         "modelMap": {

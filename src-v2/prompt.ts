@@ -1,6 +1,6 @@
 import * as fs from "fs"
 import * as path from "path"
-import type { KodyLeanConfig } from "./config.js"
+import type { Kody2Config } from "./config.js"
 import type { IssueData, IssueComment } from "./issue.js"
 
 const COMMENT_MAX_BYTES = 4000
@@ -43,7 +43,7 @@ export function loadProjectConventions(projectDir: string): LoadedConvention[] {
 }
 
 export interface BuildPromptOptions {
-  config: KodyLeanConfig
+  config: Kody2Config
   issue: IssueData
   featureBranch: string
   conventions?: LoadedConvention[]

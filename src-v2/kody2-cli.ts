@@ -7,7 +7,7 @@ import { postIssueComment, truncate } from "./issue.js"
 
 type PackageManager = "pnpm" | "yarn" | "bun" | "npm"
 
-export interface Kody2Args {
+export interface CiArgs {
   issueNumber?: number
   cwd?: string
   verbose?: boolean
@@ -18,11 +18,11 @@ export interface Kody2Args {
   errors: string[]
 }
 
-export const KODY2_HELP = `kody2 — minimal-YAML autonomous engineer
+export const CI_HELP = `kody2 ci — minimal-YAML autonomous engineer (CI preflight + run)
 
 Usage:
-  kody2 --issue <N> [--cwd <path>] [--verbose|--quiet]
-        [--skip-install] [--skip-litellm] [--package-manager pnpm|yarn|bun|npm]
+  kody2 ci --issue <N> [--cwd <path>] [--verbose|--quiet]
+           [--skip-install] [--skip-litellm] [--package-manager pnpm|yarn|bun|npm]
 
 Options:
   --issue <N>          GitHub issue number to work on (required)
@@ -37,7 +37,7 @@ Environment:
   ALL_SECRETS          JSON blob of all GitHub secrets (auto-populated in CI)
   KODY_TOKEN|GH_TOKEN|GITHUB_TOKEN|GH_PAT   auth token for gh/git operations
 
-Exit codes (inherited from kody-lean run):
+Exit codes (inherited from kody2 run):
   0   success (PR opened, verify passed)
   1   agent reported FAILED (draft PR opened)
   2   verify failed (draft PR opened)
@@ -47,8 +47,8 @@ Exit codes (inherited from kody-lean run):
   99  wrapper crashed
 `
 
-export function parseKody2Args(argv: string[]): Kody2Args {
-  const result: Kody2Args = { errors: [] }
+export function parseCiArgs(argv: string[]): CiArgs {
+  const result: CiArgs = { errors: [] }
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
     if (arg === "--issue") {
@@ -181,7 +181,7 @@ export function configureGitIdentity(cwd: string): void {
 
 function postFailureTail(issueNumber: number | undefined, cwd: string, reason: string): void {
   if (!issueNumber) return
-  const logPath = path.join(cwd, ".kody-lean", "last-run.jsonl")
+  const logPath = path.join(cwd, ".kody2", "last-run.jsonl")
   let tail = ""
   try {
     if (fs.existsSync(logPath)) {
@@ -195,16 +195,16 @@ function postFailureTail(issueNumber: number | undefined, cwd: string, reason: s
   try { postIssueComment(issueNumber, body, cwd) } catch { /* best effort */ }
 }
 
-export async function runKody2(argv: string[]): Promise<number> {
+export async function runCi(argv: string[]): Promise<number> {
   if (argv.includes("--help") || argv.includes("-h")) {
-    process.stdout.write(KODY2_HELP)
+    process.stdout.write(CI_HELP)
     return 0
   }
 
-  const args = parseKody2Args(argv)
+  const args = parseCiArgs(argv)
   if (args.errors.length > 0 && !args.errors.includes("__HELP__")) {
     for (const e of args.errors) process.stderr.write(`error: ${e}\n`)
-    process.stderr.write("\n" + KODY2_HELP)
+    process.stderr.write("\n" + CI_HELP)
     return 64
   }
 
@@ -249,7 +249,7 @@ export async function runKody2(argv: string[]): Promise<number> {
     return 99
   }
 
-  process.stdout.write("→ kody2: preflight done, handing off to kody-lean run\n\n")
+  process.stdout.write("→ kody2: preflight done, handing off to kody2 run\n\n")
 
   try {
     const result = await run({

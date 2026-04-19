@@ -60,7 +60,7 @@ export function postIssueComment(issueNumber: number, body: string, cwd?: string
       { input: body, cwd },
     )
   } catch (err) {
-    process.stderr.write(`[kody-lean] failed to post comment on #${issueNumber}: ${err instanceof Error ? err.message : String(err)}\n`)
+    process.stderr.write(`[kody2] failed to post comment on #${issueNumber}: ${err instanceof Error ? err.message : String(err)}\n`)
   }
 }
 

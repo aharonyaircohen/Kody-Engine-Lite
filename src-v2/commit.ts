@@ -3,7 +3,8 @@ import { execFileSync } from "child_process"
 const FORBIDDEN_PATH_PREFIXES = [
   ".kody/",
   ".kody-engine/",
-  ".kody-lean/",
+  ".kody2/",
+  ".kody-lean/", // back-compat: stale runtime dir from kody-lean v0.5.x
   "node_modules/",
   "dist/",
   "build/",
@@ -111,7 +112,7 @@ export function listChangedFiles(cwd?: string): string[] {
 
 export function normalizeCommitMessage(raw: string): string {
   const trimmed = raw.trim().replace(/^['"]|['"]$/g, "").trim()
-  if (!trimmed) return "chore: kody-lean update"
+  if (!trimmed) return "chore: kody2 update"
   const firstLine = trimmed.split("\n")[0]
   for (const prefix of CONVENTIONAL_PREFIXES) {
     if (firstLine.toLowerCase().startsWith(prefix)) return trimmed
@@ -126,7 +127,7 @@ export function commitAndPush(
 ): CommitResult {
   const aborted = abortUnfinishedGitOps(cwd)
   if (aborted.length > 0) {
-    process.stderr.write(`[kody-lean] cleaned up unfinished git ops: ${aborted.join(", ")}\n`)
+    process.stderr.write(`[kody2] cleaned up unfinished git ops: ${aborted.join(", ")}\n`)
   }
 
   const allChanged = listChangedFiles(cwd)

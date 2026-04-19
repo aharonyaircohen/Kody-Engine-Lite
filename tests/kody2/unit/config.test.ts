@@ -10,7 +10,7 @@ import {
 } from "../../../src-v2/config.js"
 
 function tmpDir(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "kody-lean-test-"))
+  return fs.mkdtempSync(path.join(os.tmpdir(), "kody2-test-"))
 }
 
 function writeConfig(dir: string, contents: unknown): void {

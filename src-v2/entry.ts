@@ -1,28 +1,28 @@
 import { run } from "./index.js"
-import { runKody2 } from "./kody2-cli.js"
+import { runCi } from "./kody2-cli.js"
 
 interface ParsedArgs {
-  command: "run" | "kody2" | "help" | "version"
+  command: "run" | "ci" | "help" | "version"
   issueNumber?: number
   cwd?: string
   verbose?: boolean
   quiet?: boolean
   dryRun?: boolean
   errors: string[]
-  kody2Argv?: string[]
+  ciArgv?: string[]
 }
 
-const HELP_TEXT = `kody-lean — single-session autonomous engineer (kody2)
+const HELP_TEXT = `kody2 — single-session autonomous engineer
 
 Usage:
-  kody-lean run   --issue <N> [--cwd <path>] [--verbose|--quiet] [--dry-run]
-  kody-lean kody2 --issue <N> [preflight flags — see: kody-lean kody2 --help]
-  kody-lean help
-  kody-lean version
+  kody2 run --issue <N> [--cwd <path>] [--verbose|--quiet] [--dry-run]
+  kody2 ci  --issue <N> [preflight flags — see: kody2 ci --help]
+  kody2 help
+  kody2 version
 
 Commands:
-  run     Run the lean pipeline directly (assumes deps+litellm already present).
-  kody2   Full preflight (unpack secrets, install deps, install LiteLLM, git
+  run     Run the pipeline directly (assumes deps + LiteLLM already present).
+  ci      Full preflight (unpack secrets, install deps, install LiteLLM, git
           identity) then invoke run. Intended as the single command a minimal
           GitHub Actions workflow calls.
 
@@ -43,8 +43,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
   const cmd = argv[0]!
   if (cmd === "help" || cmd === "--help" || cmd === "-h") return { ...result, command: "help" }
   if (cmd === "version" || cmd === "--version" || cmd === "-v") return { ...result, command: "version" }
-  if (cmd === "kody2") {
-    return { ...result, command: "kody2", kody2Argv: argv.slice(1) }
+  if (cmd === "ci") {
+    return { ...result, command: "ci", ciArgv: argv.slice(1) }
   }
   if (cmd !== "run") {
     result.errors.push(`unknown command: ${cmd}`)
@@ -88,12 +88,12 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
     return 0
   }
   if (args.command === "version") {
-    process.stdout.write("kody-lean 0.1.0\n")
+    process.stdout.write("kody2 0.6.0\n")
     return 0
   }
-  if (args.command === "kody2") {
+  if (args.command === "ci") {
     try {
-      return await runKody2(args.kody2Argv ?? [])
+      return await runCi(args.ciArgv ?? [])
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       process.stderr.write(`[kody2] fatal: ${msg}\n`)
@@ -113,7 +113,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
     return result.exitCode
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    process.stderr.write(`[kody-lean] wrapper crashed: ${msg}\n`)
+    process.stderr.write(`[kody2] wrapper crashed: ${msg}\n`)
     if (err instanceof Error && err.stack) process.stderr.write(err.stack + "\n")
     process.stdout.write(`PR_URL=FAILED: wrapper crashed: ${msg}\n`)
     return 99

@@ -24,7 +24,7 @@ export interface AgentOptions {
 const ALLOWED_TOOLS = ["Bash", "Edit", "Read", "Write", "Glob", "Grep"]
 
 export async function runAgent(opts: AgentOptions): Promise<AgentResult> {
-  const ndjsonDir = opts.ndjsonDir ?? path.join(opts.cwd, ".kody-lean")
+  const ndjsonDir = opts.ndjsonDir ?? path.join(opts.cwd, ".kody2")
   fs.mkdirSync(ndjsonDir, { recursive: true })
   const ndjsonPath = path.join(ndjsonDir, "last-run.jsonl")
   const fullLog = fs.createWriteStream(ndjsonPath, { flags: "w" })

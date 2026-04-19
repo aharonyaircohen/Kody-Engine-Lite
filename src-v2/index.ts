@@ -98,11 +98,11 @@ export async function run(opts: RunOptions): Promise<RunResult> {
 
   const conventions = loadProjectConventions(cwd)
   if (conventions.length > 0) {
-    process.stderr.write(`[kody-lean] loaded conventions: ${conventions.map((c) => c.path).join(", ")}\n`)
+    process.stderr.write(`[kody2] loaded conventions: ${conventions.map((c) => c.path).join(", ")}\n`)
   }
   const prompt = buildPrompt({ config, issue, featureBranch: branchInfo.branch, conventions })
 
-  const ndjsonDir = path.join(cwd, ".kody-lean")
+  const ndjsonDir = path.join(cwd, ".kody2")
   let agentResult
   try {
     agentResult = await runAgent({

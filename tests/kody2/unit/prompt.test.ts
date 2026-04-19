@@ -3,9 +3,9 @@ import * as fs from "fs"
 import * as os from "os"
 import * as path from "path"
 import { buildPrompt, parseAgentResult, loadProjectConventions } from "../../../src-v2/prompt.js"
-import type { KodyLeanConfig } from "../../../src-v2/config.js"
+import type { Kody2Config } from "../../../src-v2/config.js"
 
-const baseConfig: KodyLeanConfig = {
+const baseConfig: Kody2Config = {
   quality: { typecheck: "pnpm tc", testUnit: "pnpm test", lint: "" },
   git: { defaultBranch: "main" },
   github: { owner: "o", repo: "r" },
@@ -86,7 +86,7 @@ describe("prompt: buildPrompt", () => {
 
 describe("prompt: loadProjectConventions", () => {
   function tmpDir(): string {
-    return fs.mkdtempSync(path.join(os.tmpdir(), "kody-lean-conv-"))
+    return fs.mkdtempSync(path.join(os.tmpdir(), "kody2-conv-"))
   }
 
   it("returns empty array when no convention files exist", () => {

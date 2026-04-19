@@ -1,4 +1,4 @@
-name: kody-lean
+name: kody2
 
 on:
   workflow_dispatch:
@@ -39,4 +39,4 @@ jobs:
 
       - env:
           ALL_SECRETS: ${{ toJSON(secrets) }}
-        run: npx -y -p @kody-ade/engine@latest kody-lean kody2 --issue ${{ github.event.inputs.issue_number || github.event.issue.number }}
+        run: npx -y -p @kody-ade/engine@latest kody2 ci --issue ${{ github.event.inputs.issue_number || github.event.issue.number }}

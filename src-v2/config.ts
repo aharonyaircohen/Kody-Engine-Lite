@@ -1,7 +1,7 @@
 import * as fs from "fs"
 import * as path from "path"
 
-export interface KodyLeanConfig {
+export interface Kody2Config {
   quality: {
     typecheck: string
     lint: string
@@ -46,7 +46,7 @@ export function needsLitellmProxy(model: ProviderModel): boolean {
   return model.provider !== "claude" && model.provider !== "anthropic"
 }
 
-export function loadConfig(projectDir: string = process.cwd()): KodyLeanConfig {
+export function loadConfig(projectDir: string = process.cwd()): Kody2Config {
   const configPath = path.join(projectDir, "kody.config.json")
   if (!fs.existsSync(configPath)) {
     throw new Error(`kody.config.json not found at ${configPath}`)

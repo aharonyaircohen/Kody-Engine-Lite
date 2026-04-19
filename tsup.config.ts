@@ -15,7 +15,7 @@ export default defineConfig([
     banner: { js: "#!/usr/bin/env node" },
   },
   {
-    entry: ["bin-v2/kody-lean.ts"],
+    entry: ["bin-v2/kody2.ts"],
     format: ["esm"],
     outDir: "dist/bin-v2",
     splitting: false,
