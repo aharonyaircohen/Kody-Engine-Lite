@@ -45,7 +45,24 @@ describe("prompt: buildPrompt", () => {
     expect(p).toMatch(/pnpm lint/)
   })
 
-  it("includes recent comments most-recent-first, capped at 5", () => {
+  it("respects per-repo commentLimit config (capped)", () => {
+    const comments = Array.from({ length: 8 }, (_, i) => ({
+      body: `comment ${i}`,
+      author: `user${i}`,
+      createdAt: `2026-04-0${i + 1}`,
+    }))
+    const cfg = { ...baseConfig, issueContext: { commentLimit: 3 } }
+    const p = buildPrompt({
+      config: cfg,
+      issue: { number: 1, title: "x", body: "", comments },
+      featureBranch: "1-x",
+    })
+    expect(p).toMatch(/comment 7/)
+    expect(p).toMatch(/comment 5/)
+    expect(p).not.toMatch(/comment 4/)
+  })
+
+  it("defaults commentLimit to 50 when not configured", () => {
     const comments = Array.from({ length: 8 }, (_, i) => ({
       body: `comment ${i}`,
       author: `user${i}`,
@@ -56,16 +73,27 @@ describe("prompt: buildPrompt", () => {
       issue: { number: 1, title: "x", body: "", comments },
       featureBranch: "1-x",
     })
+    expect(p).toMatch(/comment 0/)
     expect(p).toMatch(/comment 7/)
-    expect(p).toMatch(/comment 3/)
-    expect(p).not.toMatch(/comment 0/)
     const lastIdx = p.indexOf("comment 7")
     const firstIdx = p.indexOf("comment 3")
     expect(lastIdx).toBeLessThan(firstIdx)
   })
 
-  it("truncates comments larger than 4KB", () => {
+  it("respects per-repo commentMaxBytes config", () => {
     const huge = "x".repeat(5000)
+    const cfg = { ...baseConfig, issueContext: { commentMaxBytes: 100 } }
+    const p = buildPrompt({
+      config: cfg,
+      issue: { number: 1, title: "x", body: "", comments: [{ body: huge, author: "u", createdAt: "" }] },
+      featureBranch: "1-x",
+    })
+    expect(p).toMatch(/truncated/)
+    expect(p).not.toMatch(/x{200}/)
+  })
+
+  it("truncates comments larger than default maxBytes (10000)", () => {
+    const huge = "x".repeat(15000)
     const p = buildPrompt({
       config: baseConfig,
       issue: { number: 1, title: "x", body: "", comments: [{ body: huge, author: "u", createdAt: "" }] },

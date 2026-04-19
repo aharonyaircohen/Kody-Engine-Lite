@@ -22,6 +22,10 @@ export interface Kody2Config {
   agent: {
     model: string
   }
+  issueContext?: {
+    commentLimit?: number
+    commentMaxBytes?: number
+  }
   testRequirements?: TestRequirement[]
 }
 
@@ -94,8 +98,18 @@ export function loadConfig(projectDir: string = process.cwd()): Kody2Config {
     agent: {
       model: String(agent.model),
     },
+    issueContext: parseIssueContext(raw.issueContext),
     testRequirements: parseTestRequirements(raw.testRequirements),
   }
+}
+
+function parseIssueContext(raw: unknown): Kody2Config["issueContext"] {
+  if (!raw || typeof raw !== "object") return undefined
+  const r = raw as { commentLimit?: unknown; commentMaxBytes?: unknown }
+  const out: NonNullable<Kody2Config["issueContext"]> = {}
+  if (typeof r.commentLimit === "number" && r.commentLimit > 0) out.commentLimit = Math.floor(r.commentLimit)
+  if (typeof r.commentMaxBytes === "number" && r.commentMaxBytes > 0) out.commentMaxBytes = Math.floor(r.commentMaxBytes)
+  return Object.keys(out).length > 0 ? out : undefined
 }
 
 function parseTestRequirements(raw: unknown): TestRequirement[] | undefined {

@@ -3,8 +3,8 @@ import * as path from "path"
 import type { Kody2Config } from "./config.js"
 import type { IssueData, IssueComment } from "./issue.js"
 
-const COMMENT_MAX_BYTES = 4000
-const COMMENT_LIMIT = 5
+const DEFAULT_COMMENT_LIMIT = 50
+const DEFAULT_COMMENT_MAX_BYTES = 10_000
 const CONVENTIONS_PER_FILE_MAX_BYTES = 30_000
 
 /**
@@ -57,7 +57,12 @@ export function buildPrompt(opts: BuildPromptOptions): string {
   if (config.quality.lint) qualityLines.push(`- lint:      \`${config.quality.lint}\``)
   if (qualityLines.length === 0) qualityLines.push("- (no quality commands configured)")
 
-  const commentsBlock = formatComments(issue.comments)
+  const ctx = config.issueContext ?? {}
+  const commentsBlock = formatComments(
+    issue.comments,
+    ctx.commentLimit ?? DEFAULT_COMMENT_LIMIT,
+    ctx.commentMaxBytes ?? DEFAULT_COMMENT_MAX_BYTES,
+  )
   const conventionsBlock = formatConventions(opts.conventions ?? [])
   const coverageBlock = formatTestRequirements(config.testRequirements ?? [])
 
@@ -132,13 +137,17 @@ function formatConventions(conventions: LoadedConvention[]): string {
   return lines.join("\n") + "\n"
 }
 
-function formatComments(comments: IssueComment[]): string {
+function formatComments(
+  comments: IssueComment[],
+  limit: number,
+  maxBytes: number,
+): string {
   if (comments.length === 0) return "Recent comments: (none)"
-  const recent = comments.slice(-COMMENT_LIMIT).reverse()
-  const lines = ["Recent comments (most recent first, truncated):"]
+  const recent = comments.slice(-limit).reverse()
+  const lines = [`Recent comments (most recent first, up to ${limit}, truncated to ${maxBytes} bytes each):`]
   for (const c of recent) {
-    const body = c.body.length > COMMENT_MAX_BYTES
-      ? c.body.slice(0, COMMENT_MAX_BYTES) + "… (truncated)"
+    const body = c.body.length > maxBytes
+      ? c.body.slice(0, maxBytes) + "… (truncated)"
       : c.body
     lines.push(`- [${c.author}] ${body.replace(/\n/g, " ")}`)
   }

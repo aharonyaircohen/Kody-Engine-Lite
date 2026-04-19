@@ -82,6 +82,25 @@
       },
       "additionalProperties": false
     },
+    "issueContext": {
+      "type": "object",
+      "description": "kody2: how many and how much of the issue's comments the agent sees in its prompt. Higher = more context but larger prompts. Defaults: 50 comments, 10000 bytes each.",
+      "properties": {
+        "commentLimit": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Max number of comments (most recent first) to include in the agent prompt. Default: 50.",
+          "default": 50
+        },
+        "commentMaxBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Max bytes per comment before truncation. Default: 10000.",
+          "default": 10000
+        }
+      },
+      "additionalProperties": false
+    },
     "testRequirements": {
       "type": "array",
       "description": "kody2 enforces that newly added files matching `pattern` ship with a sibling test file matching `requireSibling`. Misses fail the run; the agent gets one retry with the gap as feedback. Empty array or absent = no enforcement.",
