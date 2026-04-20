@@ -337,6 +337,40 @@ describe("parseCommentInputs", () => {
     expect(r.valid).toBe(false)
   })
 
+  // ─── Prefix collision guard: @kody2, @kodyx, etc. must not trigger ────────
+
+  it("@kody2 does not trigger (prefix collision guard)", () => {
+    process.env.COMMENT_BODY = "@kody2 full"
+    const r = parseCommentInputs()
+    expect(r.valid).toBe(false)
+  })
+
+  it("@kodyx does not trigger", () => {
+    process.env.COMMENT_BODY = "@kodyx review"
+    const r = parseCommentInputs()
+    expect(r.valid).toBe(false)
+  })
+
+  it("/kody2 does not trigger", () => {
+    process.env.COMMENT_BODY = "/kody2 fix"
+    const r = parseCommentInputs()
+    expect(r.valid).toBe(false)
+  })
+
+  it("@kody followed by punctuation still triggers", () => {
+    process.env.COMMENT_BODY = "@kody: full"
+    const r = parseCommentInputs()
+    expect(r.valid).toBe(true)
+    expect(r.mode).toBe("full")
+  })
+
+  it("@kody2 in same body as @kody picks the @kody line", () => {
+    process.env.COMMENT_BODY = "@kody2 something\n@kody fix\nfeedback here"
+    const r = parseCommentInputs()
+    expect(r.mode).toBe("fix")
+    expect(r.feedback).toBe("feedback here")
+  })
+
   // ─── Dispatch trigger passthrough ─────────────────────────────────────────
 
   it("dispatch trigger passes through inputs", () => {

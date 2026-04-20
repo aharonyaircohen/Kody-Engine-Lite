@@ -105,8 +105,9 @@ export function parseCommentInputs(): ParseResult {
   const issueNumber = process.env.ISSUE_NUMBER ?? ""
   const isPR = !!(process.env.ISSUE_IS_PR)
 
-  // Match @kody or /kody at the start of a line (case-insensitive)
-  const kodyMatch = commentBody.match(/(?:@kody|\/kody)\s*(.*)/i)
+  // Match @kody or /kody (case-insensitive), but not @kody2, @kodyx, etc.
+  // The (?!\w) guard prevents prefix collisions with sibling bots like @kody2.
+  const kodyMatch = commentBody.match(/(?:@kody|\/kody)(?!\w)\s*(.*)/i)
   if (!kodyMatch) {
     return {
       task_id: "", mode: "full", from_stage: "", issue_number: issueNumber,
@@ -217,7 +218,7 @@ export function parseCommentInputs(): ParseResult {
   }
 
   // ─── Extract body (lines after the @kody line) ───────────────────────
-  const kodyLineIdx = commentBody.search(/(?:@kody|\/kody)/i)
+  const kodyLineIdx = commentBody.search(/(?:@kody|\/kody)(?!\w)/i)
   const afterKodyLine = commentBody.slice(kodyLineIdx)
   const newlineIdx = afterKodyLine.indexOf("\n")
   const bodyAfterCommand = newlineIdx !== -1 ? afterKodyLine.slice(newlineIdx + 1) : ""
