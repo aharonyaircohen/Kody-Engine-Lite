@@ -197,10 +197,19 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
-
+      # Must run before `pnpm install` so postinstall hooks that rely on
+      # repo secrets (e.g. Payload `generate:types` reading DATABASE_URL)
+      # see them. `kody-engine` is provided by the engine package below, so
+      # we install it before exporting so the command is on PATH.
       - name: Install Kody Engine
         run: npm install -g @kody-ade/engine
+
+      - name: Export project secrets
+        env:
+          ALL_SECRETS: ${{ toJSON(secrets) }}
+        run: kody-engine ci-export-secrets
+
+      - run: pnpm install --frozen-lockfile
 
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code
@@ -212,11 +221,6 @@ jobs:
         run: |
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
-
-      - name: Export project secrets
-        env:
-          ALL_SECRETS: ${{ toJSON(secrets) }}
-        run: kody-engine ci-export-secrets
 
       - name: Run Kody pipeline
         env:
@@ -496,6 +500,17 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
 
+      # Install kody-engine + export secrets BEFORE `pnpm install` so
+      # postinstall hooks (e.g. Payload `generate:types` reading DATABASE_URL)
+      # see repo secrets.
+      - name: Install kody-engine
+        run: npm install -g @kody-ade/engine@latest --force
+
+      - name: Export project secrets
+        env:
+          ALL_SECRETS: ${{ toJSON(secrets) }}
+        run: kody-engine ci-export-secrets
+
       - run: pnpm install --frozen-lockfile
 
       - name: Install Claude Code CLI
@@ -505,14 +520,6 @@ jobs:
         run: |
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
-
-      - name: Export project secrets
-        env:
-          ALL_SECRETS: ${{ toJSON(secrets) }}
-        run: kody-engine ci-export-secrets
-
-      - name: Install kody-engine
-        run: npm install -g @kody-ade/engine@latest --force
 
       - name: Run chat session
         env:
